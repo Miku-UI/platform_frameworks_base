@@ -134,8 +134,7 @@ public class HomeTransitionObserver implements TransitionObserver,
             return;
         }
 
-        if (info.getType() == TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP
-                && homeVisibilityUpdate != null) {
+        if (info.getType() == TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP) {
             // Do not apply at the start of desktop drag as that updates launcher UI visibility.
             // Store the value and apply with a next transition or when cancelling the
             // desktop-drag transition.
