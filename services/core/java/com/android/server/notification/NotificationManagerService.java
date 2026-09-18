@@ -8100,6 +8100,16 @@ public class NotificationManagerService extends SystemService {
             checkCallerIsSystemOrSystemUi();
             mUmInternal.logNotificationPostStatus(sbn, UserHandle.USER_SYSTEM, status);
         }
+
+        @Override
+        public void forceShowLedLight(int color) {
+            forceShowLed(color);
+        }
+
+        @Override
+        public void forcePulseLedLight(int color, int onTime, int offTime) {
+            forcePulseLed(color, onTime, offTime);
+        }
     }
 
     private void handleNotificationPermissionChange(String pkg, @UserIdInt int userId) {
