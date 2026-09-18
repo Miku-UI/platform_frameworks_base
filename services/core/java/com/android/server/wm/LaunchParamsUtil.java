@@ -499,26 +499,4 @@ class LaunchParamsUtil {
         }
         return false;
     }
-
-    /**
-     * Returns {@code true} if the given activity can be placed on the TaskDisplayArea.
-     */
-    private static boolean canPlaceEntityOnDisplay(@Nullable TaskDisplayArea tda,
-            @Nullable ActivityRecord activity, @Nullable ActivityStarter.Request request,
-            @NonNull ActivityTaskSupervisor supervisor) {
-        if (tda == null) {
-            return false;
-        }
-
-        final int displayId = tda.getDisplayId();
-        if (activity != null) {
-            return activity.canBeLaunchedOnDisplay(displayId);
-        }
-
-        if (request != null && request.activityInfo != null) {
-            return supervisor.canPlaceEntityOnDisplay(displayId, request.callingPid,
-                    request.callingUid, request.activityInfo);
-        }
-        return false;
-    }
 }
