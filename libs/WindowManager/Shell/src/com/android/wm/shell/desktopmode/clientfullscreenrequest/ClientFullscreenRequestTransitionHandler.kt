@@ -21,7 +21,6 @@ import android.content.Context
 import android.os.IBinder
 import android.view.SurfaceControl
 import android.view.WindowManager.TRANSIT_CHANGE
-import android.window.DesktopExperienceFlags
 import android.window.TransitionInfo
 import android.window.TransitionInfo.Change
 import android.window.TransitionRequestInfo
@@ -80,84 +79,9 @@ open class ClientFullscreenRequestTransitionHandler(
     var onTaskResizeAnimationListener: OnTaskResizeAnimationListener? = null
 
     /** Whether the given [request] should be handled by this handler. */
-    fun shouldHandleRequest(request: TransitionRequestInfo): Boolean {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) return false
-        val type = request.type
-        if (type != TRANSIT_CHANGE)
-            return false.also {
-                // Requests from the client API always use TRANSIT_CHANGE.
-                logV("shouldHandleRequest type=%d is not TRANSIT_CHANGE, rejecting", type)
-            }
-        val task =
-            request.triggerTask
-                ?: return false.also { logV("shouldHandleRequest triggerTask is null, rejecting") }
-        val repository = desktopUserRepositories.getProfile(task.userId)
-        val activeDesk = repository.getActiveDeskId(task.displayId)
-        val isActiveTask = repository.isActiveTask(task.taskId)
-        val isActiveTaskInDesk =
-            activeDesk?.let { deskId ->
-                repository.isActiveTaskInDesk(taskId = task.taskId, deskId = deskId)
-            } ?: false
-        val deskIdFromTaskInfo = desksOrganizer.getDeskIdFromTaskInfo(task)
-        logV(
-            "shouldHandleRequest type=%s taskId=%d displayId=%d winMode=%d activeDesk=%d " +
-                "isActiveTask=%b isActiveTaskInDesk=%b deskIdFromTaskInfo=%d",
-            Transitions.transitTypeToString(type),
-            task.taskId,
-            task.displayId,
-            WindowConfiguration.windowingModeToString(task.windowingMode),
-            activeDesk,
-            isActiveTask,
-            isActiveTaskInDesk,
-            deskIdFromTaskInfo,
-        )
-        // TODO: b/446235140 - During an exit-request, if the desk the task belonged to was deleted
-        //  while the task was in fullscreen, then WM core doesn't know where to reparent the task
-        //  and (in tablets / touch-first) it doesn't know how to force it to freeform mode either
-        //  because the "restore mode" is undefined. This means this request will have the task's
-        //  windowing mode set to fullscreen (because the TDA is fullscreen) and thus we don't have
-        //  enough information to identify it as an exit request and correctly put it in an
-        //  existing/new desk. Therefore this request will be rejected and the task will remain
-        //  in fullscreen.
-        when {
-            task.isFullscreen -> {
-                // To be an enter-fullscreen request, a desk must be active in this display, it
-                // must contain the task requesting fullscreen, and the task must still be in this
-                // desk at the time of the request.
-                if (activeDesk != null && isActiveTaskInDesk && activeDesk == deskIdFromTaskInfo) {
-                    return true.also {
-                        logV("shouldHandleRequest is an enter-fullscreen request, accepting")
-                    }
-                }
-                return false.also {
-                    logV("shouldHandleRequest is not an enter-fullscreen request, rejecting")
-                }
-            }
-            task.isFreeform -> {
-                // To be an exit-fullscreen request (aka restore to desktop), a desk must not be
-                // active in this display and the task must not be a desktop task. It is usually
-                // expected that the task is already parented to a desk when WM core was able to
-                // restore to it, but it is also possible that the desk was removed prior to the
-                // exit and the task won't have a parent desk assigned.
-                if (activeDesk == null && !isActiveTask) {
-                    return true.also {
-                        logV("shouldHandleRequest is an exit-fullscreen request, accepting")
-                    }
-                }
-                return false.also {
-                    logV("shouldHandleRequest is not an exit-fullscreen request, rejecting")
-                }
-            }
-            else -> {
-                // Other modes are not supported.
-                return false.also {
-                    logV(
-                        "shouldHandleRequest is unexpected winMode=%s, rejecting",
-                        WindowConfiguration.windowingModeToString(task.windowingMode),
-                    )
-                }
-            }
-        }
+    fun shouldHandleRequest(@Suppress("UNUSED_PARAMETER") request: TransitionRequestInfo): Boolean {
+        // android-17.0.0_r1 removed enable_multiple_desktops_backend.
+        return false
     }
 
     /** Handles the request as a client fullscreen request if valid. */
