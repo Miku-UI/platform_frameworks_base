@@ -47,6 +47,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.CameraCompatibilityInfo;
 import android.content.res.CompatibilityInfo;
+import android.hardware.Camera;
 import android.hardware.CameraExtensionSessionStats;
 import android.hardware.CameraStatus;
 import android.hardware.ICameraService;
