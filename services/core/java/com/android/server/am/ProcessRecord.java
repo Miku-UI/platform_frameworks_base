@@ -1425,6 +1425,7 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
                     mKillTime = SystemClock.uptimeMillis();
                 }
             }
+            BoostFramework ux_perf = new BoostFramework();
             if (ux_perf != null && !mService.mForceStopKill && !mErrorState.isNotResponding()
                 && !mErrorState.isCrashing()) {
                 if (ux_perf.board_first_api_lvl < BoostFramework.VENDOR_T_API_LEVEL &&

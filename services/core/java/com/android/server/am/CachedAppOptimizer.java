@@ -647,6 +647,7 @@ public class CachedAppOptimizer {
     private final ProcessDependencies mProcessDependencies;
     private final ProcLocksReader mProcLocksReader;
     private final BinderfsStatsReader mBinderfsStatsReader;
+    public static BoostFramework mPerf = new BoostFramework();
 
     private final Freezer mFreezer;
 

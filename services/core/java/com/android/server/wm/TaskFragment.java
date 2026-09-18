@@ -89,6 +89,7 @@ import android.graphics.Rect;
 import android.os.IBinder;
 import android.os.UserHandle;
 import android.util.ArraySet;
+import android.util.BoostFramework;
 import android.util.DebugUtils;
 import android.util.DisplayMetrics;
 import android.util.Slog;
@@ -201,6 +202,7 @@ class TaskFragment extends WindowContainer<WindowContainer> {
     final ActivityTaskSupervisor mTaskSupervisor;
     final RootWindowContainer mRootWindowContainer;
     private final TaskFragmentOrganizerController mTaskFragmentOrganizerController;
+    public BoostFramework mPerf = null;
 
     /**
      * @deprecated Use {@link #getMinWidth} instead.

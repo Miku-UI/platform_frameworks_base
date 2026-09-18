@@ -6085,7 +6085,8 @@ public final class ActiveServices {
                 } else {
                     if (DEBUG_DELAYED_SERVICE) {
                         Slog.v(TAG, "Reschedule service restart due to app launch"
-                              +" r.shortInstanceName "+r.shortInstanceName+" r.app = "+r.app);
+                              +" r.shortInstanceName "+r.shortInstanceName
+                              +" r.app = "+r.getHostProcess());
                     }
                     r.resetRestartCounter();
                     scheduleServiceRestartLocked(r, true);

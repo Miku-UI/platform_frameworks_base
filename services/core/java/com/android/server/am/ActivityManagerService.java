@@ -20784,6 +20784,12 @@ public class ActivityManagerService extends IActivityManager.Stub
         public double getFreeSwapPercent() {
             return CachedAppOptimizer.getFreeSwapPercent();
         }
+
+        @Override
+        @GuardedBy("ActivityManagerService.this")
+        public boolean allowLowerMemLevelLocked() {
+            return mAppProfiler.allowLowerMemLevelLocked();
+        }
     }
 
     /**

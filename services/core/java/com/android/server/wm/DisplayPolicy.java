@@ -42,6 +42,7 @@ import static android.internal.perfetto.protos.Windowmanagerservice.DisplayPolic
 import static android.internal.perfetto.protos.Windowmanagerservice.SystemBarVisibilityOverrideProto.CALLER;
 import static android.internal.perfetto.protos.Windowmanagerservice.SystemBarVisibilityOverrideProto.HIDE;
 import static android.internal.perfetto.protos.Windowmanagerservice.SystemBarVisibilityOverrideProto.SHOW;
+import static android.view.Display.INVALID_DISPLAY;
 import static android.view.InsetsFrameProvider.SOURCE_ARBITRARY_RECTANGLE;
 import static android.view.InsetsFrameProvider.SOURCE_CONTAINER_BOUNDS;
 import static android.view.InsetsFrameProvider.SOURCE_DISPLAY;

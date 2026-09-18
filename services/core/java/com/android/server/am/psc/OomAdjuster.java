@@ -125,6 +125,7 @@ import static com.android.server.am.psc.Constants.SCHED_GROUP_RESTRICTED;
 import static com.android.server.am.psc.Constants.SCHED_GROUP_TOP_APP;
 import static com.android.server.am.psc.Constants.SCHED_GROUP_TOP_APP_BOUND;
 import static com.android.server.am.psc.Constants.SERVICE_ADJ;
+import static com.android.server.am.psc.Constants.SERVICE_B_ADJ;
 import static com.android.server.am.psc.Constants.SYSTEM_ADJ;
 import static com.android.server.am.psc.Constants.UNKNOWN_ADJ;
 import static com.android.server.am.psc.Constants.VISIBLE_APP_ADJ;
@@ -572,6 +573,9 @@ public abstract class OomAdjuster {
 
         /** Returns the current percentage of free swap space available on the system. */
         double getFreeSwapPercent();
+
+        /** Whether AMS currently allows lowering oom adj under memory pressure. */
+        boolean allowLowerMemLevelLocked();
     }
 
     /**
@@ -1410,10 +1414,10 @@ public abstract class OomAdjuster {
             final ProcessRecordInternal app = lruList.get(i);
             final ProcessServiceRecordInternal psr = app.getServices();
             if (mEnableBServicePropagation && app.isServiceB()
-                    && (app.getCurAdj() == ProcessList.SERVICE_B_ADJ)) {
+                    && (app.getCurAdj() == SERVICE_B_ADJ)) {
                 numBServices++;
                 for (int s = psr.numberOfRunningServices() - 1; s >= 0; s--) {
-                    ServiceRecordInternal sr = psr.getRunningServiceAt(s);
+                    ServiceRecordInternal sr = psr.getRunningServiceInternalAt(s);
                     if (DEBUG_OOM_ADJ) Slog.d(TAG,"app.processName = " + app.processName
                             + " serviceb = " + app.isServiceB() + " s = " + s + " sr.lastActivity = "
                             + sr.getLastActivity() + " packageName = " + app.getPackageName()
@@ -1552,10 +1556,10 @@ public abstract class OomAdjuster {
                 }
             }
         }
-        if ((numBServices > mBServiceAppThreshold) && (true == mService.mAppProfiler.allowLowerMemLevelLocked())
+        if ((numBServices > mBServiceAppThreshold) && mCallback.allowLowerMemLevelLocked()
                 && (selectedAppRecord != null)) {
             ProcessList.setOomAdj(selectedAppRecord.getPid(), selectedAppRecord.uid,
-                    ProcessList.CACHED_APP_MAX_ADJ);
+                    CACHED_APP_MAX_ADJ);
             selectedAppRecord.setSetAdj(selectedAppRecord.getCurAdj());
             if (DEBUG_OOM_ADJ) Slog.d(TAG,"app.processName = " + selectedAppRecord.processName
                         + " app.pid = " + selectedAppRecord.getPid() + " is moved to higher adj");
