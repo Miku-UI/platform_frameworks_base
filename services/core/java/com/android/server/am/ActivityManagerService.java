@@ -2652,6 +2652,7 @@ public class ActivityManagerService extends IActivityManager.Stub
         mApplicationSharedMemoryReadOnlyFd = null;
         sCreatorTokenCacheCleaner = new Handler(mHandlerThread.getLooper());
         mMemoryLimiter = MemoryLimiter.getDefaultMemoryLimiter(mContext);
+        mSwipeToScreenshotObserver = null;
     }
 
     // Note: This method is invoked on the main thread but may need to attach various
