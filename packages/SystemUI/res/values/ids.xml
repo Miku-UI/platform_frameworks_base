@@ -297,6 +297,12 @@
 
     <!-- id for the composable battery meter (see UnifiedBattery.kt) -->
     <item type="id" name="battery_meter_composable_view" />
+    <item type="id" name="battery_composable_view" />
+    <item type="id" name="clock_center" />
+    <item type="id" name="clock_right" />
+    <item type="id" name="network_traffic_holder_center" />
+    <item type="id" name="network_traffic_holder_start" />
+    <item type="id" name="network_traffic_holder_end" />
 
     <!-- Used for animation guard tag to throttle number of reported logs. -->
     <item type="id" name="screen_off_animation_guard_set" />
