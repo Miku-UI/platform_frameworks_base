@@ -42,7 +42,7 @@ internal class EvalScopeImpl(networkScope: NetworkScope, deferScope: DeferScope)
         DeferredValue(
             deferAsync {
                 init
-                    .connect(evalScope = this@EvalScopeImpl)
+                    .connect(initScope = this@EvalScopeImpl)
                     .getCurrentWithEpoch(this@EvalScopeImpl)
                     .first
             }
@@ -62,7 +62,7 @@ internal class EvalScopeImpl(networkScope: NetworkScope, deferScope: DeferScope)
                         activatedStateSource(
                             nameTag + "switchedIn",
                             this,
-                            { switchOff.init.connect(evalScope = this) },
+                            { switchOff.init.connect(initScope = this) },
                             lazyOf(EventsInit(constInit(nameTag + "always", alwaysImpl))),
                         ),
                     )

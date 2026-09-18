@@ -17,6 +17,7 @@ package android.security.authenticationpolicy;
 
 import static android.Manifest.permission.MANAGE_SECURE_LOCK_DEVICE;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
+import static android.companion.Flags.FLAG_SUPPORT_AI_AGENT;
 import static android.hardware.biometrics.Flags.FLAG_IDENTITY_CHECK_WATCH;
 import static android.Manifest.permission.TEST_BIOMETRIC;
 import static android.security.Flags.FLAG_SECURE_LOCKDOWN;
@@ -26,15 +27,21 @@ import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
+import android.annotation.UserHandleAware;
+import android.annotation.UserIdInt;
+import android.app.KeyguardManager;
+import android.companion.DeviceId;
 import android.content.Context;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.proximity.IProximityResultCallback;
 import android.util.Log;
 import android.util.Slog;
@@ -290,6 +297,7 @@ public final class AuthenticationPolicyManager {
     @SystemApi
     @FlaggedApi(FLAG_SECURE_LOCK_DEVICE)
     @RequiresPermission(MANAGE_SECURE_LOCK_DEVICE)
+    @UserHandleAware
     public void registerSecureLockDeviceStatusListener(
             @NonNull @CallbackExecutor Executor executor,
             @NonNull SecureLockDeviceStatusListener listener
@@ -414,6 +422,7 @@ public final class AuthenticationPolicyManager {
     @RequiresPermission(MANAGE_SECURE_LOCK_DEVICE)
     @SystemApi
     @FlaggedApi(FLAG_SECURE_LOCK_DEVICE)
+    @UserHandleAware
     public int getSecureLockDeviceAvailability() {
         try {
             return mAuthenticationPolicyService.getSecureLockDeviceAvailability(mContext.getUser());
@@ -450,6 +459,7 @@ public final class AuthenticationPolicyManager {
     @RequiresPermission(MANAGE_SECURE_LOCK_DEVICE)
     @SystemApi
     @FlaggedApi(FLAG_SECURE_LOCKDOWN)
+    @UserHandleAware
     public int enableSecureLockDevice(@NonNull EnableSecureLockDeviceParams params) {
         try {
             return mAuthenticationPolicyService.enableSecureLockDevice(mContext.getUser(), params);
@@ -480,9 +490,39 @@ public final class AuthenticationPolicyManager {
     @RequiresPermission(MANAGE_SECURE_LOCK_DEVICE)
     @SystemApi
     @FlaggedApi(FLAG_SECURE_LOCKDOWN)
+    @UserHandleAware
     public int disableSecureLockDevice(@NonNull DisableSecureLockDeviceParams params) {
         try {
             return mAuthenticationPolicyService.disableSecureLockDevice(mContext.getUser(), params);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * A per-user version of {@link #disableSecureLockDevice(DisableSecureLockDeviceParams)}
+     * for internal system use.
+     *
+     * If the calling user identity does not match the user that enabled secure lock device, it
+     * will return {@link #ERROR_NOT_AUTHORIZED}
+     *
+     * If secure lock is already disabled when this method is called, it will return
+     * {@link #SUCCESS}.
+     *
+     * @param userId disable request for this user ID
+     * @param params {@link DisableSecureLockDeviceParams} for caller to supply params related to
+     *                                                    the secure lock device request
+     * @return {@link DisableSecureLockDeviceRequestStatus} int indicating the result of the secure
+     * lock device request
+     *
+     * @hide
+     */
+    @DisableSecureLockDeviceRequestStatus
+    @RequiresPermission(MANAGE_SECURE_LOCK_DEVICE)
+    public int disableSecureLockDevice(int userId, @NonNull DisableSecureLockDeviceParams params) {
+        try {
+            return mAuthenticationPolicyService.disableSecureLockDevice(
+                    UserHandle.of(userId), params);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -554,6 +594,58 @@ public final class AuthenticationPolicyManager {
     public void cancelWatchRangingForRequestId(long authenticationRequestId) {
         try {
             mAuthenticationPolicyService.cancelWatchRangingForRequestId(authenticationRequestId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Checks if a cross device agent is authorized for automation on this device when locked.
+     *
+     * When the companionDeviceId is null this method assumes the agent is running on the same
+     * device.
+     *
+     * Local and remote agent access is gated by device policies, which vary by role and form
+     * factor. When there is not an explicit policy this method will return the same value as
+     * calling {@link KeyguardManager#isDeviceLocked()}.
+     *
+     * @param companionDeviceId DeviceId from the CompanionDeviceManager or null
+     * @return true if authorized now
+     *
+     * @hide
+     */
+    @RequiresPermission(USE_BIOMETRIC_INTERNAL)
+    @UserHandleAware
+    @FlaggedApi(FLAG_SUPPORT_AI_AGENT)
+    public boolean isAgentAuthorized(@Nullable DeviceId companionDeviceId) {
+        try {
+            return mAuthenticationPolicyService.isAgentAuthorized(
+                    mContext.getUser(), mContext.getDeviceId(), companionDeviceId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Per-user per-device version of {@link #isAgentAuthorized(DeviceId)}.
+     *
+     * Local and remote agent access is gated by device policies, which vary by role and form
+     * factor. When there is not an explicit policy this method will return the same value as
+     * calling {@link KeyguardManager#isDeviceLocked(int, int)}.
+     *
+     * @param userId user id
+     * @param deviceId local device id where agent will run
+     * @param companionDeviceId remote DeviceId or null for local agents
+     *
+     * @hide
+     */
+    @RequiresPermission(USE_BIOMETRIC_INTERNAL)
+    @FlaggedApi(FLAG_SUPPORT_AI_AGENT)
+    public boolean isAgentAuthorized(
+            @UserIdInt int userId, int deviceId, @Nullable DeviceId companionDeviceId) {
+        try {
+            return mAuthenticationPolicyService.isAgentAuthorized(
+                    UserHandle.of(userId), deviceId, companionDeviceId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

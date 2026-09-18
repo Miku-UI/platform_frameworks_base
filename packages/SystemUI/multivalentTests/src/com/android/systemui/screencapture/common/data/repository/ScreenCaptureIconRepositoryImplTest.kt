@@ -31,11 +31,11 @@ import androidx.test.filters.SmallTest
 import com.android.launcher3.icons.BitmapInfo
 import com.android.launcher3.icons.FastBitmapDrawable
 import com.android.launcher3.icons.IconFactory
-import com.android.launcher3.util.UserIconInfo
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.testKosmosNew
+import com.android.users.UserType
 import com.google.common.truth.Truth.assertThat
 import javax.inject.Provider
 import org.junit.Test
@@ -204,7 +204,7 @@ class ScreenCaptureIconRepositoryImplTest : SysuiTestCase() {
             val result = iconRepository.getIconTypeForUser(123)
 
             // Assert
-            assertThat(result).isEqualTo(UserIconInfo.TYPE_MAIN)
+            assertThat(result).isEqualTo(UserType.MAIN)
         }
 
     @Test
@@ -235,7 +235,7 @@ class ScreenCaptureIconRepositoryImplTest : SysuiTestCase() {
             val result = iconRepository.getIconTypeForUser(123)
 
             // Assert
-            assertThat(result).isEqualTo(UserIconInfo.TYPE_CLONED)
+            assertThat(result).isEqualTo(UserType.CLONED)
         }
 
     @Test
@@ -266,7 +266,7 @@ class ScreenCaptureIconRepositoryImplTest : SysuiTestCase() {
             val result = iconRepository.getIconTypeForUser(123)
 
             // Assert
-            assertThat(result).isEqualTo(UserIconInfo.TYPE_WORK)
+            assertThat(result).isEqualTo(UserType.WORK)
         }
 
     @Test
@@ -297,6 +297,6 @@ class ScreenCaptureIconRepositoryImplTest : SysuiTestCase() {
             val result = iconRepository.getIconTypeForUser(123)
 
             // Assert
-            assertThat(result).isEqualTo(UserIconInfo.TYPE_PRIVATE)
+            assertThat(result).isEqualTo(UserType.PRIVATE)
         }
 }

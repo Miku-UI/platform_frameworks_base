@@ -40,7 +40,7 @@ import android.platform.test.annotations.Presubmit;
 import android.view.InputWindowHandle;
 import android.view.WindowManager;
 
-import com.android.server.testutils.StubTransaction;
+import com.android.testing.wm.util.StubTransaction;
 import com.android.window.flags.Flags;
 
 import org.junit.Before;

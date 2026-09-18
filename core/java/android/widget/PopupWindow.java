@@ -55,6 +55,7 @@ import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.view.WindowManager.LayoutParams.SoftInputModeFlags;
 import android.view.WindowManagerGlobal;
+import android.view.accessibility.Flags;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 import android.window.WindowOnBackInvokedDispatcher;
@@ -1790,17 +1791,27 @@ public class PopupWindow {
             final int scrollY = anchor.getScrollY();
             final Rect r = new Rect(scrollX, scrollY, scrollX + width + xOffset,
                     scrollY + height + anchorHeight + yOffset);
-            if (allowScroll && anchor.requestRectangleOnScreen(r, true)) {
-                // Reset for the new anchor position.
-                anchor.getLocationOnScreen(screenLocation);
-                drawingLocation[0] = screenLocation[0] - appScreenLocation[0];
-                drawingLocation[1] = screenLocation[1] - appScreenLocation[1];
-                outParams.x = drawingLocation[0] + xOffset;
-                outParams.y = drawingLocation[1] + anchorHeight + yOffset;
+            if (allowScroll) {
+                boolean parentScrolled;
+                if (Flags.requestRectangleMigrateLegacyApis()) {
+                    parentScrolled = anchor.requestRectangleOnScreen(r, true,
+                            View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
+                } else {
+                    parentScrolled = anchor.requestRectangleOnScreen(r, true);
+                }
 
-                // Preserve the gravity adjustment.
-                if (hgrav == Gravity.RIGHT) {
-                    outParams.x -= width - anchorWidth;
+                if (parentScrolled) {
+                    // Reset for the new anchor position.
+                    anchor.getLocationOnScreen(screenLocation);
+                    drawingLocation[0] = screenLocation[0] - appScreenLocation[0];
+                    drawingLocation[1] = screenLocation[1] - appScreenLocation[1];
+                    outParams.x = drawingLocation[0] + xOffset;
+                    outParams.y = drawingLocation[1] + anchorHeight + yOffset;
+
+                    // Preserve the gravity adjustment.
+                    if (hgrav == Gravity.RIGHT) {
+                        outParams.x -= width - anchorWidth;
+                    }
                 }
             }
 

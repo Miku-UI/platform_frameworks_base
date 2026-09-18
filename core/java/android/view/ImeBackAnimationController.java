@@ -34,6 +34,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.WindowConfiguration;
 import android.graphics.Insets;
+import android.os.UserHandle;
 import android.util.Log;
 import android.view.animation.BackGestureInterpolator;
 import android.view.animation.Interpolator;
@@ -139,21 +140,22 @@ public class ImeBackAnimationController implements OnBackAnimationCallback {
 
     @Override
     public void onBackInvoked() {
+        final var inputMethodManager = mInsetsController.getHost().getInputMethodManager();
         if (!isBackAnimationAllowed() || !mIsPreCommitAnimationInProgress) {
             // play regular hide animation if predictive back-animation is not allowed or if insets
             // control has been cancelled by the system. This can happen in multi-window mode for
             // example (i.e. split-screen or activity-embedding)
             ImeTracker.Token statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_HIDE,
                     ImeTracker.ORIGIN_CLIENT,
-                    SoftInputShowHideReason.HIDE_SOFT_INPUT_REQUEST_HIDE_WITH_CONTROL, true);
+                    SoftInputShowHideReason.HIDE_SOFT_INPUT_REQUEST_HIDE_WITH_CONTROL,
+                    true /* fromUser */, UserHandle.myUserId(), inputMethodManager.getDisplayId());
             mInsetsController.hide(IME, statsToken);
         } else {
             startPostCommitAnim(/*hideIme*/ true);
         }
         // Unregister all IME back callbacks so that back events are sent to the next callback
         // even while the hide animation is playing
-        mInsetsController.getHost().getInputMethodManager().getImeBackCallbackProxy()
-                .preliminaryClear();
+        inputMethodManager.getImeBackCallbackProxy().preliminaryClear();
     }
 
     private void setPreCommitProgress(float progress) {
@@ -168,7 +170,7 @@ public class ImeBackAnimationController implements OnBackAnimationCallback {
             float imeHeight = shownY - hiddenY;
             int newY = (int) (imeHeight - progress * imeHeight);
             if (mStartRootScrollY != 0) {
-                mViewRoot.setScrollY((int) (mStartRootScrollY * (1 - progress)));
+                mViewRoot.setScrollY(Math.max(0, (int) (mStartRootScrollY - (shownY - newY))));
             }
             mWindowInsetsAnimationController.setInsetsAndAlpha(Insets.of(0, 0, 0, newY), 1f,
                     progress);
@@ -254,6 +256,12 @@ public class ImeBackAnimationController implements OnBackAnimationCallback {
                 .getWindowingMode() == WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW) {
             // TODO(b/346726115) enable predictive back animation in multi-window mode in
             //  DisplayImeController
+            return false;
+        }
+
+        final var inputMethodManager = mInsetsController.getHost().getInputMethodManager();
+        if (inputMethodManager != null && inputMethodManager.isFullscreenMode()) {
+            // Disable predictive back animation in fullscreen mode
             return false;
         }
 

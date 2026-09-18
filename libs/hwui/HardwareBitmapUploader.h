@@ -16,12 +16,30 @@
 
 #pragma once
 
-#include <hwui/Bitmap.h>
+#include <SkColorType.h>
 #include <SkRefCnt.h>
+#include <hwui/Bitmap.h>
+
+#ifdef __ANDROID__
+#include <GLES2/gl2.h>
+#include <android/hardware_buffer.h>
+#include <vulkan/vulkan.h>
+#endif
 
 class SkBitmap;
 
 namespace android::uirenderer {
+
+#ifdef __ANDROID__
+struct FormatInfo {
+    AHardwareBuffer_Format bufferFormat;
+    GLint format;
+    GLint type;
+    VkFormat vkFormat;
+    bool isSupported = false;
+    bool valid = true;
+};
+#endif
 
 class HardwareBitmapUploader {
 public:
@@ -35,6 +53,8 @@ public:
     static bool has1010102Support();
     static bool has10101010Support();
     static bool hasAlpha8Support();
+
+    static FormatInfo determineFormat(const SkImageInfo& info, bool usingGL = false);
 #else
     static bool hasFP16Support() {
         return true;

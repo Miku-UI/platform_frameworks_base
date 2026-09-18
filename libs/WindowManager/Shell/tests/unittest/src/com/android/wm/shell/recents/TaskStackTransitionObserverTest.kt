@@ -39,6 +39,7 @@ import android.window.TransitionInfo
 import android.window.TransitionInfo.FLAG_MOVED_TO_TOP
 import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
@@ -47,7 +48,6 @@ import com.android.wm.shell.TestSyncExecutor
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.sysui.ShellCommandHandler
 import com.android.wm.shell.sysui.ShellInit
-import com.android.wm.shell.transition.TransitionInfoBuilder
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.windowdecor.extension.isFullscreen
 import com.google.common.truth.Truth.assertThat
@@ -89,12 +89,16 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         shellInit = Mockito.spy(ShellInit(testExecutor))
         whenever(transitionsLazy.get()).thenReturn(transitions)
         whenever(shellTaskOrganizerLazy.get()).thenReturn(shellTaskOrganizer)
-        transitionObserver = TaskStackTransitionObserver(shellInit, shellTaskOrganizerLazy,
-            shellCommandHandler, transitionsLazy)
+        transitionObserver =
+            TaskStackTransitionObserver(
+                shellInit,
+                shellTaskOrganizerLazy,
+                shellCommandHandler,
+                transitionsLazy,
+            )
 
         val initRunnableCaptor = ArgumentCaptor.forClass(Runnable::class.java)
-        verify(shellInit)
-            .addInitCallback(initRunnableCaptor.capture(), same(transitionObserver))
+        verify(shellInit).addInitCallback(initRunnableCaptor.capture(), same(transitionObserver))
         initRunnableCaptor.value.run()
     }
 
@@ -113,10 +117,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val change =
             createChange(
                 TRANSIT_OPEN,
-                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
-        val transitionInfo =
-            TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
+        val transitionInfo = TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
 
         callOnTransitionReady(transitionInfo)
         callOnTransitionFinished()
@@ -134,13 +137,8 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val listener = TestListener()
         val executor = TestShellExecutor()
         transitionObserver.addTaskStackTransitionObserverListener(listener, executor)
-        val change =
-            createChange(
-                TRANSIT_OPEN,
-                createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
-            )
-        val transitionInfo =
-            TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
+        val change = createChange(TRANSIT_OPEN, createTaskInfo(1, WINDOWING_MODE_FULLSCREEN))
+        val transitionInfo = TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
 
         callOnTransitionReady(transitionInfo)
         callOnTransitionFinished()
@@ -161,12 +159,12 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val freeformOpenChange =
             createChange(
                 TRANSIT_OPEN,
-                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
         val freeformReorderChange =
             createChange(
                 WindowManager.TRANSIT_TO_BACK,
-                createTaskInfo(2, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(2, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
         val transitionInfo =
             TransitionInfoBuilder(TRANSIT_OPEN, 0)
@@ -186,6 +184,29 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
     @Test
     @DisableFlags(com.android.wm.shell.Flags.FLAG_ENABLE_SHELL_TOP_TASK_TRACKING)
+    fun taskMovedToFront_changeTransition_listenerNotified() {
+        val listener = TestListener()
+        val executor = TestShellExecutor()
+        transitionObserver.addTaskStackTransitionObserverListener(listener, executor)
+        val change =
+            createChange(
+                TRANSIT_CHANGE,
+                createTaskInfo(1, WINDOWING_MODE_FULLSCREEN),
+                flags = FLAG_MOVED_TO_TOP,
+            )
+        val transitionInfo = TransitionInfoBuilder(TRANSIT_CHANGE, 0).addChange(change).build()
+
+        callOnTransitionReady(transitionInfo)
+        callOnTransitionFinished()
+        executor.flushAll()
+
+        assertThat(listener.taskInfoOnTaskMovedToFront.taskId).isEqualTo(change.taskInfo?.taskId)
+        assertThat(listener.taskInfoOnTaskMovedToFront.windowingMode)
+            .isEqualTo(change.taskInfo?.windowingMode)
+    }
+
+    @Test
+    @DisableFlags(com.android.wm.shell.Flags.FLAG_ENABLE_SHELL_TOP_TASK_TRACKING)
     @EnableFlags(Flags.FLAG_ENABLE_TASK_STACK_OBSERVER_IN_SHELL)
     fun transitionMerged_withChange_onlyOpenChangeIsNotified() {
         val listener = TestListener()
@@ -196,16 +217,15 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val change =
             createChange(
                 TRANSIT_OPEN,
-                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
-        val transitionInfo =
-            TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
+        val transitionInfo = TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
 
         // create change transition to be merged to above transition
         val mergedChange =
             createChange(
                 WindowManager.TRANSIT_CHANGE,
-                createTaskInfo(2, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(2, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
         val mergedTransitionInfo =
             TransitionInfoBuilder(WindowManager.TRANSIT_CHANGE, 0).addChange(mergedChange).build()
@@ -240,16 +260,15 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val change =
             createChange(
                 TRANSIT_OPEN,
-                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
-        val transitionInfo =
-            TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
+        val transitionInfo = TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(change).build()
 
         // create change transition to be merged to above transition
         val mergedChange =
             createChange(
                 TRANSIT_OPEN,
-                createTaskInfo(2, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(2, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
         val mergedTransitionInfo =
             TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(mergedChange).build()
@@ -277,7 +296,7 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val freeformState =
             createChange(
                 TRANSIT_OPEN,
-                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
         val transitionInfoOpen =
             TransitionInfoBuilder(TRANSIT_OPEN, 0).addChange(freeformState).build()
@@ -293,10 +312,7 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // create change transition to update the windowing mode to full screen.
         val fullscreenState =
-            createChange(
-                WindowManager.TRANSIT_CHANGE,
-                createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
-            )
+            createChange(WindowManager.TRANSIT_CHANGE, createTaskInfo(1, WINDOWING_MODE_FULLSCREEN))
         val transitionInfoChange =
             TransitionInfoBuilder(WindowManager.TRANSIT_CHANGE, 0)
                 .addChange(fullscreenState)
@@ -331,12 +347,12 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val freeformState =
             createChange(
                 mode = TRANSIT_OPEN,
-                taskInfo = createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM)
+                taskInfo = createTaskInfo(1, WindowConfiguration.WINDOWING_MODE_FREEFORM),
             )
         val fullscreenState =
             createChange(
                 mode = WindowManager.TRANSIT_CHANGE,
-                taskInfo = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
+                taskInfo = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN),
             )
 
         val transitionInfoWithChanges =
@@ -370,12 +386,12 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
             listOf(
                     WindowConfiguration.WINDOWING_MODE_FREEFORM,
                     WindowConfiguration.WINDOW_CONFIG_DISPLAY_ROTATION,
-                    WINDOWING_MODE_FULLSCREEN
+                    WINDOWING_MODE_FULLSCREEN,
                 )
                 .map { change ->
                     createChange(
                         mode = WindowManager.TRANSIT_CHANGE,
-                        taskInfo = createTaskInfo(taskId, change)
+                        taskInfo = createTaskInfo(taskId, change),
                     )
                 }
 
@@ -407,10 +423,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening task
         val firstOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(firstOpeningTransition)
@@ -421,11 +436,12 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model opening another task
         val nextOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
+            createTransitionInfo(
+                TRANSIT_OPEN,
                 listOf(
                     createChange(TRANSIT_OPEN, 2, WINDOWING_MODE_FULLSCREEN),
                     createChange(TRANSIT_CLOSE, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+                ),
             )
 
         callOnTransitionReady(nextOpeningTransition)
@@ -449,10 +465,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening task
         val firstOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(firstOpeningTransition)
@@ -463,10 +478,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model opening another task
         val nextOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 2, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 2, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(nextOpeningTransition)
@@ -477,11 +491,11 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model the first task moving to front
         val toFrontTransition =
-            createTransitionInfo(TRANSIT_TO_FRONT,
+            createTransitionInfo(
+                TRANSIT_TO_FRONT,
                 listOf(
-                    createChange(TRANSIT_CHANGE, 1, WINDOWING_MODE_FULLSCREEN,
-                        FLAG_MOVED_TO_TOP),
-                )
+                    createChange(TRANSIT_CHANGE, 1, WINDOWING_MODE_FULLSCREEN, FLAG_MOVED_TO_TOP)
+                ),
             )
 
         callOnTransitionReady(toFrontTransition)
@@ -501,10 +515,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening task
         val firstOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(firstOpeningTransition)
@@ -513,10 +526,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model a closing task
         val nextOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_CLOSE, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_CLOSE, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(nextOpeningTransition)
@@ -539,10 +551,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening task
         val firstOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(firstOpeningTransition)
@@ -553,9 +564,7 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         val nextOpeningTransition =
             createTransitionInfo(
                 TRANSIT_FIRST_CUSTOM,
-                listOf(
-                    createChange(TRANSIT_CHANGE, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+                listOf(createChange(TRANSIT_CHANGE, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(nextOpeningTransition)
@@ -573,10 +582,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening task
         val firstOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(firstOpeningTransition)
@@ -604,10 +612,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening PIP task
         val pipOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_PINNED),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 1, WINDOWING_MODE_PINNED)),
             )
 
         callOnTransitionReady(pipOpeningTransition)
@@ -617,10 +624,9 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         // Model an opening fullscreen task
         val firstOpeningTransition =
-            createTransitionInfo(TRANSIT_OPEN,
-                listOf(
-                    createChange(TRANSIT_OPEN, 2, WINDOWING_MODE_FULLSCREEN),
-                )
+            createTransitionInfo(
+                TRANSIT_OPEN,
+                listOf(createChange(TRANSIT_OPEN, 2, WINDOWING_MODE_FULLSCREEN)),
             )
 
         callOnTransitionReady(firstOpeningTransition)
@@ -655,7 +661,7 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
     /** Simulate calling the onTransitionReady() method */
     private fun callOnTransitionReady(
         transitionInfo: TransitionInfo,
-        transition: IBinder = mockTransitionBinder
+        transition: IBinder = mockTransitionBinder,
     ) {
         val startT = Mockito.mock(SurfaceControl.Transaction::class.java)
         val finishT = Mockito.mock(SurfaceControl.Transaction::class.java)
@@ -673,13 +679,8 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
         transitionObserver.onTransitionMerged(merged, playing)
     }
 
-    /**
-     * Asserts that the listener has the given expected task ids (in order).
-     */
-    private fun assertVisibleTasks(
-        listener: TestListener,
-        expectedVisibleTaskIds: List<Int>
-    ) {
+    /** Asserts that the listener has the given expected task ids (in order). */
+    private fun assertVisibleTasks(listener: TestListener, expectedVisibleTaskIds: List<Int>) {
         assertThat(listener.visibleTasks.size).isEqualTo(expectedVisibleTaskIds.size)
         expectedVisibleTaskIds.forEachIndexed { index, taskId ->
             assertThat(listener.visibleTasks[index].taskId).isEqualTo(taskId)
@@ -689,8 +690,8 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
     companion object {
         fun createTaskInfo(taskId: Int, windowingMode: Int): RunningTaskInfo {
             val taskInfo = RunningTaskInfo()
-            taskInfo.baseIntent = Intent().setComponent(
-                ComponentName(javaClass.packageName, "Test"))
+            taskInfo.baseIntent =
+                Intent().setComponent(ComponentName(javaClass.packageName, "Test"))
             taskInfo.taskId = taskId
             taskInfo.configuration.windowConfiguration.windowingMode = windowingMode
             if (windowingMode == WINDOWING_MODE_PINNED) {
@@ -707,7 +708,7 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
             val change =
                 TransitionInfo.Change(
                     WindowContainerToken(Mockito.mock(IWindowContainerToken::class.java)),
-                    Mockito.mock(SurfaceControl::class.java)
+                    Mockito.mock(SurfaceControl::class.java),
                 )
             change.flags = flags
             change.mode = mode
@@ -726,7 +727,7 @@ class TaskStackTransitionObserverTest : ShellTestCase() {
 
         fun createTransitionInfo(
             transitionType: Int,
-            changes: List<TransitionInfo.Change>
+            changes: List<TransitionInfo.Change>,
         ): TransitionInfo {
             return TransitionInfoBuilder(transitionType, 0)
                 .apply { changes.forEach { c -> this@apply.addChange(c) } }

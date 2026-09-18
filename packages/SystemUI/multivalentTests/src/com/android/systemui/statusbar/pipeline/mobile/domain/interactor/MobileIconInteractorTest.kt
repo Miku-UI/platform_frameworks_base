@@ -16,6 +16,8 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.domain.interactor
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.telephony.CellSignalStrength
 import android.telephony.TelephonyManager.NETWORK_TYPE_UNKNOWN
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -26,6 +28,7 @@ import com.android.settingslib.mobile.TelephonyIcons
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.log.table.logcatTableLogBuffer
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.model.ResolvedNetworkType.CarrierMergedNetworkType
@@ -180,7 +183,9 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
             var latest: Int? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = (it as? SignalIconModel.Cellular)?.numberOfLevels }
+                    .onEach {
+                        latest = (it as? SignalIconModel.CellularTypeIconModel)?.numberOfLevels
+                    }
                     .launchIn(this)
 
             connectionRepository.numberOfLevels.value = 5
@@ -578,10 +583,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
             connectionRepository.setDataEnabled(false)
             connectionRepository.isNonTerrestrial.value = false
 
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular }
                     .launchIn(this)
 
             assertThat(latest?.level).isEqualTo(1)
@@ -613,10 +618,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
         testScope.runTest {
             connectionRepository.isNonTerrestrial.value = false
 
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular }
                     .launchIn(this)
 
             connectionRepository.numberOfLevels.value = 5
@@ -634,10 +639,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
             connectionRepository.isNonTerrestrial.value = false
             mobileIconsInteractor.activeDataConnectionHasDataEnabled.value = false
 
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular }
                     .launchIn(this)
 
             assertThat(latest!!.showExclamationMark).isTrue()
@@ -651,10 +656,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
             connectionRepository.isNonTerrestrial.value = false
             mobileIconsInteractor.isDefaultConnectionFailed.value = true
 
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular }
                     .launchIn(this)
 
             assertThat(latest!!.showExclamationMark).isTrue()
@@ -670,10 +675,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
             mobileIconsInteractor.activeDataConnectionHasDataEnabled.value = true
             mobileIconsInteractor.isDefaultConnectionFailed.value = false
 
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular }
                     .launchIn(this)
 
             assertThat(latest!!.showExclamationMark).isFalse()
@@ -684,10 +689,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
     @Test
     fun cellBasedIcon_usesEmptyState_whenNotInService() =
         testScope.runTest {
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular }
                     .launchIn(this)
 
             connectionRepository.isNonTerrestrial.value = false
@@ -712,10 +717,10 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
     @Test
     fun cellBasedIcon_usesCarrierNetworkState_whenInCarrierNetworkChangeMode() =
         testScope.runTest {
-            var latest: SignalIconModel.Cellular? = null
+            var latest: SignalIconModel.CellularTypeIconModel.Cellular? = null
             val job =
                 underTest.signalLevelIcon
-                    .onEach { latest = it as? SignalIconModel.Cellular? }
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.Cellular? }
                     .launchIn(this)
 
             connectionRepository.isNonTerrestrial.value = false
@@ -737,12 +742,14 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     fun satBasedIcon_isUsedWhenNonTerrestrial() =
         testScope.runTest {
             val latest by collectLastValue(underTest.signalLevelIcon)
 
             // Start off using cellular
-            assertThat(latest).isInstanceOf(SignalIconModel.Cellular::class.java)
+            assertThat(latest)
+                .isInstanceOf(SignalIconModel.CellularTypeIconModel.Cellular::class.java)
 
             connectionRepository.isNonTerrestrial.value = true
 
@@ -750,6 +757,7 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     // See b/346904529 for more context
     fun satBasedIcon_doesNotInflateSignalStrength_flagOn() =
         testScope.runTest {
@@ -771,6 +779,7 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     fun satBasedIcon_usesSatelliteLevel_flagOn() =
         testScope.runTest {
             val latest by collectLastValue(underTest.signalLevelIcon)
@@ -784,6 +793,81 @@ abstract class MobileIconInteractorTestBase : SysuiTestCase() {
 
             // THEN icon uses the satellite level because the flag is on
             assertThat(latest!!.level).isEqualTo(4)
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun satBasedResource_showExclamationMark_whenNotInService() =
+        testScope.runTest {
+            connectionRepository.isNonTerrestrial.value = true
+            connectionRepository.isInService.value = false
+
+            val latest by collectLastValue(underTest.signalLevelIcon)
+
+            assertThat(
+                    (latest as SignalIconModel.CellularTypeIconModel.SatelliteV2)
+                        .showExclamationMark
+                )
+                .isTrue()
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun satBasedResource_noExclamationMark_whenInService() =
+        testScope.runTest {
+            connectionRepository.isNonTerrestrial.value = true
+            connectionRepository.isInService.value = true
+
+            val latest by collectLastValue(underTest.signalLevelIcon)
+
+            assertThat(
+                    (latest as SignalIconModel.CellularTypeIconModel.SatelliteV2)
+                        .showExclamationMark
+                )
+                .isFalse()
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun satBasedResource_usesSatelliteLevelFromRepo() =
+        testScope.runTest {
+            connectionRepository.isNonTerrestrial.value = true
+            connectionRepository.isInService.value = true
+
+            var latest: SignalIconModel.CellularTypeIconModel.SatelliteV2? = null
+            val job =
+                underTest.signalLevelIcon
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.SatelliteV2 }
+                    .launchIn(this)
+
+            connectionRepository.satelliteLevel.value = 3
+            assertThat(latest!!.level).isEqualTo(3)
+
+            connectionRepository.satelliteLevel.value = 1
+            assertThat(latest!!.level).isEqualTo(1)
+
+            job.cancel()
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun satBasedResource_usesNumberOfLevelsFromRepo() =
+        testScope.runTest {
+            connectionRepository.isNonTerrestrial.value = true
+
+            var latest: SignalIconModel.CellularTypeIconModel.SatelliteV2? = null
+            val job =
+                underTest.signalLevelIcon
+                    .onEach { latest = it as? SignalIconModel.CellularTypeIconModel.SatelliteV2 }
+                    .launchIn(this)
+
+            connectionRepository.numberOfLevels.value = 5
+            assertThat(latest!!.numberOfLevels).isEqualTo(5)
+
+            connectionRepository.numberOfLevels.value = 2
+            assertThat(latest!!.numberOfLevels).isEqualTo(2)
+
+            job.cancel()
         }
 
     abstract fun createInteractor(

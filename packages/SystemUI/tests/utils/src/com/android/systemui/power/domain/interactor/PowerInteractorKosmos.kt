@@ -18,12 +18,13 @@ package com.android.systemui.power.domain.interactor
 
 import com.android.systemui.camera.cameraGestureHelper
 import com.android.systemui.classifier.falsingCollector
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.plugins.statusbar.statusBarStateController
 import com.android.systemui.power.data.repository.powerRepository
 import com.android.systemui.statusbar.phone.screenOffAnimationController
 
-val Kosmos.powerInteractor by
+val Kosmos.powerInteractor: PowerInteractor by
     Kosmos.Fixture {
         PowerInteractor(
             repository = powerRepository,
@@ -31,5 +32,6 @@ val Kosmos.powerInteractor by
             screenOffAnimationController = screenOffAnimationController,
             statusBarStateController = statusBarStateController,
             cameraGestureHelper = { cameraGestureHelper },
+            deviceEntryInteractor = { deviceEntryInteractor },
         )
     }

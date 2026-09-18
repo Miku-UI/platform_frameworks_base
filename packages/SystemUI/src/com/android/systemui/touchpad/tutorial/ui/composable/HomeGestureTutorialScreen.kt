@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.android.compose.theme.LocalAndroidColorScheme
+import com.android.systemui.Flags
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialScreenConfig
 import com.android.systemui.inputdevice.tutorial.ui.composable.rememberColorFilterProperty
 import com.android.systemui.res.R
@@ -34,6 +35,7 @@ fun HomeGestureTutorialScreen(
     onBack: () -> Unit,
     onAutoProceed: (suspend () -> Unit)? = null,
 ) {
+    val updatedTutorialFlagEnabled = Flags.touchpadGestureTutorialBugFixes()
     val screenConfig =
         TutorialScreenConfig(
             colors = rememberScreenColors(),
@@ -45,8 +47,20 @@ fun HomeGestureTutorialScreen(
                     bodySuccessResId = R.string.touchpad_home_gesture_success_body,
                     titleErrorResId = R.string.gesture_error_title,
                     bodyErrorResId = R.string.touchpad_home_gesture_error_body,
+                    titlePartialSuccessResId =
+                        if (updatedTutorialFlagEnabled)
+                            R.string.touchpad_home_gesture_partial_success_title
+                        else null,
+                    bodyPartialSuccessResId =
+                        if (updatedTutorialFlagEnabled)
+                            R.string.touchpad_home_gesture_partial_success_body
+                        else null,
                 ),
-            animations = TutorialScreenConfig.Animations(educationResId = R.raw.trackpad_home_edu),
+            animations =
+                TutorialScreenConfig.Animations(
+                    if (updatedTutorialFlagEnabled) R.raw.trackpad_recent_then_home_edu
+                    else R.raw.trackpad_home_edu
+                ),
         )
     GestureTutorialScreen(
         screenConfig = screenConfig,

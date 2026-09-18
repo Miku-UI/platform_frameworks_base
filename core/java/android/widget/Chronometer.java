@@ -16,13 +16,13 @@
 
 package android.widget;
 
-import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 import static android.text.format.DateUtils.SECOND_IN_MILLIS;
 
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
+import android.app.Flags;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.TypedArray;
@@ -49,6 +49,7 @@ import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Formatter;
 import java.util.IllegalFormatException;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.LongSupplier;
 
@@ -72,13 +73,6 @@ import java.util.function.LongSupplier;
 @RemoteView
 public class Chronometer extends TextView {
     private static final String TAG = "Chronometer";
-
-    /**
-     * In adaptive format, when displaying an elapsed/remaining duration greater than or equal to
-     * this number of minutes, seconds will not be shown (which also means the chronometer will tick
-     * on the minute instead of on the second).
-     */
-    private static final int ADAPTIVE_MINUTES_WITHOUT_SECONDS = 3;
 
     /**
      * A callback that notifies when the chronometer has incremented on its own.
@@ -111,6 +105,7 @@ public class Chronometer extends TextView {
     private OnChronometerTickListener mOnChronometerTickListener;
     private StringBuilder mRecycle = new StringBuilder(8);
     private boolean mCountDown;
+    private boolean mLowFrequency = false;
 
     /**
      * Initialize this Chronometer object.
@@ -294,6 +289,17 @@ public class Chronometer extends TextView {
     }
 
     /**
+     * Sets whether the Chronometer is in Ambient mode (low frequency).
+     * When in low frequency mode, the chronometer updates less often
+     * and displays with reduced precision to save power.
+     * @hide
+     */
+    @android.view.RemotableViewMethod
+    public void setLowFrequency(boolean lowFrequency) {
+        mLowFrequency = lowFrequency;
+    }
+
+    /**
      * Returns the current format string as set through {@link #setFormat}.
      */
     @InspectableProperty
@@ -380,24 +386,123 @@ public class Chronometer extends TextView {
     }
 
     private synchronized void updateText(long now) {
+        if (!Flags.metricValueAlternativeStrings()) {
+            updateTextLegacy(now);
+            return;
+        }
+
         updateBaseTimeIfSystemClockChanged();
         mNow = now;
 
+        // LINT.IfChange
+        // Use 499 to ensure countdown chronometers round down. (e.g. 999ms shows 00:00).
         long seconds = Math.round((mCountDown ? mBase - now - 499 : now - mBase) / 1000f);
+        // LINT.ThenChange(/packages/SystemUI/src/com/android/systemui/statusbar/chips/ui/viewmodel/ChronometerState.kt)
+
+        ArrayList<String> texts = secondsToString(seconds);
+        if (mFormat != null) {
+            texts.replaceAll(this::applyFormat);
+        }
+
+        setChronometerText(texts);
+    }
+
+    private ArrayList<String> secondsToString(long seconds) {
+        boolean negative = false;
+        if (seconds < 0) {
+            seconds = -seconds;
+            negative = true;
+        }
+
+        ArrayList<String> texts = new ArrayList<>();
+        if (mLowFrequency) {
+            if (mUseAdaptiveFormat && negative && seconds < 60) {
+                texts.add(ChronometerLowFrequencyFormat.formatAdaptiveNegativeLessThanOneMinute());
+            } else {
+                Duration duration = Duration.ofSeconds(seconds);
+                texts.addAll(
+                        ChronometerLowFrequencyFormat.formatVariants(duration, mUseAdaptiveFormat));
+                if (negative) {
+                    texts.replaceAll(t -> getResources().getString(R.string.negative_duration, t));
+                }
+            }
+        } else {
+            if (mUseAdaptiveFormat) {
+                Duration duration = Duration.ofSeconds(seconds);
+                texts.addAll(ChronometerAdaptiveFormat.formatVariants(duration));
+            } else {
+                texts.add(DateUtils.formatElapsedTime(mRecycle, seconds));
+            }
+            if (negative) {
+                texts.replaceAll(t -> getResources().getString(R.string.negative_duration, t));
+            }
+        }
+        return texts;
+    }
+
+    private synchronized String applyFormat(String timeString) {
+        if (mFormat == null) {
+            return timeString;
+        }
+
+        Locale loc = Locale.getDefault();
+        if (mFormatter == null || !loc.equals(mFormatterLocale)) {
+            mFormatterLocale = loc;
+            mFormatter = new Formatter(mFormatBuilder, loc);
+        }
+        mFormatBuilder.setLength(0);
+        mFormatterArgs[0] = timeString;
+        try {
+            mFormatter.format(mFormat, mFormatterArgs);
+            return mFormatBuilder.toString();
+        } catch (IllegalFormatException ex) {
+            if (!mLogged) {
+                Log.w(TAG, "Illegal format string: " + mFormat);
+                mLogged = true;
+            }
+            return timeString;
+        }
+    }
+
+    /** @hide */
+    protected void setChronometerText(List<String> textVariants) {
+        setText(textVariants.get(0));
+    }
+
+    // TODO: b/465178366 - Delete when inlining metric_value_alternative_strings
+    private synchronized void updateTextLegacy(long now) {
+        updateBaseTimeIfSystemClockChanged();
+        mNow = now;
+
+        // LINT.IfChange
+        // Use 499 to ensure countdown chronometers round down. (e.g. 999ms shows 00:00).
+        long seconds = Math.round((mCountDown ? mBase - now - 499 : now - mBase) / 1000f);
+        // LINT.ThenChange(/packages/SystemUI/src/com/android/systemui/statusbar/chips/ui/viewmodel/ChronometerState.kt)
         boolean negative = false;
         if (seconds < 0) {
             seconds = -seconds;
             negative = true;
         }
         String text;
-        if (mUseAdaptiveFormat) {
-            text = formatTextWithAdaptiveTimeFormat(Duration.ofSeconds(seconds));
+        if (mLowFrequency) {
+            if (mUseAdaptiveFormat && negative && seconds < 60) {
+                text = ChronometerLowFrequencyFormat.formatAdaptiveNegativeLessThanOneMinute();
+            } else {
+                text = ChronometerLowFrequencyFormat.format(Duration.ofSeconds(seconds),
+                        mUseAdaptiveFormat);
+                if (negative) {
+                    text = getResources().getString(R.string.negative_duration, text);
+                }
+            }
         } else {
-            text = DateUtils.formatElapsedTime(mRecycle, seconds);
-        }
-
-        if (negative) {
-            text = getResources().getString(R.string.negative_duration, text);
+            if (mUseAdaptiveFormat) {
+                text = ChronometerAdaptiveFormat.format(Duration.ofSeconds(seconds));
+            } else {
+                text = DateUtils.formatElapsedTime(mRecycle, seconds);
+            }
+            if (negative) {
+                text = getResources().getString(R.string.negative_duration, text);
+            }
         }
 
         if (mFormat != null) {
@@ -420,39 +525,6 @@ public class Chronometer extends TextView {
         }
 
         setText(text);
-    }
-
-    private String formatTextWithAdaptiveTimeFormat(Duration duration) {
-        final Measure days = new Measure(duration.toDaysPart(), MeasureUnit.DAY);
-        final Measure hours = new Measure(duration.toHoursPart(), MeasureUnit.HOUR);
-        final Measure minutes = new Measure(duration.toMinutesPart(), MeasureUnit.MINUTE);
-        final Measure seconds = new Measure(duration.toSecondsPart(), MeasureUnit.SECOND);
-        final MeasureFormat formatter = MeasureFormat.getInstance(Locale.getDefault(),
-                FormatWidth.NARROW);
-
-        final ArrayList<Measure> partsList = new ArrayList<>();
-        if (days.getNumber().intValue() != 0) {
-            partsList.add(days);
-            if (hours.getNumber().intValue() != 0) {
-                partsList.add(hours);
-            }
-        } else if (hours.getNumber().intValue() != 0) {
-            partsList.add(hours);
-            if (minutes.getNumber().intValue() != 0) {
-                partsList.add(minutes);
-            }
-        } else if (minutes.getNumber().intValue() != 0) {
-            partsList.add(minutes);
-            if (minutes.getNumber().intValue() < ADAPTIVE_MINUTES_WITHOUT_SECONDS) {
-              partsList.add(seconds);
-            }
-        }
-
-        if (partsList.isEmpty()) {
-            partsList.add(seconds);
-        }
-
-        return formatter.formatMeasures(partsList.toArray(new Measure[0]));
     }
 
     private static final long SIGNIFICANT_DRIFT_MILLIS = 500;
@@ -499,14 +571,27 @@ public class Chronometer extends TextView {
     private void postTickOnNextChange() {
         long nowMillis = mNow;
 
-        // In adaptive format, ticks are every 1 minute instead of 1 second, if the time elapsed
-        // or remaining is >= 3 minutes. Thus for time > 3 minutes the tick will be "on the minute"
-        // and for lower than that it's "on the second".
-        long periodInMillis = mUseAdaptiveFormat
-                && Math.abs(nowMillis - mBase) > ADAPTIVE_MINUTES_WITHOUT_SECONDS * MINUTE_IN_MILLIS
-                        ? MINUTE_IN_MILLIS
-                        : SECOND_IN_MILLIS;
+        long periodInMillis;
+        if (mLowFrequency) {
+            // Even though this formatter only produces "1 string per minute", we need to "tick"
+            // much more often than that. "Low-frequency mode" is used exclusively by SystemUI on
+            // AOD, where the device is often dozing. Handler.postDelayed() uses *uptimeMillis*
+            // as its reference time, which does NOT advance during doze. Thus, if we delay the
+            // next update for a minute, it will effectively occur MUCH later than that (depending
+            // on the ratio between the duration of the maintenance windows and the time between
+            // them), on the worst case making the displayed time refresh only once every N minutes.
+            periodInMillis = SECOND_IN_MILLIS;
+        } else if (mUseAdaptiveFormat) {
+            // In adaptive format, ticks are every 1 minute instead of 1 second, if the time elapsed
+            // or remaining is >= 3 minutes. Thus for time > 3 minutes the tick will be "on
+            // the minute" and for lower than that it's "on the second".
+            periodInMillis = ChronometerAdaptiveFormat.getTickPeriod(
+                Duration.ofMillis(Math.abs(nowMillis - mBase))).toMillis();
+        } else {
+            periodInMillis = SECOND_IN_MILLIS;
+        }
 
+        // LINT.IfChange
         long delayMillis;
         if (mCountDown) {
             delayMillis = (mBase - nowMillis) % periodInMillis;
@@ -520,6 +605,7 @@ public class Chronometer extends TextView {
         // Aim for 3 milliseconds into the next second so we don't update exactly on the second
         delayMillis += 3;
         postDelayed(mTickRunnable, delayMillis);
+        // LINT.ThenChange(/packages/SystemUI/src/com/android/systemui/statusbar/chips/ui/viewmodel/ChronometerState.kt)
     }
 
     void dispatchChronometerTick() {

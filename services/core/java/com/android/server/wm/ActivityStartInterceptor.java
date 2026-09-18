@@ -32,14 +32,19 @@ import static android.content.Intent.CATEGORY_SECONDARY_HOME;
 import static android.content.Intent.EXTRA_INTENT;
 import static android.content.Intent.EXTRA_PACKAGE_NAME;
 import static android.content.Intent.EXTRA_TASK_ID;
+import static android.content.Intent.EXTRA_USER_ID;
 import static android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_TASK_ON_HOME;
 import static android.content.pm.ApplicationInfo.FLAG_SUSPENDED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+import static android.view.Display.DEFAULT_DISPLAY;
 
 import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 
+import static android.content.pm.PackageManager.RESTRICTION_CONFIRM_WITH_SPEEDBUMP;
+
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityOptions;
 import android.app.KeyguardManager;
@@ -61,14 +66,18 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.provider.Settings;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseArray;
 import android.view.Display;
 
+import com.android.window.flags.Flags;
+
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.BlockedAppActivity;
 import com.android.internal.app.HarmfulAppWarningActivity;
+import com.android.internal.app.LockedAppActivity;
 import com.android.internal.app.SuspendedAppActivity;
 import com.android.internal.app.UnlaunchableAppActivity;
 import com.android.server.LocalServices;
@@ -102,6 +111,7 @@ class ActivityStartInterceptor {
     private int mStartFlags;
     private String mCallingPackage;
     private @Nullable String mCallingFeatureId;
+    private int mSourceDisplayId;
 
     /*
      * Per-intent states that were load from ActivityStarter and are subject to modifications
@@ -149,13 +159,14 @@ class ActivityStartInterceptor {
      * method should not be changed during intercept.
      */
     void setStates(int userId, int realCallingPid, int realCallingUid, int startFlags,
-            String callingPackage, @Nullable String callingFeatureId) {
+            String callingPackage, @Nullable String callingFeatureId, int sourceDisplayId) {
         mRealCallingPid = realCallingPid;
         mRealCallingUid = realCallingUid;
         mUserId = userId;
         mStartFlags = startFlags;
         mCallingPackage = callingPackage;
         mCallingFeatureId = callingFeatureId;
+        mSourceDisplayId = sourceDisplayId;
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
@@ -241,6 +252,11 @@ class ActivityStartInterceptor {
             // be unlocked when profile's user is running.
             return true;
         }
+        if (interceptLockedByAppLockPackageIfNeeded()) {
+            // If the app is currently locked because of App Lock, ask the user to authenticate to
+            // unlock the app.
+            return true;
+        }
         if (interceptSuspendedPackageIfNeeded()) {
             // Skip the rest of interceptions as the package is suspended by device admin so
             // no user action can undo this.
@@ -266,6 +282,10 @@ class ActivityStartInterceptor {
 
         if (interceptAutomatedPackageIfNeeded()) {
             // If the app is currently being automated, we should warn the user about it.
+            return true;
+        }
+
+        if (interceptDistractingPackageIfNeeded()) {
             return true;
         }
 
@@ -351,14 +371,21 @@ class ActivityStartInterceptor {
         if (devicePolicyManager == null) {
             return false;
         }
-        mIntent = devicePolicyManager.createShowAdminSupportIntent(mUserId, true);
-        mIntent.putExtra(EXTRA_RESTRICTION, POLICY_SUSPEND_PACKAGES);
+        final UserInfo parent = mUserManager.getProfileParent(mUserId);
+        if (android.app.admin.flags.Flags.policyTransparencyRefactorEnabled()) {
+            mIntent = new Intent(
+                    Settings.ACTION_SHOW_SUSPENDED_PACKAGE_ADMIN_SUPPORT_DETAILS);
+            mIntent.putExtra(EXTRA_USER_ID, mUserId);
+        } else {
+            mIntent = devicePolicyManager.createShowAdminSupportIntent(mUserId, true);
+            mIntent.putExtra(EXTRA_RESTRICTION, POLICY_SUSPEND_PACKAGES);
+        }
+
 
         mCallingPid = mRealCallingPid;
         mCallingUid = mRealCallingUid;
         mResolvedType = null;
 
-        final UserInfo parent = mUserManager.getProfileParent(mUserId);
         if (parent != null) {
             mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, parent.id, 0,
                     mRealCallingUid, mRealCallingPid);
@@ -366,6 +393,43 @@ class ActivityStartInterceptor {
             mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, mUserId, 0,
                     mRealCallingUid, mRealCallingPid);
         }
+        mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
+        return true;
+    }
+
+
+    private boolean interceptLockedByAppLockPackageIfNeeded() {
+        if (!(android.security.Flags.appLockApis() && android.security.Flags.appLockCore())) {
+            return false;
+        }
+        if (mAInfo == null || mAInfo.applicationInfo == null) {
+            return false;
+        }
+        final String launchingPackage = mAInfo.applicationInfo.packageName;
+        if (launchingPackage == null) {
+            return false;
+        }
+        // Do not intercept if the launching package is currently unlocked.
+        if (!mService.mWindowManager.isPackageLockedByAppLockLocked(launchingPackage, mUserId)) {
+            return false;
+        }
+        // Do not intercept if the activity can be shown over the lockscreen.
+        if ((mAInfo.flags & ActivityInfo.FLAG_SHOW_WHEN_LOCKED) != 0
+                && (mUserManager.isUserUnlocked(mUserId) || mAInfo.directBootAware)) {
+            return false;
+        }
+
+        // The launching package is locked. Redirect the user to LockedAppActivity for
+        // authentication, which will unlock the package upon success.
+        final IntentSender target = createIntentSenderForOriginalIntent(mCallingUid,
+                FLAG_IMMUTABLE);
+        mIntent = LockedAppActivity.createLockedAppActivityIntent(launchingPackage, mUserId,
+                target);
+        mCallingPid = mRealCallingPid;
+        mCallingUid = mRealCallingUid;
+        mResolvedType = null;
+        mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, mUserId, 0, mRealCallingUid,
+                mRealCallingPid);
         mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
         return true;
     }
@@ -421,6 +485,69 @@ class ActivityStartInterceptor {
         mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
         return true;
     }
+
+    private boolean interceptDistractingPackageIfNeeded() {
+        if (!Flags.activityStartInterceptorSpeedbumps()) {
+            return false;
+        }
+        if (mAInfo == null || mAInfo.applicationInfo == null) {
+            return false;
+        }
+
+        final PackageManagerInternal pmi = mService.getPackageManagerInternalLocked();
+        if (pmi == null) {
+            return false;
+        }
+
+        final String packageName = mAInfo.applicationInfo.packageName;
+        final int restrictions = pmi.getDistractingPackageRestrictions(packageName, mUserId);
+        if ((restrictions & RESTRICTION_CONFIRM_WITH_SPEEDBUMP) == 0) {
+            return false;
+        }
+
+        // Safe to call getWellbeingPackageName() here. Both this interceptor and the
+        // PackageManager implementation reside in system_server, so the Binder call is local
+        // and doesn't incur IPC overhead.
+        final String wellbeingPkg = mServiceContext.getPackageManager().getWellbeingPackageName();
+        if (wellbeingPkg == null) {
+            return false;
+        }
+
+        // Do not intercept if the intent is launched from the wellbeing app itself,
+        // otherwise it would result in an infinite interception loop.
+        final int wellbeingUid = pmi.getPackageUid(wellbeingPkg, 0, mUserId);
+        if (wellbeingUid < 0 || UserHandle.isSameApp(mRealCallingUid, wellbeingUid)) {
+            return false;
+        }
+
+        final Intent newIntent = new Intent(Intent.ACTION_WELLBEING_CONFIRM_WITH_SPEEDBUMP);
+        newIntent.setPackage(wellbeingPkg);
+        newIntent.putExtra(Intent.EXTRA_PACKAGE_NAME, packageName);
+
+        final IntentSender target = createIntentSenderForOriginalIntent(mCallingUid,
+                FLAG_CANCEL_CURRENT | FLAG_ONE_SHOT | FLAG_IMMUTABLE);
+        newIntent.putExtra(Intent.EXTRA_INTENT, target);
+        newIntent.addFlags(FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+
+        final ResolveInfo rInfo = mSupervisor.resolveIntent(newIntent, null, mUserId, 0,
+                mRealCallingUid, mRealCallingPid);
+        final ActivityInfo aInfo = mSupervisor.resolveActivity(newIntent, rInfo, mStartFlags,
+                null /*profilerInfo*/);
+
+        // If Digital Wellbeing cannot handle the intent, skip interception.
+        if (aInfo == null) {
+            return false;
+        }
+
+        mIntent = newIntent;
+        mCallingPid = mRealCallingPid;
+        mCallingUid = mRealCallingUid;
+        mResolvedType = null;
+        mRInfo = rInfo;
+        mAInfo = aInfo;
+        return true;
+    }
+
 
     private boolean interceptLockedProfileIfNeeded() {
         final Intent interceptingIntent = interceptWithConfirmCredentialsIfNeeded(mAInfo, mUserId);
@@ -568,7 +695,7 @@ class ActivityStartInterceptor {
     }
 
     private boolean interceptAutomatedPackageIfNeeded() {
-        if (!android.companion.virtualdevice.flags.Flags.automatedAppLaunchInterception()) {
+        if (!android.companion.virtualdevice.flags.Flags.computerControlAccess()) {
             return false;
         }
         if (mAInfo == null || mAInfo.packageName == null || mPresumableLaunchDisplayArea == null) {
@@ -594,7 +721,27 @@ class ActivityStartInterceptor {
         mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, mUserId, 0,
                 mRealCallingUid, mRealCallingPid);
         mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
+        mInTask = null;
         return true;
+    }
+
+    static boolean shouldInterceptStartActivityFromRecents(
+            @NonNull ActivityTaskSupervisor supervisor,
+            @NonNull TaskInfo taskInfo,
+            @NonNull String callingPackage,
+            @Nullable ActivityOptions options) {
+        // TODO(b/456665032): handle other interceptions here too.
+        if (!android.companion.virtualdevice.flags.Flags.computerControlAccess()) {
+            return false;
+        }
+        final int launchDisplayId =
+                options != null ? options.getLaunchDisplayId() : DEFAULT_DISPLAY;
+        return supervisor.createAutomatedAppLaunchWarningIntent(
+                        taskInfo.baseIntent.getComponent().getPackageName(),
+                        taskInfo.userId,
+                        callingPackage,
+                        launchDisplayId)
+                != null;
     }
 
     private void normalizeHomeIntent() {
@@ -682,6 +829,7 @@ class ActivityStartInterceptor {
                 .setCallingFeatureId(mCallingFeatureId)
                 .setCheckedOptions(mActivityOptions)
                 .setClearOptionsAnimationRunnable(clearOptionsAnimation)
+                .setSourceDisplayId(mSourceDisplayId)
                 .build();
     }
 

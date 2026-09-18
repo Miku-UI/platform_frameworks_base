@@ -27,7 +27,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -36,7 +35,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.frameworks.coretests.R;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.xmlpull.v1.XmlPullParserException;
@@ -51,9 +49,6 @@ import java.util.List;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class FontResourcesParserTest {
-
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
 
     private Resources mResources;
 

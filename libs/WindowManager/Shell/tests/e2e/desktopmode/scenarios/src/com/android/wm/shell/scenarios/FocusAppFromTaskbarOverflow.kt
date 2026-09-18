@@ -19,13 +19,13 @@ package com.android.wm.shell.scenarios
 import android.app.Instrumentation
 import android.tools.Rotation
 import android.tools.device.apphelpers.BrowserAppHelper
-import android.tools.traces.parsers.WindowManagerStateHelper
-import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.uiautomator.UiDevice
 import android.tools.device.apphelpers.CalculatorAppHelper
 import android.tools.device.apphelpers.CameraAppHelper
 import android.tools.device.apphelpers.ClockAppHelper
 import android.tools.device.apphelpers.MessagingAppHelper
+import android.tools.traces.parsers.WindowManagerStateHelper
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
@@ -35,7 +35,8 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class FocusAppFromTaskbarOverflow(val rotation: Rotation = Rotation.ROTATION_0) : TestScenarioBase() {
+abstract class FocusAppFromTaskbarOverflow(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase() {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
@@ -67,7 +68,7 @@ abstract class FocusAppFromTaskbarOverflow(val rotation: Rotation = Rotation.ROT
 
     @Test
     open fun focusAppFromTaskbarOverflow() {
-        tapl.launchedAppState.taskbar.launchTaskFromTaskbarOverflowByRecencyIndex(0)
+        tapl.launchedAppState.taskbar.launchTaskFromTaskbarOverflowByRecencyIndex(3) // Recency index: fourthApp = 0, thirdApp = 1, secondApp = 2, firstApp = 3
         tapl.launchedAppState.assertAppInDesktop(firstApp.packageName)
     }
 

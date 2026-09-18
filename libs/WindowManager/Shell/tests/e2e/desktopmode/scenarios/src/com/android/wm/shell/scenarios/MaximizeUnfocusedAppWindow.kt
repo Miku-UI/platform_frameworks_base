@@ -50,7 +50,12 @@ abstract class MaximizeUnfocusedAppWindow(private val rotation: Rotation = Rotat
 
     @Test
     open fun maximizeUnfocusedAppWindow() {
-        calculatorApp.dragToSnapResizeRegion(wmHelper, device, isLeft = true)
+        calculatorApp.dragToSnapResizeRegion(
+            wmHelper,
+            device,
+            instrumentation.context,
+            isLeft = true,
+        )
         testApp.maximiseDesktopApp(wmHelper, device)
     }
 

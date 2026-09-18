@@ -17,22 +17,20 @@
 package com.android.systemui.qs.composefragment.viewmodel
 
 import android.content.res.Resources
-import android.graphics.Rect
 import androidx.annotation.FloatRange
 import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.LifecycleCoroutineScope
-import com.android.app.animation.Interpolators
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.logging.UiEventLogger
 import com.android.keyguard.BouncerPanelExpansionCalculator
 import com.android.systemui.Dumpable
-import com.android.systemui.Flags
-import com.android.systemui.Flags.qsComposeFragmentEarlyExpansion
 import com.android.systemui.animation.ShadeInterpolation
 import com.android.systemui.classifier.Classifier
 import com.android.systemui.classifier.domain.interactor.FalsingInteractor
@@ -49,8 +47,7 @@ import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.C
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QS
 import com.android.systemui.media.controls.ui.view.MediaHost
 import com.android.systemui.media.controls.ui.view.MediaHostState
-import com.android.systemui.media.dagger.MediaModule.QS_PANEL
-import com.android.systemui.media.dagger.MediaModule.QUICK_QS_PANEL
+import com.android.systemui.media.dagger.MediaModule
 import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
 import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
@@ -70,11 +67,11 @@ import com.android.systemui.res.R
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.shade.LargeScreenHeaderHelper
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeStatusBarComponentsInteractor
 import com.android.systemui.shade.transition.LargeScreenShadeInterpolator
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.statusbar.disableflags.data.repository.DisableFlagsRepository
-import com.android.systemui.statusbar.disableflags.domain.interactor.DisableFlagsInteractor
 import com.android.systemui.util.LargeScreenUtils
 import com.android.systemui.util.asIndenting
 import com.android.systemui.util.kotlin.emitOnStart
@@ -86,7 +83,6 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.io.PrintWriter
 import javax.inject.Named
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -106,7 +102,6 @@ constructor(
     private val footerActionsController: FooterActionsController,
     private val sysuiStatusBarStateController: SysuiStatusBarStateController,
     deviceEntryBypassInteractor: DeviceEntryBypassInteractor,
-    disableFlagsInteractor: DisableFlagsInteractor,
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
     private val largeScreenShadeInterpolator: LargeScreenShadeInterpolator,
     @ShadeDisplayAware configurationInteractor: ConfigurationInteractor,
@@ -116,13 +111,14 @@ constructor(
     private val inFirstPageViewModel: InFirstPageViewModel,
     @QSFragmentComposeLog private val tableLogBuffer: TableLogBuffer,
     mediaInRowInLandscapeViewModelFactory: MediaInRowInLandscapeViewModel.Factory,
-    @Named(QUICK_QS_PANEL) val qqsMediaHost: MediaHost,
-    @Named(QS_PANEL) val qsMediaHost: MediaHost,
+    @Named(MediaModule.QUICK_QS_PANEL) val qqsMediaHost: MediaHost,
+    @Named(MediaModule.QS_PANEL) val qsMediaHost: MediaHost,
     @Named(QSFragmentComposeModule.QS_USING_MEDIA_PLAYER) private val usingMedia: Boolean,
     private val uiEventLogger: UiEventLogger,
     @Assisted private val lifecycleScope: LifecycleCoroutineScope,
     private val mediaCarouselInteractor: MediaCarouselInteractor,
     val mediaViewModelFactory: MediaViewModel.Factory,
+    shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor,
 ) : Dumpable, ExclusiveActivatable() {
 
     val containerViewModel = containerViewModelFactory.create(supportsBrightnessMirroring = true)
@@ -162,7 +158,7 @@ constructor(
     // This can only be negative if undefined (in which case it will be -1f), else it will be
     // in [0, 1]. In some cases, it could be set back to -1f internally to indicate that it's
     // different to every value in [0, 1].
-    private var qsExpansion by mutableStateOf(-1f)
+    private var qsExpansion by mutableFloatStateOf(-1f)
 
     fun setQsExpansionValue(value: Float) {
         if (value < 0f) {
@@ -174,9 +170,9 @@ constructor(
 
     val isQsFullyCollapsed by derivedStateOf { qsExpansion <= 0f }
 
-    var panelExpansionFraction by mutableStateOf(0f)
+    var panelExpansionFraction by mutableFloatStateOf(0f)
 
-    var squishinessFraction by mutableStateOf(1f)
+    var squishinessFraction by mutableFloatStateOf(1f)
 
     val qqsHeaderHeight by
         hydrator.hydratedStateOf(
@@ -201,16 +197,16 @@ constructor(
 
     // Starting with a non-zero value makes it so that it has a non-zero height on first expansion
     // This is important for `QuickSettingsControllerImpl.mMinExpansionHeight` to detect a "change".
-    var qqsHeight by mutableStateOf(1)
+    var qqsHeight by mutableIntStateOf(1)
 
-    var qsScrollHeight by mutableStateOf(0)
+    var qsScrollHeight by mutableIntStateOf(0)
 
     val heightDiff: Int
         get() = qsScrollHeight - qqsHeight + qqsBottomPadding
 
     var isStackScrollerOverscrolling by mutableStateOf(false)
 
-    var proposedTranslation by mutableStateOf(0f)
+    var proposedTranslation by mutableFloatStateOf(0f)
 
     /**
      * Whether QS is enabled by policy. This is normally true, except when it's disabled by some
@@ -219,19 +215,21 @@ constructor(
     val isQsEnabled by
         hydrator.hydratedStateOf(
             traceName = "isQsEnabled",
-            initialValue = disableFlagsInteractor.disableFlags.value.isQuickSettingsEnabled(),
-            source = disableFlagsInteractor.disableFlags.map { it.isQuickSettingsEnabled() },
+            initialValue =
+                shadeStatusBarComponentsInteractor.disableFlags.value.isQuickSettingsEnabled(),
+            source =
+                shadeStatusBarComponentsInteractor.disableFlags.map { it.isQuickSettingsEnabled() },
         )
 
     var isInSplitShade by mutableStateOf(false)
 
     var isTransitioningToFullShade by mutableStateOf(false)
 
-    var lockscreenToShadeProgress by mutableStateOf(0f)
+    var lockscreenToShadeProgress by mutableFloatStateOf(0f)
 
     var isSmallScreen by mutableStateOf(false)
 
-    var heightOverride by mutableStateOf(-1)
+    var heightOverride by mutableIntStateOf(-1)
 
     var isPanelExpanded by mutableStateOf(false)
 
@@ -240,7 +238,7 @@ constructor(
             QSExpansionState(1f)
         } else {
             QSExpansionState(
-                if (Flags.noExpansionOnOverscroll() && isStackScrollerOverscrolling) 0f
+                if (isStackScrollerOverscrolling) 0f
                 else
                     qsExpansion.coerceIn(
                         // Only apply early expansion if we are not collapsing QQS, measured by
@@ -269,7 +267,7 @@ constructor(
      */
     var collapseExpandAccessibilityAction: Runnable? = null
 
-    var overScrollAmount by mutableStateOf(0)
+    var overScrollAmount by mutableIntStateOf(0)
 
     val viewTranslationY: Float
         get() =
@@ -339,23 +337,6 @@ constructor(
 
     var shouldUpdateSquishinessOnMedia by mutableStateOf(false)
 
-    val qsMediaTranslationY by derivedStateOf {
-        if (
-            !MediaControlsInComposeFlag.isEnabled &&
-                !Flags.mediaControlsTranslationFix() &&
-                qsExpansion > 0f &&
-                !isKeyguardState &&
-                !qqsMediaVisible &&
-                !qsMediaInRow &&
-                !isInSplitShade
-        ) {
-            val interpolation = Interpolators.ACCELERATE.getInterpolation(1f - qsExpansion)
-            -qsMediaHost.hostView.height * 1.3f * interpolation
-        } else {
-            0f
-        }
-    }
-
     val animateTilesExpansion: Boolean
         get() = inFirstPage && !mediaSuddenlyAppearingInLandscape
 
@@ -406,12 +387,8 @@ constructor(
         }
     }
 
-    private var qsBounds by mutableStateOf(Rect())
-
     private val constrainedSquishinessFraction: Float
         get() = squishinessFraction.constrainSquishiness()
-
-    private var _headerAnimating by mutableStateOf(false)
 
     /**
      * Tracks the current [StatusBarState]. It will switch early if the upcoming state is
@@ -445,8 +422,6 @@ constructor(
 
     private val isKeyguardState: Boolean
         get() = statusBarState == StatusBarState.KEYGUARD
-
-    private var viewHeight by mutableStateOf(0)
 
     private val isBypassEnabled by
         hydrator.hydratedStateOf(
@@ -525,7 +500,7 @@ constructor(
 
     fun onMediaSwipeToDismiss() = mediaCarouselInteractor.onSwipeToDismiss()
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         initMediaHosts() // init regardless of using media (same as current QS).
         coroutineScope {
             launch { hydrateSquishinessInteractor() }
@@ -539,7 +514,6 @@ constructor(
             launch { quickQuickSettingsViewModel.activate() }
             launch { qqsMediaInRowViewModel.activate() }
             launch { qsMediaInRowViewModel.activate() }
-            awaitCancellation()
         }
     }
 
@@ -632,7 +606,6 @@ constructor(
                 println("qqsMediaExpansion", qqsMediaExpansion)
                 println("shouldUpdateSquishinessOnMedia", shouldUpdateSquishinessOnMedia)
                 println("mediaSquishiness", mediaSquishiness)
-                println("qsMediaTranslationY", qsMediaTranslationY)
             }
         }
     }
@@ -646,11 +619,9 @@ constructor(
     data class QSExpansionState(@FloatRange(0.0, 1.0) val progress: Float)
 
     companion object {
-        private val EARLY_EXPANSION
-            get() = if (qsComposeFragmentEarlyExpansion()) 1.0E-6F else 0f
+        private const val EARLY_EXPANSION = 1.0E-6F
 
-        val QS_LISTENING_THRESHOLD
-            get() = EARLY_EXPANSION * 2
+        const val QS_LISTENING_THRESHOLD = EARLY_EXPANSION * 2
     }
 }
 

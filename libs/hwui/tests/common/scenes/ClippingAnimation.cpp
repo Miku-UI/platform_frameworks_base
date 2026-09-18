@@ -45,8 +45,7 @@ public:
 
             canvas.save(SaveFlags::MatrixClip);
             {
-                SkPath clipCircle;
-                clipCircle.addCircle(100, 300, 100);
+                const SkPath clipCircle = SkPath::Circle(100, 300, 100);
                 canvas.clipPath(&clipCircle, SkClipOp::kIntersect);
                 canvas.drawColor(Color::Red_500, SkBlendMode::kSrcOver);
             }

@@ -27,30 +27,31 @@ import com.android.internal.messages.nano.SystemMessageProto
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.plugins.Plugin
 import com.android.systemui.plugins.PluginListener
-import com.android.systemui.plugins.PluginManager
 import com.android.systemui.plugins.annotations.ProvidesInterface
 import com.android.systemui.shared.system.UncaughtExceptionPreHandlerManager
 import java.lang.Thread.UncaughtExceptionHandler
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.anyBoolean
-import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mock
-import org.mockito.Mockito.atLeastOnce
-import org.mockito.Mockito.never
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when` as whenever
-import org.mockito.MockitoAnnotations
+import org.mockito.junit.MockitoJUnit
+import org.mockito.junit.MockitoRule
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
 class PluginManagerTest : SysuiTestCase() {
+    @JvmField @Rule val mockitoRule: MockitoRule = MockitoJUnit.rule()
+
     @Mock lateinit var mMockFactory: PluginActionManager.Factory
     @Mock lateinit var mMockPluginInstance: PluginActionManager<TestPlugin>
     @Mock lateinit var mMockListener: PluginListener<TestPlugin>
@@ -65,8 +66,7 @@ class PluginManagerTest : SysuiTestCase() {
     @Before
     @Throws(Exception::class)
     fun setup() {
-        MockitoAnnotations.openMocks(this)
-        whenever(mMockFactory.create(anyString(), any(), eq(TestPlugin::class.java), anyBoolean()))
+        whenever(mMockFactory.create(any(), any(), eq(TestPlugin::class.java), any()))
             .thenReturn(mMockPluginInstance)
 
         mPluginManager =
@@ -76,7 +76,8 @@ class PluginManagerTest : SysuiTestCase() {
                 mMockExPreHandlerManager,
                 mMockPluginEnabler,
                 mMockPluginPrefs,
-                PluginManager.Config(),
+                PackageConfig(),
+                PluginEnvironment(),
             )
         captureExceptionHandler()
     }
@@ -106,7 +107,8 @@ class PluginManagerTest : SysuiTestCase() {
                 mMockExPreHandlerManager,
                 mMockPluginEnabler,
                 mMockPluginPrefs,
-                PluginManager.Config(),
+                PackageConfig(),
+                PluginEnvironment(),
             )
         captureExceptionHandler()
 
@@ -131,7 +133,8 @@ class PluginManagerTest : SysuiTestCase() {
                 mMockExPreHandlerManager,
                 mMockPluginEnabler,
                 mMockPluginPrefs,
-                PluginManager.Config(listOf(PRIVILEGED_PACKAGE)),
+                PackageConfig(PRIVILEGED_PACKAGE),
+                PluginEnvironment(),
             )
         captureExceptionHandler()
 

@@ -20,9 +20,11 @@ package com.android.systemui.keyguard.domain.interactor
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Point
 import android.graphics.Rect
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.view.accessibility.AccessibilityManager
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -47,8 +49,10 @@ import com.android.systemui.shared.settings.data.repository.SecureSettingsReposi
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.statusbar.policy.AccessibilityManagerWrapper
 import com.android.systemui.util.time.SystemClock
+import com.android.systemui.wallpapers.domain.interactor.WallpaperFocalAreaInteractor
 import dagger.Lazy
 import javax.inject.Inject
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -72,7 +76,7 @@ constructor(
     @ShadeDisplayAware private val context: Context,
     @Application private val scope: CoroutineScope,
     transitionInteractor: KeyguardTransitionInteractor,
-    repository: KeyguardRepository,
+    private val repository: KeyguardRepository,
     private val logger: UiEventLogger,
     broadcastDispatcher: BroadcastDispatcher,
     private val accessibilityManager: AccessibilityManagerWrapper,
@@ -85,6 +89,7 @@ constructor(
     private val powerManager: PowerManager,
     private val systemClock: SystemClock,
     private val pointerDeviceRepository: PointerDeviceRepository,
+    private val wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor,
     secureLockDeviceInteractor: Lazy<SecureLockDeviceInteractor>,
 ) {
     private val _udfpsAccessibilityOverlayBounds: MutableStateFlow<Rect?> = MutableStateFlow(null)
@@ -198,19 +203,13 @@ constructor(
 
     /**
      * Notifies that the user has long-pressed on the lock screen.
-     *
-     * @param isA11yAction: Whether the action was performed as an a11y action
      */
-    fun onLongPress(isA11yAction: Boolean = false) {
+    fun onLongPress() {
         if (!isLongPressHandlingEnabled.value) {
             return
         }
 
-        if (isA11yAction) {
-            showSettings()
-        } else {
-            showMenu()
-        }
+        showMenu()
     }
 
     /** Notifies that the user has touched outside of the pop-up. */
@@ -239,19 +238,35 @@ constructor(
         _shouldOpenSettings.value = false
     }
 
+    /** Notifies that anything in the lockscreen scene has been clicked at position [x], [y]. */
+    fun onSceneClick(x: Float, y: Float) {
+        if (SceneContainerFlag.isEnabled) {
+            pulsingGestureListener.onSingleTapUp(x, y)
+        }
+    }
+
     /** Notifies that the lockscreen has been clicked at position [x], [y]. */
     fun onClick(x: Float, y: Float) {
-        pulsingGestureListener.onSingleTapUp(x, y)
+        if (!SceneContainerFlag.isEnabled) {
+            pulsingGestureListener.onSingleTapUp(x, y)
+        }
         if (faceAuthInteractor.canFaceAuthRun()) {
             faceAuthInteractor.onNotificationPanelClicked()
         } else if (_isAnyPointerDeviceConnected.value) {
             attemptDeviceEntry(loggingReason = "Lockscreen clicked")
+        }
+        if (wallpaperFocalAreaInteractor.hasFocalArea.value) {
+            wallpaperFocalAreaInteractor.sendTapPosition(x, y)
+        }
+        if (SceneContainerFlag.isEnabled) {
+            repository.lastRootViewTapPosition.value = Point(x.roundToInt(), y.roundToInt())
         }
     }
 
     /** Notifies that the lockscreen has been double clicked. */
     fun onDoubleClick() {
         if (isDoubleTapHandlingEnabled.value) {
+            Log.d(TAG, "going to sleep due to double tap")
             powerManager.goToSleep(systemClock.uptimeMillis())
         } else {
             pulsingGestureListener.onDoubleTapEvent()
@@ -340,6 +355,7 @@ constructor(
     }
 
     companion object {
+        private const val TAG = "KeyguardTouchHandlingInteractor"
         @VisibleForTesting const val DEFAULT_POPUP_AUTO_HIDE_TIMEOUT_MS = 5000L
     }
 }

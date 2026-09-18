@@ -21,13 +21,17 @@ import androidx.compose.ui.geometry.isFinite
 import androidx.compose.ui.geometry.isUnspecified
 import org.json.JSONObject
 import platform.test.motion.golden.DataPointType
+import platform.test.motion.golden.FloatTolerances
 import platform.test.motion.golden.UnknownTypeException
 
-fun Scale.asDataPoint() = DataPointTypes.scale.makeDataPoint(this)
+fun Scale?.asDataPoint() = DataPointTypes.scale.makeDataPoint(this)
+
+val Scale.Companion.dataPointType
+    get() = DataPointTypes.scale
 
 object DataPointTypes {
     val scale: DataPointType<Scale> =
-        DataPointType(
+        DataPointType.createWithTolerance(
             "scale",
             jsonToValue = {
                 when (it) {
@@ -78,6 +82,15 @@ object DataPointTypes {
                             )
                         }
                     }
+                }
+            },
+            tolerance = Scale.Zero,
+            toleranceAwareEquality = { a, b, t ->
+                with(FloatTolerances) {
+                    isWithinTolerance(a.scaleX, b.scaleX, t.scaleX) &&
+                        isWithinTolerance(a.scaleY, b.scaleY, t.scaleY) &&
+                        isWithinTolerance(a.pivot.x, b.pivot.x, t.pivot.x) &&
+                        isWithinTolerance(a.pivot.y, b.pivot.y, t.pivot.y)
                 }
             },
         )

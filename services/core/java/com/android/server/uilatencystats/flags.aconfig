@@ -1,0 +1,9 @@
+package: "com.android.server.ui_latency_stats"
+container: "system"
+
+flag {
+    name: "ui_latency_stats_service"
+    namespace: "system_performance"
+    description: "Enable UiLatencyStatsService"
+    bug: "432169143"
+}

@@ -24,6 +24,7 @@ import android.annotation.TestApi;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Region;
 import android.os.IBinder;
 import android.os.InputConfig;
 import android.text.TextUtils;
@@ -75,6 +76,13 @@ public class WindowInfosListenerForTest {
         public final Rect bounds;
 
         /**
+         * The region of the window that accepts touches.
+         */
+        @SuppressLint("UnflaggedApi") // The API is only used for tests.
+        @NonNull
+        public final Region touchableRegion;
+
+        /**
          * True if the window is a trusted overlay.
          */
         public final boolean isTrustedOverlay;
@@ -117,11 +125,13 @@ public class WindowInfosListenerForTest {
         public final boolean isWatchOutsideTouch;
 
         WindowInfo(@NonNull IBinder windowToken, @NonNull String name, int displayId,
-                @NonNull Rect bounds, int inputConfig, @NonNull Matrix transform) {
+                @NonNull Rect bounds, @NonNull Region touchableRegion, int inputConfig,
+                @NonNull Matrix transform) {
             this.windowToken = windowToken;
             this.name = name;
             this.displayId = displayId;
             this.bounds = bounds;
+            this.touchableRegion = touchableRegion;
             this.isTrustedOverlay = (inputConfig & InputConfig.TRUSTED_OVERLAY) != 0;
             this.isVisible = (inputConfig & InputConfig.NOT_VISIBLE) == 0;
             this.transform = transform;
@@ -137,6 +147,7 @@ public class WindowInfosListenerForTest {
         public String toString() {
             return name + ", displayId=" + displayId
                     + ", frame=" + bounds
+                    + ", touchableRegion=" + touchableRegion
                     + ", isVisible=" + isVisible
                     + ", isTrustedOverlay=" + isTrustedOverlay
                     + ", token=" + windowToken
@@ -309,7 +320,8 @@ public class WindowInfosListenerForTest {
             }
 
             outWindowInfos.add(new WindowInfo(handle.getWindowToken(), handle.name,
-                    handle.displayId, bounds, handle.inputConfig, handle.transform));
+                    handle.displayId, bounds, handle.touchableRegion, handle.inputConfig,
+                    handle.transform));
         }
 
         return new Pair(outWindowInfos, outDisplayInfos);

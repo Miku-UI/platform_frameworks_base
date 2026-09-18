@@ -21,6 +21,7 @@ import android.app.job.JobParameters;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.os.Process;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -69,8 +70,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "act",
                         intentAct(intent),
                         "cmp",
@@ -103,8 +104,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "name",
                         Objects.toString(serviceInfo != null ? serviceInfo.name : null),
                         "mid",
@@ -136,8 +137,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "act",
                         intentAct(intent),
                         "cmp",
@@ -171,8 +172,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "act",
                         Objects.toString(intent != null ? intent.getAction() : null),
                         "cmp",
@@ -195,8 +196,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "cls",
                         Objects.toString(receiverClass),
                         "prid",
@@ -217,8 +218,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "act",
                         intentAct(intent),
                         "cmp",
@@ -241,8 +242,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "cls",
                         Objects.toString(receiverClass),
                         "prid",
@@ -261,8 +262,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "prid",
                         Integer.toHexString(pendingResultId)));
     }
@@ -279,8 +280,22 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
+                        "prid",
+                        Integer.toHexString(pendingResultId)));
+    }
+
+    /**
+     * Records the calling of {@code sendFinished} on a BroadcastReceiver's PendingResult.
+     *
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
+     */
+    @UnsupportedAppUsage
+    public static void recordSendFinished(int pendingResultId) {
+        sDebugStoreNative.recordEvent(
+                "SendFinished",
+                List.of(
                         "prid",
                         Integer.toHexString(pendingResultId)));
     }
@@ -315,8 +330,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "jobid",
                         String.valueOf(jobId),
                         "jobns",
@@ -350,8 +365,8 @@ public class DebugStore {
                 List.of(
                         "tname",
                         Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
+                        "stid",
+                        String.valueOf(Process.myTid()),
                         "jobid",
                         String.valueOf(jobId),
                         "jobns",

@@ -23,7 +23,6 @@ import static org.mockito.Mockito.verify;
 
 import android.content.pm.ActivityInfo;
 import android.testing.TestableLooper;
-import android.view.WindowManager;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -67,7 +66,7 @@ public class MagnificationSettingsControllerTest extends SysuiTestCase {
         mMagnificationSettingsController = new MagnificationSettingsController(
                 mContext, mSfVsyncFrameProvider,
                 mMagnificationSettingControllerCallback, mSecureSettings, mWindowManagerProvider,
-                mWindowMagnificationSettings);
+                mWindowMagnificationSettings, /* accessibilityLogger= */ null);
     }
 
     @After

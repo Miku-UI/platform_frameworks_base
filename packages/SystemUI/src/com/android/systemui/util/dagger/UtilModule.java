@@ -16,6 +16,8 @@
 
 package com.android.systemui.util.dagger;
 
+import com.android.systemui.util.PendingIntentCreator;
+import com.android.systemui.util.PendingIntentCreatorImpl;
 import com.android.systemui.util.RingerModeTracker;
 import com.android.systemui.util.RingerModeTrackerImpl;
 import com.android.systemui.util.animation.data.repository.AnimationStatusRepository;
@@ -40,4 +42,8 @@ public interface UtilModule {
     /** */
     @Binds
     AppCategoryIconProvider appCategoryIconProvider(AppCategoryIconProviderImpl impl);
+
+    /** */
+    @Binds
+    PendingIntentCreator pendingIntentCreator(PendingIntentCreatorImpl impl);
 }

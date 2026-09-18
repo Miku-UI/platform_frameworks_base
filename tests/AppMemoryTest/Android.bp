@@ -31,25 +31,90 @@ android_test {
         "platform-test-annotations",
         "flag-junit",
         "androidx.test.uiautomator_uiautomator",
+        "collector-device-lib",
     ],
     device_common_data: [
         ":AppMemoryTest_Helper",
     ],
+    data: [
+        "perfetto.textproto",
+    ],
     platform_apis: true,
-    test_suites: ["general-tests"],
+    test_suites: [
+        "device-tests",
+        "performance-tests",
+    ],
+    test_config: "AppMemoryTest.xml",
     certificate: "platform",
+}
+
+// Generate code to artificially bloat the test helper app.
+// This is to add enough code to the app so that its size is representative of
+// a real large app.
+genrule {
+    name: "AppMemoryTest_Helper_gen_sources",
+    tool_files: ["generate_java_sources.sh"],
+    cmd: "bash $(location generate_java_sources.sh) 5000 100 $(genDir) $(out)",
+    out: ["generated_sources.srcjar"],
+}
+
+// Generate resources to artificially bloat the test helper app.
+genrule {
+    name: "AppMemoryTest_Helper_gen_resources",
+    tool_files: ["generate_resources.sh"],
+    cmd: "bash $(location generate_resources.sh) 100 1000 $(genDir) $(out)",
+    out: ["generated_resources.zip"],
 }
 
 android_test_helper_app {
     name: "AppMemoryTest_Helper",
     manifest: "app/AndroidManifest.xml",
-    srcs: ["app/src/**/*.java"],
-    static_libs: ["com.google.android.material_material"],
-
-    platform_apis: true,
+    srcs: [
+        "app/src/**/*.java",
+        ":AppMemoryTest_Helper_gen_sources",
+    ],
+    resource_zips: [":AppMemoryTest_Helper_gen_resources"],
     test_suites: ["general-tests"],
     certificate: "platform",
     dex_preopt: {
         enabled: false,
     },
+
+    // Intentionally disable optimizations.
+    // Otherwise the generated bloat will be stripped.
+    optimize: {
+        enabled: false,
+    },
+
+    // This prevents the use of dex version 041, which was introduced in API 35.
+    // Until dex version 041, large programs would span multiple physical dex
+    // files. This increased their static load in memory, for instance by
+    // requiring the runtime to have multiple PathClassLoader instances and
+    // multiple runtime dex caches.
+    // This is the common behavior in apps in the market today, so we would like
+    // to simulate it in our test load.
+    min_sdk_version: "34",
+}
+
+filegroup {
+    name: "appmemorytest_perfetto_config",
+    srcs: ["perfetto.textproto"],
+}
+
+filegroup {
+    name: "appmemorytest_metrics_artifacts",
+    srcs: [
+        "metrics/appmemorytest_binder_transactions.textproto",
+        "metrics/appmemorytest_native_allocations.textproto",
+    ],
+}
+
+prebuilt_etc {
+    name: "appmemorytest_binder_transactions.textproto",
+    src: "metrics/appmemorytest_binder_transactions.textproto",
+}
+
+prebuilt_etc {
+    name: "appmemorytest_native_allocations.textproto",
+    src: "metrics/appmemorytest_native_allocations.textproto",
 }

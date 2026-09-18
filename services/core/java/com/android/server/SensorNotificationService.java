@@ -28,6 +28,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.Slog;
@@ -90,7 +91,8 @@ public class SensorNotificationService extends SystemService
                         LocationManager.PASSIVE_PROVIDER,
                         LOCATION_MIN_TIME,
                         LOCATION_MIN_DISTANCE,
-                        this);
+                        this,
+                        Looper.getMainLooper());
             }
         }
     }

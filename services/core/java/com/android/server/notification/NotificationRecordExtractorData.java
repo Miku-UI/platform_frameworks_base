@@ -41,11 +41,11 @@ public final class NotificationRecordExtractorData {
     private final ArrayList<Notification.Action> mSystemSmartActions;
     private final ArrayList<CharSequence> mSmartReplies;
     private final int mImportance;
+    private final int mProposedImportance;
 
     // These fields may not trigger a reranking but diffs here may be logged.
     private final float mRankingScore;
     private final boolean mIsConversation;
-    private final int mProposedImportance;
     private final boolean mSensitiveContent;
     private final String mSummarization;
 
@@ -123,5 +123,9 @@ public final class NotificationRecordExtractorData {
                 || mProposedImportance != r.getProposedImportance()
                 || mSensitiveContent != r.hasSensitiveContent()
                 || !Objects.equals(mSummarization, r.getSummarization());
+    }
+
+    boolean hasBeenUnbundled(NotificationRecord r) {
+        return mChannel.isBundleChannel() && !r.getChannel().isBundleChannel();
     }
 }

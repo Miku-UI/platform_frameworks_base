@@ -21,6 +21,7 @@ import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.util.Assert
+import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import javax.inject.Inject
 
 /** A factory to easily instantiate a [ComponentSystemUIDialog]. */
@@ -31,6 +32,7 @@ constructor(
     private val dialogManager: SystemUIDialogManager,
     private val broadcastDispatcher: BroadcastDispatcher,
     private val dialogTransitionAnimator: DialogTransitionAnimator,
+    private val blurInteractor: WindowRootViewBlurInteractor,
 ) {
     /**
      * Create a new [ComponentSystemUIDialog].
@@ -39,25 +41,36 @@ constructor(
      * on the main thread.
      *
      * @param context the [Context] in which the dialog will be constructed.
+     * @param refreshBackgroundOnThemeChange whether the dialog background should be refreshed when
+     *   the theme changes between light and dark mode. Note, when set to `true` the content of the
+     *   dialog should also handle the configuration change. Composables usually handle this by
+     *   default, but Views may need a manual update.
      * @param dismissOnDeviceLock whether the dialog should be automatically dismissed when the
      *   device is locked (true by default).
+     * @param isTransient transient dialogs pass through touches and should take care of dismissing
+     *   themselves.
      */
     fun create(
         context: Context = this.applicationContext,
         theme: Int = SystemUIDialog.DEFAULT_THEME,
         dismissOnDeviceLock: Boolean = SystemUIDialog.DEFAULT_DISMISS_ON_DEVICE_LOCK,
+        refreshBackgroundOnThemeChange: Boolean = false,
         dialogDelegate: DialogDelegate<SystemUIDialog> = object : DialogDelegate<SystemUIDialog> {},
+        isTransient: Boolean = false,
     ): ComponentSystemUIDialog {
         Assert.isMainThread()
 
         return ComponentSystemUIDialog(
-            context,
-            theme,
-            dismissOnDeviceLock,
-            dialogManager,
-            broadcastDispatcher,
-            dialogTransitionAnimator,
-            dialogDelegate,
+            context = context,
+            theme = theme,
+            dismissOnDeviceLock = dismissOnDeviceLock,
+            refreshBackgroundOnThemeChange = refreshBackgroundOnThemeChange,
+            dialogManager = dialogManager,
+            broadcastDispatcher = broadcastDispatcher,
+            dialogTransitionAnimator = dialogTransitionAnimator,
+            blurInteractor = blurInteractor,
+            delegate = dialogDelegate,
+            isTransient = isTransient,
         )
     }
 }

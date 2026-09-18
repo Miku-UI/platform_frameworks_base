@@ -33,9 +33,8 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class OpenAppsInDesktopMode(
-    val rotation: Rotation = Rotation.ROTATION_0
-) : TestScenarioBase(rotation) {
+abstract class OpenAppsInDesktopMode(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
@@ -43,7 +42,7 @@ abstract class OpenAppsInDesktopMode(
     private val firstApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
     private val secondApp = DesktopModeAppHelper(MailAppHelper(instrumentation))
     private val thirdApp = DesktopModeAppHelper(NewTasksAppHelper(instrumentation))
-    private val fourthApp = DesktopModeAppHelper(ImeAppHelper(instrumentation))
+    val fourthApp = DesktopModeAppHelper(ImeAppHelper(instrumentation))
     val fifthApp = DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
 
     val appInDesktop: ArrayList<DesktopModeAppHelper> = ArrayList()

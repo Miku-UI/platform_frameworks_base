@@ -48,7 +48,6 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession
 import com.android.dx.mockito.inline.extended.ExtendedMockito.verify
 import com.android.internal.util.FrameworkStatsLog
 import com.android.server.notification.Flags.FLAG_SCREENSHARE_NOTIFICATION_HIDING
-import com.android.systemui.Flags.FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.statusbar.RankingBuilder
@@ -420,18 +419,7 @@ class SensitiveNotificationProtectionControllerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX)
-    fun shouldProtectNotification_projectionActive_isFromCoreApp_fixDisabled_true() {
-        mediaProjectionCallback.onStart(mediaProjectionInfo)
-
-        val notificationEntry = setupCoreAppNotificationEntry(TEST_PROJECTION_PACKAGE_NAME)
-
-        assertTrue(controller.shouldProtectNotification(notificationEntry))
-    }
-
-    @Test
-    @EnableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX)
-    fun shouldProtectNotification_projectionActive_isFromCoreApp_false() {
+    fun shouldProtectNotification_projectionActive_isFromCoreApp() {
         mediaProjectionCallback.onStart(mediaProjectionInfo)
 
         val notificationEntry = setupCoreAppNotificationEntry(TEST_PROJECTION_PACKAGE_NAME)
@@ -440,18 +428,7 @@ class SensitiveNotificationProtectionControllerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX)
-    fun shouldProtectNotification_projectionActive_isFromEmergencyPackage_fixDisabled_true() {
-        mediaProjectionCallback.onStart(mediaProjectionInfo)
-
-        val notificationEntry = setupNotificationEntry(EMERGENCY_ASSISTANCE_PACKAGE_NAME)
-
-        assertTrue(controller.shouldProtectNotification(notificationEntry))
-    }
-
-    @Test
-    @EnableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX)
-    fun shouldProtectNotification_projectionActive_isFromEmergencyPackage_false() {
+    fun shouldProtectNotification_projectionActive_isFromEmergencyPackage() {
         mediaProjectionCallback.onStart(mediaProjectionInfo)
 
         val notificationEntry = setupNotificationEntry(EMERGENCY_ASSISTANCE_PACKAGE_NAME)

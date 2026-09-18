@@ -32,11 +32,14 @@ public final class RegisterStatusBarResult implements Parcelable {
     public final int mDisabledFlags1;                   // switch[0]
     public final int mAppearance;                       // switch[1]
     public final AppearanceRegion[] mAppearanceRegions; // switch[2]
+    /** The IME window visibility. */
     @ImeWindowVisibility
     public final int mImeWindowVis;                     // switch[3]
+    /** The IME back disposition mode. */
     @BackDispositionMode
     public final int mImeBackDisposition;               // switch[4]
-    public final boolean mShowImeSwitcher;              // switch[5]
+    /** Whether the IME Switcher button should be shown when the IME is shown. */
+    public final boolean mShowImeSwitcherButton;        // switch[5]
     public final int mDisabledFlags2;                   // switch[6]
     public final boolean mNavbarColorManagedByIme;
     public final int mBehavior;
@@ -48,7 +51,7 @@ public final class RegisterStatusBarResult implements Parcelable {
     public RegisterStatusBarResult(ArrayMap<String, StatusBarIcon> icons, int disabledFlags1,
             int appearance, AppearanceRegion[] appearanceRegions,
             @ImeWindowVisibility int imeWindowVis, @BackDispositionMode int imeBackDisposition,
-            boolean showImeSwitcher, int disabledFlags2, boolean navbarColorManagedByIme,
+            boolean showImeSwitcherButton, int disabledFlags2, boolean navbarColorManagedByIme,
             int behavior, int requestedVisibleTypes, String packageName, int transientBarTypes,
             LetterboxDetails[] letterboxDetails) {
         mIcons = new ArrayMap<>(icons);
@@ -57,7 +60,7 @@ public final class RegisterStatusBarResult implements Parcelable {
         mAppearanceRegions = appearanceRegions;
         mImeWindowVis = imeWindowVis;
         mImeBackDisposition = imeBackDisposition;
-        mShowImeSwitcher = showImeSwitcher;
+        mShowImeSwitcherButton = showImeSwitcherButton;
         mDisabledFlags2 = disabledFlags2;
         mNavbarColorManagedByIme = navbarColorManagedByIme;
         mBehavior = behavior;
@@ -80,7 +83,7 @@ public final class RegisterStatusBarResult implements Parcelable {
         dest.writeParcelableArray(mAppearanceRegions, 0);
         dest.writeInt(mImeWindowVis);
         dest.writeInt(mImeBackDisposition);
-        dest.writeBoolean(mShowImeSwitcher);
+        dest.writeBoolean(mShowImeSwitcherButton);
         dest.writeInt(mDisabledFlags2);
         dest.writeBoolean(mNavbarColorManagedByIme);
         dest.writeInt(mBehavior);
@@ -105,7 +108,7 @@ public final class RegisterStatusBarResult implements Parcelable {
                             source.readParcelableArray(null, AppearanceRegion.class);
                     final int imeWindowVis = source.readInt();
                     final int imeBackDisposition = source.readInt();
-                    final boolean showImeSwitcher = source.readBoolean();
+                    final boolean showImeSwitcherButton = source.readBoolean();
                     final int disabledFlags2 = source.readInt();
                     final boolean navbarColorManagedByIme = source.readBoolean();
                     final int behavior = source.readInt();
@@ -114,10 +117,19 @@ public final class RegisterStatusBarResult implements Parcelable {
                     final int transientBarTypes = source.readInt();
                     final LetterboxDetails[] letterboxDetails =
                             source.readParcelableArray(null, LetterboxDetails.class);
-                    return new RegisterStatusBarResult(icons, disabledFlags1, appearance,
-                            appearanceRegions, imeWindowVis, imeBackDisposition, showImeSwitcher,
-                            disabledFlags2, navbarColorManagedByIme, behavior,
-                            requestedVisibleTypes, packageName, transientBarTypes,
+                    return new RegisterStatusBarResult(icons,
+                            disabledFlags1,
+                            appearance,
+                            appearanceRegions,
+                            imeWindowVis,
+                            imeBackDisposition,
+                            showImeSwitcherButton,
+                            disabledFlags2,
+                            navbarColorManagedByIme,
+                            behavior,
+                            requestedVisibleTypes,
+                            packageName,
+                            transientBarTypes,
                             letterboxDetails);
                 }
 

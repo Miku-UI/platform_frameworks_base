@@ -30,7 +30,6 @@ import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
 import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_BLURRED_BACKGROUND
-import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
@@ -243,7 +242,6 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
         }
 
     @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
-    @DisableFlags(FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT)
     @Test
     fun hubEnabledByUser_defaultsToConfigValue_true() =
         kosmos.runTest {
@@ -257,7 +255,6 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
         }
 
     @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
-    @DisableFlags(FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT)
     @Test
     fun hubEnabledByUser_defaultsToConfigValue_false() =
         kosmos.runTest {
@@ -268,19 +265,6 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
 
             val enabled by collectLastValue(underTest.getSettingEnabledByUser())
             assertThat(enabled).isFalse()
-        }
-
-    @EnableFlags(FLAG_GLANCEABLE_HUB_V2, FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT)
-    @Test
-    fun hubEnabledByUser_defaultsToTrue_whenFlagTrue() =
-        kosmos.runTest {
-            mContext.orCreateTestableResources.addOverride(
-                com.android.internal.R.bool.config_glanceableHubEnabledByDefault,
-                false,
-            )
-
-            val enabled by collectLastValue(underTest.getSettingEnabledByUser())
-            assertThat(enabled).isTrue()
         }
 
     private fun setKeyguardFeaturesDisabled(user: UserInfo, disabledFlags: Int) {

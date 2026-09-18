@@ -27,7 +27,7 @@ import android.view.InputEvent;
  */
 public class AccessibilityInputDebugger {
 
-    private static final String TAG = "A11yInputDebugger";
+    private static final String TAG = AccessibilityInputDebugger.class.getSimpleName();
 
     // Determines the capacity of the recent event caches.
     private static final int RECENT_EVENTS_TO_LOG = 10;

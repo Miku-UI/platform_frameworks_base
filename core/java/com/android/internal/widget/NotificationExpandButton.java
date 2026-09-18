@@ -16,8 +16,6 @@
 
 package com.android.internal.widget;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import android.annotation.ColorInt;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -143,27 +141,14 @@ public class NotificationExpandButton extends FrameLayout {
         int drawableId;
         int contentDescriptionId;
         if (mExpanded) {
-            if (notificationsRedesignTemplates()) {
-                drawableId = R.drawable.ic_notification_2025_collapse;
-            } else {
-                drawableId = R.drawable.ic_collapse_notification;
-            }
+            drawableId = R.drawable.ic_notification_2025_collapse;
             contentDescriptionId = R.string.expand_button_content_description_expanded;
         } else {
-            if (notificationsRedesignTemplates()) {
-                drawableId = R.drawable.ic_notification_2025_expand;
-            } else {
-                drawableId = R.drawable.ic_expand_notification;
-            }
+            drawableId = R.drawable.ic_notification_2025_expand;
             contentDescriptionId = R.string.expand_button_content_description_collapsed;
         }
         setContentDescription(mContext.getText(contentDescriptionId));
         mIconView.setImageDrawable(getContext().getDrawable(drawableId));
-
-        if (!notificationsRedesignTemplates()) {
-            // changing the expanded state can affect the number display
-            updateNumber();
-        }
     }
 
     private void updateNumber() {
@@ -183,10 +168,6 @@ public class NotificationExpandButton extends FrameLayout {
     }
 
     private void updatePadding() {
-        if (!notificationsRedesignTemplates()) {
-            return;
-        }
-
         // Reduce the padding at the end when showing the number, since the arrow icon has more
         // inherent spacing than the number does. This makes the content look more centered.
         // Vertical padding remains unchanged.
@@ -223,10 +204,7 @@ public class NotificationExpandButton extends FrameLayout {
     }
 
     private boolean shouldShowNumber() {
-        if (notificationsRedesignTemplates()) {
-            return mNumber > 1;
-        }
-        return !mExpanded && mNumber > 1;
+        return mNumber > 1;
     }
 
     /**

@@ -25,6 +25,7 @@ import com.android.systemui.biometrics.data.repository.fingerprintPropertyReposi
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.BrokenWithSceneContainer
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
@@ -33,6 +34,7 @@ import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.testKosmos
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
@@ -54,6 +56,7 @@ class PrimaryBouncerToLockscreenTransitionViewModelTest(flags: FlagsParameteriza
     val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     val fingerprintPropertyRepository = kosmos.fingerprintPropertyRepository
     val biometricSettingsRepository = kosmos.biometricSettingsRepository
+    val shadeRepository = kosmos.shadeRepository
 
     private lateinit var underTest: PrimaryBouncerToLockscreenTransitionViewModel
 
@@ -75,7 +78,7 @@ class PrimaryBouncerToLockscreenTransitionViewModelTest(flags: FlagsParameteriza
     }
 
     @Test
-    @BrokenWithSceneContainer(392346450)
+    @DisableSceneContainer
     fun lockscreenAlphaStartsFromViewStateAccessorAlpha() =
         testScope.runTest {
             val viewState = ViewStateAccessor(alpha = { 0.5f })
@@ -91,6 +94,29 @@ class PrimaryBouncerToLockscreenTransitionViewModelTest(flags: FlagsParameteriza
 
             keyguardTransitionRepository.sendTransitionStep(step(1f))
             assertThat(alpha).isEqualTo(1f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun lockscreenAlphaStartsDoesNotEmitIfQsExpanded() =
+        testScope.runTest {
+            val viewState = ViewStateAccessor(alpha = { 0.5f })
+            val alpha by collectLastValue(underTest.lockscreenAlpha(viewState))
+            assertThat(alpha).isNull()
+
+            // After QS expansion, the value should remain the same
+            shadeRepository.setLegacyIsQsExpanded(true)
+            runCurrent()
+            keyguardTransitionRepository.sendTransitionStep(step(0f, TransitionState.STARTED))
+
+            keyguardTransitionRepository.sendTransitionStep(step(0f))
+            assertThat(alpha).isNull()
+
+            keyguardTransitionRepository.sendTransitionStep(step(0.5f))
+            assertThat(alpha).isNull()
+
+            keyguardTransitionRepository.sendTransitionStep(step(1f))
+            assertThat(alpha).isNull()
         }
 
     @Test

@@ -18,6 +18,7 @@
 #include <log/log.h>
 
 #include "GraphicsJNI.h"
+#include "Path.h"
 #include "SkPath.h"
 #include "SkPoint.h"
 #include "graphics_jni_helpers.h"
@@ -33,7 +34,7 @@ public:
     }
 
     static jlong create(JNIEnv* env, jobject clazz, jlong pathHandle) {
-        const SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+        const SkPath* path = AsSkPath(pathHandle);
         return reinterpret_cast<jlong>(new SkPath::RawIter(*path));
     }
 

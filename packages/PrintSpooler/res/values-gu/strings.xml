@@ -20,7 +20,7 @@
     <string name="more_options_button" msgid="2243228396432556771">"વધુ વિકલ્પો"</string>
     <string name="label_destination" msgid="9132510997381599275">"ગંતવ્ય"</string>
     <string name="label_copies" msgid="3634531042822968308">"કૉપિઝ"</string>
-    <string name="label_copies_summary" msgid="3861966063536529540">"કૉપિઝ:"</string>
+    <string name="label_copies_summary" msgid="3861966063536529540">"કૉપિ:"</string>
     <string name="label_paper_size" msgid="908654383827777759">"કાગળનું કદ"</string>
     <string name="label_paper_size_summary" msgid="5668204981332138168">"કાગળનું કદ:"</string>
     <string name="label_color" msgid="1108690305218188969">"રંગ"</string>
@@ -43,7 +43,8 @@
     <string name="summary_template" msgid="8899734908625669193">"સારાંશ, કૉપિઝ <xliff:g id="COPIES">%1$s</xliff:g>, કાગળનું કદ <xliff:g id="PAPER_SIZE">%2$s</xliff:g>"</string>
     <string name="expand_handle" msgid="7282974448109280522">"વિસ્તૃત કરો હેન્ડલ"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"સંકુચિત કરો હેન્ડલ"</string>
-    <string name="print_button" msgid="645164566271246268">"છાપો"</string>
+    <string name="print_button" msgid="645164566271246268">"પ્રિન્ટ કરો"</string>
+    <string name="setup_button" msgid="323390526074568450">"સેટઅપ કરો"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDF પર સાચવો"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"છાપ વિકલ્પો વિસ્તૃત થયાં"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"પ્રિન્ટ વિકલ્પો સંકુચિત થયા"</string>
@@ -86,7 +87,7 @@
     <string name="cancel" msgid="4373674107267141885">"રદ કરો"</string>
     <string name="restart" msgid="2472034227037808749">"રિસ્ટાર્ટ કરો"</string>
     <string name="no_connection_to_printer" msgid="2159246915977282728">"પ્રિન્ટર માટે કોઈ કનેક્શન નથી"</string>
-    <string name="reason_unknown" msgid="5507940196503246139">"અજાણ્યું"</string>
+    <string name="reason_unknown" msgid="5507940196503246139">"અજાણ"</string>
     <string name="print_service_security_warning_title" msgid="2160752291246775320">"<xliff:g id="SERVICE">%1$s</xliff:g> નો ઉપયોગ કરીએ?"</string>
     <string name="print_service_security_warning_summary" msgid="1427434625361692006">"તમારો દસ્તાવેજ પ્રિન્ટર સુધીના તેના માર્ગમાં એક અથવા વધુ સર્વર્સથી પસાર થઈ શકે છે."</string>
   <string-array name="color_mode_labels">

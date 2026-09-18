@@ -64,8 +64,7 @@ public final class SetScreenLockDialogContract {
     public static final int LAUNCH_REASON_RESET_PRIVATE_SPACE_SETTINGS_ACCESS = 3;
 
     /** Returns an intent to display the screen lock dialog */
-    public static Intent createDialogIntent(
-            @SetScreenLockDialogActivity.LaunchReason int launchReason) {
+    public static Intent createDialogIntent(@LaunchReason int launchReason) {
         Intent intent = new Intent(SET_SCREEN_LOCK_PROMPT_ACTION);
         // Allow only the settings app to receive the intent.
         intent.setPackage(SETTINGS_PACKAGE);
@@ -75,8 +74,7 @@ public final class SetScreenLockDialogContract {
     }
 
     /** Returns an intent to display the screen lock dialog with a user specific message. */
-    public static Intent createUserSpecificDialogIntent(
-            @SetScreenLockDialogActivity.LaunchReason int launchReason,
+    public static Intent createUserSpecificDialogIntent(@LaunchReason int launchReason,
             @UserIdInt int originUserId) {
         Intent intent = createDialogIntent(launchReason);
         intent.putExtra(EXTRA_ORIGIN_USER_ID, originUserId);

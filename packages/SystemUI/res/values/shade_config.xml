@@ -27,7 +27,32 @@
 
     <!--
     Whether notifications shade should be in the top end position (e.g. the right side of the screen
-    in an LTR locale) on wide screens. Ignored when `config_isFullWidth` is `true`.
+    in an LTR locale) on wide screens.
+    Only used in Dual Shade mode, when `config_isFullWidthShade` is `false`. Ignored in all other
+    cases.
     -->
     <bool name="config_notificationShadeOnTopEnd">false</bool>
+
+    <!--
+    Whether Dual Shade should be enabled in the absence of an explicit preference set by the user.
+    -->
+    <bool name="config_dualShadeEnabledByDefault">true</bool>
+
+   <!--
+    Whether an inline power menu should be shown instead of the global actions dialog when the
+    power button is clicked in the QS Panel.
+    -->
+    <bool name="config_qsInlinePowerMenu">false</bool>
+
+    <!--
+    Sets the boundary for the swipe-down gesture from the top of the screen that opens the
+    Notifications and Quick Settings shades in Dual Shade mode.
+
+    This value is a ratio (from 0.0 to 1.0) that represents the fraction of the screen width
+    dedicated to notifications, measured from the "start" edge (left in LTR layouts, right in RTL).
+
+     - Swiping from the start edge to this boundary opens Notifications.
+     - Swiping from this boundary to the end edge opens Quick Settings.
+    -->
+    <item name="config_invocationGestureSplitRatio" format="float" type="dimen">0.75</item>
 </resources>

@@ -16,8 +16,6 @@
 
 package android.view;
 
-import static android.view.InsetsController.DEBUG;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -41,10 +39,12 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
 
     private final String TAG = "VRInsetsControllerHost";
 
+    @NonNull
     private final ViewRootImpl mViewRoot;
+
     private SyncRtSurfaceTransactionApplier mApplier;
 
-    public ViewRootInsetsControllerHost(ViewRootImpl viewRoot) {
+    public ViewRootInsetsControllerHost(@NonNull ViewRootImpl viewRoot) {
         mViewRoot = viewRoot;
     }
 
@@ -77,8 +77,13 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     }
 
     @Override
-    public void dispatchWindowInsetsAnimationPrepare(@NonNull WindowInsetsAnimation animation) {
+    public void dispatchWindowInsetsAnimationPrepare(@NonNull WindowInsetsAnimation animation,
+            boolean isUserAnimation, boolean isResizeAnimation, boolean hasAnimationCallback) {
         if (mViewRoot.mView == null) {
+            return;
+        }
+        if (com.android.window.flags.Flags.syncedInsetsAnimation()
+                && !isUserAnimation && !isResizeAnimation && !hasAnimationCallback) {
             return;
         }
         mViewRoot.mView.dispatchWindowInsetsAnimationPrepare(animation);
@@ -88,39 +93,27 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     @Override
     public WindowInsetsAnimation.Bounds dispatchWindowInsetsAnimationStart(
             @NonNull WindowInsetsAnimation animation,
-            @NonNull WindowInsetsAnimation.Bounds bounds) {
-        if (mViewRoot.mView == null) {
-            return null;
-        }
-        if (DEBUG) Log.d(TAG, "windowInsetsAnimation started");
-        return mViewRoot.mView.dispatchWindowInsetsAnimationStart(animation, bounds);
+            @NonNull WindowInsetsAnimation.Bounds bounds, boolean isUserAnimation,
+            boolean isResizeAnimation, boolean hasAnimationCallback) {
+        return mViewRoot.dispatchWindowInsetsAnimationStart(animation, bounds, isUserAnimation,
+                isResizeAnimation, hasAnimationCallback);
     }
 
     @Nullable
     @Override
     public WindowInsets dispatchWindowInsetsAnimationProgress(@NonNull WindowInsets insets,
-            @NonNull List<WindowInsetsAnimation> runningAnimations) {
-        if (mViewRoot.mView == null) {
-            // The view has already detached from window.
-            return null;
-        }
-        if (DEBUG) {
-            for (WindowInsetsAnimation anim : runningAnimations) {
-                Log.d(TAG, "windowInsetsAnimation progress: "
-                        + anim.getInterpolatedFraction());
-            }
-        }
-        return mViewRoot.mView.dispatchWindowInsetsAnimationProgress(insets, runningAnimations);
+            @NonNull InsetsState state, @NonNull List<WindowInsetsAnimation> runningAnimations,
+            boolean hasUserAnimation, boolean hasResizeAnimation, boolean hasAnimationCallback,
+            @WindowInsets.Type.InsetsType int hidingTypes) {
+        return mViewRoot.dispatchWindowInsetsAnimationProgress(insets, state, runningAnimations,
+                hasUserAnimation, hasResizeAnimation, hasAnimationCallback, hidingTypes);
     }
 
     @Override
-    public void dispatchWindowInsetsAnimationEnd(@NonNull WindowInsetsAnimation animation) {
-        if (DEBUG) Log.d(TAG, "windowInsetsAnimation ended");
-        if (mViewRoot.mView == null) {
-            // The view has already detached from window.
-            return;
-        }
-        mViewRoot.mView.dispatchWindowInsetsAnimationEnd(animation);
+    public void dispatchWindowInsetsAnimationEnd(@NonNull WindowInsetsAnimation animation,
+            boolean isUserAnimation, boolean isResizeAnimation, boolean hasAnimationCallback) {
+        mViewRoot.dispatchWindowInsetsAnimationEnd(animation, isUserAnimation, isResizeAnimation,
+                hasAnimationCallback);
     }
 
     @Override
@@ -179,14 +172,24 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     @Override
     public void updateAnimatingTypes(@WindowInsets.Type.InsetsType int animatingTypes,
             @Nullable ImeTracker.Token statsToken) {
-        if (mViewRoot != null) {
-            ImeTracker.forLogging().onProgress(statsToken,
-                    ImeTracker.PHASE_CLIENT_UPDATE_ANIMATING_TYPES);
-            mViewRoot.updateAnimatingTypes(animatingTypes, statsToken);
-        } else {
-            ImeTracker.forLogging().onFailed(statsToken,
-                    ImeTracker.PHASE_CLIENT_UPDATE_ANIMATING_TYPES);
-        }
+        ImeTracker.forLogging().onProgress(statsToken,
+                ImeTracker.PHASE_CLIENT_UPDATE_ANIMATING_TYPES);
+        mViewRoot.updateAnimatingTypes(animatingTypes, statsToken);
+    }
+
+    @Override
+    public boolean usesSyncedInsetsAnimationByDefault() {
+        return mViewRoot.usesSyncedInsetsAnimationByDefault();
+    }
+
+    @Override
+    public void updateWindowInsetsInfo() {
+        final var config = mViewRoot.mContext.getResources().getConfiguration();
+        final var attributes = mViewRoot.mWindowAttributes;
+        mViewRoot.getInsetsController().setWindowInsetsInfo(config.isScreenRound(),
+                attributes.type, config.windowConfiguration.getActivityType(),
+                attributes.softInputMode, attributes.flags,
+                (attributes.systemUiVisibility | attributes.subtreeSystemUiVisibility));
     }
 
     @Override
@@ -258,32 +261,23 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     @Nullable
     @Override
     public String getRootViewTitle() {
-        if (mViewRoot == null) {
-            return null;
-        }
         return mViewRoot.getTitle().toString();
     }
 
     @Nullable
     @Override
     public Context getRootViewContext() {
-        return mViewRoot != null ? mViewRoot.mContext : null;
+        return mViewRoot.mContext;
     }
 
     @Override
     public int dipToPx(int dips) {
-        if (mViewRoot != null) {
-            return mViewRoot.dipToPx(dips);
-        }
-        return 0;
+        return mViewRoot.dipToPx(dips);
     }
 
     @Nullable
     @Override
     public IBinder getWindowToken() {
-        if (mViewRoot == null) {
-            return null;
-        }
         final View view = mViewRoot.getView();
         if (view == null) {
             return null;
@@ -294,15 +288,12 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     @Nullable
     @Override
     public CompatibilityInfo.Translator getTranslator() {
-        if (mViewRoot != null) {
-            return mViewRoot.mTranslator;
-        }
-        return null;
+        return mViewRoot.mTranslator;
     }
 
     @Override
     public boolean isHandlingPointerEvent() {
-        return mViewRoot != null && mViewRoot.isHandlingPointerEvent();
+        return mViewRoot.isHandlingPointerEvent();
     }
 
     private boolean isVisibleToUser() {

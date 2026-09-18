@@ -19,6 +19,7 @@ package com.android.server.pm;
 import android.annotation.NonNull;
 import android.content.pm.Signature;
 import android.content.pm.SigningDetails;
+import android.content.pm.SigningDetails.SignatureSchemeMinorVersion;
 import android.content.pm.SigningDetails.SignatureSchemeVersion;
 import android.util.Log;
 
@@ -61,6 +62,12 @@ class PackageSignatures {
         serializer.startTag(null, tagName);
         serializer.attributeInt(null, "count", mSigningDetails.getSignatures().length);
         serializer.attributeInt(null, "schemeVersion", mSigningDetails.getSignatureSchemeVersion());
+        if (android.security.Flags.apkPqcHybridSigning()
+                && mSigningDetails.getSignatureSchemeMinorVersion()
+                != SignatureSchemeMinorVersion.MINOR_VERSION_DEFAULT) {
+            serializer.attributeInt(null, "schemeMinorVersion",
+                    mSigningDetails.getSignatureSchemeMinorVersion());
+        }
         writeCertsListXml(serializer, writtenSignatures, mSigningDetails.getSignatures(), false);
 
         // if we have past signer certificate information, write it out
@@ -126,6 +133,11 @@ class PackageSignatures {
                         + parser.getPositionDescription());
         }
         builder.setSignatureSchemeVersion(signatureSchemeVersion);
+        if (android.security.Flags.apkPqcHybridSigning()) {
+            final int signatureSchemeMinorVersion = parser.getAttributeInt(null,
+                    "schemeMinorVersion", SignatureSchemeMinorVersion.MINOR_VERSION_DEFAULT);
+            builder.setSignatureSchemeMinorVersion(signatureSchemeMinorVersion);
+        }
         ArrayList<Signature> signatureList = new ArrayList<>();
         int pos = readCertsListXml(parser, readSignatures, signatureList, count, false, builder);
         Signature[] signatures = signatureList.toArray(new Signature[signatureList.size()]);

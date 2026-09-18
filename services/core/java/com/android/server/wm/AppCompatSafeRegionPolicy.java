@@ -110,9 +110,8 @@ class AppCompatSafeRegionPolicy {
      */
     public void resolveSafeRegionBoundsConfigurationIfNeeded(@NonNull Configuration resolvedConfig,
             @NonNull Configuration newParentConfig) {
-        // If activity can not be letterboxed for a safe region only or it has not been attached
-        // to a WindowContainer yet.
-        if (!isLetterboxedForSafeRegionOnlyAllowed() || mActivityRecord.getParent() == null) {
+        // If activity can not be letterboxed for a safe region only.
+        if (!isLetterboxedForSafeRegionOnlyAllowed()) {
             return;
         }
         resolvedConfig.windowConfiguration.setBounds(mLatestSafeRegionBounds);
@@ -127,12 +126,15 @@ class AppCompatSafeRegionPolicy {
      *
      * @return {@code true} if this application or activity has allowed safe region letterboxing and
      * can be letterboxed only due to the safe region being set on the current or ancestor window
-     * container.
+     * container and is not using activity embedding and is attached to a WindowContainer yet and
+     * the safe region bounds are contained within the parent bounds.
      */
     boolean isLetterboxedForSafeRegionOnlyAllowed() {
         return !mActivityRecord.areBoundsLetterboxed() && getLatestSafeRegionBounds() != null
                 // TODO(b/403628576): Remove once activity embedding activities support letterboxing
-                && mActivityRecord.getOrganizedTaskFragment() == null;
+                && mActivityRecord.getOrganizedTaskFragment() == null
+                && mActivityRecord.getParent() != null
+                && mActivityRecord.getParent().getBounds().contains(getLatestSafeRegionBounds());
     }
 
     /**

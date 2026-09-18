@@ -18,7 +18,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="android.app.jank.tests">
 
-    <application android:appCategory="news">
+    <application android:appCategory="news"
+                 android:debuggable="true">
         <activity android:name=".JankTrackerActivity"
                   android:exported="true"
                   android:label="JankTrackerActivity"
@@ -39,6 +40,13 @@
         <activity android:name=".ListViewActivity"
             android:exported="true"
             android:label="ListViewActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".ScrollViewActivity"
+            android:exported="true"
+            android:label="ScrollViewActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
             </intent-filter>

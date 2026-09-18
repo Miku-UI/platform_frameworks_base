@@ -19,8 +19,11 @@ package com.android.systemui.qs.panels.ui.viewmodel
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import com.android.internal.logging.UiEventLogger
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.plugins.qs.TileDetailsViewModel
+import com.android.systemui.qs.QSEvent
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.tiles.dialog.AudioDetailsViewModel
@@ -34,6 +37,7 @@ class DetailsViewModel
 constructor(
     val currentTilesInteractor: CurrentTilesInteractor,
     val shadeModeInteractor: ShadeModeInteractor,
+    val uiEventLogger: UiEventLogger,
 ) {
 
     /**
@@ -42,6 +46,7 @@ constructor(
      */
     private val _activeTileDetails = mutableStateOf<TileDetailsViewModel?>(null)
     val activeTileDetails by _activeTileDetails
+    private var _activeTile: QSTile? = null
 
     /**
      * Update the active [TileDetailsViewModel] to `null`.
@@ -49,7 +54,18 @@ constructor(
      * @see activeTileDetails
      */
     fun closeDetailedView() {
+        if (_activeTileDetails.value != null) {
+            _activeTile?.let {
+                uiEventLogger.logWithInstanceId(
+                    QSEvent.QS_DETAILS_CLOSE,
+                    0,
+                    it.metricsSpec,
+                    it.instanceId,
+                )
+            }
+        }
         _activeTileDetails.value = null
+        _activeTile = null
     }
 
     /**
@@ -72,7 +88,24 @@ constructor(
             currentTilesInteractor.currentQSTiles.firstOrNull { it.tileSpec == spec.spec }
 
         return currentTile?.getDetailsViewModel { detailsViewModel ->
+            if (_activeTileDetails.value != null) {
+                _activeTile?.let {
+                    uiEventLogger.logWithInstanceId(
+                        QSEvent.QS_DETAILS_CLOSE,
+                        0,
+                        it.metricsSpec,
+                        it.instanceId,
+                    )
+                }
+            }
             _activeTileDetails.value = detailsViewModel
+            _activeTile = currentTile
+            uiEventLogger.logWithInstanceId(
+                QSEvent.QS_DETAILS_OPEN,
+                0,
+                currentTile.metricsSpec,
+                currentTile.instanceId,
+            )
         } ?: false
     }
 
@@ -80,6 +113,17 @@ constructor(
     fun onVolumeSettingsButtonClicked(audioDetailsViewModel: AudioDetailsViewModel?) {
         if (shadeModeInteractor.isDualShade) {
             _activeTileDetails.value = audioDetailsViewModel
+        }
+    }
+
+    fun logOnSettingsClicked() {
+        _activeTile?.let {
+            uiEventLogger.logWithInstanceId(
+                QSEvent.QS_DETAILS_SETTINGS_CLICK,
+                0,
+                it.metricsSpec,
+                it.instanceId,
+            )
         }
     }
 }

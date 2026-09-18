@@ -41,6 +41,7 @@ import com.android.internal.util.Preconditions;
 import com.android.server.SystemService.TargetUser;
 import com.android.server.SystemService.UserCompletedEventType;
 import com.android.server.am.EventLogTags;
+import com.android.server.flags.Flags;
 import com.android.server.pm.ApexManager;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.utils.TimingsTraceAndSlog;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -310,8 +312,17 @@ public final class SystemServiceManager implements Dumpable {
         try {
             t.traceBegin("OnBootPhase_" + phase);
             final int serviceLen = mServices.size();
+            ArrayList<SystemService> serialServices = new ArrayList<>();
+            ArrayList<SystemService> parallelServices = new ArrayList<>();
             for (int i = 0; i < serviceLen; i++) {
                 final SystemService service = mServices.get(i);
+                if (!Flags.parallelizeOnbootphase() || service.getBootPhaseSerial(mCurrentPhase)) {
+                    serialServices.add(service);
+                } else {
+                    parallelServices.add(service);
+                }
+            }
+            for (final SystemService service : serialServices) {
                 long time = SystemClock.elapsedRealtime();
                 t.traceBegin("OnBootPhase_" + phase + "_" + service.getClass().getName());
                 try {
@@ -324,6 +335,32 @@ public final class SystemServiceManager implements Dumpable {
                 }
                 warnIfTooLong(SystemClock.elapsedRealtime() - time, service, "onBootPhase");
                 t.traceEnd();
+            }
+
+            if (Flags.parallelizeOnbootphase()) {
+                final Future[] futures = new Future[parallelServices.size()];
+                for (int i = 0; i < parallelServices.size(); i++) {
+                    final SystemService service = parallelServices.get(i);
+                    futures[i] = SystemServerInitThreadPool.submit(() -> {
+                        long time = SystemClock.elapsedRealtime();
+                        try {
+                            service.onBootPhase(mCurrentPhase);
+                        } catch (Exception ex) {
+                            throw new RuntimeException("Failed to boot service "
+                                    + service.getClass().getName()
+                                    + ": onBootPhase threw an exception during phase "
+                                    + mCurrentPhase, ex);
+                        }
+                        warnIfTooLong(SystemClock.elapsedRealtime() - time, service, "onBootPhase");
+                    }, "OnBootPhase_" + phase + "_" + service.getClass().getName());
+                }
+                for (int i = 0; i < futures.length; i++) {
+                    try {
+                        futures[i].get();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
             }
         } finally {
             t.traceEnd();

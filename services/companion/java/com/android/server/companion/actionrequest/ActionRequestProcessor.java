@@ -19,6 +19,9 @@ package com.android.server.companion.actionrequest;
 import static android.companion.ActionRequest.REQUEST_NEARBY_ADVERTISING;
 import static android.companion.ActionRequest.REQUEST_NEARBY_SCANNING;
 import static android.companion.ActionRequest.REQUEST_TRANSPORT;
+import static android.companion.ActionResult.RESULT_ACTIVATED;
+import static android.companion.ActionResult.RESULT_DEACTIVATED;
+import static android.companion.ActionResult.RESULT_FAILED_TO_ACTIVATE;
 
 
 import android.annotation.NonNull;
@@ -27,17 +30,18 @@ import android.companion.ActionRequest;
 import android.companion.ActionResult;
 import android.companion.AssociationInfo;
 import android.companion.IOnActionResultListener;
-import android.companion.IOnTransportsChangedListener;
+import android.os.Binder;
 import android.os.RemoteException;
+import android.os.Trace;
 import android.util.Slog;
 
 import com.android.server.companion.association.AssociationStore;
 import com.android.server.companion.devicepresence.CompanionAppBinder;
 import com.android.server.companion.devicepresence.CompanionServiceConnector;
 import com.android.server.companion.devicepresence.DevicePresenceProcessor;
-import com.android.server.companion.transport.CompanionTransportManager;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -46,7 +50,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 /**
  * Manages the lifecycle of action requests sent to companion apps and processes the results.
@@ -55,19 +58,19 @@ import java.util.stream.Collectors;
 public class ActionRequestProcessor implements AssociationStore.OnChangeListener {
     private static final String TAG = "CDM_ActionRequestProcessor";
 
+    private @Nullable List<String> mRequestActionAllowList = null;
+
     @NonNull
     private final AssociationStore mAssociationStore;
     @NonNull
     private final DevicePresenceProcessor mDevicePresenceProcessor;
     @NonNull
     private final CompanionAppBinder mCompanionAppBinder;
-    @NonNull
-    private final CompanionTransportManager mCompanionTransportManager;
 
     /**
      * Tracks which services have an active request for a given action and association.
      */
-    private final Map<Integer, Map<Integer, Set<String>>> mActiveActionServices =
+    private final Map<Integer, Map<Integer, ActionState>> mActiveActionStates =
             new ConcurrentHashMap<>();
 
     /**
@@ -85,21 +88,12 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
     public ActionRequestProcessor(
             @NonNull AssociationStore associationStore,
             @NonNull DevicePresenceProcessor devicePresenceProcessor,
-            @NonNull CompanionAppBinder companionAppBinder,
-            @NonNull CompanionTransportManager companionTransportManager
+            @NonNull CompanionAppBinder companionAppBinder
     ) {
         this.mAssociationStore = associationStore;
         this.mDevicePresenceProcessor = devicePresenceProcessor;
         this.mCompanionAppBinder = companionAppBinder;
-        this.mCompanionTransportManager = companionTransportManager;
         this.mAssociationStore.registerLocalListener(this);
-        // Register a listener to be notified of transport changes.
-        this.mCompanionTransportManager.addListener(new IOnTransportsChangedListener.Stub() {
-            @Override
-            public void onTransportsChanged(@NonNull List<AssociationInfo> associations) {
-                handleOnTransportsChanged(associations);
-            }
-        });
     }
 
     /**
@@ -112,7 +106,7 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
 
         Slog.i(TAG, "Association " + associationId + " was removed. Cleaning up active "
                 + "action services cache.");
-        mActiveActionServices.remove(associationId);
+        mActiveActionStates.remove(associationId);
         for (ActionResultListener listener : mActionResultListeners) {
             listener.mAssociationIdFilter.remove(associationId);
         }
@@ -144,7 +138,7 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
     /**
      * Unregisters the listener for action request results for the given service name.
      */
-    public void removeOnActionResultListener(@NonNull String serviceName) {
+    public void clearOnActionResultListener(@NonNull String serviceName) {
         Slog.i(TAG, "Removing action result listener for service: " + serviceName);
 
         mActionResultListeners.removeIf(l -> l.mServiceName.equals(serviceName));
@@ -160,6 +154,11 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
         Objects.requireNonNull(serviceName, "serviceName cannot be null.");
         Objects.requireNonNull(associationIds, "associationIds cannot be null.");
 
+        if (isRequestBlocked(serviceName)) {
+            // Does not need to send the ActionResult since it for test purpose only.
+            return;
+        }
+
         final int action = request.getAction();
 
         Slog.i(TAG, "requestAction() from service=[" + serviceName + "] for ActionRequest=["
@@ -169,35 +168,88 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
             Slog.w(TAG, "Action " + action + " is not a supported action.");
             return;
         }
-        for (int id : associationIds) {
-            final AssociationInfo association = mAssociationStore.getAssociationById(id);
-            if (association == null) {
-                Slog.w(TAG, "Skipping requestAction for non-existent association " + id);
-                continue;
-            }
 
-            handleActionRequest(association, request, serviceName);
-        }
+        Binder.withCleanCallingIdentity(() -> {
+            for (int id : associationIds) {
+                final AssociationInfo association = mAssociationStore.getAssociationById(id);
+                if (association == null) {
+                    Slog.w(TAG, "Skipping requestAction for non-existent association " + id);
+                    continue;
+                }
+
+                handleActionRequest(association, request, serviceName);
+            }
+        });
     }
 
     /**
-     * Processes an action request result reported by a self-managed companion app.
+     * Processes an action result reported by a companion app.
      */
     public void processActionResult(int associationId, @NonNull ActionResult result) {
         Slog.i(TAG, "Processing action result: " + result);
 
-        AssociationInfo association = mAssociationStore.getAssociationById(associationId);
-        if (association == null) {
-            Slog.w(TAG, "Action result for non-existent association " + associationId);
+        mAssociationStore.getAssociationWithCallerChecks(associationId);
+
+        final int action = result.getAction();
+
+        final Map<Integer, ActionState> associationActions = mActiveActionStates.get(
+                associationId);
+        if (associationActions == null) {
+            Slog.w(TAG, "Received action result for an unknown association " + associationId);
             return;
         }
-        if (!association.isSelfManaged()) {
-            throw new IllegalArgumentException("Association id=[" + associationId
-                    + "] is not self-managed. Cannot report action results.");
+        final ActionState actionState = associationActions.get(action);
+
+        // If there's no state, the action was likely already deactivated and cleaned up.
+        // This is expected when receiving a RESULT_DEACTIVATED for a request we already
+        // handled locally.
+        if (actionState == null) {
+            Slog.i(TAG, "Received action result for an already cleaned-up action. Ignoring.");
+            return;
         }
 
-        // Broadcast the result to any listening SYSTEM services.
-        broadcastActionRequestResult(associationId, result);
+        switch (result.getResultCode()) {
+            case RESULT_ACTIVATED:
+                // This is the success case for an activation request.
+                if (actionState.mState == ActionState.STATE_PENDING_ACTIVATION) {
+                    Slog.i(TAG, "Action " + ActionRequest.actionToString(action)
+                            + " is now ACTIVE.");
+                    actionState.mState = ActionState.STATE_ACTIVE;
+                    broadcastToRequestingServices(actionState, associationId, result);
+                } else {
+                    Slog.w(TAG, "Received ACTIVATED result for a non-pending action. Ignoring.");
+                }
+                break;
+
+            case RESULT_FAILED_TO_ACTIVATE:
+                // This is the failure case for an activation request.
+                if (actionState.mState == ActionState.STATE_PENDING_ACTIVATION) {
+                    Slog.w(TAG, "Action " + ActionRequest.actionToString(action)
+                            + " FAILED to activate.");
+                    // Broadcast the failure, then completely clean up the state.
+                    broadcastToRequestingServices(actionState, associationId, result);
+                    associationActions.remove(action);
+                } else {
+                    Slog.w(TAG, "Received FAILED_TO_ACTIVATE result for a non-pending action."
+                                    + "Ignoring.");
+                }
+                break;
+
+            case RESULT_DEACTIVATED:
+                if (actionState.mState == ActionState.STATE_ACTIVE
+                    || actionState.mState == ActionState.STATE_IDLE) {
+                    Slog.i(TAG, "Action " + ActionRequest.actionToString(action)
+                            + " is now DEACTIVATED.");
+
+                    broadcastToRequestingServices(actionState, associationId, result);
+                    associationActions.remove(action);
+                } else {
+                    Slog.w(TAG, "Ignoring stale RESULT_DEACTIVATED for action "
+                        + ActionRequest.actionToString(action)
+                        + " which is in PENDING_ACTIVATION state.");
+                }
+                break;
+        }
     }
 
     /**
@@ -206,23 +258,33 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
     public void dump(@NonNull PrintWriter out) {
         out.println("  ActionRequestProcessor State:");
 
-        if (mActiveActionServices.isEmpty()) {
-            out.println("    mActiveActionServices: <empty>");
+        if (mActiveActionStates.isEmpty()) {
+            out.println("    mActiveActionStates: <empty>");
         } else {
-            out.println("    mActiveActionServices:");
-            for (Map.Entry<Integer, Map<Integer, Set<String>>> entry :
-                    mActiveActionServices.entrySet()) {
+            out.println("    mActiveActionStates:");
+            for (Map.Entry<Integer, Map<Integer, ActionState>> entry :
+                    mActiveActionStates.entrySet()) {
                 final int associationId = entry.getKey();
-                final Map<Integer, Set<String>> actions = entry.getValue();
+                final Map<Integer, ActionState> actions = entry.getValue();
                 out.println("      Association " + associationId + ":");
-                for (Map.Entry<Integer, Set<String>> actionEntry : actions.entrySet()) {
+                for (Map.Entry<Integer, ActionState> actionEntry : actions.entrySet()) {
+                    final int action = actionEntry.getKey();
+                    final ActionState actionState = actionEntry.getValue();
+                    final String stateString = switch (actionState.mState) {
+                        case ActionState.STATE_IDLE -> "IDLE";
+                        case ActionState.STATE_PENDING_ACTIVATION -> "PENDING_ACTIVATION";
+                        case ActionState.STATE_ACTIVE -> "ACTIVE";
+                        default -> "UNKNOWN";
+                    };
+
                     out.println("        "
-                            + ActionRequest.actionToString(actionEntry.getKey()) + ": "
-                            + actionEntry.getValue());
+                            + ActionRequest.actionToString(action) + ": "
+                            + "state=" + stateString + ", "
+                            + "services=" + actionState.mRequestingServices);
                 }
             }
         }
-        // Dump Action Result Listeners
+
         if (mActionResultListeners.isEmpty()) {
             out.println("    mActionResultListeners: <empty>");
         } else {
@@ -235,18 +297,16 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
         out.println();
     }
 
-    private void broadcastActionRequestResult(
-            int associationId, @NonNull ActionResult result) {
-        Slog.i(TAG, "Broadcasting ActionRequestResult to system listeners: " + result);
-
-        for (ActionResultListener actionResultListener : mActionResultListeners) {
-            if (actionResultListener.mAssociationIdFilter.contains(associationId)) {
-                try {
-                    actionResultListener.mListener.onActionResult(associationId, result);
-                } catch (RemoteException e) {
-                    // Handle exception
-                }
-            }
+    /**
+     * Set the requestAction allowlist.
+     * @hide
+     */
+    public void setRequestActionAllowList(@Nullable List<String> allowList) {
+        Slog.i(TAG, "Setting requestAction allow-list to: " + allowList);
+        if (allowList == null) {
+            mRequestActionAllowList = null;
+        } else {
+            mRequestActionAllowList = new ArrayList<>(allowList);
         }
     }
 
@@ -255,29 +315,64 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
         final int associationId = association.getId();
         final int action = request.getAction();
         final int operation = request.getOperation();
-        // Get or create the services set for this action and association.
-        final Set<String> services = mActiveActionServices
+
+        // Get or create the state holder for this action and association.
+        final ActionState actionState = mActiveActionStates
                 .computeIfAbsent(associationId, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(action, k -> new HashSet<>());
+                .computeIfAbsent(action, k -> new ActionState());
 
-        switch(operation) {
+        switch (operation) {
             case (ActionRequest.OP_ACTIVATE):
-                final boolean wasEmpty = services.isEmpty();
-                if (services.add(serviceName) && wasEmpty) {
-                    // This is the FIRST service. Send the ACTIVATE request to the app.
-                    Slog.i(TAG, "First service [" + serviceName + "]. Activating action=" + action
-                            + " for association " + associationId);
+                // Add the service to the list of requesters regardless of the current state.
+                actionState.mRequestingServices.add(serviceName);
 
+                if (actionState.mState == ActionState.STATE_IDLE) {
+                    // First service to request this action.
+                    Slog.i(TAG, "First service [" + serviceName + "]. Activating action="
+                            + ActionRequest.actionToString(action) + " for association "
+                            + associationId);
+
+                    // Transition the state to PENDING and send the request to the app.
+                    actionState.mState = ActionState.STATE_PENDING_ACTIVATION;
                     postActionRequest(association, request);
+
+                } else if (actionState.mState == ActionState.STATE_PENDING_ACTIVATION) {
+                    // App has not yet sent back a response.
+                    Slog.i(TAG, "Service [" + serviceName + "] requested an action that "
+                            + "is PENDING. It will be notified when the result arrives.");
+                    // DO NOTHING. The service is now "listening" for the pending result.
+
+                } else if (actionState.mState == ActionState.STATE_ACTIVE) {
+                    // Companion App has already sent a SUCCESS response.
+                    Slog.i(TAG, "Service [" + serviceName + "] requested "
+                            + "an already ACTIVE action. Sending immediate confirmation.");
+                    sendImmediateCallback(associationId, request, serviceName, RESULT_ACTIVATED);
                 }
                 break;
-            case (ActionRequest.OP_DEACTIVATE):
-                if (services.remove(serviceName) && services.isEmpty()) {
-                    // This was the LAST service. Send the DEACTIVATE request to the app.
-                    Slog.i(TAG, "Last service [" + serviceName + "]. Deactivating action=" + action
-                            + " for association " + associationId);
 
-                    postActionRequest(association, request);
+            case (ActionRequest.OP_DEACTIVATE):
+                if (actionState.mRequestingServices.remove(serviceName)) {
+                    if (actionState.mRequestingServices.isEmpty()) {
+                        // This was the LAST service.
+                        Slog.i(TAG, "Last service [" + serviceName + "]. Deactivating action="
+                                + ActionRequest.actionToString(action) + " for association "
+                                + associationId);
+
+                        // Send deactivation if the action was either confirmed active OR if an
+                        // activation request is currently in flight.
+                        if (actionState.mState == ActionState.STATE_ACTIVE
+                                || actionState.mState == ActionState.STATE_PENDING_ACTIVATION) {
+                            // Immediately reset the state to IDLE to prevent a race condition
+                            // where a quick deactivate then activate sequence request would
+                            // cause the new activation request to be missed.
+                            actionState.mState = ActionState.STATE_IDLE;
+                            postActionRequest(association, request);
+                        }
+                    } else {
+                        // Other services are still using it.
+                        Slog.i(TAG, "Service [" + serviceName + "] requested to stop action, "
+                                + "but other services are still using it.");
+                    }
                 }
                 break;
             default:
@@ -317,24 +412,59 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
         return primaryServiceConnector;
     }
 
+    private void sendImmediateCallback(int associationId, @NonNull ActionRequest request,
+            @NonNull String serviceName, int resultCode) {
+        final IOnActionResultListener listener = findListenerForService(serviceName);
+        if (listener == null) {
+            Slog.w(TAG, "Could not find listener for service " + serviceName
+                    + " to send immediate callback with result code " + resultCode);
+            return;
+        }
 
-    private void handleOnTransportsChanged(
-            @NonNull List<AssociationInfo> associationsWithTransport) {
-        // Create a set of association IDs that currently have a transport.
-        final Set<Integer> associationsWithTransportIds = associationsWithTransport.stream()
-                .map(AssociationInfo::getId)
-                .collect(Collectors.toSet());
+        final ActionResult immediateResult = new ActionResult.Builder(
+                request.getAction(), resultCode).build();
 
-        // Iterate over the keys in mActiveActionServices and remove any that are no longer in the
-        // list of associations with an active transport.
-        mActiveActionServices.keySet().removeIf(associationId -> {
-            if (!associationsWithTransportIds.contains(associationId)) {
-                Slog.i(TAG, "Transport for association " + associationId + " detached. "
-                        + "Clearing active action requests.");
-                return true; // Remove this key from the map.
+        try {
+            listener.onActionResult(associationId, immediateResult);
+        } catch (RemoteException e) {
+            Slog.e(TAG, "Error sending immediate callback for " + serviceName, e);
+        }
+    }
+
+    /**
+     * Helper method to broadcast a result to all services that requested the action.
+     */
+    private void broadcastToRequestingServices(ActionState actionState, int associationId,
+            @NonNull ActionResult result) {
+        for (String serviceName : actionState.mRequestingServices) {
+            final IOnActionResultListener listener = findListenerForService(serviceName);
+            if (listener != null) {
+                try {
+                    android.os.Trace.asyncTraceForTrackEnd(
+                            Trace.TRACE_TAG_SYSTEM_SERVER,
+                            "CompanionDeviceManager",
+                            result.hashCode()
+                    );
+
+                    listener.onActionResult(associationId, result);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending action result to " + serviceName, e);
+                }
             }
-            return false;
-        });
+        }
+    }
+
+    /**
+     * Finds the registered IOnActionResultListener for a given service name.
+     */
+    @Nullable
+    private IOnActionResultListener findListenerForService(String serviceName) {
+        for (ActionResultListener listenerWrapper : mActionResultListeners) {
+            if (listenerWrapper.mServiceName.equals(serviceName)) {
+                return listenerWrapper.mListener;
+            }
+        }
+        return null;
     }
 
     private static final class ActionResultListener {
@@ -348,5 +478,40 @@ public class ActionRequestProcessor implements AssociationStore.OnChangeListener
             this.mListener = listener;
             this.mAssociationIdFilter = filter;
         }
+    }
+
+    private static final class ActionState {
+        private static final int STATE_IDLE = 0;
+        private static final int STATE_PENDING_ACTIVATION = 1;
+        private static final int STATE_ACTIVE = 2;
+
+        int mState = STATE_IDLE;
+        final Set<String> mRequestingServices = ConcurrentHashMap.newKeySet();
+    }
+
+    private boolean isRequestBlocked(String serviceName) {
+        // If the allow-list is null, test mode is off. Do not block.
+        if (mRequestActionAllowList == null) {
+            return false;
+        }
+
+        // Test mode is ON. If the allow-list is empty, block ALL requests.
+        if (mRequestActionAllowList.isEmpty()) {
+            Slog.w(TAG, "Blocking background request from [" + serviceName + "] "
+                    + "because test mode is active and allow-list is empty.");
+            return true;
+        }
+
+
+        // Test mode is ON. If the service is on the list, it is NOT blocked.
+        if (mRequestActionAllowList.contains(serviceName)) {
+            return false;
+        }
+
+        // The test mode is active, and the service was not on the list. Block it.
+        Slog.w(TAG, "Blocking background request from [" + serviceName + "] "
+                + "because test mode is active and it is not in the allow-list: "
+                + mRequestActionAllowList);
+        return true;
     }
 }

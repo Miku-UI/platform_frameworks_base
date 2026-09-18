@@ -389,9 +389,7 @@ public final class AuthSession implements IBinder.DeathRecipient {
                 }
             } else {
                 // The UI was already showing :)
-                if (Flags.bpFallbackOptions()) {
-                    startAllPreparedFingerprintSensors();
-                }
+                startAllPreparedFingerprintSensors();
                 mState = STATE_AUTH_STARTED_UI_SHOWING;
             }
         } else {
@@ -485,8 +483,7 @@ public final class AuthSession implements IBinder.DeathRecipient {
             return false;
         }
 
-        if (Flags.bpFallbackOptions() && mState == STATE_AUTH_PAUSED
-                && error == BiometricConstants.BIOMETRIC_ERROR_CANCELED) {
+        if (mState == STATE_AUTH_PAUSED && error == BiometricConstants.BIOMETRIC_ERROR_CANCELED) {
             return false;
         }
 

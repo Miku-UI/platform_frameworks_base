@@ -28,6 +28,7 @@ import com.android.internal.util.FrameworkStatsLog;
  */
 public final class InitAppScanMetrics {
 
+    private String mPackageName;
     private boolean mIsFsiEnabled;
     private int mNumApkSplits;
     private int mSignatureSchemeVersion =
@@ -158,6 +159,17 @@ public final class InitAppScanMetrics {
         return this;
     }
 
+    /**
+     * Sets the package name for the scanned package.
+     *
+     * @param packageName The name of the package.
+     * @return This {@link InitAppScanMetrics} instance for chaining.
+     */
+    public InitAppScanMetrics setPackageName(String packageName) {
+        this.mPackageName = packageName;
+        return this;
+    }
+
     /** Finalizes and logs the collected metrics to FrameworkStatsLog. */
     public void log() {
         this.mTotalScanDurationMillis = SystemClock.uptimeMillis() - mTotalScanStartTimeMillis;
@@ -168,6 +180,7 @@ public final class InitAppScanMetrics {
                 mNumApkSplits,
                 mSignatureSchemeVersion,
                 mTotalScanDurationMillis,
-                mInitAppScanOutcome);
+                mInitAppScanOutcome,
+                mPackageName);
     }
 }

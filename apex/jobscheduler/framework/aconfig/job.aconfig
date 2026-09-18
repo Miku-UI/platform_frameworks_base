@@ -48,13 +48,18 @@ flag {
     bug: "372031023"
 }
 
+flag {
+    name: "get_pending_job_reason_stats_api"
+    is_exported: true
+    namespace: "backstage_power"
+    description: "Introduce a new getPendingJobReasonStats() API which returns a holistic view of which constraints contributed the most to why a job remained pending."
+    bug: "448485520"
+}
 
 flag {
-    name: "add_type_info_to_wakelock_tag"
+    name: "enhanced_pending_and_stop_reasons_api"
+    is_exported: true
     namespace: "backstage_power"
-    description: "Append the job type info to wakelock tag"
-    bug: "381880530"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Introduce new enhanced job pending and stop reasons to improve readability and debuggability"
+    bug: "430347691"
 }

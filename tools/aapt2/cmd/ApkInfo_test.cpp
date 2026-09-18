@@ -40,10 +40,31 @@ void AssertProducedAndExpectedInfo(const std::string& produced_path,
   std::string expected;
   ::android::base::ReadFileToString(expected_path, &expected);
 
-  EXPECT_EQ(produced_apk_info.DebugString(), expected);
+  std::string produced;
+
+  {
+    // Use a CodedOutputStream with SetSerializationDeterministic(true) to
+    // produce a deterministic proto message that can be compared against the
+    // golden output.
+    // Use an inner scope so that the output streams are flushed when
+    // leaving the scope.
+    google::protobuf::io::StringOutputStream string_output_stream(&produced);
+    google::protobuf::io::CodedOutputStream coded_output(&string_output_stream);
+    coded_output.SetSerializationDeterministic(true);
+
+    ASSERT_TRUE(produced_apk_info.SerializeToCodedStream(&coded_output));
+  }
+
+  EXPECT_EQ(produced, expected);
 }
 
 static android::NoOpDiagnostics noop_diag;
+
+// To regenerate the golden data for these tests, run:
+// $ cd $ANDROID_BUILD_TOP
+// $ m aapt2
+// $ out/soong/.intermediates/frameworks/base/tools/aapt2/aapt2/linux_glibc_x86_64/unversioned/aapt2 apkinfo frameworks/base/tools/aapt2/integration-tests/DumpTest/components.apk  -o frameworks/base/tools/aapt2/integration-tests/DumpTest/components_expected_proto.binpb
+// $ out/soong/.intermediates/frameworks/base/tools/aapt2/aapt2/linux_glibc_x86_64/unversioned/aapt2 apkinfo --include-resource-table --include-xml AndroidManifest.xml --include-xml res/oy.xml frameworks/base/tools/aapt2/integration-tests/DumpTest/components.apk  -o frameworks/base/tools/aapt2/integration-tests/DumpTest/components_full_proto.binpb
 
 TEST_F(ApkInfoTest, ApkInfoWithBadging) {
   auto apk_path = file::BuildPath(
@@ -55,7 +76,7 @@ TEST_F(ApkInfoTest, ApkInfoWithBadging) {
 
   auto expected_path =
       file::BuildPath({android::base::GetExecutableDirectory(), "integration-tests", "DumpTest",
-                       "components_expected_proto.txt"});
+                       "components_expected_proto.binpb"});
   AssertProducedAndExpectedInfo(out_info_path, expected_path);
 }
 
@@ -71,7 +92,7 @@ TEST_F(ApkInfoTest, FullApkInfo) {
 
   auto expected_path =
       file::BuildPath({android::base::GetExecutableDirectory(), "integration-tests", "DumpTest",
-                       "components_full_proto.txt"});
+                       "components_full_proto.binpb"});
   AssertProducedAndExpectedInfo(out_info_path, expected_path);
 }
 

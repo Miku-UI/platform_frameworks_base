@@ -198,7 +198,8 @@
     <string name="accessibility_wifi_two_bars" msgid="687800024970972270">"Wi-Fi ka dy vija."</string>
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi: tre vija."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi ka sinjal të plotë."</string>
-    <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Lidhur me pajisjen tënde"</string>
+    <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Lidhur me pajisjen tënde."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Të gjithë përdoruesit në këtë pajisje mund të shikojnë dhe të lidhen."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Rrjet i hapur"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Rrjet i sigurt"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Sistemi operativ Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Cilësimet e \"Emrit të pikës së qasjes\" nuk mund të përdoren për këtë përdorues"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Korrigjimi përmes USB-së"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Korrigjo gabimet e modalitetit kur UBS-ja është e lidhur"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Anulo autorizimet e korrigjimeve përmes USB-së"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Revoko autorizimet e korrigjimeve të adb-së"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Korrigjimi përmes Wi-Fi"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Modaliteti i korrigjimit kur Wi‑Fi është i lidhur"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Gabim"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Po çifton pajisjen…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Çiftimi i pajisjes dështoi. Ose kodi QR nuk ishte i saktë, ose pajisja nuk është e lidhur me të njëjtin rrjet."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Adresa IP dhe porta"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Nuk ofrohet (nuk lejohet)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Nuk ofrohet (Wi‑Fi është i shkëputur)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Skano kodin QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Çifto pajisjen përmes Wi‑Fi duke skanuar një kod QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Lidhu me një rrjet Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Korrigjuesi përmes USB-së është vetëm për qëllime zhvillimore. Përdore për të kopjuar të dhëna mes kompjuterit dhe pajisjes tënde, për të instaluar aplikacione në pajisjen tënde pa asnjë njoftim si dhe për të lexuar të dhënat e evidencave."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Të lejohet korrigjimi përmes Wi-Fi?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Korrigjimin përmes Wi-Fi është vetëm për qëllime zhvillimore. Përdore për të kopjuar të dhëna mes kompjuterit dhe pajisjes sate, për të instaluar aplikacione në pajisjen tënde pa asnjë njoftim si dhe për të lexuar të dhënat e regjistrit."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Të bllokohet qasja për korrigjim përmes USB-së nga të gjithë kompjuterët që ke autorizuar më parë?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Të revokohet qasja për korrigjimin e adb-së nga të gjithë kompjuterët që ke autorizuar më parë?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Të lejohen cilësimet e zhvillimit?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Këto cilësime janë të projektuara vetëm për përdorim në programim. Ato mund të shkaktojnë që pajisja dhe aplikacionet në të, të mos punojnë ose të veprojnë në mënyrë të gabuar."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verifiko apl. përmes USB-së"</string>
@@ -657,7 +660,7 @@
     <string name="accessor_no_description_text" msgid="7510967452505591456">"Nuk jepet asnjë përshkrim nga aplikacioni."</string>
     <string name="accessor_expires_text" msgid="4625619273236786252">"Qiraja skadon në <xliff:g id="DATE">%s</xliff:g>"</string>
     <string name="delete_blob_text" msgid="2819192607255625697">"Fshi të dhënat e ndara"</string>
-    <string name="delete_blob_confirmation_text" msgid="7807446938920827280">"Je i sigurt që dëshiron ta fshish këto të dhëna të ndara?"</string>
+    <string name="delete_blob_confirmation_text" msgid="7807446938920827280">"Je i sigurt që dëshiron t\'i fshish këto të dhëna të ndara?"</string>
     <string name="user_add_user_item_summary" msgid="5748424612724703400">"Përdoruesit kanë aplikacionet dhe përmbajtjet e tyre"</string>
     <string name="user_add_profile_item_summary" msgid="5418602404308968028">"Mund të kufizosh qasjen në aplikacione dhe përmbajtje nga llogaria jote"</string>
     <string name="user_add_user_item_title" msgid="2394272381086965029">"Përdoruesi"</string>
@@ -755,12 +758,9 @@
     <string name="accessibility_data_two_bars" msgid="9202641507241802499">"Të dhënat kanë dy vija."</string>
     <string name="accessibility_data_three_bars" msgid="2813876214466722413">"Sinjali është me tre vija."</string>
     <string name="accessibility_data_signal_full" msgid="1808301899314382337">"Sinjali i të dhënave është i plotë."</string>
-    <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Lidhja e eternetit u shkëput."</string>
+    <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Lidhja e Ethernet-it u shkëput."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Eternet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Telefonatat nuk ofrohen"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Tastiera fizike"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Zgjidh strukturën e tastierës"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Parazgjedhja"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Kontrolli i aktivizimit të ekranit"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Lejo ndezjen e ekranit"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Lejo një aplikacion që të ndezë ekranin. Nëse lejohet, aplikacioni mund ta ndezë ekranin në çdo kohë pa synimin tënd të shprehur."</string>

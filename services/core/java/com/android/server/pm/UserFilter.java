@@ -16,11 +16,21 @@
 package com.android.server.pm;
 
 import static android.content.pm.UserInfo.flagsToString;
+import static android.os.UserHandle.USER_ALL;
+import static android.os.UserHandle.USER_NULL;
+import static android.os.UserHandle.USER_CURRENT;
+import static android.os.UserHandle.USER_CURRENT_OR_SELF;
 
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CannotBeSpecialUser;
+import android.annotation.UserIdInt;
 import android.content.pm.UserInfo;
 import android.content.pm.UserInfo.UserInfoFlag;
+import android.os.UserHandle;
+import android.util.DebugUtils;
+import android.util.IntArray;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -31,11 +41,13 @@ public final class UserFilter {
     private final boolean mIncludePartial;
     private final boolean mIncludeDying;
     private final @UserInfoFlag int mRequiredFlags;
+    private final @Nullable int[] mExcludedIds;
 
     private UserFilter(Builder builder) {
         mIncludePartial = builder.mIncludePartial;
         mIncludeDying = builder.mIncludeDying;
         mRequiredFlags = builder.mRequiredFlags;
+        mExcludedIds = builder.mExcludedIds == null ? null : builder.mExcludedIds.toArray();
     }
 
     /**
@@ -57,12 +69,27 @@ public final class UserFilter {
         }
 
         // Check flags
-        return (user.flags & mRequiredFlags) == mRequiredFlags;
+        if ((user.flags & mRequiredFlags) != mRequiredFlags) {
+            return false;
+        }
+
+        // Check excluded ids
+        if (mExcludedIds != null) {
+            for (int excludedId : mExcludedIds) {
+                if (excludedId == user.id) {
+                    return false;
+                }
+            }
+        }
+
+        // All checks passed!
+        return true;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mIncludeDying, mIncludePartial, mRequiredFlags);
+        return Objects.hash(mIncludeDying, mIncludePartial, mRequiredFlags)
+                + Arrays.hashCode(mExcludedIds);
     }
 
     @Override
@@ -77,18 +104,24 @@ public final class UserFilter {
             return false;
         }
         UserFilter other = (UserFilter) obj;
-        return mIncludeDying == other.mIncludeDying && mIncludePartial == other.mIncludePartial
-                && mRequiredFlags == other.mRequiredFlags;
+        return mIncludeDying == other.mIncludeDying
+                && mIncludePartial == other.mIncludePartial
+                && mRequiredFlags == other.mRequiredFlags
+                && Arrays.equals(mExcludedIds, other.mExcludedIds);
     }
+
 
     @Override
     public String toString() {
-        StringBuilder string = new StringBuilder("UserFilter[");
+        StringBuilder string = new StringBuilder("UserFilter{");
         if (mIncludePartial) {
             string.append("includePartial, ");
         }
         if (mIncludeDying) {
             string.append("includeDying, ");
+        }
+        if (mExcludedIds != null) {
+            string.append("excludedIds=").append(Arrays.toString(mExcludedIds)).append(", ");
         }
         if (mRequiredFlags != 0) {
             string.append("requiredFlags=").append(flagsToString(mRequiredFlags));
@@ -96,7 +129,7 @@ public final class UserFilter {
             // using else to avoid ending with ,
             string.append("noRequiredFlags");
         }
-        return string.append(']').toString();
+        return string.append('}').toString();
     }
 
     /**
@@ -109,7 +142,7 @@ public final class UserFilter {
         return new Builder();
     }
 
-    /*
+    /**
      * Bob, the Builder!
      *
      * <p>By default, it includes all users, without any filtering.
@@ -119,6 +152,7 @@ public final class UserFilter {
         private boolean mIncludePartial;
         private boolean mIncludeDying;
         private @UserInfoFlag int mRequiredFlags;
+        private @Nullable IntArray mExcludedIds;
 
         private Builder() {
         }
@@ -145,6 +179,24 @@ public final class UserFilter {
             mRequiredFlags = flags;
             return this;
         }
+
+        // NOTE: it might be useful to allow some special ids (like USER_CURRENT), but for now we'll
+        // keep it simpler - we can re-evaluate once the need arises.
+        /**
+         * When called, filter outs users whose id match {@code userId}.
+         *
+         * <p>Can be called multiple times, once per user.
+         *
+         * @throws IllegalArgumentException if called with special ids (like {@code USER_ALL}).
+         */
+        public Builder excludeUserId(@CannotBeSpecialUser @UserIdInt int userId) {
+            assertNotSpecialUserId(userId);
+            if (mExcludedIds == null) {
+                mExcludedIds = new IntArray(1); // It will most likely be called just once
+            }
+            mExcludedIds.add(userId);
+            return this;
+        }
     }
 
     /** Used to decide if a user is dying, as that information is not present in the user itself. */
@@ -152,5 +204,17 @@ public final class UserFilter {
 
         /** Returns {@code true} if the poor user is indeed dying... */
         boolean isDying(UserInfo userInfo);
+    }
+
+    @SuppressWarnings("StatementSwitchToExpressionSwitch") // old style is more readable
+    private static void assertNotSpecialUserId(@UserIdInt int userId) {
+        switch (userId) {
+            case USER_ALL:
+            case USER_CURRENT:
+            case USER_CURRENT_OR_SELF:
+            case USER_NULL:
+                throw new IllegalArgumentException("invalid userId: " + userId + " ("
+                        + DebugUtils.constantToString(UserHandle.class, "USER_", userId) + ")");
+        }
     }
 }

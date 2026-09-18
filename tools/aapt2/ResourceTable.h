@@ -20,6 +20,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -401,6 +402,27 @@ class ResourceTable {
 
   Validation validation_ = Validation::kEnabled;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const ResourceTable::CollisionResult& status) {
+  switch (status) {
+    case ResourceTable::CollisionResult::kKeepBoth:
+      os << "KeepBoth";
+      break;
+    case ResourceTable::CollisionResult::kKeepOriginal:
+      os << "KeepOriginal";
+      break;
+    case ResourceTable::CollisionResult::kConflict:
+      os << "Conflict";
+      break;
+    case ResourceTable::CollisionResult::kTakeNew:
+      os << "TakeNew";
+      break;
+    default:
+      os << "UNKNOWN_RESULTS";  // Handle unexpected values
+      break;
+  }
+  return os;
+}
 
 }  // namespace aapt
 

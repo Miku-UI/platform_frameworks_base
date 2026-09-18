@@ -139,8 +139,8 @@ public class SettingsValidatorsTest {
 
     @Test
     public void testPackageNameValidator() {
-        assertTrue(SettingsValidators.PACKAGE_NAME_VALIDATOR.validate(
-                "com.google.android"));
+        assertTrue(SettingsValidators.PACKAGE_NAME_VALIDATOR.validate(""));
+        assertTrue(SettingsValidators.PACKAGE_NAME_VALIDATOR.validate("com.google.android"));
         assertFalse(SettingsValidators.PACKAGE_NAME_VALIDATOR.validate("com.google.@android"));
         assertFalse(SettingsValidators.PACKAGE_NAME_VALIDATOR.validate(".com.google.android"));
         assertFalse(SettingsValidators.PACKAGE_NAME_VALIDATOR.validate(".com.google.5android"));

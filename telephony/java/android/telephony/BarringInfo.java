@@ -239,7 +239,7 @@ public final class BarringInfo implements Parcelable {
             dest.writeInt(mConditionalBarringTimeSeconds);
         }
 
-        /* @inheritDoc */
+        /* {@inheritDoc} */
         public static final @NonNull Parcelable.Creator<BarringServiceInfo> CREATOR =
                 new Parcelable.Creator<BarringServiceInfo>() {
                     @Override

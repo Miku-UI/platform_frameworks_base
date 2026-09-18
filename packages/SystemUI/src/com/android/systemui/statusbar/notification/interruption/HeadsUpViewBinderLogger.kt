@@ -8,15 +8,15 @@ import com.android.systemui.statusbar.notification.logKey
 import javax.inject.Inject
 
 class HeadsUpViewBinderLogger @Inject constructor(@NotificationHeadsUpLog val buffer: LogBuffer) {
-    fun startBindingHun(entry: NotificationEntry, isPinnedByUser: Boolean) {
+    fun startBindingHun(entry: NotificationEntry, isFromUserOpenAction: Boolean) {
         buffer.log(
             TAG,
             INFO,
             {
                 str1 = entry.logKey
-                bool1 = isPinnedByUser
+                bool1 = isFromUserOpenAction
             },
-            { "start binding heads up entry $str1. isPinnedByUser=$bool1 " },
+            { "start binding heads up entry $str1. isFromUserOpenAction=$bool1 " },
         )
     }
 

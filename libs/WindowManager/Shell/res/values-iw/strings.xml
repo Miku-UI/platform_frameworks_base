@@ -60,7 +60,7 @@
     <string name="accessibility_split_top" msgid="2789329702027147146">"פיצול למעלה"</string>
     <string name="accessibility_split_bottom" msgid="8694551025220868191">"פיצול למטה"</string>
     <string name="one_handed_tutorial_title" msgid="4583241688067426350">"איך להשתמש בתכונה \"מצב שימוש ביד אחת\""</string>
-    <string name="one_handed_tutorial_description" msgid="3486582858591353067">"כדי לצאת, יש להחליק למעלה מתחתית המסך או ללחוץ במקום כלשהו במסך מעל האפליקציה"</string>
+    <string name="one_handed_tutorial_description" msgid="3486582858591353067">"כדי לצאת, צריך להחליק למעלה מתחתית המסך או ללחוץ במקום כלשהו במסך מעל האפליקציה"</string>
     <string name="accessibility_action_start_one_handed" msgid="5070337354072861426">"הפעלה של מצב שימוש ביד אחת"</string>
     <string name="accessibility_action_stop_one_handed" msgid="1369940261782179442">"יציאה ממצב שימוש ביד אחת"</string>
     <string name="bubbles_settings_button_description" msgid="1301286017420516912">"הגדרות לבועות של <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
@@ -76,28 +76,23 @@
     <string name="bubble_accessibility_action_collapse_menu" msgid="2975310870146231463">"כיווץ התפריט"</string>
     <string name="bubble_accessibility_action_move_bar_left" msgid="4803535120353716759">"הזזה שמאלה"</string>
     <string name="bubble_accessibility_action_move_bar_right" msgid="7686542531917510421">"הזזה ימינה"</string>
-    <string name="bubble_accessibility_announce_expand" msgid="5388792092888203776">"הרחבה של <xliff:g id="BUBBLE_TITLE">%1$s</xliff:g>"</string>
-    <string name="bubble_accessibility_announce_collapse" msgid="3178806224494537097">"כיווץ של <xliff:g id="BUBBLE_TITLE">%1$s</xliff:g>"</string>
     <string name="bubbles_app_settings" msgid="3617224938701566416">"הגדרות <xliff:g id="NOTIFICATION_TITLE">%1$s</xliff:g>"</string>
-    <string name="bubble_dismiss_text" msgid="8816558050659478158">"סגירת בועה"</string>
+    <string name="bubble_dismiss_text" msgid="8816558050659478158">"סגירת הבועה"</string>
     <string name="bubble_fullscreen_text" msgid="1006758103218086231">"הצגה במסך מלא"</string>
-    <string name="bubbles_dont_bubble_conversation" msgid="310000317885712693">"אין להציג בועות לשיחה"</string>
-    <string name="bubbles_user_education_title" msgid="2112319053732691899">"לדבר בבועות"</string>
-    <string name="bubbles_user_education_description" msgid="4215862563054175407">"שיחות חדשות מופיעות כסמלים צפים, או בועות. יש ללחוץ כדי לפתוח בועה. יש לגרור כדי להזיז אותה."</string>
+    <string name="bubbles_dont_bubble_conversation" msgid="310000317885712693">"להפסיק להציג בועות לשיחה"</string>
+    <string name="bubbles_user_education_title" msgid="2112319053732691899">"שיחות בבועות"</string>
+    <string name="bubbles_user_education_description" msgid="4215862563054175407">"שיחות חדשות מופיעות כסמלים צפים או בועות. כדי לפתוח בועה, לוחצים עליה. כדי להזיז בועה, גוררים אותה."</string>
     <string name="bubbles_user_education_manage_title" msgid="7042699946735628035">"שליטה בבועות, בכל זמן"</string>
-    <string name="bubbles_user_education_manage" msgid="3460756219946517198">"יש ללחוץ על \'ניהול\' כדי להשבית את הבועות מהאפליקציה הזו"</string>
+    <string name="bubbles_user_education_manage" msgid="3460756219946517198">"כדי להשבית את הבועות מהאפליקציה הזו, צריך ללחוץ על \"ניהול\""</string>
     <string name="bubbles_user_education_got_it" msgid="3382046149225428296">"הבנתי"</string>
     <string name="bubble_overflow_empty_title" msgid="2397251267073294968">"אין בועות מהזמן האחרון"</string>
-    <string name="bubble_overflow_empty_subtitle" msgid="2627417924958633713">"בועות אחרונות ובועות שנסגרו יופיעו כאן"</string>
+    <string name="bubble_overflow_empty_subtitle" msgid="2627417924958633713">"בועות מהזמן האחרון ובועות שנסגרו יופיעו כאן"</string>
     <string name="bubble_bar_education_stack_title" msgid="2486903590422497245">"צ\'אט בבועות"</string>
     <string name="bubble_bar_education_stack_text" msgid="2446934610817409820">"שיחות חדשות מופיעות כסמלים בפינה התחתונה של המסך. אפשר ללחוץ כדי להרחיב אותן או לגרור כדי לסגור אותן."</string>
     <string name="bubble_bar_education_manage_title" msgid="6148404487810835924">"שליטה בבועות בכל זמן"</string>
     <string name="bubble_bar_education_manage_text" msgid="3199732148641842038">"אפשר ללחוץ כאן כדי לקבוע אילו אפליקציות ושיחות יוכלו להופיע בבועות"</string>
     <string name="notification_bubble_title" msgid="6082910224488253378">"בועה"</string>
     <string name="manage_bubbles_text" msgid="7730624269650594419">"ניהול"</string>
-    <string name="accessibility_bubble_dismissed" msgid="8367471990421247357">"הבועה נסגרה."</string>
-    <string name="bubble_shortcut_label" msgid="666269077944378311">"בועות"</string>
-    <string name="bubble_shortcut_long_label" msgid="6088437544312894043">"הצגת הבועות"</string>
     <string name="restart_button_description" msgid="4564728020654658478">"כדי לראות טוב יותר יש ללחוץ ולהפעיל את האפליקציה הזו מחדש"</string>
     <string name="user_aspect_ratio_settings_button_hint" msgid="734835849600713016">"אפשר לשנות את יחס הגובה-רוחב של האפליקציה הזו ב\'הגדרות\'"</string>
     <string name="user_aspect_ratio_settings_button_description" msgid="4315566801697411684">"שינוי יחס גובה-רוחב"</string>
@@ -121,6 +116,7 @@
     <string name="maximize_button_text" msgid="8106849394538234709">"הגדלה של <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="restore_button_text" msgid="5377571986086775288">"שחזור של <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="minimize_button_text" msgid="5213953162664451152">"מזעור של <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="exit_fullscreen_button_text" msgid="7970660979589417830">"יציאה ממסך מלא של <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="close_button_text" msgid="4544839489310949894">"סגירה של <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="back_button_text" msgid="1469718707134137085">"חזרה"</string>
     <string name="handle_text" msgid="4419667835599523257">"נקודת אחיזה לאפליקציה"</string>
@@ -137,41 +133,52 @@
     <string name="new_window_text" msgid="6318648868380652280">"חלון חדש"</string>
     <string name="manage_windows_text" msgid="5567366688493093920">"ניהול החלונות"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"שינוי יחס הגובה-רוחב"</string>
+    <string name="handle_menu_game_controls_text" msgid="8049059289860078063">"פקדי המשחק"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"אופטימיזציה של התצוגה"</string>
     <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"סמל שגיאה"</string>
     <string name="close_text" msgid="4986518933445178928">"סגירה"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"סגירת התפריט"</string>
-    <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> (שינוי דינמי של חלונות במחשב)"</string>
-    <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"הגדלת המסך"</string>
-    <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"שינוי הגודל"</string>
+    <string name="desktop_mode_header_chip_text" msgid="7171700244998923330">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> (ממשק מחשב)"</string>
+    <string name="desktop_mode_layout_menu_maximize_text" msgid="7086608727256054454">"הגדלת המסך"</string>
+    <string name="desktop_mode_layout_menu_snap_text" msgid="7558194147987254333">"שינוי הגודל"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"לא ניתן להעביר את האפליקציה לכאן"</string>
-    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"נפתח חלון חדש באפליקציה"</string>
     <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"החלון של האפליקציה עומד להיסגר"</string>
     <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"חלון האפליקציה התמזער"</string>
     <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> (במיקוד)"</string>
     <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> (לא במיקוד)"</string>
-    <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"הטמעה"</string>
-    <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"שחזור"</string>
-    <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"הגדלה"</string>
-    <string name="desktop_mode_maximize_menu_restore_button_text" msgid="4234449220944704387">"שחזור"</string>
-    <string name="desktop_mode_maximize_menu_snap_left_button_text" msgid="8077452201179893424">"הצמדה לשמאל"</string>
-    <string name="desktop_mode_maximize_menu_snap_right_button_text" msgid="7117751068945657304">"הצמדה לימין"</string>
+    <string name="desktop_mode_layout_menu_immersive_button_text" msgid="9009888844507160172">"הטמעה"</string>
+    <string name="desktop_mode_layout_menu_immersive_restore_button_text" msgid="3110073879417912032">"שחזור"</string>
+    <string name="desktop_mode_layout_menu_maximize_button_text" msgid="5586863071181530250">"הגדלה"</string>
+    <string name="desktop_mode_layout_menu_restore_button_text" msgid="5422006898402949300">"שחזור"</string>
+    <string name="desktop_mode_layout_menu_snap_left_button_text" msgid="6464364897343872665">"הצמדה לשמאל"</string>
+    <string name="desktop_mode_layout_menu_snap_right_button_text" msgid="565024687319285843">"הצמדה לימין"</string>
     <string name="desktop_mode_a11y_action_snap_left" msgid="2932955411661734668">"שינוי הגודל של חלון האפליקציה שמשמאל"</string>
     <string name="desktop_mode_a11y_action_snap_right" msgid="4577032451624261787">"שינוי הגודל של חלון האפליקציה שמימין"</string>
     <string name="desktop_mode_a11y_action_maximize_restore" msgid="8026037983417986686">"שחזור של גודל החלון או הגדלת החלון"</string>
+    <string name="desktop_mode_a11y_action_exit_fullscreen" msgid="1854054435132984004">"יציאה ממסך מלא"</string>
     <string name="app_handle_chip_accessibility_announce" msgid="499881698947450536">"פתיחת התפריט"</string>
     <string name="app_handle_menu_accessibility_announce" msgid="7928858564852785398">"כניסה אל <xliff:g id="WINDOWING_MODE">%1$s</xliff:g>"</string>
-    <string name="maximize_menu_talkback_action_snap_left_text" msgid="500309467459084564">"שינוי גודל החלון שמשמאל"</string>
-    <string name="maximize_menu_talkback_action_snap_right_text" msgid="7010831426654467163">"שינוי גודל החלון שמימין"</string>
-    <string name="maximize_menu_talkback_action_maximize_restore_text" msgid="4942610897847934859">"שחזור של גודל החלון או הגדלת החלון"</string>
+    <string name="layout_menu_talkback_action_snap_left_text" msgid="8141501620544883986">"שינוי גודל החלון שמאלה"</string>
+    <string name="layout_menu_talkback_action_snap_right_text" msgid="7819760135716721943">"שינוי גודל החלון ימינה"</string>
+    <string name="layout_menu_talkback_action_maximize_restore_text" msgid="132471919764977708">"הגדלת החלון של האפליקציה"</string>
+    <string name="layout_menu_talkback_action_restore_text" msgid="1791365751744400881">"שחזור הגודל של החלון"</string>
+    <string name="layout_menu_talkback_action_immersive_enter_text" msgid="1753945477839147586">"כניסה למצב אימרסיבי"</string>
+    <string name="layout_menu_talkback_action_immersive_restore_text" msgid="6913341567930893074">"שחזור הגודל של החלון"</string>
     <string name="app_header_talkback_action_maximize_button_text" msgid="8776156791095878638">"הגדלת החלון של האפליקציה"</string>
     <string name="app_header_talkback_action_restore_button_text" msgid="2153022340772980863">"שחזור הגודל של החלון"</string>
     <string name="app_header_talkback_action_minimize_button_text" msgid="7491054416186901764">"מזעור החלון של האפליקציה"</string>
     <string name="app_header_talkback_action_close_button_text" msgid="5159612596378268926">"סגירת החלון של האפליקציה"</string>
+    <string name="fullscreen_header_talkback_action_exit_fullscreen_button_text" msgid="5271884324741706388">"יציאה ממסך מלא"</string>
     <string name="open_by_default_settings_text" msgid="2526548548598185500">"הגדרות לפתיחה כברירת מחדל"</string>
     <string name="open_by_default_dialog_subheader_text" msgid="1729599730664063881">"איך היית רוצה שהאפליקציה הזו תפתח קישורים לדפי אינטרנט"</string>
     <string name="open_by_default_dialog_in_app_text" msgid="6978022419634199806">"באפליקציה"</string>
     <string name="open_by_default_dialog_in_browser_text" msgid="8042769465958497081">"בדפדפן"</string>
     <string name="open_by_default_dialog_dismiss_button_text" msgid="3487238795534582291">"אישור"</string>
     <string name="desktop_windowing_app_to_web_education_text" msgid="1599668769538703570">"כאן אפשר לפתוח אפליקציות בדפדפן במהירות"</string>
+    <string name="open_by_default_splash_dialog_title_text" msgid="2645214455870859991">"‏איך לפתוח את הקישורים של &lt;b&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/b&gt;?"</string>
+    <string name="open_by_default_splash_dialog_checkbox_text" msgid="7367791478473586694">"אני רוצה לשמור את הבחירה שלי"</string>
+    <string name="open_by_default_splash_dialog_browser_text" msgid="4439951040200685938">"פתיחה בדפדפן"</string>
+    <string name="open_by_default_splash_dialog_app_text" msgid="2680408983754147907">"להישאר באפליקציה"</string>
+    <string name="open_by_default_splash_dialog_ask_me_later_text" msgid="2706872945449736432">"אפשר לשאול אותי בהמשך"</string>
+    <string name="package_update_text" msgid="196015273357188152">"המערכת מתעדכנת…"</string>
 </resources>

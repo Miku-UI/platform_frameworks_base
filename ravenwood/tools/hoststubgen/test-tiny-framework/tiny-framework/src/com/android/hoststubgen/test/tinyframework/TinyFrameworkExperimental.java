@@ -26,7 +26,6 @@ public class TinyFrameworkExperimental {
     @HostSideTestKeep
     public void keep() {}
 
-    // TODO(b/436862019): In the stats file, it should show up as "supported".
     @HostSideTestSubstitute(suffix = "_host")
     public void replace() {
         throw new RuntimeException();

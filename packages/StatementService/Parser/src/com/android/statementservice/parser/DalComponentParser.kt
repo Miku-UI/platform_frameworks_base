@@ -18,7 +18,6 @@
 
 package com.android.statementservice.parser
 
-import android.os.PatternMatcher.PATTERN_ADVANCED_GLOB
 import android.os.PatternMatcher.PATTERN_LITERAL
 import android.os.PatternMatcher.PATTERN_PREFIX
 import android.os.PatternMatcher.PATTERN_SIMPLE_GLOB
@@ -30,7 +29,7 @@ import android.os.PatternMatcher.PATTERN_SIMPLE_GLOB
  *  1) An asterisk (*) matches zero to as many characters as possible
  *  2) A question mark (?) matches any single character.
  *
- * Matching one to many characters can be done with a question mark followed by an asterisk (?+).
+ * Matching one to many characters can be done with a question mark followed by an asterisk (?*).
  *
  * @param expression A matching expression string from a DAL relation extension component used for
  *                   matching a URI part. This must be a non-empty string and all characters in the
@@ -42,44 +41,38 @@ fun parseMatchingExpression(expression: String): Pair<Int, String> {
     if (expression.isNullOrEmpty()) {
         throw IllegalArgumentException("Matching expressions cannot be an empty string")
     }
-    var count = 0
-    var isAdvanced = expression.contains("?*")
+    var wildcardCount = 0
+    for (i in expression.indices) {
+        if (expression[i] == '?' || expression[i] == '*') {
+            wildcardCount += 1
+        }
+    }
+    if (wildcardCount == 0) {
+        return Pair(PATTERN_LITERAL, expression)
+    }
+    if (wildcardCount == 1 && expression.endsWith('*')) {
+        return Pair(PATTERN_PREFIX, expression.substring(0, expression.length - 1))
+    }
+
+    // For PATTERN_SIMPLE_GLOB `.` is a wildcard so it needs to be escaped.
     val pattern = buildString {
         for (char in expression) {
             when (char) {
                 '*' -> {
-                    if (this.endsWith('.') && !this.endsWith("\\.")) {
-                        append('+')
-                    } else {
-                        count += 1
-                        append(".*")
-                    }
+                    append(".*")
                 }
                 '?' -> {
-                    count += 1
                     append('.')
                 }
                 '.' -> {
                     append("\\.")
                 }
-                '[', ']', '{', '}' -> {
-                    if (isAdvanced) {
-                        append('\\')
-                    }
-                    append(char)
+                '\\' -> {
+                    append("\\\\")
                 }
                 else -> append(char)
             }
         }
-    }
-    if (count == 0) {
-        return Pair(PATTERN_LITERAL, pattern)
-    }
-    if (count == 1 && pattern.endsWith(".*")) {
-        return Pair(PATTERN_PREFIX, pattern.dropLast(2))
-    }
-    if (isAdvanced) {
-        return Pair(PATTERN_ADVANCED_GLOB, pattern)
     }
     return Pair(PATTERN_SIMPLE_GLOB, pattern)
 }

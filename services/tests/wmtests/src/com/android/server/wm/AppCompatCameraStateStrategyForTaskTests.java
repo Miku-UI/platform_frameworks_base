@@ -16,12 +16,9 @@
 
 package com.android.server.wm;
 
-import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX;
-
 import static org.junit.Assert.assertEquals;
 
 import android.compat.testing.PlatformCompatChangeRule;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.util.ArraySet;
 
@@ -52,7 +49,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     public TestRule mCompatChangeRule = new PlatformCompatChangeRule();
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testTrackCameraOpened_returnsCorrectCameraAppInfo() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -62,7 +58,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testTrackCameraOpened_cameraNotYetOpened() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -75,7 +70,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testOnCameraOpened_notifiesPolicy() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -88,7 +82,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testOnCameraOpened_cameraIsOpened() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -101,7 +94,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testTrackCameraClosed_returnsCorrectCameraAppInfo() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -113,7 +105,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testOnCameraClosed_policyCanCloseCamera_cameraIsClosed() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -126,7 +117,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testOnCameraClosed_activityCannotCloseCamera_returnsCorrectStatus() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCannotCloseOnce();
@@ -140,7 +130,6 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_TRACK_TASK_AND_APP_BUGFIX)
     public void testActivitySwitchesCameras_policyIsNotNotifiedAgain() {
         runTestScenario((robot) -> {
             robot.addPolicyThatCanClose();
@@ -179,14 +168,15 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
             super(windowTestsBase);
             setupAppCompatConfiguration();
             configureActivityAndDisplay();
-        }
-
-        @Override
-        void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
-            super.onPostDisplayContentCreation(displayContent);
             mRegisteredPolicies = new ArraySet<>();
             mFakePolicyCannotCloseOnce = new FakeAppCompatCameraStatePolicy(true);
             mFakePolicyCanClose = new FakeAppCompatCameraStatePolicy(false);
+        }
+
+        @Override
+        void applyOnConf(@NonNull Consumer<AppCompatConfigurationRobot> consumer) {
+            super.applyOnConf(consumer);
+            reInitCameraPolicy();
         }
 
         private void configureActivityAndDisplay() {
@@ -196,10 +186,12 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
         }
 
         private void setupAppCompatConfiguration() {
+            // This is to make sure other camera compat classes - like camera monitor - are created.
+            // Fake policies are used in this test.
             applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
-                c.enableCameraCompatSimulateRequestedOrientationTreatment(true);
+                c.enableCameraCompatSimReqOrientationTreatment(true);
+                dw().allowEnterDesktopMode(true);
             });
         }
 
@@ -214,8 +206,7 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
         }
 
         private AppCompatCameraStateSource getAppCompatCameraStateSource() {
-            return (AppCompatCameraStateSource) activity().top().mDisplayContent
-                    .mAppCompatCameraPolicy.mCameraStateMonitor.mAppCompatCameraStatePolicy;
+            return (AppCompatCameraStateSource) getCameraStateMonitor().mAppCompatCameraStatePolicy;
         }
 
         private void assertCorrectCameraAppInfoOnCameraOpened(@NonNull String cameraId,
@@ -236,8 +227,8 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
         }
 
         private void checkIsCameraOpened(boolean expectedIsOpened) {
-            assertEquals(expectedIsOpened, getCameraStateMonitor().mAppCompatCameraStateStrategy
-                    .isCameraRunningForActivity(activity().top()));
+            assertEquals(expectedIsOpened, getCameraStateStrategy().isCameraRunningForActivity(
+                    activity().top()));
         }
 
         private void checkCameraOpenedCalledForCanClosePolicy(int times) {
@@ -258,8 +249,7 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
 
         private CameraAppInfo trackCameraOpened(@NonNull String cameraId,
                 @NonNull String packageName) {
-            return activity().displayContent().mAppCompatCameraPolicy.mCameraStateMonitor
-                    .mAppCompatCameraStateStrategy.trackOnCameraOpened(cameraId, packageName);
+            return getCameraStateStrategy().trackOnCameraOpened(cameraId, packageName);
         }
 
         private void maybeNotifyPolicyCameraOpened(@NonNull String cameraId) {
@@ -271,14 +261,11 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
 
         private void maybeNotifyPolicyCameraOpened(@NonNull CameraAppInfo cameraAppInfo,
                 @NonNull AppCompatCameraStatePolicy policy) {
-            activity().displayContent().mAppCompatCameraPolicy.mCameraStateMonitor
-                    .mAppCompatCameraStateStrategy.notifyPolicyCameraOpenedIfNeeded(cameraAppInfo,
-                            policy);
+            getCameraStateStrategy().notifyPolicyCameraOpenedIfNeeded(cameraAppInfo, policy);
         }
 
         private CameraAppInfo trackCameraClosed(@NonNull String cameraId) {
-            return activity().displayContent().mAppCompatCameraPolicy.mCameraStateMonitor
-                    .mAppCompatCameraStateStrategy.trackOnCameraClosed(cameraId);
+            return getCameraStateStrategy().trackOnCameraClosed(cameraId);
         }
 
         private void maybeNotifyPolicyCameraClosed(@NonNull String cameraId) {
@@ -290,9 +277,7 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
 
         private boolean maybeNotifyPolicyCameraClosed(@NonNull CameraAppInfo cameraAppInfo,
                 @NonNull AppCompatCameraStatePolicy policy) {
-            return activity().displayContent().mAppCompatCameraPolicy.mCameraStateMonitor
-                    .mAppCompatCameraStateStrategy.notifyPolicyCameraClosedIfNeeded(cameraAppInfo,
-                            policy);
+            return getCameraStateStrategy().notifyPolicyCameraClosedIfNeeded(cameraAppInfo, policy);
         }
 
         private CameraAppInfo getExpectedCameraAppInfo(@NonNull String cameraId) {
@@ -303,7 +288,11 @@ public class AppCompatCameraStateStrategyForTaskTests extends WindowTestsBase {
         }
 
         private CameraStateMonitor getCameraStateMonitor() {
-            return activity().top().mDisplayContent.mAppCompatCameraPolicy.mCameraStateMonitor;
+            return testBase().mWm.mAppCompatCameraPolicy.mCameraStateMonitor;
+        }
+
+        private AppCompatCameraStateStrategyForTask getCameraStateStrategy() {
+            return getCameraStateMonitor().mAppCompatCameraStateStrategy;
         }
     }
 }

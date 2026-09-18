@@ -17,26 +17,39 @@
 package android.security.keystore2;
 
 import android.annotation.NonNull;
+import java.util.Optional;
 import android.security.KeyStoreSecurityLevel;
 import android.system.keystore2.Authorization;
 import android.system.keystore2.KeyDescriptor;
 
 import java.security.PrivateKey;
-import java.security.interfaces.EdECKey;
+import java.security.interfaces.EdECPrivateKey;
 import java.security.spec.NamedParameterSpec;
 
 /**
- * EdEC private key (instance of {@link PrivateKey} and {@link EdECKey}) backed by keystore.
+ * EdEC private key backed by Android Keystore.
+ *
+ * Note that this class started implementing EdECPrivateKey in Android 17 (API level 37). Prior to
+ * that, it implemented EdECKey. This means that methods in the EdECPrivateKey interface but not in
+ * the EdECKey interface can only be accessed on Android 17+ and their use should be preceded by an
+ * API level check.
  *
  * @hide
  */
-public class AndroidKeyStoreEdECPrivateKey extends AndroidKeyStorePrivateKey implements EdECKey {
+public class AndroidKeyStoreEdECPrivateKey extends AndroidKeyStorePrivateKey
+        implements EdECPrivateKey {
     public AndroidKeyStoreEdECPrivateKey(
-            @NonNull KeyDescriptor descriptor, long keyId,
+            @NonNull KeyDescriptor descriptor,
+            long keyId,
             @NonNull Authorization[] authorizations,
             @NonNull String algorithm,
             @NonNull KeyStoreSecurityLevel securityLevel) {
         super(descriptor, keyId, authorizations, algorithm, securityLevel);
+    }
+
+    @Override
+    public Optional<byte[]> getBytes() {
+        return Optional.empty();
     }
 
     @Override

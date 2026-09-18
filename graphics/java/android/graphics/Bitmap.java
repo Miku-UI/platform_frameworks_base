@@ -16,6 +16,15 @@
 
 package android.graphics;
 
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.SIZE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.WIDTH;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.HEIGHT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.DENSITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.CONFIG;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.MUTABLE_PIXELS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidBitmap.ID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidTrackEvent.BITMAP;
+
 import android.annotation.CheckResult;
 import android.annotation.ColorInt;
 import android.annotation.ColorLong;
@@ -28,6 +37,7 @@ import android.os.Build;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
+import android.os.PerfettoCategories;
 import android.os.SharedMemory;
 import android.os.StrictMode;
 import android.os.Trace;
@@ -37,6 +47,8 @@ import android.util.Log;
 import android.util.proto.ProtoOutputStream;
 import android.view.ThreadedRenderer;
 
+import com.android.graphics.flags.Flags;
+import com.android.internal.dev.perfetto.sdk.PerfettoTrackEventBuilder;
 import com.android.server.am.BitmapDumpProto;
 
 import dalvik.annotation.optimization.CriticalNative;
@@ -457,7 +469,10 @@ public final class Bitmap implements Parcelable {
      */
     public int getGenerationId() {
         if (mRecycled) {
-            Log.w(TAG, "Called getGenerationId() on a recycle()'d bitmap! This is undefined behavior!");
+            Log.w(
+                    TAG,
+                    "Called getGenerationId() on a recycle()'d bitmap! This is undefined"
+                        + " behavior!");
         }
         return nativeGenerationId(mNativePtr);
     }
@@ -915,6 +930,78 @@ public final class Bitmap implements Parcelable {
     }
 
     /**
+     * Creates a new immutable bitmap backed by ashmem, scaled from an existing bitmap.
+     *
+     * <p>Use this when you expect to parcel the bitmap. In doing so, you can avoid the subsequent
+     * copy operation into ashmem when you parcel, saving additional work and transient memory
+     * allocation that is proportional to the size of the downscaled bitmap.
+     *
+     * @see {@link #createScaledBitmap}
+     * @hide
+     */
+    @NonNull
+    public static Bitmap createScaledAshmemBitmap(
+            @NonNull Bitmap src, int dstWidth, int dstHeight, boolean filter) {
+        if (!Flags.scaleBitmapDirectlyToAshmem()) {
+            return createScaledBitmap(src, dstWidth, dstHeight, filter);
+        }
+        src.checkRecycled("Can't copy a recycled bitmap");
+
+        Matrix m = new Matrix();
+        final int width = src.getWidth();
+        final int height = src.getHeight();
+
+        final float sx = dstWidth / (float) width;
+        final float sy = dstHeight / (float) height;
+        m.setScale(sx, sy);
+
+        Rect srcR = new Rect(0, 0, width, height);
+        RectF dstR = new RectF(0, 0, width, height);
+        RectF deviceR = new RectF();
+        m.mapRect(deviceR, dstR);
+
+        final int neww = Math.round(deviceR.width());
+        final int newh = Math.round(deviceR.height());
+
+        Config newConfig = src.getConfig();
+        if (newConfig == null) {
+            newConfig = Config.ARGB_8888;
+        }
+        ColorSpace cs = src.getColorSpace();
+
+        Bitmap b = nativeCreateEmptyAshmemBitmap(neww, newh, newConfig.nativeInt,
+                (cs == null) ? 0 : cs.getNativeInstance());
+
+        if (b == null) {
+            throw new OutOfMemoryError();
+        }
+
+        b.mDensity = src.mDensity;
+        b.setHasAlpha(src.hasAlpha());
+        b.setPremultiplied(src.mRequestPremultiplied);
+
+        Paint paint = new Paint();
+        paint.setFilterBitmap(filter);
+
+        Canvas canvas = new Canvas(b);
+        canvas.translate(-deviceR.left, -deviceR.top);
+        canvas.concat(m);
+        canvas.drawBitmap(src, srcR, dstR, paint);
+        canvas.setBitmap(null);
+
+        if (src.hasGainmap()) {
+            Bitmap newMapContents = transformGainmap(src, b, m, paint, srcR, dstR,
+                    deviceR);
+            if (newMapContents != null) {
+                b.setGainmap(new Gainmap(src.getGainmap(), newMapContents));
+            }
+        }
+
+        b.setImmutable();
+        return b;
+    }
+
+    /**
      * Returns a bitmap from the source bitmap. The new bitmap may
      * be the same object as source, or a copy may have been made.  It is
      * initialized with the same density and color space as the original bitmap.
@@ -992,121 +1079,169 @@ public final class Bitmap implements Parcelable {
             throw new IllegalArgumentException("cannot use a recycled source in createBitmap");
         }
 
-        // check if we can just return our argument unchanged
-        if (!source.isMutable() && x == 0 && y == 0 && width == source.getWidth() &&
-                height == source.getHeight() && (m == null || m.isIdentity())) {
-            return source;
-        }
-
-        boolean isHardware = source.getConfig() == Config.HARDWARE;
-        if (isHardware) {
-            source.noteHardwareBitmapSlowCall();
-            source = nativeCopyPreserveInternalConfig(source.mNativePtr);
-        }
-
-        int neww = width;
-        int newh = height;
-        Bitmap bitmap;
-        Paint paint;
-
-        Rect srcR = new Rect(x, y, x + width, y + height);
-        RectF dstR = new RectF(0, 0, width, height);
-        RectF deviceR = new RectF();
-
-        Config newConfig = Config.ARGB_8888;
-        final Config config = source.getConfig();
-        // GIF files generate null configs, assume ARGB_8888
-        if (config != null) {
-            switch (config) {
-                case RGB_565:
-                    newConfig = Config.RGB_565;
-                    break;
-                case ALPHA_8:
-                    newConfig = Config.ALPHA_8;
-                    break;
-                case RGBA_F16:
-                    newConfig = Config.RGBA_F16;
-                    break;
-                //noinspection deprecation
-                case ARGB_4444:
-                case ARGB_8888:
-                default:
-                    newConfig = Config.ARGB_8888;
-                    break;
+        final long flowId = source.mId;
+        if (android.os.Flags.perfettoSdkTracingV3()) {
+            if (PerfettoCategories.BITMAP_CATEGORY.isEnabled()) {
+                PerfettoTrackEventBuilder builder =
+                        com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
+                                        PerfettoCategories.BITMAP_CATEGORY, "Bitmap_createBitmap")
+                                .setFlow(flowId);
+                traceBitmap(builder, source);
+                builder.emit();
             }
         }
 
-        ColorSpace cs = source.getColorSpace();
+        Bitmap result = null;
+        try {
+            // check if we can just return our argument unchanged
+            if (!source.isMutable() && x == 0 && y == 0 && width == source.getWidth()
+                    && height == source.getHeight() && (m == null || m.isIdentity())) {
+                result = source;
+                return result;
+            }
 
-        if (m == null || m.isIdentity()) {
-            bitmap = createBitmap(null, neww, newh, newConfig, source.hasAlpha(), cs);
-            paint = null;   // not needed
-        } else {
-            final boolean transformed = !m.rectStaysRect();
+            boolean isHardware = source.getConfig() == Config.HARDWARE;
+            if (isHardware) {
+                source.noteHardwareBitmapSlowCall();
+                source = nativeCopyPreserveInternalConfig(source.mNativePtr);
+            }
 
-            m.mapRect(deviceR, dstR);
+            int neww = width;
+            int newh = height;
+            Bitmap bitmap;
+            Paint paint;
 
-            neww = Math.round(deviceR.width());
-            newh = Math.round(deviceR.height());
+            Rect srcR = new Rect(x, y, x + width, y + height);
+            RectF dstR = new RectF(0, 0, width, height);
+            RectF deviceR = new RectF();
 
-            Config transformedConfig = newConfig;
-            if (transformed) {
-                if (transformedConfig != Config.ARGB_8888 && transformedConfig != Config.RGBA_F16) {
-                    transformedConfig = Config.ARGB_8888;
-                    if (cs == null) {
-                        cs = ColorSpace.get(ColorSpace.Named.SRGB);
-                    }
+            Config newConfig = Config.ARGB_8888;
+            final Config config = source.getConfig();
+            // GIF files generate null configs, assume ARGB_8888
+            if (config != null) {
+                switch (config) {
+                    case RGB_565:
+                        newConfig = Config.RGB_565;
+                        break;
+                    case ALPHA_8:
+                        newConfig = Config.ALPHA_8;
+                        break;
+                    case RGBA_F16:
+                        newConfig = Config.RGBA_F16;
+                        break;
+                    //noinspection deprecation
+                    case ARGB_4444:
+                    case ARGB_8888:
+                    default:
+                        newConfig = Config.ARGB_8888;
+                        break;
                 }
             }
 
-            bitmap = createBitmap(null, neww, newh, transformedConfig,
-                    transformed || source.hasAlpha(), cs);
+            ColorSpace cs = source.getColorSpace();
 
-            paint = new Paint();
-            paint.setFilterBitmap(filter);
-            if (transformed) {
-                paint.setAntiAlias(true);
+            if (m == null || m.isIdentity()) {
+                bitmap = createBitmap(null, neww, newh, newConfig, source.hasAlpha(), cs);
+                paint = null;   // not needed
+            } else {
+                final boolean transformed = !m.rectStaysRect();
+
+                m.mapRect(deviceR, dstR);
+
+                neww = Math.round(deviceR.width());
+                newh = Math.round(deviceR.height());
+
+                Config transformedConfig = newConfig;
+                if (transformed) {
+                    if (transformedConfig != Config.ARGB_8888
+                            && transformedConfig != Config.RGBA_F16) {
+                        transformedConfig = Config.ARGB_8888;
+                        if (cs == null) {
+                            cs = ColorSpace.get(ColorSpace.Named.SRGB);
+                        }
+                    }
+                }
+
+                bitmap = createBitmap(null, neww, newh, transformedConfig,
+                        transformed || source.hasAlpha(), cs);
+
+                paint = new Paint();
+                paint.setFilterBitmap(filter);
+                if (transformed) {
+                    paint.setAntiAlias(true);
+                }
+            }
+
+            // The new bitmap was created from a known bitmap source so assume that
+            // they use the same density
+            bitmap.mDensity = source.mDensity;
+            bitmap.setHasAlpha(source.hasAlpha());
+            bitmap.setPremultiplied(source.mRequestPremultiplied);
+
+            Canvas canvas = new Canvas(bitmap);
+            canvas.translate(-deviceR.left, -deviceR.top);
+            canvas.concat(m);
+            canvas.drawBitmap(source, srcR, dstR, paint);
+            canvas.setBitmap(null);
+
+            // If the source has a gainmap, apply the same set of transformations to the gainmap
+            // and set it on the output
+            if (source.hasGainmap()) {
+                Bitmap newMapContents = transformGainmap(source, bitmap, m, paint, srcR, dstR,
+                        deviceR);
+                if (newMapContents != null) {
+                    bitmap.setGainmap(new Gainmap(source.getGainmap(), newMapContents));
+                }
+            }
+
+            if (isHardware) {
+                result = bitmap.copy(Config.HARDWARE, false);
+                return result;
+            }
+            result = bitmap;
+            return result;
+        } finally {
+            if (PerfettoCategories.BITMAP_CATEGORY.isEnabled()) {
+                if (android.os.Flags.perfettoSdkTracingV3()) {
+                    PerfettoTrackEventBuilder builder =
+                            com.android.internal.dev.perfetto.sdk.PerfettoTrace.end(
+                                    PerfettoCategories.BITMAP_CATEGORY);
+                    if (result != null) {
+                        traceBitmap(builder, result);
+                    }
+                    builder.emit();
+                }
             }
         }
-
-        // The new bitmap was created from a known bitmap source so assume that
-        // they use the same density
-        bitmap.mDensity = source.mDensity;
-        bitmap.setHasAlpha(source.hasAlpha());
-        bitmap.setPremultiplied(source.mRequestPremultiplied);
-
-        Canvas canvas = new Canvas(bitmap);
-        canvas.translate(-deviceR.left, -deviceR.top);
-        canvas.concat(m);
-        canvas.drawBitmap(source, srcR, dstR, paint);
-        canvas.setBitmap(null);
-
-        // If the source has a gainmap, apply the same set of transformations to the gainmap
-        // and set it on the output
-        if (source.hasGainmap()) {
-            Bitmap newMapContents = transformGainmap(source, m, neww, newh, paint, srcR, dstR,
-                    deviceR);
-            if (newMapContents != null) {
-                bitmap.setGainmap(new Gainmap(source.getGainmap(), newMapContents));
-            }
-        }
-
-        if (isHardware) {
-            return bitmap.copy(Config.HARDWARE, false);
-        }
-        return bitmap;
     }
 
-    private static Bitmap transformGainmap(Bitmap source, Matrix m, int neww, int newh, Paint paint,
+    private static void traceBitmap(PerfettoTrackEventBuilder builder, Bitmap b) {
+        if (b == null) return;
+        Config config = b.getConfig();
+        builder.beginProto()
+                .beginNested(BITMAP)
+                .addField(SIZE, b.getAllocationByteCount())
+                .addField(WIDTH, b.getWidth())
+                .addField(HEIGHT, b.getHeight())
+                .addField(DENSITY, b.getDensity())
+                .addField(CONFIG, config != null ? config.nativeInt : -1)
+                .addField(MUTABLE_PIXELS, b.isMutable() ? 1 : 0)
+                .addField(ID, b.mId)
+                .endNested()
+                .endProto();
+    }
+
+    private static Bitmap transformGainmap(Bitmap source, Bitmap newBase, Matrix m, Paint paint,
             Rect srcR, RectF dstR, RectF deviceR) {
         Canvas canvas;
         Bitmap sourceGainmap = source.getGainmap().getGainmapContents();
+        final boolean isDestAshmem = nativeIsBackedByAshmem(newBase.getNativeInstance());
         // Gainmaps can be scaled relative to the base image (eg, 1/4th res)
         // Preserve that relative scaling between the base & gainmap in the output
         float scaleX = (sourceGainmap.getWidth() / (float) source.getWidth());
         float scaleY = (sourceGainmap.getHeight() / (float) source.getHeight());
-        int mapw = Math.round(neww * scaleX);
-        int maph = Math.round(newh * scaleY);
+        int mapw = Math.round(newBase.getWidth() * scaleX);
+        int maph = Math.round(newBase.getHeight() * scaleY);
 
         if (mapw == 0 || maph == 0) {
             // The gainmap has been scaled away entirely, drop it
@@ -1122,8 +1257,18 @@ public final class Bitmap implements Parcelable {
         // Note: createBitmap isn't used as that requires a non-null colorspace, however
         // gainmaps don't have a colorspace. So use `nativeCreate` directly to bypass
         // that colorspace enforcement requirement (#getColorSpace() allows a null return)
-        Bitmap newMapContents = nativeCreate(null, 0, mapw, mapw, maph,
-                sourceGainmap.getConfig().nativeInt, true, 0);
+        Bitmap newMapContents;
+        if (isDestAshmem) {
+            newMapContents = nativeCreateEmptyAshmemBitmap(mapw, maph,
+                    sourceGainmap.getConfig().nativeInt, 0);
+            if (newMapContents == null) {
+                Log.w(TAG, "Failed to create gainmap bitmap");
+                return null;
+            }
+        } else {
+            newMapContents = nativeCreate(null, 0, mapw, mapw, maph,
+                    sourceGainmap.getConfig().nativeInt, true, 0);
+        }
         newMapContents.eraseColor(0);
         canvas = new Canvas(newMapContents);
         // Scale the translate & matrix to be in gainmap-relative dimensions
@@ -1815,7 +1960,10 @@ public final class Bitmap implements Parcelable {
      */
     public final boolean isPremultiplied() {
         if (mRecycled) {
-            Log.w(TAG, "Called isPremultiplied() on a recycle()'d bitmap! This is undefined behavior!");
+            Log.w(
+                    TAG,
+                    "Called isPremultiplied() on a recycle()'d bitmap! This is undefined"
+                        + " behavior!");
         }
         return nativeIsPremultiplied(mNativePtr);
     }
@@ -2629,6 +2777,8 @@ public final class Bitmap implements Parcelable {
                                               long nativeColorSpace);
     private static native Bitmap nativeCopy(long nativeSrcBitmap, int nativeConfig,
                                             boolean isMutable);
+    private static native Bitmap nativeCreateEmptyAshmemBitmap(int width, int height,
+            int nativeConfig, long nativeColorSpace);
     private static native Bitmap nativeCopyAshmem(long nativeSrcBitmap);
     private static native Bitmap nativeCopyAshmemConfig(long nativeSrcBitmap, int nativeConfig);
     private static native int nativeGetAshmemFD(long nativeBitmap);

@@ -18,19 +18,19 @@ package com.android.wm.shell.flicker.bubbles
 
 import android.platform.systemui_tapl.ui.Root
 import android.platform.test.annotations.Presubmit
+import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.tools.NavBar
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.NonResizeableAppHelper
 import com.android.wm.shell.Flags
-import com.android.wm.shell.Utils
+import com.android.wm.shell.Utils.testSetupRule
 import com.android.wm.shell.flicker.bubbles.testcase.BubbleAlwaysVisibleTestCases
-import com.android.wm.shell.flicker.bubbles.utils.ApplyPerParameterRule
+import com.android.wm.shell.flicker.bubbles.utils.AssumptionRule
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.collapseBubbleAppViaTouchOutside
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.launchBubbleViaBubbleMenu
 import com.android.wm.shell.flicker.bubbles.utils.RecordTraceWithTransitionRule
-import org.junit.Assume.assumeTrue
-import org.junit.Before
+import com.android.wm.shell.flicker.bubbles.utils.RunOncePerParameterRule
 import org.junit.FixMethodOrder
 import org.junit.Rule
 import org.junit.runners.MethodSorters
@@ -59,67 +59,74 @@ import org.junit.runners.MethodSorters
  * - [BubbleFlickerTestBase]
  * - [BubbleAlwaysVisibleTestCases]
  */
+// TODO(b/479182156) Remove this when bubbling is supported in desktop mode.
+@RequiresFlagsDisabled(Flags.FLAG_DISABLE_BUBBLE_ANYTHING_DESKTOP_WINDOWING)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE, Flags.FLAG_ENABLE_BUBBLE_BAR)
 @RequiresDevice
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @Presubmit
-class BubbleBarVisibilityTest : BubbleFlickerTestBase(),
-    BubbleAlwaysVisibleTestCases {
+class BubbleBarVisibilityTest : BubbleFlickerTestBase(), BubbleAlwaysVisibleTestCases {
 
     companion object {
         private val fullscreenApp = NonResizeableAppHelper(instrumentation)
 
-        private val recordTraceWithTransitionRule = RecordTraceWithTransitionRule(
-            setUpBeforeTransition = {
-                launchBubbleViaBubbleMenu(testApp, tapl, wmHelper)
-                collapseBubbleAppViaTouchOutside(testApp, wmHelper)
-                fullscreenApp.launchViaIntent()
+        private val recordTraceWithTransitionRule =
+            RecordTraceWithTransitionRule(
+                setUpBeforeTransition = {
+                    launchBubbleViaBubbleMenu(testApp, tapl, wmHelper)
+                    collapseBubbleAppViaTouchOutside(testApp, wmHelper)
+                    fullscreenApp.launchViaIntent()
 
-                // Checks fullscreen app and bubble window are shown.
-                wmHelper.StateSyncBuilder()
-                    .withAppTransitionIdle()
-                    .withTopVisibleApps(fullscreenApp)
-                    .withBubbleShown()
-                    .waitForAndVerify()
+                    // Checks fullscreen app and bubble window are shown.
+                    wmHelper
+                        .StateSyncBuilder()
+                        .withAppTransitionIdle()
+                        .withTopVisibleApps(fullscreenApp)
+                        .withBubbleShown()
+                        .waitForAndVerify()
 
-                tapl.launchedAppState.assertTaskbarHidden()
-                // TODO(b/436755889): Checks why stashed Bubble bar is not visible for UI automator.
-                Root.get().verifyBubbleBarIsHidden()
-            },
-            transition = {
-                tapl.showTaskbarIfHidden()
-                // Checks the bubble bar is visible
-                Root.get().bubbleBar
+                    tapl.launchedAppState.assertTaskbarHidden()
+                    // TODO(b/436755889): Checks why stashed Bubble bar is not visible for UI
+                    // automator.
+                    Root.get().verifyBubbleBarIsHidden()
+                },
+                transition = {
+                    tapl.showTaskbarIfHidden()
+                    // Checks the bubble bar is visible
+                    Root.get().bubbleBar
 
-                // Wait until task bar hidden with timeout.
-                tapl.launchedAppState.assertTaskbarHidden()
-                // TODO(b/436755889): Checks why stashed Bubble bar is not visible for UI automator.
-                Root.get().verifyBubbleBarIsHidden()
-            },
-            tearDownAfterTransition = {
-                testApp.exit()
-                fullscreenApp.exit()
-            }
-        )
+                    // Wait until task bar hidden with timeout.
+                    tapl.launchedAppState.assertTaskbarHidden()
+                    // TODO(b/436755889): Checks why stashed Bubble bar is not visible for UI
+                    // automator.
+                    Root.get().verifyBubbleBarIsHidden()
+                },
+                tearDownAfterTransition = {
+                    testApp.exit()
+                    fullscreenApp.exit()
+                },
+            )
 
         // Don't verify 3-button because the task bar is persistent.
         private val navBar = NavBar.MODE_GESTURAL
     }
 
-    @get:Rule
-    val setUpRule = ApplyPerParameterRule(
-        Utils.testSetupRule(navBar).around(recordTraceWithTransitionRule),
-    )
+    @get:Rule(order = 1)
+    val assumptionRule =
+        AssumptionRule(
+            // Bubble and task bar are only enabled on large screen devices.
+            // Only transient task bar can show/hide.
+            condition = { tapl.isTablet && tapl.isTransientTaskbar },
+            message = "This test is for large screen devices with transient taskbar",
+        )
+
+    @get:Rule(order = 2)
+    val setUpRule =
+        RunOncePerParameterRule(
+            testClass = this::class,
+            wrappedRule = testSetupRule(navBar).around(recordTraceWithTransitionRule),
+        )
 
     override val traceDataReader
         get() = recordTraceWithTransitionRule.reader
-
-    @Before
-    override fun setUp() {
-        // Bubble and task bar are only enabled on large screen devices.
-        assumeTrue(tapl.isTablet)
-        // Only transient task bar can show/hide.
-        assumeTrue(tapl.isTransientTaskbar)
-        super.setUp()
-    }
 }

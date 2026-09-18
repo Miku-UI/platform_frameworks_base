@@ -72,7 +72,7 @@ public class AccessibilityUtils {
     }
 
     /**
-     * @return the set of enabled accessibility services for {@param userId}. If there are no
+     * @return the set of enabled accessibility services for {@code userId}. If there are no
      * services, it returns the unmodifiable {@link Collections#emptySet()}.
      */
     public static Set<ComponentName> getEnabledServicesFromSettings(Context context, int userId) {
@@ -119,7 +119,7 @@ public class AccessibilityUtils {
     }
 
     /**
-     * Changes an accessibility component's state for {@param userId}.
+     * Changes an accessibility component's state for {@code userId}.
      */
     public static void setAccessibilityServiceState(Context context, ComponentName toggledService,
             boolean enabled, int userId) {

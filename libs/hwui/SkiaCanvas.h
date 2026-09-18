@@ -15,16 +15,14 @@
  */
 #pragma once
 
-#include "CanvasProperty.h"
-#ifdef __ANDROID__ // Layoutlib does not support hardware acceleration
-#include "DeferredLayerUpdater.h"
-#endif
 #include <SkCanvas.h>
 
 #include <cassert>
 #include <deque>
 #include <optional>
 
+#include "CanvasProperty.h"
+#include "DeferredLayerUpdater.h"
 #include "RenderNode.h"
 #include "VectorDrawable.h"
 #include "hwui/BlurDrawLooper.h"

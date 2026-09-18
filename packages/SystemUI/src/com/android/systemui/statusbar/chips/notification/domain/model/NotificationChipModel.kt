@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.chips.notification.domain.model
 
+import android.content.ComponentName
 import com.android.internal.logging.InstanceId
 import com.android.systemui.statusbar.StatusBarIconView
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels
@@ -27,6 +28,8 @@ data class NotificationChipModel(
     val appName: String,
     /** The notifying app's package name. */
     val packageName: String,
+    /** The component name associated with the chip's notification's intent. */
+    val componentName: ComponentName?,
     val statusBarChipIconView: StatusBarIconView?,
     val promotedContent: PromotedNotificationContentModels,
     /** The time when the notification first appeared as promoted. */
@@ -40,4 +43,6 @@ data class NotificationChipModel(
     val lastAppVisibleTime: Long?,
     /** An optional per-notification ID used for logging. */
     val instanceId: InstanceId?,
+    /** Notification claims to represent the app's active screenshare */
+    val isScreenShareNotification: Boolean,
 )

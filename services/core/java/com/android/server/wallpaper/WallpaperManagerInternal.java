@@ -80,4 +80,11 @@ public abstract class WallpaperManagerInternal {
      */
     public abstract void addOnColorsChangedListener(ColorsChangedCallbackInternal listener,
             Handler handler);
+
+    /**
+     * Removes a listener for wallpaper color changes.
+     *
+     * @param listener The listener to remove.
+     */
+    public abstract void removeOnColorsChangedListener(ColorsChangedCallbackInternal listener);
 }

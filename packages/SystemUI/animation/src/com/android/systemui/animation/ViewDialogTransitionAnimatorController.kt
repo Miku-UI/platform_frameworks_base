@@ -32,7 +32,7 @@ internal constructor(private val source: View, override val cuj: DialogCuj?) :
     override val viewRoot: ViewRootImpl?
         get() = source.viewRootImpl
 
-    override val sourceIdentity: Any = source
+    override val dialogIdentity: Any = source
 
     override fun startDrawingInOverlayOf(viewGroup: ViewGroup) {
         // Delay the calls to `source.setVisibility()` during the animation. This must be called

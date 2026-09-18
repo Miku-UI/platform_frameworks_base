@@ -16,16 +16,7 @@
 
 package com.android.systemui.dreams.data.repository
 
-import android.content.res.mainResources
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.testDispatcher
-import com.android.systemui.util.settings.data.repository.userAwareSecureSettingsRepository
 
-val Kosmos.dreamSettingsRepository: DreamSettingsRepository by
-    Kosmos.Fixture {
-        DreamSettingsRepositoryImpl(
-            bgDispatcher = testDispatcher,
-            resources = mainResources,
-            secureSettingsRepository = userAwareSecureSettingsRepository,
-        )
-    }
+var Kosmos.dreamSettingsRepository: DreamSettingsRepository by
+    Kosmos.Fixture { FakeDreamSettingsRepository() }

@@ -1,20 +1,39 @@
+/*
+ * Copyright (C) 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.android.systemui.mediaprojection.appselector.data
 
 import android.app.ActivityManager.RecentTaskInfo
+import android.content.Intent
 import android.content.pm.UserInfo
 import android.graphics.Rect
 import android.os.UserManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.mediaprojection.appselector.data.RecentTask.UserType.CLONED
-import com.android.systemui.mediaprojection.appselector.data.RecentTask.UserType.PRIVATE
-import com.android.systemui.mediaprojection.appselector.data.RecentTask.UserType.STANDARD
-import com.android.systemui.mediaprojection.appselector.data.RecentTask.UserType.WORK
+import com.android.systemui.screencapture.sharescreen.domain.interactor.ScreenCaptureShareScreenFeaturesInteractor
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
+import com.android.users.UserType
+import com.android.users.UserType.CLONED
+import com.android.users.UserType.MAIN
+import com.android.users.UserType.PRIVATE
+import com.android.users.UserType.WORK
 import com.android.wm.shell.recents.RecentTasks
 import com.android.wm.shell.shared.GroupedTaskInfo
 import com.android.wm.shell.shared.split.SplitBounds
@@ -38,6 +57,7 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
     private val userManager: UserManager = mock {
         whenever(getUserInfo(anyInt())).thenReturn(mock())
     }
+    private val screenShareFeatureInteractor: ScreenCaptureShareScreenFeaturesInteractor = mock()
     private val recentTaskListProvider =
         ShellRecentTaskListProvider(
             dispatcher,
@@ -45,7 +65,64 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
             Optional.of(recentTasks),
             userTracker,
             userManager,
+            screenShareFeatureInteractor,
         )
+
+    @Test
+    fun loadRecentTasks_largeScreen_firstTaskIsForeground() {
+        whenever(screenShareFeatureInteractor.isLargeScreenSharingEnabled).thenReturn(true)
+        givenRecentTasks(
+            createSingleTask(taskId = 1, isVisible = true),
+            createSingleTask(taskId = 2, isVisible = true),
+        )
+
+        val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
+
+        assertThat(result[0].taskId).isEqualTo(1)
+        assertThat(result[0].isForegroundTask).isTrue()
+        assertThat(result[1].taskId).isEqualTo(2)
+        assertThat(result[1].isForegroundTask).isFalse()
+    }
+
+    @Test
+    fun loadRecentTasks_typeDesk_largeScreen_firstTaskInDeskIsForeground() {
+        whenever(screenShareFeatureInteractor.isLargeScreenSharingEnabled).thenReturn(true)
+        givenRecentTasks(createDeskTask(taskIds = listOf(1, 2, 3), isVisible = true))
+
+        val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
+
+        assertThat(result.map { it.taskId }).containsExactly(1, 2, 3).inOrder()
+        assertThat(result.map { it.isForegroundTask }).containsExactly(true, false, false).inOrder()
+    }
+
+    @Test
+    fun loadRecentTasks_typeDesk_notLargeScreen_secondTaskInDeskIsForeground() {
+        whenever(screenShareFeatureInteractor.isLargeScreenSharingEnabled).thenReturn(false)
+        givenRecentTasks(createDeskTask(taskIds = listOf(1, 2, 3), isVisible = true))
+
+        val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
+
+        assertThat(result.map { it.taskId }).containsExactly(1, 2, 3).inOrder()
+        assertThat(result.map { it.isForegroundTask }).containsExactly(false, true, false).inOrder()
+    }
+
+    @Test
+    fun loadRecentTasks_hiddenFullscreenAndVisibleDesk_largeScreen_identifiesDeskTaskAsForeground() {
+        whenever(screenShareFeatureInteractor.isLargeScreenSharingEnabled).thenReturn(true)
+        givenRecentTasks(
+            createSingleTask(taskId = 1, isVisible = false),
+            createDeskTask(taskIds = listOf(2, 3), isVisible = true),
+        )
+
+        val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
+
+        // Task 1 is NOT foreground because it's invisible
+        assertThat(result.find { it.taskId == 1 }?.isForegroundTask).isFalse()
+        // Task 2 is foreground because it's the first task in its visible desk
+        assertThat(result.find { it.taskId == 2 }?.isForegroundTask).isTrue()
+        // Task 3 is NOT foreground
+        assertThat(result.find { it.taskId == 3 }?.isForegroundTask).isFalse()
+    }
 
     @Test
     fun loadRecentTasks_oneTask_returnsTheSameTask() {
@@ -94,9 +171,7 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
 
     @Test
     fun loadRecentTasks_singleTask_returnsTaskAsNotForeground() {
-        givenRecentTasks(
-            createSingleTask(taskId = 1, isVisible = true),
-        )
+        givenRecentTasks(createSingleTask(taskId = 1, isVisible = true))
 
         val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
 
@@ -105,9 +180,7 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
 
     @Test
     fun loadRecentTasks_singleTaskPair_returnsTasksAsForeground() {
-        givenRecentTasks(
-            createTaskPair(taskId1 = 2, taskId2 = 3, isVisible = true),
-        )
+        givenRecentTasks(createTaskPair(taskId1 = 2, taskId2 = 3, isVisible = true))
 
         val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
 
@@ -168,8 +241,8 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
         val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
 
         assertThat(result.map { it.isForegroundTask })
-                .containsExactly(true, true, false, false)
-                .inOrder()
+            .containsExactly(true, true, false, false)
+            .inOrder()
     }
 
     @Test
@@ -198,14 +271,14 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
         val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
 
         assertThat(result.map { it.isForegroundTask })
-                .containsExactly(false, false, false, false)
-                .inOrder()
+            .containsExactly(false, false, false, false)
+            .inOrder()
     }
 
     @Test
     fun loadRecentTasks_assignsCorrectUserType() {
         givenRecentTasks(
-            createSingleTask(taskId = 1, userId = 10, userType = STANDARD),
+            createSingleTask(taskId = 1, userId = 10, userType = MAIN),
             createSingleTask(taskId = 2, userId = 20, userType = WORK),
             createSingleTask(taskId = 3, userId = 30, userType = CLONED),
             createSingleTask(taskId = 4, userId = 40, userType = PRIVATE),
@@ -214,7 +287,7 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
         val result = runBlocking { recentTaskListProvider.loadRecentTasks() }
 
         assertThat(result.map { it.userType })
-            .containsExactly(STANDARD, WORK, CLONED, PRIVATE)
+            .containsExactly(MAIN, WORK, CLONED, PRIVATE)
             .inOrder()
     }
 
@@ -228,7 +301,8 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
 
     private fun createRecentTask(
         taskId: Int,
-        userType: RecentTask.UserType = STANDARD
+        userType: UserType = MAIN,
+        baseIntent: Intent? = null,
     ): RecentTask =
         RecentTask(
             taskId = taskId,
@@ -236,17 +310,18 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
             userId = 0,
             topActivityComponent = null,
             baseIntentComponent = null,
+            baseIntent = baseIntent,
             colorBackground = null,
             isForegroundTask = false,
             userType = userType,
-            splitBounds = null
+            splitBounds = null,
         )
 
     private fun createSingleTask(
         taskId: Int,
         userId: Int = 0,
         isVisible: Boolean = false,
-        userType: RecentTask.UserType = STANDARD,
+        userType: UserType = MAIN,
     ): GroupedTaskInfo {
         val userInfo =
             mock<UserInfo> {
@@ -256,6 +331,15 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
             }
         whenever(userManager.getUserInfo(userId)).thenReturn(userInfo)
         return GroupedTaskInfo.forFullscreenTasks(createTaskInfo(taskId, userId, isVisible))
+    }
+
+    private fun createDeskTask(
+        taskIds: List<Int>,
+        userId: Int = 0,
+        isVisible: Boolean = false,
+    ): GroupedTaskInfo {
+        val taskInfos = taskIds.map { createTaskInfo(it, userId, isVisible) }
+        return GroupedTaskInfo.forDeskTasks(1, 0, taskInfos, emptySet())
     }
 
     private fun createTaskPair(
@@ -268,7 +352,7 @@ class ShellRecentTaskListProviderTest : SysuiTestCase() {
         GroupedTaskInfo.forSplitTasks(
             createTaskInfo(taskId1, userId1, isVisible),
             createTaskInfo(taskId2, userId2, isVisible),
-            SplitBounds(Rect(), Rect(), taskId1, taskId2, SNAP_TO_2_50_50)
+            SplitBounds(Rect(), Rect(), taskId1, taskId2, SNAP_TO_2_50_50),
         )
 
     private fun createTaskInfo(taskId: Int, userId: Int, isVisible: Boolean = false) =

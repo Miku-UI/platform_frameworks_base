@@ -46,39 +46,100 @@ import java.util.Objects;
  */
 public final class DisplayShape implements Parcelable {
 
-    /** @hide */
-    public static final DisplayShape NONE = new DisplayShape("" /* displayShapeSpec */,
-            0 /* displayWidth */, 0 /* displayHeight */, 0 /* physicalPixelDisplaySizeRatio */,
-            0 /* rotation */);
+    private static final int TYPE_SPEC = 1;
+    private static final int TYPE_RESOURCES = 2;
+    private static final int TYPE_DEFAULT = 3;
+    private static final int TYPE_NONE = 4;
 
     /** @hide */
-    @VisibleForTesting
-    public final String mDisplayShapeSpec;
-    private final float mPhysicalPixelDisplaySizeRatio;
+    public static final DisplayShape NONE = new DisplayShape(TYPE_NONE, null /* displayUniqueId */,
+            0 /* physicalDisplayWidth */, 0 /* physicalDisplayHeight */,
+            false /* isRound */, null /* spec */, 0f /* specRatio */, 0 /* displayWidth */,
+            0 /* displayHeight */, 0 /* rotation */, 0 /* offsetX */, 0 /* offsetY */,
+            1f /* scale */);
+
+    // For identifying the shape
+    private final int mType;
+    // For TYPE_RESOURCES
+    private final String mDisplayUniqueId;
+    private final int mPhysicalDisplayWidth;
+    private final int mPhysicalDisplayHeight;
+    // For TYPE_DEFAULT
+    private final boolean mIsRound;
+    // For TYPE_SPEC
+    private final String mSpec;
+    private final float mSpecRatio;
+
+    // Common geometry
     private final int mDisplayWidth;
     private final int mDisplayHeight;
+
+    // Transformations
     private final int mRotation;
     private final int mOffsetX;
     private final int mOffsetY;
     private final float mScale;
 
-    private DisplayShape(@NonNull String displayShapeSpec, int displayWidth, int displayHeight,
-            float physicalPixelDisplaySizeRatio, int rotation) {
-        this(displayShapeSpec, displayWidth, displayHeight, physicalPixelDisplaySizeRatio,
-                rotation, 0, 0, 1f);
-    }
+    // Lazily initialized.
+    @GuardedBy("this")
+    private boolean mInitialized;
 
-    private DisplayShape(@NonNull String displayShapeSpec, int displayWidth, int displayHeight,
-            float physicalPixelDisplaySizeRatio, int rotation, int offsetX, int offsetY,
+    private float mPhysicalPixelDisplaySizeRatio;
+
+    @GuardedBy("this")
+    private Path mPath;
+
+    private DisplayShape(int type, String displayUniqueId, int physicalDisplayWidth,
+            int physicalDisplayHeight, boolean isRound, String spec, float specRatio,
+            int displayWidth, int displayHeight, int rotation, int offsetX, int offsetY,
             float scale) {
-        mDisplayShapeSpec = displayShapeSpec;
+        mType = type;
+        mDisplayUniqueId = displayUniqueId;
+        mPhysicalDisplayWidth = physicalDisplayWidth;
+        mPhysicalDisplayHeight = physicalDisplayHeight;
+        mIsRound = isRound;
+        mSpec = spec;
+        mSpecRatio = specRatio;
         mDisplayWidth = displayWidth;
         mDisplayHeight = displayHeight;
-        mPhysicalPixelDisplaySizeRatio = physicalPixelDisplaySizeRatio;
         mRotation = rotation;
         mOffsetX = offsetX;
         mOffsetY = offsetY;
         mScale = scale;
+    }
+
+    private synchronized void initializeIfNeeded() {
+        if (mInitialized) {
+            return;
+        }
+
+        switch (mType) {
+            case TYPE_RESOURCES: {
+                final Resources res = Resources.getSystem();
+                final String spec = getSpecString(res, mDisplayUniqueId);
+                if (spec == null || spec.isEmpty()) {
+                    mPhysicalPixelDisplaySizeRatio = 1f;
+                } else {
+                    mPhysicalPixelDisplaySizeRatio = DisplayUtils.getPhysicalPixelDisplaySizeRatio(
+                            mPhysicalDisplayWidth, mPhysicalDisplayHeight,
+                            mDisplayWidth, mDisplayHeight);
+                }
+                break;
+            }
+            case TYPE_DEFAULT: {
+                mPhysicalPixelDisplaySizeRatio = 1f;
+                break;
+            }
+            case TYPE_SPEC: {
+                mPhysicalPixelDisplaySizeRatio = mSpecRatio;
+                break;
+            }
+            case TYPE_NONE: {
+                // Nothing to do
+                break;
+            }
+        }
+        mInitialized = true;
     }
 
     /**
@@ -86,16 +147,10 @@ public final class DisplayShape implements Parcelable {
      */
     @NonNull
     public static DisplayShape fromResources(
-            @NonNull Resources res, @NonNull String displayUniqueId, int physicalDisplayWidth,
+            @NonNull String displayUniqueId, int physicalDisplayWidth,
             int physicalDisplayHeight, int displayWidth, int displayHeight) {
-        final boolean isScreenRound = RoundedCorners.getBuiltInDisplayIsRound(res, displayUniqueId);
-        final String spec = getSpecString(res, displayUniqueId);
-        if (spec == null || spec.isEmpty()) {
-            return createDefaultDisplayShape(displayWidth, displayHeight, isScreenRound);
-        }
-        final float physicalPixelDisplaySizeRatio = DisplayUtils.getPhysicalPixelDisplaySizeRatio(
-                physicalDisplayWidth, physicalDisplayHeight, displayWidth, displayHeight);
-        return fromSpecString(spec, physicalPixelDisplaySizeRatio, displayWidth, displayHeight);
+        return Cache.getDisplayShape(displayUniqueId, physicalDisplayWidth, physicalDisplayHeight,
+                displayWidth, displayHeight);
     }
 
     /**
@@ -104,8 +159,7 @@ public final class DisplayShape implements Parcelable {
     @NonNull
     public static DisplayShape createDefaultDisplayShape(
             int displayWidth, int displayHeight, boolean isScreenRound) {
-        return fromSpecString(createDefaultSpecString(displayWidth, displayHeight, isScreenRound),
-                1f, displayWidth, displayHeight);
+        return Cache.getDisplayShape(displayWidth, displayHeight, isScreenRound);
     }
 
     /**
@@ -116,7 +170,7 @@ public final class DisplayShape implements Parcelable {
     public static DisplayShape fromSpecString(@NonNull String spec,
             float physicalPixelDisplaySizeRatio, int displayWidth, int displayHeight) {
         return Cache.getDisplayShape(spec, physicalPixelDisplaySizeRatio, displayWidth,
-                    displayHeight);
+                displayHeight);
     }
 
     private static String createDefaultSpecString(int displayWidth, int displayHeight,
@@ -173,30 +227,33 @@ public final class DisplayShape implements Parcelable {
      * @hide
      */
     public DisplayShape setRotation(int rotation) {
-        return new DisplayShape(mDisplayShapeSpec, mDisplayWidth, mDisplayHeight,
-                mPhysicalPixelDisplaySizeRatio, rotation, mOffsetX, mOffsetY, mScale);
+        return new DisplayShape(mType, mDisplayUniqueId, mPhysicalDisplayWidth,
+                mPhysicalDisplayHeight, mIsRound, mSpec, mSpecRatio, mDisplayWidth, mDisplayHeight,
+                rotation, mOffsetX, mOffsetY, mScale);
     }
 
     /**
      * @hide
      */
     public DisplayShape setOffset(int offsetX, int offsetY) {
-        return new DisplayShape(mDisplayShapeSpec, mDisplayWidth, mDisplayHeight,
-                mPhysicalPixelDisplaySizeRatio, mRotation, offsetX, offsetY, mScale);
+        return new DisplayShape(mType, mDisplayUniqueId, mPhysicalDisplayWidth,
+                mPhysicalDisplayHeight, mIsRound, mSpec, mSpecRatio, mDisplayWidth, mDisplayHeight,
+                mRotation, offsetX, offsetY, mScale);
     }
 
     /**
      * @hide
      */
     public DisplayShape setScale(float scale) {
-        return new DisplayShape(mDisplayShapeSpec, mDisplayWidth, mDisplayHeight,
-                mPhysicalPixelDisplaySizeRatio, mRotation, mOffsetX, mOffsetY, scale);
+        return new DisplayShape(mType, mDisplayUniqueId, mPhysicalDisplayWidth,
+                mPhysicalDisplayHeight, mIsRound, mSpec, mSpecRatio, mDisplayWidth, mDisplayHeight,
+                mRotation, mOffsetX, mOffsetY, scale);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mDisplayShapeSpec, mDisplayWidth, mDisplayHeight,
-                mPhysicalPixelDisplaySizeRatio, mRotation, mOffsetX, mOffsetY, mScale);
+        return Objects.hash(mType, mDisplayUniqueId, mPhysicalDisplayWidth, mPhysicalDisplayHeight,
+                mIsRound, mSpec, mSpecRatio, mDisplayWidth, mDisplayHeight);
     }
 
     @Override
@@ -206,9 +263,14 @@ public final class DisplayShape implements Parcelable {
         }
         if (o instanceof DisplayShape) {
             DisplayShape ds = (DisplayShape) o;
-            return Objects.equals(mDisplayShapeSpec, ds.mDisplayShapeSpec)
+            return mType == ds.mType
+                    && Objects.equals(mDisplayUniqueId, ds.mDisplayUniqueId)
+                    && mPhysicalDisplayWidth == ds.mPhysicalDisplayWidth
+                    && mPhysicalDisplayHeight == ds.mPhysicalDisplayHeight
+                    && mIsRound == ds.mIsRound
+                    && Objects.equals(mSpec, ds.mSpec)
+                    && mSpecRatio == ds.mSpecRatio
                     && mDisplayWidth == ds.mDisplayWidth && mDisplayHeight == ds.mDisplayHeight
-                    && mPhysicalPixelDisplaySizeRatio == ds.mPhysicalPixelDisplaySizeRatio
                     && mRotation == ds.mRotation && mOffsetX == ds.mOffsetX
                     && mOffsetY == ds.mOffsetY && mScale == ds.mScale;
         }
@@ -217,15 +279,17 @@ public final class DisplayShape implements Parcelable {
 
     @Override
     public String toString() {
+        initializeIfNeeded();
         return "DisplayShape{"
-                + " spec=" + mDisplayShapeSpec.hashCode()
-                + " displayWidth=" + mDisplayWidth
-                + " displayHeight=" + mDisplayHeight
-                + " physicalPixelDisplaySizeRatio=" + mPhysicalPixelDisplaySizeRatio
-                + " rotation=" + mRotation
-                + " offsetX=" + mOffsetX
-                + " offsetY=" + mOffsetY
-                + " scale=" + mScale + "}";
+                + "type=" + mType
+                + (mType == TYPE_SPEC ? (", spec=" + mSpec.hashCode()) : "")
+                + ", displayWidth=" + mDisplayWidth
+                + ", displayHeight=" + mDisplayHeight
+                + ", physicalPixelDisplaySizeRatio=" + mPhysicalPixelDisplaySizeRatio
+                + ", rotation=" + mRotation
+                + ", offsetX=" + mOffsetX
+                + ", offsetY=" + mOffsetY
+                + ", scale=" + mScale + "}";
     }
 
     /**
@@ -235,7 +299,64 @@ public final class DisplayShape implements Parcelable {
      */
     @NonNull
     public Path getPath() {
-        return Cache.getPath(this);
+        initializeIfNeeded();
+        synchronized (this) {
+            if (mPath != null) {
+                return mPath;
+            }
+
+            final String displayShapeSpec;
+            switch (mType) {
+                case TYPE_RESOURCES: {
+                    final Resources res = Resources.getSystem();
+                    String spec = getSpecString(res, mDisplayUniqueId);
+                    if (spec == null || spec.isEmpty()) {
+                        final boolean isScreenRound = RoundedCorners.getBuiltInDisplayIsRound(
+                                res, mDisplayUniqueId);
+                        spec = createDefaultSpecString(mDisplayWidth, mDisplayHeight,
+                                isScreenRound);
+                    }
+                    displayShapeSpec = spec;
+                    break;
+                }
+                case TYPE_DEFAULT: {
+                    displayShapeSpec = createDefaultSpecString(mDisplayWidth, mDisplayHeight,
+                            mIsRound);
+                    break;
+                }
+                case TYPE_SPEC: {
+                    displayShapeSpec = mSpec;
+                    break;
+                }
+                case TYPE_NONE:
+                default: {
+                    displayShapeSpec = "";
+                    break;
+                }
+            }
+            final Path path = PathParser.createPathFromPathData(displayShapeSpec);
+
+            if (!path.isEmpty()) {
+                final Matrix matrix = new Matrix();
+                if (mRotation != ROTATION_0) {
+                    RotationUtils.transformPhysicalToLogicalCoordinates(
+                            mRotation, mDisplayWidth, mDisplayHeight, matrix);
+                }
+                if (mPhysicalPixelDisplaySizeRatio != 1f) {
+                    matrix.preScale(mPhysicalPixelDisplaySizeRatio,
+                            mPhysicalPixelDisplaySizeRatio);
+                }
+                if (mOffsetX != 0 || mOffsetY != 0) {
+                    matrix.postTranslate(mOffsetX, mOffsetY);
+                }
+                if (mScale != 1f) {
+                    matrix.postScale(mScale, mScale);
+                }
+                path.transform(matrix);
+            }
+            mPath = path;
+            return mPath;
+        }
     }
 
     @Override
@@ -245,10 +366,15 @@ public final class DisplayShape implements Parcelable {
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        dest.writeString8(mDisplayShapeSpec);
+        dest.writeInt(mType);
+        dest.writeString8(mDisplayUniqueId);
+        dest.writeInt(mPhysicalDisplayWidth);
+        dest.writeInt(mPhysicalDisplayHeight);
+        dest.writeBoolean(mIsRound);
+        dest.writeString8(mSpec);
+        dest.writeFloat(mSpecRatio);
         dest.writeInt(mDisplayWidth);
         dest.writeInt(mDisplayHeight);
-        dest.writeFloat(mPhysicalPixelDisplaySizeRatio);
         dest.writeInt(mRotation);
         dest.writeInt(mOffsetX);
         dest.writeInt(mOffsetY);
@@ -258,16 +384,49 @@ public final class DisplayShape implements Parcelable {
     public static final @NonNull Creator<DisplayShape> CREATOR = new Creator<DisplayShape>() {
         @Override
         public DisplayShape createFromParcel(Parcel in) {
+            final int type = in.readInt();
+            final String displayUniqueId = in.readString8();
+            final int physicalDisplayWidth = in.readInt();
+            final int physicalDisplayHeight = in.readInt();
+            final boolean isRound = in.readBoolean();
             final String spec = in.readString8();
+            final float specRatio = in.readFloat();
             final int displayWidth = in.readInt();
             final int displayHeight = in.readInt();
-            final float ratio = in.readFloat();
             final int rotation = in.readInt();
             final int offsetX = in.readInt();
             final int offsetY = in.readInt();
             final float scale = in.readFloat();
-            return new DisplayShape(spec, displayWidth, displayHeight, ratio, rotation, offsetX,
-                    offsetY, scale);
+
+            DisplayShape shape;
+            switch (type) {
+                case TYPE_RESOURCES:
+                    shape = fromResources(displayUniqueId,
+                            physicalDisplayWidth, physicalDisplayHeight, displayWidth,
+                            displayHeight);
+                    break;
+                case TYPE_DEFAULT:
+                    shape = createDefaultDisplayShape(displayWidth, displayHeight, isRound);
+                    break;
+                case TYPE_SPEC:
+                    shape = fromSpecString(spec, specRatio, displayWidth, displayHeight);
+                    break;
+                case TYPE_NONE:
+                default:
+                    shape = NONE;
+                    break;
+            }
+
+            if (rotation != ROTATION_0) {
+                shape = shape.setRotation(rotation);
+            }
+            if (offsetX != 0 || offsetY != 0) {
+                shape = shape.setOffset(offsetX, offsetY);
+            }
+            if (scale != 1f) {
+                shape = shape.setScale(scale);
+            }
+            return shape;
         }
 
         @Override
@@ -277,81 +436,103 @@ public final class DisplayShape implements Parcelable {
     };
 
     private static final class Cache {
-        private static final Object CACHE_LOCK = new Object();
-
-        @GuardedBy("CACHE_LOCK")
+        @GuardedBy("Cache.class")
         private static String sCachedSpec;
-        @GuardedBy("CACHE_LOCK")
-        private static int sCachedDisplayWidth;
-        @GuardedBy("CACHE_LOCK")
-        private static int sCachedDisplayHeight;
-        @GuardedBy("CACHE_LOCK")
+        @GuardedBy("Cache.class")
+        private static int sCachedSpecDisplayWidth;
+        @GuardedBy("Cache.class")
+        private static int sCachedSpecDisplayHeight;
+        @GuardedBy("Cache.class")
         private static float sCachedPhysicalPixelDisplaySizeRatio;
-        @GuardedBy("CACHE_LOCK")
-        private static DisplayShape sCachedDisplayShape;
+        @GuardedBy("Cache.class")
+        private static DisplayShape sCachedDisplayShapeFromSpec;
 
-        @GuardedBy("CACHE_LOCK")
-        private static DisplayShape sCacheForPath;
-        @GuardedBy("CACHE_LOCK")
-        private static Path sCachedPath;
+        @GuardedBy("Cache.class")
+        private static String sCachedDisplayUniqueId;
+        @GuardedBy("Cache.class")
+        private static int sCachedPhysicalDisplayWidth;
+        @GuardedBy("Cache.class")
+        private static int sCachedPhysicalDisplayHeight;
+        @GuardedBy("Cache.class")
+        private static int sCachedResDisplayWidth;
+        @GuardedBy("Cache.class")
+        private static int sCachedResDisplayHeight;
+        @GuardedBy("Cache.class")
+        private static DisplayShape sCachedDisplayShapeFromResources;
 
-        static DisplayShape getDisplayShape(String spec, float physicalPixelDisplaySizeRatio,
-                int displayWidth, int displayHeight) {
-            synchronized (CACHE_LOCK) {
-                if (spec.equals(sCachedSpec)
-                        && sCachedDisplayWidth == displayWidth
-                        && sCachedDisplayHeight == displayHeight
-                        && sCachedPhysicalPixelDisplaySizeRatio == physicalPixelDisplaySizeRatio) {
-                    return sCachedDisplayShape;
-                }
+        @GuardedBy("Cache.class")
+        private static int sCachedDefaultDisplayWidth;
+        @GuardedBy("Cache.class")
+        private static int sCachedDefaultDisplayHeight;
+        @GuardedBy("Cache.class")
+        private static boolean sCachedIsRound;
+        @GuardedBy("Cache.class")
+        private static DisplayShape sCachedDisplayShapeFromDefault;
+
+        static synchronized DisplayShape getDisplayShape(String spec,
+                float physicalPixelDisplaySizeRatio, int displayWidth, int displayHeight) {
+            if (spec.equals(sCachedSpec)
+                    && sCachedSpecDisplayWidth == displayWidth
+                    && sCachedSpecDisplayHeight == displayHeight
+                    && sCachedPhysicalPixelDisplaySizeRatio == physicalPixelDisplaySizeRatio) {
+                return sCachedDisplayShapeFromSpec;
             }
 
-            final DisplayShape shape = new DisplayShape(spec, displayWidth, displayHeight,
-                    physicalPixelDisplaySizeRatio, ROTATION_0);
+            final DisplayShape shape = new DisplayShape(TYPE_SPEC, null /* displayUniqueId */,
+                    0 /* physicalDisplayWidth */, 0 /* physicalDisplayHeight */,
+                    false /* isRound */, spec, physicalPixelDisplaySizeRatio, displayWidth,
+                    displayHeight, ROTATION_0, 0, 0, 1f);
 
-            synchronized (CACHE_LOCK) {
-                sCachedSpec = spec;
-                sCachedDisplayWidth = displayWidth;
-                sCachedDisplayHeight = displayHeight;
-                sCachedPhysicalPixelDisplaySizeRatio = physicalPixelDisplaySizeRatio;
-                sCachedDisplayShape = shape;
-            }
+            sCachedSpec = spec;
+            sCachedSpecDisplayWidth = displayWidth;
+            sCachedSpecDisplayHeight = displayHeight;
+            sCachedPhysicalPixelDisplaySizeRatio = physicalPixelDisplaySizeRatio;
+            sCachedDisplayShapeFromSpec = shape;
             return shape;
         }
 
-        static Path getPath(@NonNull DisplayShape shape) {
-            synchronized (CACHE_LOCK) {
-                if (shape.equals(sCacheForPath)) {
-                    return sCachedPath;
-                }
+        static synchronized DisplayShape getDisplayShape(String displayUniqueId,
+                int physicalDisplayWidth, int physicalDisplayHeight, int displayWidth,
+                int displayHeight) {
+            if (Objects.equals(sCachedDisplayUniqueId, displayUniqueId)
+                    && sCachedPhysicalDisplayWidth == physicalDisplayWidth
+                    && sCachedPhysicalDisplayHeight == physicalDisplayHeight
+                    && sCachedResDisplayWidth == displayWidth
+                    && sCachedResDisplayHeight == displayHeight) {
+                return sCachedDisplayShapeFromResources;
             }
 
-            final Path path = PathParser.createPathFromPathData(shape.mDisplayShapeSpec);
+            final DisplayShape shape = new DisplayShape(TYPE_RESOURCES, displayUniqueId,
+                    physicalDisplayWidth, physicalDisplayHeight, false /* isRound */,
+                    null /* spec */, 0f /* specRatio */, displayWidth, displayHeight, ROTATION_0, 0,
+                    0, 1f);
 
-            if (!path.isEmpty()) {
-                final Matrix matrix = new Matrix();
-                if (shape.mRotation != ROTATION_0) {
-                    RotationUtils.transformPhysicalToLogicalCoordinates(
-                            shape.mRotation, shape.mDisplayWidth, shape.mDisplayHeight, matrix);
-                }
-                if (shape.mPhysicalPixelDisplaySizeRatio != 1f) {
-                    matrix.preScale(shape.mPhysicalPixelDisplaySizeRatio,
-                            shape.mPhysicalPixelDisplaySizeRatio);
-                }
-                if (shape.mOffsetX != 0 || shape.mOffsetY != 0) {
-                    matrix.postTranslate(shape.mOffsetX, shape.mOffsetY);
-                }
-                if (shape.mScale != 1f) {
-                    matrix.postScale(shape.mScale, shape.mScale);
-                }
-                path.transform(matrix);
-            }
+            sCachedDisplayUniqueId = displayUniqueId;
+            sCachedPhysicalDisplayWidth = physicalDisplayWidth;
+            sCachedPhysicalDisplayHeight = physicalDisplayHeight;
+            sCachedResDisplayWidth = displayWidth;
+            sCachedResDisplayHeight = displayHeight;
+            sCachedDisplayShapeFromResources = shape;
+            return shape;
+        }
 
-            synchronized (CACHE_LOCK) {
-                sCacheForPath = shape;
-                sCachedPath = path;
+        static synchronized DisplayShape getDisplayShape(int displayWidth, int displayHeight,
+                boolean isScreenRound) {
+            if (sCachedDisplayShapeFromDefault != null
+                    && sCachedDefaultDisplayWidth == displayWidth
+                    && sCachedDefaultDisplayHeight == displayHeight
+                    && sCachedIsRound == isScreenRound) {
+                return sCachedDisplayShapeFromDefault;
             }
-            return path;
+            final DisplayShape shape = new DisplayShape(TYPE_DEFAULT, null /* displayUniqueId */,
+                    0 /* physicalDisplayWidth */, 0 /* physicalDisplayHeight */, isScreenRound,
+                    null /* spec */, 0f /* specRatio */, displayWidth, displayHeight,
+                    ROTATION_0, 0, 0, 1f);
+            sCachedDefaultDisplayWidth = displayWidth;
+            sCachedDefaultDisplayHeight = displayHeight;
+            sCachedIsRound = isScreenRound;
+            sCachedDisplayShapeFromDefault = shape;
+            return shape;
         }
     }
 }

@@ -40,13 +40,6 @@ final class AppCompatConfiguration {
 
     private static final String TAG = TAG_WITH_CLASS_NAME ? "AppCompatConfiguration" : TAG_ATM;
 
-    // Whether camera compatibility treatment is enabled.
-    // See DisplayRotationCompatPolicy for context.
-    private static final String KEY_ENABLE_CAMERA_COMPAT_TREATMENT =
-            "enable_compat_camera_treatment";
-
-    private static final boolean DEFAULT_VALUE_ENABLE_CAMERA_COMPAT_TREATMENT = true;
-
     private static final float DEFAULT_VALUE_CAMERA_COMPAT_MIN_ASPECT_RATIO = 16 / 9f;
 
     // Whether enabling rotation compat policy for immersive apps that prevents auto
@@ -292,12 +285,26 @@ final class AppCompatConfiguration {
     // is enabled and activity is connected to the camera in fullscreen.
     private final boolean mIsCameraCompatSplitScreenAspectRatioEnabled;
 
+    // Whether camera compat force-rotate treatment should be enabled for all eligible activities.
+    // This has the same effect as enabling the treatment via `KEY_ENABLE_CAMERA_COMPAT_TREATMENT`,
+    // and removing all opt-out overrides for this treatment. It will not enable the treatment for
+    // activities which have opted-out of treatment via manifest property.
+    private boolean mIsCameraCompatForceRotateTreatmentEnabled;
+
     // Whether camera compat treatment that simulates requested orientation is enabled.
     // The purpose of the treatment is to mitigate issues caused by orientation mismatch between the
     // camera buffer and the app window. This includes letterboxing fixed orientation activities
     // connected to the camera, cropping the camera buffer (rotate-and-crop) and sandboxing display
     // rotation to match what the apps most likely expect in their requested orientation
-    private final boolean mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled;
+    private boolean mIsCameraCompatSimReqOrientationTreatmentEnabled;
+
+    // Whether camera compat treatment that overrides landscape camera sensor to portrait is
+    // enabled.
+    // The purpose of the treatment is to mitigate issues caused by apps hardcoding camera sensor
+    // orientation (the way camera is mounted on the device) to portrait. The treatment changes
+    // reported camera sensor orientation to portrait, and rotates the camera feed to account for
+    // the difference in rotation.
+    private final boolean mIsCameraCompatLandscapeTreatmentEnabled;
 
     // Which aspect ratio to use when camera compat treatment is enabled and an activity eligible
     // for treatment is connected to the camera.
@@ -313,17 +320,16 @@ final class AppCompatConfiguration {
     // See RefreshCallbackItem for context.
     private boolean mIsCameraCompatRefreshCycleThroughStopEnabled = true;
 
-    // Whether camera compat freeform treatment should be enabled for all eligible activities.
-    // This has the same effect as enabling the treatment via
-    // `mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled`, and removing all opt-out
-    // overrides and properties for this treatment.
-    // This property is only settable via adb, and should be used for testing only.
-    private boolean mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled = false;
-
     // Whether should ignore app requested orientation in response to an app
     // calling Activity#setRequestedOrientation. See
     // AppCompatOrientationPolicy#shouldIgnoreRequestedOrientation for details.
     private final boolean mIsPolicyForIgnoringRequestedOrientationEnabled;
+
+    // When true, display moves between internal displays are NOT exempt from the self-kil recovery.
+    private final boolean mIsSelfKillRecoveryBetweenInternalDisplaysEnabled;
+
+    // Whether desktop mode can be entered on the current device.
+    private final boolean mCanEnterDesktopMode;
 
     // Flags dynamically updated with {@link android.provider.DeviceConfig}.
     @NonNull private final SynchedDeviceConfig mDeviceConfig;
@@ -383,26 +389,30 @@ final class AppCompatConfiguration {
                         .config_letterboxIsDisplayAspectRatioForFixedOrientationLetterboxEnabled);
         mIsCameraCompatSplitScreenAspectRatioEnabled = mContext.getResources().getBoolean(
                 R.bool.config_isWindowManagerCameraCompatSplitScreenAspectRatioEnabled);
-        mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled = mContext.getResources()
+        mIsCameraCompatForceRotateTreatmentEnabled = mContext.getResources().getBoolean(
+                R.bool.config_isWindowManagerCameraCompatTreatmentEnabled);
+        mIsCameraCompatSimReqOrientationTreatmentEnabled = mContext.getResources()
                 .getBoolean(R.bool
                         .config_isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
+        mIsCameraCompatLandscapeTreatmentEnabled = mContext.getResources().getBoolean(
+                R.bool.config_isCameraCompatSimReqOrientationLandscapeTreatmentEnabled);
         mIsPolicyForIgnoringRequestedOrientationEnabled = mContext.getResources().getBoolean(
                 R.bool.config_letterboxIsPolicyForIgnoringRequestedOrientationEnabled);
+        mIsSelfKillRecoveryBetweenInternalDisplaysEnabled = mContext.getResources().getBoolean(
+                R.bool.config_enableSelfKillRecoveryBetweenInternalDisplays);
 
         mThinLetterboxWidthPxSupplier = new DimenPxIntSupplier(mContext,
                 R.dimen.config_letterboxThinLetterboxWidthDp);
         mThinLetterboxHeightPxSupplier = new DimenPxIntSupplier(mContext,
                 R.dimen.config_letterboxThinLetterboxHeightDp);
 
+        mCanEnterDesktopMode = DesktopModeHelper.canEnterDesktopMode(mContext);
+
         mAppCompatConfigurationPersister = appCompatConfigurationPersister;
         mAppCompatConfigurationPersister.start();
 
         mDeviceConfig = SynchedDeviceConfig.builder(DeviceConfig.NAMESPACE_WINDOW_MANAGER,
                         systemUiContext.getMainExecutor())
-                .addDeviceConfigEntry(KEY_ENABLE_CAMERA_COMPAT_TREATMENT,
-                        DEFAULT_VALUE_ENABLE_CAMERA_COMPAT_TREATMENT,
-                        mContext.getResources().getBoolean(
-                                R.bool.config_isWindowManagerCameraCompatTreatmentEnabled))
                 .addDeviceConfigEntry(KEY_ENABLE_DISPLAY_ROTATION_IMMERSIVE_APP_COMPAT_POLICY,
                         DEFAULT_VALUE_ENABLE_DISPLAY_ROTATION_IMMERSIVE_APP_COMPAT_POLICY,
                         mContext.getResources().getBoolean(R.bool
@@ -1278,6 +1288,18 @@ final class AppCompatConfiguration {
     }
 
     /**
+     * When true, display moves between internal displays are NOT exempt from the self-kil recovery.
+     */
+    boolean isSelfKillRecoveryBetweenInternalDisplaysEnabled() {
+        return mIsSelfKillRecoveryBetweenInternalDisplaysEnabled;
+    }
+
+    /** Return {@code true} if desktop mode can be entered on the current device. */
+    boolean canEnterDesktopMode() {
+        return mCanEnterDesktopMode;
+    }
+
+    /**
      * Whether we should use split screen aspect ratio for the activity when camera compat treatment
      * is enabled and activity is connected to the camera in fullscreen.
      */
@@ -1289,16 +1311,22 @@ final class AppCompatConfiguration {
      * @return Whether camera compatibility force-rotate treatment is currently enabled.
      */
     boolean isCameraCompatForceRotateTreatmentEnabled() {
-        return mDeviceConfig.getFlagValue(KEY_ENABLE_CAMERA_COMPAT_TREATMENT);
+        return mIsCameraCompatForceRotateTreatmentEnabled;
     }
 
     /**
-     * @return Whether camera compatibility force-rotate treatment is enabled at build time. This is
-     * used when we need to safely initialize a component before the {@link DeviceConfig} flag value
-     * is available.
+     * Overrides whether camera compatibility force-rotate treatment is currently enabled.
      */
-    boolean isCameraCompatForceRotateTreatmentEnabledAtBuildTime() {
-        return mDeviceConfig.isBuildTimeFlagEnabled(KEY_ENABLE_CAMERA_COMPAT_TREATMENT);
+    void setCameraCompatForceRotateTreatmentEnabled(boolean enabled) {
+        mIsCameraCompatForceRotateTreatmentEnabled = enabled;
+    }
+
+    /**
+     * Resets whether camera compatibility force-rotate treatment is currently enabled.
+     */
+    void resetCameraCompatForceRotateTreatmentEnabled() {
+        mIsCameraCompatForceRotateTreatmentEnabled = mContext.getResources().getBoolean(
+                R.bool.config_isWindowManagerCameraCompatTreatmentEnabled);
     }
 
     /** Whether camera compatibility refresh is enabled. */
@@ -1379,32 +1407,36 @@ final class AppCompatConfiguration {
      *     <li>The activity has fixed orientation but not "locked" or "nosensor".
      * </ul>
      */
-    boolean isCameraCompatSimulateRequestedOrientationTreatmentEnabled() {
-        return mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled;
+    boolean isCameraCompatSimReqOrientationTreatmentEnabled() {
+        return mIsCameraCompatSimReqOrientationTreatmentEnabled;
     }
 
     /**
-     * Sets whether the camera compatibility treatment in freeform windowing mode is enabled for
-     * all fixed-orientation apps when using camera.
+     * Overrides whether the camera compatibility treatment which simulates requested orientation
+     * for fixed-orientation apps when using camera.
      */
-    void setIsCameraCompatSimReqOrientationTreatmentForceEnabled(boolean enabled) {
-        mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled = enabled;
+    void setCameraCompatSimReqOrientationTreatmentEnabled(boolean enabled) {
+        mIsCameraCompatSimReqOrientationTreatmentEnabled = enabled;
     }
 
     /**
-     * Whether the camera compatibility treatment in freeform windowing mode is enabled for all
-     * fixed-orientation apps when using camera.
+     * Resets whether the camera compatibility treatment which simulates requested orientation
+     * for fixed-orientation apps when using camera.
      */
-    boolean isCameraCompatSimReqOrientationTreatmentForceEnabled() {
-        return mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled;
+    void resetCameraCompatSimReqOrientationTreatmentEnabled() {
+        mIsCameraCompatSimReqOrientationTreatmentEnabled = mContext.getResources().getBoolean(
+                R.bool.config_isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
     }
 
     /**
-     * Resets whether the camera compatibility treatment in freeform windowing mode is enabled for
-     * all fixed-orientation apps when using camera.
+     * Whether the camera compatibility treatment which overrides landscape camera orientation to
+     * portrait is allowed on this device.
+     *
+     * <p>For the treatment to activate, isCameraCompatSimulateRequestedOrientationTreatmentEnabled
+     * also needs to be true, given that the same policy is applying the treatment.
      */
-    void resetIsCameraCompatSimReqOrientationTreatmentForceEnabled() {
-        mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled = false;
+    boolean isCameraCompatLandscapeTreatmentEnabled() {
+        return mIsCameraCompatLandscapeTreatmentEnabled;
     }
 
     /**
@@ -1413,7 +1445,7 @@ final class AppCompatConfiguration {
      */
     boolean isAnyCameraCompatTreatmentEnabled() {
         return isCameraCompatForceRotateTreatmentEnabled()
-                || isCameraCompatSimulateRequestedOrientationTreatmentEnabled();
+                || isCameraCompatSimReqOrientationTreatmentEnabled();
     }
 
     /**

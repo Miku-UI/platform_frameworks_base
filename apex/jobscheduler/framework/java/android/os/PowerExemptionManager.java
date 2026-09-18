@@ -162,9 +162,9 @@ public class PowerExemptionManager {
     /** @hide */
     public static final int REASON_FGS_BINDING = 54;
     /** @hide */
-    public static final int REASON_DEVICE_OWNER = 55;
+    public static final int REASON_DEVICE_DPC = 55;
     /** @hide */
-    public static final int REASON_PROFILE_OWNER = 56;
+    public static final int REASON_USER_DPC = 56;
     /** @hide */
     public static final int REASON_COMPANION_DEVICE_MANAGER = 57;
     /**
@@ -456,8 +456,8 @@ public class PowerExemptionManager {
             REASON_ACTIVITY_STARTER,
             REASON_START_ACTIVITY_FLAG,
             REASON_FGS_BINDING,
-            REASON_DEVICE_OWNER,
-            REASON_PROFILE_OWNER,
+            REASON_DEVICE_DPC,
+            REASON_USER_DPC,
             REASON_COMPANION_DEVICE_MANAGER,
             REASON_BACKGROUND_ACTIVITY_PERMISSION,
             REASON_BACKGROUND_FGS_PERMISSION,
@@ -703,10 +703,10 @@ public class PowerExemptionManager {
                 return AppBackgroundRestrictionsInfo.REASON_COMPANION_DEVICE_MANAGER;
             case REASON_DEVICE_DEMO_MODE:
                 return AppBackgroundRestrictionsInfo.REASON_DEVICE_DEMO_MODE;
-            case REASON_DEVICE_OWNER:
-                return AppBackgroundRestrictionsInfo.REASON_DEVICE_OWNER;
-            case REASON_PROFILE_OWNER:
-                return AppBackgroundRestrictionsInfo.REASON_PROFILE_OWNER;
+            case REASON_DEVICE_DPC:
+                return AppBackgroundRestrictionsInfo.REASON_DEVICE_DPC;
+            case REASON_USER_DPC:
+                return AppBackgroundRestrictionsInfo.REASON_USER_DPC;
             case REASON_PROC_STATE_PERSISTENT:
                 return AppBackgroundRestrictionsInfo.REASON_PROC_STATE_PERSISTENT;
             case REASON_PROC_STATE_PERSISTENT_UI:
@@ -772,10 +772,10 @@ public class PowerExemptionManager {
                 return "START_ACTIVITY_FLAG";
             case REASON_FGS_BINDING:
                 return "FGS_BINDING";
-            case REASON_DEVICE_OWNER:
-                return "DEVICE_OWNER";
-            case REASON_PROFILE_OWNER:
-                return "PROFILE_OWNER";
+            case REASON_DEVICE_DPC:
+                return "DEVICE_DPC";
+            case REASON_USER_DPC:
+                return "USER_DPC";
             case REASON_COMPANION_DEVICE_MANAGER:
                 return "COMPANION_DEVICE_MANAGER";
             case REASON_BACKGROUND_ACTIVITY_PERMISSION:

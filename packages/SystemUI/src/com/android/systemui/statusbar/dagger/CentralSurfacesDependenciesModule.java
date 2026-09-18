@@ -28,6 +28,7 @@ import com.android.systemui.CoreStartable;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor;
+import com.android.systemui.camera.CameraNotifyWarmUpModule;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
@@ -80,7 +81,11 @@ import javax.inject.Provider;
  * their own version of CentralSurfaces can include just dependencies, without injecting
  * CentralSurfaces itself.
  */
-@Module
+@Module (
+        includes = {
+                CameraNotifyWarmUpModule.class
+        }
+)
 public interface CentralSurfacesDependenciesModule {
 
     /** */

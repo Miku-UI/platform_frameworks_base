@@ -136,14 +136,15 @@ public class PipInputConsumer {
         if (mInputEventReceiver != null) {
             return;
         }
-        final InputChannel inputChannel = new InputChannel();
+        final InputChannel inputChannel;
         try {
             // TODO(b/113087003): Support Picture-in-picture in multi-display.
             mWindowManager.destroyInputConsumer(mToken, DEFAULT_DISPLAY);
-            mWindowManager.createInputConsumer(mToken, mName, DEFAULT_DISPLAY, inputChannel);
+            inputChannel = mWindowManager.createInputConsumer(mToken, mName, DEFAULT_DISPLAY);
         } catch (RemoteException e) {
             ProtoLog.e(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                     "%s: Failed to create input consumer, %s", TAG, e);
+            throw e.rethrowFromSystemServer();
         }
         mMainExecutor.execute(() -> {
             mInputEventReceiver = new InputEventReceiver(inputChannel,

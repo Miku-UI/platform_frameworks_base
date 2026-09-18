@@ -16,10 +16,12 @@
 
 package android.view.inputmethod;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.PersistableBundle;
+import android.view.accessibility.Flags;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,15 +37,20 @@ import java.util.List;
 public final class TextAttribute implements Parcelable {
     private final @NonNull List<String> mTextConversionSuggestions;
     private final @NonNull PersistableBundle mExtras;
+    private final boolean mTextSuggestionSelected;
 
     private TextAttribute(Builder builder) {
         mTextConversionSuggestions = builder.mTextConversionSuggestions;
         mExtras = builder.mExtras;
+        mTextSuggestionSelected =
+                Flags.a11yTextChangeTypesApi() && builder.mTextSuggestionSelected;
     }
 
     private TextAttribute(Parcel source) {
         mTextConversionSuggestions = source.createStringArrayList();
         mExtras = source.readPersistableBundle();
+        mTextSuggestionSelected =
+                Flags.a11yTextChangeTypesApi() ? source.readBoolean() : false;
     }
 
     /**
@@ -55,6 +62,18 @@ public final class TextAttribute implements Parcelable {
      */
     public @NonNull List<String> getTextConversionSuggestions() {
         return mTextConversionSuggestions;
+    }
+
+    /**
+     * Get whether the text is undergoing a text candidate selection, relevant for CJK languages.
+     * This describes a state when user going through a list of text conversion candidates.
+     * {@link Builder#setTextSuggestionSelected(boolean)}.
+     *
+     * @return True if the current text is currently in a state of selecting a suggestion.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public boolean isTextSuggestionSelected() {
+        return mTextSuggestionSelected;
     }
 
     /**
@@ -74,6 +93,7 @@ public final class TextAttribute implements Parcelable {
     public static final class Builder {
         private List<String> mTextConversionSuggestions = new ArrayList<>();
         private PersistableBundle mExtras = new PersistableBundle();
+        private boolean mTextSuggestionSelected = false;
 
         /**
          * Sets text conversion suggestions.
@@ -90,6 +110,25 @@ public final class TextAttribute implements Parcelable {
         public @NonNull Builder setTextConversionSuggestions(
                 @NonNull List<String> textConversionSuggestions) {
             mTextConversionSuggestions = Collections.unmodifiableList(textConversionSuggestions);
+            return this;
+        }
+
+        /**
+         * Sets whether a text conversion suggestion is currently being selected.
+         *
+         * <p>In some transliteration languages, this describes the state which the user is
+         * currently selecting a text conversion suggestion. In other words, if set to True the
+         * user is in an ephemeral state of selecting which text will replace the current
+         * composition text.
+         * </p>
+         *
+         * @param textSuggestionSelected Whether if the current text is undergoing text suggestion
+         *                               selection
+         * @return This builder
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+        public @NonNull Builder setTextSuggestionSelected(boolean textSuggestionSelected) {
+            mTextSuggestionSelected = textSuggestionSelected;
             return this;
         }
 
@@ -123,6 +162,9 @@ public final class TextAttribute implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeStringList(mTextConversionSuggestions);
         dest.writePersistableBundle(mExtras);
+        if (Flags.a11yTextChangeTypesApi()) {
+            dest.writeBoolean(mTextSuggestionSelected);
+        }
     }
 
     public static final @NonNull Parcelable.Creator<TextAttribute> CREATOR =

@@ -56,7 +56,6 @@ class DisableFlagsController implements SettingController<Pair<Integer, Integer>
         if (mStatusBarService == null) {
             throw new Exception("IStatusBarService is null, cannot retrieve status bar state.");
         }
-
         int[] disableInfo = mStatusBarService.getDisableFlags(mToken, userId);
         state.setOriginalValue(new Pair<>(disableInfo[0], disableInfo[1]));
     }
@@ -70,8 +69,9 @@ class DisableFlagsController implements SettingController<Pair<Integer, Integer>
             return;
         }
         Pair<Integer, Integer> secureLockDeviceValue = state.getSecureLockDeviceValue();
-        mStatusBarService.disable(secureLockDeviceValue.first, mToken, mPackageName);
-        mStatusBarService.disable2(secureLockDeviceValue.second, mToken, mPackageName);
+        mStatusBarService.disableForUser(secureLockDeviceValue.first, mToken, mPackageName, userId);
+        mStatusBarService.disable2ForUser(secureLockDeviceValue.second, mToken, mPackageName,
+                userId);
     }
 
     @Override
@@ -84,8 +84,8 @@ class DisableFlagsController implements SettingController<Pair<Integer, Integer>
 
         Pair<Integer, Integer> originalValue = state.getOriginalValue();
         if (originalValue != null) {
-            mStatusBarService.disable(originalValue.first, mToken, mPackageName);
-            mStatusBarService.disable2(originalValue.second, mToken, mPackageName);
+            mStatusBarService.disableForUser(originalValue.first, mToken, mPackageName, userId);
+            mStatusBarService.disable2ForUser(originalValue.second, mToken, mPackageName, userId);
         }
     }
 

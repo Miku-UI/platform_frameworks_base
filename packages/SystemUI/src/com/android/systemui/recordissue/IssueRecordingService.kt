@@ -21,62 +21,53 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
+import android.media.projection.StopReason
 import android.net.Uri
-import android.os.Handler
 import android.os.IBinder
-import android.os.UserHandle
 import android.util.Log
-import com.android.internal.logging.UiEventLogger
 import com.android.systemui.animation.DialogTransitionAnimator
-import com.android.systemui.dagger.qualifiers.LongRunning
-import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.RecordingService
 import com.android.systemui.screenrecord.RecordingServiceStrings
-import com.android.systemui.screenrecord.ScreenMediaRecorder.SavedRecording
-import com.android.systemui.screenrecord.ScreenRecordUxController
+import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractor
+import com.android.systemui.screenrecord.service.ComponentService
+import com.android.systemui.screenrecord.shared.model.ScreenRecording
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingStatus
 import com.android.systemui.settings.UserContextProvider
-import com.android.systemui.statusbar.phone.KeyguardDismissUtil
 import com.android.traceur.MessageConstants.INTENT_EXTRA_TRACE_TYPE
 import com.android.traceur.PresetTraceConfigs
 import com.android.traceur.TraceConfig
-import java.util.concurrent.Executor
+import java.util.UUID
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 class IssueRecordingService
 @Inject
 constructor(
-    controller: ScreenRecordUxController,
-    @LongRunning private val bgExecutor: Executor,
-    @Main handler: Handler,
-    uiEventLogger: UiEventLogger,
+    @param:Application private val mainCoroutineScope: CoroutineScope,
+    @param:Background private val backgroundContext: CoroutineContext,
     notificationManager: NotificationManager,
     userContextProvider: UserContextProvider,
-    keyguardDismissUtil: KeyguardDismissUtil,
     dialogTransitionAnimator: DialogTransitionAnimator,
     panelInteractor: PanelInteractor,
     private val issueRecordingState: IssueRecordingState,
     traceurConnectionProvider: TraceurConnection.Provider,
     iActivityManager: IActivityManager,
     screenRecordingStartTimeStore: ScreenRecordingStartTimeStore,
-) :
-    RecordingService(
-        controller,
-        bgExecutor,
-        handler,
-        uiEventLogger,
-        notificationManager,
-        userContextProvider,
-        keyguardDismissUtil,
-        screenRecordingStartTimeStore,
-    ) {
+    private val screenRecordingServiceInteractor: ScreenRecordingServiceInteractor,
+) : ComponentService() {
 
     private val traceurConnection: TraceurConnection = traceurConnectionProvider.create()
+    private var screenRecordingNotificationId: Int? = null
 
     private val session =
         IssueRecordingServiceSession(
-            bgExecutor,
+            coroutineScope,
+            backgroundContext,
             dialogTransitionAnimator,
             panelInteractor,
             traceurConnection,
@@ -85,6 +76,7 @@ constructor(
             notificationManager,
             userContextProvider,
             screenRecordingStartTimeStore,
+            screenRecordingServiceInteractor,
         )
 
     /**
@@ -96,7 +88,7 @@ constructor(
      */
     override fun onBind(intent: Intent): IBinder? {
         traceurConnection.doBind()
-        return super.onBind(intent)
+        return null
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -104,16 +96,49 @@ constructor(
         return super.onUnbind(intent)
     }
 
-    override fun getTag(): String = TAG
+    override fun onCreate() {
+        super.onCreate()
 
-    override fun getChannelId(): String = CHANNEL_ID
+        mainCoroutineScope.launch {
+            screenRecordingServiceInteractor.screenRecordings.collect {
+                savedRecording: ScreenRecording ->
+                issueRecordingState.isRecording = false
+                val uri = savedRecording.uri
+                if (uri != null) {
+                    onRecordingSaved(uri)
+                } else {
+                    stopSelf()
+                }
+            }
+        }
 
-    override fun provideRecordingServiceStrings(): RecordingServiceStrings = IrsStrings(resources)
+        mainCoroutineScope.launch {
+            screenRecordingServiceInteractor.status.collect { status ->
+                when (status) {
+                    is ScreenRecordingStatus.Stopped -> {
+                        if (status.reason == StopReason.STOP_ERROR) {
+                            issueRecordingState.isRecording = false
+                            stopSelf()
+                        }
+                    }
+                    // Non-error stops are handled when the file is saved and screenRecordings
+                    // are collected.
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(getTag(), "handling action: ${intent?.action}")
+        Log.d(TAG, "handling action: ${intent?.action}")
         when (intent?.action) {
             ACTION_START -> {
+                val notificationId = UUID.randomUUID().mostSignificantBits.toInt()
+                screenRecordingNotificationId = notificationId
                 val screenRecord = intent.getBooleanExtra(EXTRA_SCREEN_RECORD, false)
                 with(session) {
                     traceConfig =
@@ -121,25 +146,17 @@ constructor(
                             ?: PresetTraceConfigs.getDefaultConfig()
                     takeBugReport = intent.getBooleanExtra(EXTRA_BUG_REPORT, false)
                     this.screenRecord = screenRecord
-                    start()
+                    start(notificationId)
                 }
                 if (!screenRecord) {
                     // If we don't want to record the screen, the ACTION_SHOW_START_NOTIF action
-                    // will circumvent the RecordingService's screen recording start code.
+                    // will circumvent the ScreenRecordingService's screen recording start code.
                     return super.onStartCommand(Intent(ACTION_SHOW_START_NOTIF), flags, startId)
                 }
             }
-            ACTION_STOP,
-            ACTION_STOP_NOTIF -> session.stop()
-            ACTION_SHARE -> {
-                session.share(
-                    intent.getIntExtra(EXTRA_NOTIFICATION_ID, mNotificationId),
-                    intent.getParcelableExtra(EXTRA_PATH, Uri::class.java),
-                )
-                // Unlike all other actions, action_share has different behavior for the screen
-                // recording qs tile than it does for the record issue qs tile. Return sticky to
-                // avoid running any of the base class' code for this action.
-                return START_STICKY
+            ACTION_STOP -> {
+                session.stop(intent.getIntExtra(EXTRA_STOP_REASON, StopReason.STOP_UNKNOWN))
+                stopSelf()
             }
             else -> {}
         }
@@ -150,12 +167,15 @@ constructor(
      * If the user chooses to create a bugreport, we do not want to make them click share twice. To
      * avoid that, the code immediately triggers the bugreport flow which will handle the rest.
      */
-    override fun onRecordingSaved(recording: SavedRecording?, currentUser: UserHandle) {
-        if (session.takeBugReport) {
-            session.share(mNotificationId, recording?.uri)
-        } else {
-            super.onRecordingSaved(recording, currentUser)
+    private fun onRecordingSaved(recordingUri: Uri) {
+        val notificationId = screenRecordingNotificationId
+
+        if (notificationId != null) {
+            if (session.takeBugReport) {
+                session.share(notificationId, recordingUri)
+            }
         }
+        stopSelf()
     }
 
     companion object {
@@ -163,6 +183,15 @@ constructor(
         private const val CHANNEL_ID = "issue_record"
         const val EXTRA_SCREEN_RECORD = "extra_screenRecord"
         const val EXTRA_BUG_REPORT = "extra_bugReport"
+        const val EXTRA_SHOW_SECONDS = "extra_showSeconds"
+        const val ACTION_START = "com.android.systemui.recordissue.ACTION_START"
+        const val ACTION_STOP = "com.android.systemui.recordissue.ACTION_STOP"
+        const val ACTION_SHOW_START_NOTIF = "com.android.systemui.recordissue.START_NOTIF"
+        const val ACTION_SHARE = "com.android.systemui.recordissue.ACTION_SHARE"
+        const val EXTRA_NOTIFICATION_ID = "notification_id"
+        const val EXTRA_PATH = "extra_path"
+        const val EXTRA_STOP_REASON =
+            "com.android.systemui.recordissue.IssueRecordingService.EXTRA_STOP_REASON"
 
         /**
          * Get an intent to stop the issue recording service.
@@ -191,6 +220,7 @@ constructor(
                 .putExtra(INTENT_EXTRA_TRACE_TYPE, traceConfig)
                 .putExtra(EXTRA_SCREEN_RECORD, screenRecord)
                 .putExtra(EXTRA_BUG_REPORT, bugReport)
+                .putExtra(EXTRA_SHOW_SECONDS, true)
     }
 }
 

@@ -48,7 +48,7 @@ public class HandlerExecutor implements ShellExecutor {
 
     /**
      * Used only if this executor can be boosted, if so, it can be boosted to the given
-     * {@param boostPriority}.
+     * {@code boostPriority}.
      */
     public HandlerExecutor(@NonNull Handler handler, int defaultThreadPriority,
             int boostedThreadPriority) {

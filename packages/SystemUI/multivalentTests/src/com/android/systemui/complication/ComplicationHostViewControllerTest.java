@@ -34,7 +34,6 @@ import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.provider.Settings;
 import android.testing.TestableLooper;
-import android.testing.ViewUtils;
 import android.view.View;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -113,8 +112,6 @@ public class ComplicationHostViewControllerTest extends SysuiTestCase {
 
     private KosmosJavaAdapter mKosmos;
 
-    private TestableLooper mLooper;
-
     private static final int CURRENT_USER_ID = UserHandle.USER_SYSTEM;
 
     @Before
@@ -129,7 +126,6 @@ public class ComplicationHostViewControllerTest extends SysuiTestCase {
         when(mViewHolder.getLayoutParams()).thenReturn(mComplicationLayoutParams);
         when(mComplicationView.getParent()).thenReturn(mComplicationHostView);
 
-        mLooper = TestableLooper.get(this);
         mKosmos = new KosmosJavaAdapter(this);
         mSecureSettings = new FakeSettings();
         mComplicationHostView = new ConstraintLayout(getContext());
@@ -144,6 +140,7 @@ public class ComplicationHostViewControllerTest extends SysuiTestCase {
                 mViewModel,
                 mSecureSettings,
                 mKosmos.getConfigurationInteractor(),
+                mKosmos.getTestScope(),
                 mKosmos.getTestDispatcher()
         );
 
@@ -156,9 +153,8 @@ public class ComplicationHostViewControllerTest extends SysuiTestCase {
     @Test
     @EnableFlags(FLAG_DREAMS_V2)
     public void updateLayoutEngine_isCalled_onConfigurationChange_flagEnabled() {
-        // Attach the complication host view so flows collecting on it start running.
-        ViewUtils.attachView(mComplicationHostView);
-        mLooper.processAllMessages();
+        mController.onViewAttached();
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
 
         // emit configuration change
         Rect bounds = new Rect(0, 0, 2000, 2000);
@@ -173,9 +169,8 @@ public class ComplicationHostViewControllerTest extends SysuiTestCase {
     @Test
     @DisableFlags(FLAG_DREAMS_V2)
     public void updateLayoutEngine_notCalled_onConfigurationChange_flagDisabled() {
-        // Attach the complication host view so flows collecting on it start running.
-        ViewUtils.attachView(mComplicationHostView);
-        mLooper.processAllMessages();
+        mController.onViewAttached();
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
 
         // emit configuration change
         Rect bounds = new Rect(0, 0, 2000, 2000);

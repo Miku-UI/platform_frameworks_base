@@ -51,6 +51,7 @@ public class VirtualDisplayConfigTest {
             | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE;
 
     // Values for hidden APIs.
+    private static final String UNIQUE_ID = "uniqueId";
     private static final int DISPLAY_ID_TO_MIRROR = 10;
 
     private final Surface mSurface = new Surface(new SurfaceTexture(/*texName=*/1));
@@ -61,6 +62,7 @@ public class VirtualDisplayConfigTest {
 
         validateConstantFields(originalConfig);
         assertThat(originalConfig.getName()).isEqualTo(NAME);
+        assertThat(originalConfig.getUniqueId()).isEqualTo(UNIQUE_ID);
 
 
         final Parcel parcel = Parcel.obtain();
@@ -71,6 +73,7 @@ public class VirtualDisplayConfigTest {
 
         validateConstantFields(recreatedConfig);
         assertThat(recreatedConfig.getName()).isEqualTo(NAME);
+        assertThat(recreatedConfig.getUniqueId()).isEqualTo(UNIQUE_ID);
     }
 
     @Test
@@ -93,6 +96,7 @@ public class VirtualDisplayConfigTest {
                 .setRequestedRefreshRate(REQUESTED_REFRESH_RATE)
                 .setDisplayIdToMirror(DISPLAY_ID_TO_MIRROR)
                 .setWindowManagerMirroringEnabled(true)
+                .setUniqueId(UNIQUE_ID)
                 .build();
     }
 

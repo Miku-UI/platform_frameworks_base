@@ -16,25 +16,43 @@
 
 package com.android.systemui.bouncer.domain.interactor
 
+import android.app.StatusBarManager.SESSION_KEYGUARD
 import android.platform.test.annotations.EnableFlags
 import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
+import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.internal.logging.InstanceId.fakeInstanceId
+import com.android.internal.logging.testing.UiEventLoggerFake
+import com.android.internal.logging.uiEventLogger
+import com.android.systemui.Flags.FLAG_STANDALONE_FINGERPRINT_LOCK_SCREEN_UX_FIX
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.FakeAuthenticationRepository
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
+import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
+import com.android.systemui.biometrics.shared.model.FingerprintSensorType
+import com.android.systemui.biometrics.shared.model.PeripheralFingerprintSensorLocation
+import com.android.systemui.biometrics.shared.model.SensorStrength
+import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
 import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
+import com.android.systemui.bouncer.shared.logging.BouncerUiEvent
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.deviceentry.domain.interactor.allowFingerprint
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
+import com.android.systemui.display.data.repository.setDisplayType
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.log.sessionTracker
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.securelockdevice.data.repository.fakeSecureLockDeviceRepository
 import com.android.systemui.testKosmos
+import com.android.systemui.util.mockito.mock
+import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runCurrent
@@ -44,11 +62,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyInt
+import org.mockito.Mockito.verify
+import org.mockito.kotlin.eq
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class AlternateBouncerInteractorTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
+    private val kosmos = testKosmos().apply { this.uiEventLogger = mock<UiEventLoggerFake>() }
 
     private lateinit var underTest: AlternateBouncerInteractor
 
@@ -56,6 +77,75 @@ class AlternateBouncerInteractorTest : SysuiTestCase() {
     fun setup() {
         underTest = kosmos.alternateBouncerInteractor
     }
+
+    @Test
+    @EnableFlags(FLAG_STANDALONE_FINGERPRINT_LOCK_SCREEN_UX_FIX)
+    fun canShowAlternateBouncer_sideFps_lockScreenOnExternalDisplay_false() =
+        kosmos.testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsSideFps()
+            kosmos.allowFingerprint()
+
+            val canShowAlternateBouncer by collectLastValue(underTest.canShowAlternateBouncer)
+
+            // Shade on internal display
+            kosmos.setDisplayType(Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL)
+            runCurrent()
+            assertThat(canShowAlternateBouncer).isTrue()
+
+            // Change shade display to external
+            kosmos.setDisplayType(Display.DEFAULT_DISPLAY, Display.TYPE_EXTERNAL)
+            runCurrent()
+            assertThat(canShowAlternateBouncer).isFalse()
+        }
+
+    @Test
+    fun alternateBouncerSupported_udfps_true() =
+        kosmos.testScope.runTest {
+            val alternateBouncerSupported by collectLastValue(underTest.alternateBouncerSupported)
+
+            kosmos.fingerprintPropertyRepository.setProperties(
+                sensorId = 0,
+                strength = SensorStrength.STRONG,
+                sensorType = FingerprintSensorType.UDFPS_OPTICAL,
+                sensorLocations = emptyMap(),
+            )
+            runCurrent()
+            assertThat(alternateBouncerSupported).isTrue()
+        }
+
+    @Test
+    @EnableFlags(FLAG_STANDALONE_FINGERPRINT_LOCK_SCREEN_UX_FIX)
+    fun alternateBouncerSupported_sideFps_true() =
+        kosmos.testScope.runTest {
+            val alternateBouncerSupported by collectLastValue(underTest.alternateBouncerSupported)
+
+            kosmos.fingerprintPropertyRepository.setProperties(
+                sensorId = 0,
+                strength = SensorStrength.STRONG,
+                sensorType = FingerprintSensorType.POWER_BUTTON,
+                sensorLocations = emptyMap(),
+            )
+            runCurrent()
+            assertThat(alternateBouncerSupported).isTrue()
+        }
+
+    @Test
+    @EnableFlags(FLAG_STANDALONE_FINGERPRINT_LOCK_SCREEN_UX_FIX)
+    fun alternateBouncerSupported_powerButtonFps_withPeripheralLocation_false() =
+        kosmos.testScope.runTest {
+            val alternateBouncerSupported by collectLastValue(underTest.alternateBouncerSupported)
+
+            kosmos.fingerprintPropertyRepository.setProperties(
+                sensorId = 0,
+                strength = SensorStrength.STRONG,
+                sensorType = FingerprintSensorType.POWER_BUTTON,
+                sensorLocations = emptyMap(),
+                peripheralSensorLocation =
+                    PeripheralFingerprintSensorLocation.POWER_BUTTON_TOP_RIGHT_KEY,
+            )
+            runCurrent()
+            assertThat(alternateBouncerSupported).isFalse()
+        }
 
     @Test
     @DisableSceneContainer
@@ -117,4 +207,39 @@ class AlternateBouncerInteractorTest : SysuiTestCase() {
         assertFalse(underTest.hide())
         assertFalse(kosmos.keyguardBouncerRepository.alternateBouncerVisible.value)
     }
+
+    @Test
+    fun show_logsUiEvent() {
+        val instanceId = fakeInstanceId(0)
+        whenever(kosmos.sessionTracker.getSessionId(SESSION_KEYGUARD)).thenReturn(instanceId)
+        underTest.forceShow()
+
+        verify(kosmos.uiEventLogger)
+            .logWithInstanceId(
+                eq(BouncerUiEvent.ALTERNATE_BOUNCER_SHOWN),
+                anyInt(),
+                eq(null),
+                eq(instanceId),
+            )
+    }
+
+    @Test
+    @DisableSceneContainer
+    fun canShowAlternateBouncer_false_dueToBouncerShowing() =
+        kosmos.testScope.runTest {
+            kosmos.givenAlternateBouncerSupported()
+            val canShowAlternateBouncer by collectLastValue(underTest.canShowAlternateBouncer)
+            kosmos.fakeKeyguardBouncerRepository.setPrimaryShow(true)
+            assertFalse(canShowAlternateBouncer!!)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun canShowAlternateBouncer_false_dueToBouncerOverlayShowing() =
+        kosmos.testScope.runTest {
+            kosmos.givenAlternateBouncerSupported()
+            val canShowAlternateBouncer by collectLastValue(underTest.canShowAlternateBouncer)
+            kosmos.sceneInteractor.showOverlay(overlay = Overlays.Bouncer, loggingReason = "test")
+            assertFalse(canShowAlternateBouncer!!)
+        }
 }

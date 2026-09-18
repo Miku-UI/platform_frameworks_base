@@ -54,7 +54,7 @@ class BubbleEducationViewController(private val context: Context, private val li
     private val springConfig by lazy {
         PhysicsAnimator.SpringConfig(
             SpringForce.STIFFNESS_MEDIUM,
-            SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            SpringForce.DAMPING_RATIO_LOW_BOUNCY,
         )
     }
 
@@ -109,16 +109,21 @@ class BubbleEducationViewController(private val context: Context, private val li
         root.getBoundsOnScreen(rootBounds)
         educationView =
             createEducationView(R.layout.bubble_bar_stack_education, root).apply {
-                TypefaceUtils.setTypeface(findViewById(R.id.education_title),
-                    TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED)
-                TypefaceUtils.setTypeface(findViewById(R.id.education_text),
-                    TypefaceUtils.FontFamily.GSF_BODY_MEDIUM)
+                TypefaceUtils.setTypeface(
+                    findViewById(R.id.education_title),
+                    TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED,
+                )
+                TypefaceUtils.setTypeface(
+                    findViewById(R.id.education_text),
+                    TypefaceUtils.FontFamily.GSF_BODY_MEDIUM,
+                )
                 setArrowDirection(BubblePopupDrawable.ArrowDirection.DOWN)
                 updateEducationPosition(view = this, position, rootBounds)
                 val arrowToEdgeOffset = popupDrawable?.config?.cornerRadius ?: 0f
                 doOnLayout {
-                    it.pivotX = if (position.x < rootBounds.centerX())
-                        arrowToEdgeOffset else it.width - arrowToEdgeOffset
+                    it.pivotX =
+                        if (position.x < rootBounds.centerX()) arrowToEdgeOffset
+                        else it.width - arrowToEdgeOffset
                     it.pivotY = it.height.toFloat()
                 }
                 setOnClickListener { educationClickHandler() }
@@ -158,10 +163,14 @@ class BubbleEducationViewController(private val context: Context, private val li
 
         educationView =
             createEducationView(R.layout.bubble_bar_manage_education, root).apply {
-                TypefaceUtils.setTypeface(findViewById(R.id.education_manage_title),
-                    TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED)
-                TypefaceUtils.setTypeface(findViewById(R.id.education_manage_text),
-                    TypefaceUtils.FontFamily.GSF_BODY_MEDIUM)
+                TypefaceUtils.setTypeface(
+                    findViewById(R.id.education_manage_title),
+                    TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED,
+                )
+                TypefaceUtils.setTypeface(
+                    findViewById(R.id.education_manage_text),
+                    TypefaceUtils.FontFamily.GSF_BODY_MEDIUM,
+                )
                 pivotY = 0f
                 doOnLayout { it.pivotX = it.width / 2f }
                 setOnClickListener { hideEducation(animated = true) }
@@ -190,8 +199,7 @@ class BubbleEducationViewController(private val context: Context, private val li
             ?.spring(DynamicAnimation.SCALE_X, if (show) 1f else EDU_SCALE_HIDDEN)
             ?.spring(DynamicAnimation.SCALE_Y, if (show) 1f else EDU_SCALE_HIDDEN)
             ?.withEndActions(endActions)
-            ?.start()
-            ?: endActions()
+            ?.start() ?: endActions()
     }
 
     /** Remove education view from the root and clean up all relative properties */

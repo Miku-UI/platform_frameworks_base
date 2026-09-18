@@ -27,7 +27,6 @@ import android.view.Display;
 import android.view.WindowManager;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.systemui.Flags;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.utils.windowmanager.WindowManagerProvider;
 
@@ -112,10 +111,8 @@ public class ModeSwitchesController implements ClickListener {
      */
     @MainThread
     void onDisplayRemoved(int displayId) {
-        if (Flags.cleanupInstancesWhenDisplayRemoved()) {
-            removeButton(displayId);
-            mSwitchSupplier.remove(displayId);
-        }
+        removeButton(displayId);
+        mSwitchSupplier.remove(displayId);
     }
 
     @Override

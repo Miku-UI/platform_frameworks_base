@@ -64,6 +64,7 @@ class DisplayDimModifier extends BrightnessModifier {
     }
 
     @Override
+    @BrightnessReason.Modifier
     int getModifier() {
         return BrightnessReason.MODIFIER_DIMMED;
     }

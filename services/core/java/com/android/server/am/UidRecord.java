@@ -16,6 +16,8 @@
 
 package com.android.server.am;
 
+import static com.android.server.am.psc.Constants.UNKNOWN_ADJ;
+
 import android.Manifest;
 import android.app.ActivityManager;
 import android.content.pm.PackageManager;
@@ -30,10 +32,12 @@ import android.util.proto.ProtoUtils;
 import com.android.internal.annotations.CompositeRWLock;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.am.UidObserverController.ChangeRecord;
+import com.android.server.am.psc.Constants.OomAdjust;
 import com.android.server.am.psc.ProcessRecordInternal;
 import com.android.server.am.psc.UidRecordInternal;
 
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Overall information about a uid that has actively running processes.
@@ -41,14 +45,6 @@ import java.util.function.Consumer;
 public final class UidRecord extends UidRecordInternal {
     @CompositeRWLock({"mService", "mProcLock"})
     private ArraySet<ProcessRecord> mProcRecords = new ArraySet<>();
-
-    /**
-     * Sequence number associated with the {@link #mCurProcState}. This is incremented using
-     * {@link ActivityManagerService#mProcStateSeqCounter}
-     * when {@link #mCurProcState} changes from background to foreground or vice versa.
-     */
-    @GuardedBy("networkStateUpdate")
-    long curProcStateSeq;
 
     /**
      * Last seq number for which NetworkPolicyManagerService notified ActivityManagerService that
@@ -75,14 +71,14 @@ public final class UidRecord extends UidRecordInternal {
     /*
      * Change bitmask flags.
      */
-    static final int CHANGE_GONE = 1 << 0;
-    static final int CHANGE_IDLE = 1 << 1;
-    static final int CHANGE_ACTIVE = 1 << 2;
-    static final int CHANGE_CACHED = 1 << 3;
-    static final int CHANGE_UNCACHED = 1 << 4;
-    static final int CHANGE_CAPABILITY = 1 << 5;
-    static final int CHANGE_PROCADJ = 1 << 6;
-    static final int CHANGE_PROCSTATE = 1 << 31;
+    public static final int CHANGE_GONE = 1 << 0;
+    public static final int CHANGE_IDLE = 1 << 1;
+    public static final int CHANGE_ACTIVE = 1 << 2;
+    public static final int CHANGE_CACHED = 1 << 3;
+    public static final int CHANGE_UNCACHED = 1 << 4;
+    public static final int CHANGE_CAPABILITY = 1 << 5;
+    public static final int CHANGE_PROCADJ = 1 << 6;
+    public static final int CHANGE_PROCSTATE = 1 << 31;
 
     // Keep the enum lists in sync
     private static int[] ORIG_ENUMS = new int[] {
@@ -130,8 +126,8 @@ public final class UidRecord extends UidRecordInternal {
 
     @Override
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    public int getMinProcAdj() {
-        int minAdj = ProcessList.UNKNOWN_ADJ;
+    public @OomAdjust int getMinProcAdj() {
+        int minAdj = UNKNOWN_ADJ;
         for (int i = mProcRecords.size() - 1; i >= 0; i--) {
             int adj = mProcRecords.valueAt(i).getSetAdj();
             if (adj < minAdj) {
@@ -164,6 +160,27 @@ public final class UidRecord extends UidRecordInternal {
             }
         }
         return null;
+    }
+
+    /**
+     * Checks if any {@link ProcessRecord} within this Uid, belonging to the specified package,
+     * satisfies the given predicate.
+     *
+     * @param packageName The name of the package to check.
+     * @param predicate The predicate to test against each matching {@link ProcessRecord}.
+     * @return {@code true} if at least one process in the package matches the predicate,
+     *         {@code false} otherwise.
+     */
+    @GuardedBy(anyOf = {"mService", "mProcLock"})
+    boolean anyProcessInPackageMatches(String packageName, Predicate<ProcessRecord> predicate) {
+        for (int i = mProcRecords.size() - 1; i >= 0; i--) {
+            final ProcessRecord app = mProcRecords.valueAt(i);
+            if (app != null && TextUtils.equals(app.info.packageName, packageName)
+                    && predicate.test(app)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -243,7 +260,7 @@ public final class UidRecord extends UidRecordInternal {
         }
 
         long seqToken = proto.start(UidRecordProto.NETWORK_STATE_UPDATE);
-        proto.write(UidRecordProto.ProcStateSequence.CURURENT, curProcStateSeq);
+        proto.write(UidRecordProto.ProcStateSequence.CURURENT, getCurProcStateSeq());
         proto.write(UidRecordProto.ProcStateSequence.LAST_NETWORK_UPDATED,
                 lastNetworkUpdatedProcStateSeq);
         proto.end(seqToken);
@@ -328,7 +345,7 @@ public final class UidRecord extends UidRecordInternal {
         sb.append(" procs:0");
 
         sb.append(" seq(");
-        sb.append(curProcStateSeq);
+        sb.append(getCurProcStateSeq());
         sb.append(",");
         sb.append(lastNetworkUpdatedProcStateSeq);
         sb.append(")}");

@@ -15,11 +15,11 @@
  */
 
 @file:Suppress("NOTHING_TO_INLINE", "SuspendCoroutine")
+@file:OptIn(UnsafeKairosApi::class)
 
 package com.android.systemui.kairos.util
 
-import com.android.systemui.kairos.util.Maybe.Absent
-import com.android.systemui.kairos.util.Maybe.Present
+import com.android.systemui.kairos.UnsafeKairosApi
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -29,22 +29,30 @@ import kotlin.coroutines.startCoroutine
 import kotlin.coroutines.suspendCoroutine
 
 /** Represents a value that may or may not be present. */
-sealed interface Maybe<out A> {
-    /** A [Maybe] value that is present. */
-    @JvmInline value class Present<out A> internal constructor(val value: A) : Maybe<A>
+@JvmInline
+value class Maybe<out A> private constructor(@property:UnsafeKairosApi val _value: Any?) {
 
-    /** A [Maybe] value that is not present. */
-    data object Absent : Maybe<Nothing>
+    @UnsafeKairosApi object MissingValue
 
     companion object {
         /** Returns a [Maybe] containing [value]. */
-        fun <A> present(value: A): Maybe<A> = Present(value)
+        fun <A> present(value: A): Maybe<A> = Maybe(value)
 
         /** A [Maybe] that is not present. */
-        val absent: Maybe<Nothing> = Absent
+        val absent: Maybe<Nothing> = Maybe(MissingValue)
+    }
+}
 
-        /** A [Maybe] that is not present. */
-        inline fun <A> absent(): Maybe<A> = Absent
+/** Returns `true` if this [Maybe] value is [present][Maybe.present]. */
+inline fun <A> Maybe<A>.isPresent(): Boolean = _value !== Maybe.MissingValue
+
+/** Returns `true` if this [Maybe] value is [absent][Maybe.absent]. */
+inline fun <A> Maybe<A>.isAbsent(): Boolean = !isPresent()
+
+/** Runs [block] with the value present in this [Maybe], if any. */
+inline fun <A> Maybe<A>.whenPresent(block: (A) -> Unit) {
+    if (_value !== Maybe.MissingValue) {
+        @Suppress("UNCHECKED_CAST") block(_value as A)
     }
 }
 
@@ -52,7 +60,7 @@ sealed interface Maybe<out A> {
 @RestrictsSuspension
 object MaybeScope {
     suspend operator fun <A> Maybe<A>.not(): A = suspendCoroutine { k ->
-        if (this is Present) k.resume(value)
+        whenPresent { k.resume(it) }
     }
 
     suspend inline fun guard(crossinline block: () -> Boolean): Unit = suspendCoroutine { k ->
@@ -64,8 +72,8 @@ object MaybeScope {
  * Returns a [Maybe] value produced by evaluating [block].
  *
  * [block] can use its [MaybeScope] receiver to query other [Maybe] values, automatically cancelling
- * execution of [block] and producing [Absent] when attempting to query a [Maybe] that is not
- * present.
+ * execution of [block] and producing [absent][Maybe.absent] when attempting to query a [Maybe] that
+ * is not present.
  *
  * This can be used instead of Kotlin's built-in nullability (`?.` and `?:`) operators when dealing
  * with complex combinations of nullables:
@@ -80,13 +88,13 @@ object MaybeScope {
  * ```
  */
 fun <A> maybe(block: suspend MaybeScope.() -> A): Maybe<A> {
-    var maybeResult: Maybe<A> = Absent
+    var maybeResult: Maybe<A> = maybeOf()
     val k =
         object : Continuation<A> {
             override val context: CoroutineContext = EmptyCoroutineContext
 
             override fun resumeWith(result: Result<A>) {
-                maybeResult = result.getOrNull()?.let { Present(it) } ?: Absent
+                maybeResult = result.map { maybeOf(it) }.getOrElse { maybeOf() }
             }
         }
     block.startCoroutine(MaybeScope, k)
@@ -97,13 +105,13 @@ fun <A> maybe(block: suspend MaybeScope.() -> A): Maybe<A> {
 inline fun <A> (A?).toMaybe(): Maybe<A> = maybe(this)
 
 /** Returns a [Maybe] containing [value] if it is not `null`. */
-inline fun <A> maybe(value: A?): Maybe<A> = value?.let { maybeOf(it) } ?: Absent
+inline fun <A> maybe(value: A?): Maybe<A> = value?.let { maybeOf(it) } ?: maybeOf()
 
 /** Returns a [Maybe] that is absent. */
-fun <A> maybeOf(): Maybe<A> = Absent
+fun maybeOf(): Maybe<Nothing> = Maybe.absent
 
 /** Returns a [Maybe] containing [value]. */
-fun <A> maybeOf(value: A): Maybe<A> = Present(value)
+fun <A> maybeOf(value: A): Maybe<A> = Maybe.present(value)
 
 /** Returns the value present in this [Maybe], or `null` if not present. */
 inline fun <A> Maybe<A>.orNull(): A? = orElse(null)
@@ -113,23 +121,27 @@ inline fun <A> Maybe<A>.orNull(): A? = orElse(null)
  * [Maybe].
  */
 inline fun <A, B> Maybe<A>.map(transform: (A) -> B): Maybe<B> =
-    when (this) {
-        is Present -> maybeOf(transform(value))
-        is Absent -> Absent
+    if (_value === Maybe.MissingValue) {
+        Maybe.absent
+    } else {
+        @Suppress("UNCHECKED_CAST") Maybe.present(transform(_value as A))
     }
 
 /** Returns the result of applying [transform] to the value in the original [Maybe]. */
 inline fun <A, B> Maybe<A>.flatMap(transform: (A) -> Maybe<B>): Maybe<B> =
-    when (this) {
-        is Present -> transform(value)
-        is Absent -> Absent
+    if (_value === Maybe.MissingValue) {
+        Maybe.absent
+    } else {
+        @Suppress("UNCHECKED_CAST") transform(_value as A)
     }
 
 /** Returns the value present in this [Maybe], or the result of [defaultValue] if not present. */
 inline fun <A> Maybe<A>.orElseGet(defaultValue: () -> A): A =
-    when (this) {
-        is Present -> value
-        is Absent -> defaultValue()
+    if (_value === Maybe.MissingValue) {
+        defaultValue()
+    } else {
+        @Suppress("UNCHECKED_CAST")
+        _value as A
     }
 
 /**
@@ -139,20 +151,17 @@ inline fun <A> Maybe<A>.orElseGet(defaultValue: () -> A): A =
 inline fun <A> Maybe<A>.orError(getMessage: () -> Any): A = orElseGet { error(getMessage()) }
 
 /** Returns the value present in this [Maybe], or [defaultValue] if not present. */
-inline fun <A> Maybe<A>.orElse(defaultValue: A): A =
-    when (this) {
-        is Present -> value
-        is Absent -> defaultValue
-    }
+inline fun <A> Maybe<A>.orElse(defaultValue: A): A = orElseGet { defaultValue }
 
 /**
  * Returns a [Maybe] that contains the present in the original [Maybe], only if it satisfies
  * [predicate].
  */
 inline fun <A> Maybe<A>.filter(predicate: (A) -> Boolean): Maybe<A> =
-    when (this) {
-        is Present -> if (predicate(value)) this else Absent
-        else -> this
+    if (_value === Maybe.MissingValue) {
+        this
+    } else {
+        @Suppress("UNCHECKED_CAST") if (predicate(_value as A)) this else Maybe.absent
     }
 
 /** Returns a [List] containing all values that are present in this [Iterable]. */
@@ -160,7 +169,11 @@ fun <A> Iterable<Maybe<A>>.filterPresent(): List<A> = asSequence().filterPresent
 
 /** Returns a [List] containing all values that are present in this [Sequence]. */
 fun <A> Sequence<Maybe<A>>.filterPresent(): Sequence<A> =
-    filterIsInstance<Present<A>>().map { it.value }
+    filter { it._value !== Maybe.MissingValue }
+        .map {
+            @Suppress("UNCHECKED_CAST")
+            it._value as A
+        }
 
 // Align
 
@@ -169,27 +182,19 @@ fun <A> Sequence<Maybe<A>>.filterPresent(): Sequence<A> =
  * and other, applied to [transform] as a [These].
  */
 inline fun <A, B, C> Maybe<A>.alignWith(other: Maybe<B>, transform: (These<A, B>) -> C): Maybe<C> =
-    when (this) {
-        is Present -> {
-            val a = value
-            when (other) {
-                is Present -> {
-                    val b = other.value
-                    maybeOf(transform(These.both(a, b)))
-                }
-
-                Absent -> maybeOf(transform(These.first(a)))
-            }
+    if (_value === Maybe.MissingValue) {
+        if (other._value === Maybe.MissingValue) {
+            Maybe.absent
+        } else {
+            @Suppress("UNCHECKED_CAST") maybeOf(transform(These.second(other._value as B)))
         }
-        Absent ->
-            when (other) {
-                is Present -> {
-                    val b = other.value
-                    maybeOf(transform(These.second(b)))
-                }
-
-                Absent -> maybeOf()
-            }
+    } else {
+        @Suppress("UNCHECKED_CAST") val a = _value as A
+        if (other._value === Maybe.MissingValue) {
+            maybeOf(transform(These.first(a)))
+        } else {
+            @Suppress("UNCHECKED_CAST") maybeOf(transform(These.both(a, other._value as B)))
+        }
     }
 
 // Alt
@@ -201,10 +206,7 @@ infix fun <A> Maybe<A>.orElseMaybe(other: Maybe<A>): Maybe<A> = orElseGetMaybe {
  * Returns a [Maybe] containing the value present in the original [Maybe], or the result of [other].
  */
 inline fun <A> Maybe<A>.orElseGetMaybe(other: () -> Maybe<A>): Maybe<A> =
-    when (this) {
-        is Present -> this
-        else -> other()
-    }
+    if (_value === Maybe.MissingValue) other() else this
 
 // Apply
 
@@ -246,10 +248,7 @@ fun <A> Maybe<A>.mergeWith(other: Maybe<A>, transform: (A, A) -> A): Maybe<A> =
  */
 inline fun <A, B> Iterable<A>.mapMaybe(transform: (A) -> Maybe<B>): List<B> = buildList {
     for (a in this@mapMaybe) {
-        val result = transform(a)
-        if (result is Present) {
-            add(result.value)
-        }
+        transform(a).whenPresent { add(it) }
     }
 }
 
@@ -258,7 +257,7 @@ inline fun <A, B> Iterable<A>.mapMaybe(transform: (A) -> Maybe<B>): List<B> = bu
  * the original sequence.
  */
 fun <A, B> Sequence<A>.mapMaybe(transform: (A) -> Maybe<B>): Sequence<B> =
-    map(transform).filterIsInstance<Present<B>>().map { it.value }
+    map(transform).filterPresent()
 
 /**
  * Returns a map with values of only the present results of applying [transform] to each entry in
@@ -267,10 +266,7 @@ fun <A, B> Sequence<A>.mapMaybe(transform: (A) -> Maybe<B>): Sequence<B> =
 inline fun <K, A, B> Map<K, A>.mapMaybeValues(transform: (Map.Entry<K, A>) -> Maybe<B>): Map<K, B> =
     buildMap {
         for (entry in this@mapMaybeValues) {
-            val result = transform(entry)
-            if (result is Present) {
-                put(entry.key, result.value)
-            }
+            transform(entry).whenPresent { put(entry.key, it) }
         }
     }
 

@@ -31,7 +31,6 @@ import android.app.contentsuggestions.SelectionsRequest;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.ColorSpace;
-import android.hardware.HardwareBuffer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -76,7 +75,6 @@ public abstract class ContentSuggestionsService extends Service {
                         ContentSuggestionsManager.EXTRA_BITMAP, android.graphics.Bitmap.class);
             } else {
                 if (snapshot != null) {
-                    final HardwareBuffer snapshotBuffer = snapshot.getHardwareBuffer();
                     ColorSpace colorSpace = snapshot.getColorSpace();
                     int colorSpaceId = 0;
                     if (colorSpace != null) {
@@ -85,8 +83,8 @@ public abstract class ContentSuggestionsService extends Service {
                     if (colorSpaceId >= 0 && colorSpaceId < ColorSpace.Named.values().length) {
                         colorSpace = ColorSpace.get(ColorSpace.Named.values()[colorSpaceId]);
                     }
-                    wrappedBuffer = Bitmap.wrapHardwareBuffer(snapshotBuffer, colorSpace);
-                    snapshotBuffer.close();
+                    wrappedBuffer = snapshot.wrapToBitmap(colorSpace);
+                    snapshot.closeBuffer();
                 }
             }
 
@@ -141,7 +139,7 @@ public abstract class ContentSuggestionsService extends Service {
 
     /**
      * Called by the system to provide the snapshot for the task associated with the given
-     * {@param taskId}.
+     * {@code taskId}.
      */
     public abstract void onProcessContextImage(
             int taskId, @Nullable Bitmap contextImage, @NonNull Bundle extras);

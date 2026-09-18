@@ -80,6 +80,32 @@ class EditTileListState(
         return _tiles.filterIsInstance<TileGridCell>().map { it.tile.tileSpec }
     }
 
+    /**
+     * Finds the closest tile to the given tileSpec.
+     *
+     * If the given tileSpec is found in the list of tileSpecs, this function returns the next tile
+     * in the list. If the given tileSpec is the last tile in the list, this function returns the
+     * previous tile in the list. If the given tileSpec is not found in the list of tileSpecs, this
+     * function returns null.
+     *
+     * @param tileSpec The tileSpec to find the closest tile to.
+     * @return The closest tile to the given tileSpec, or null if the given tileSpec is not found.
+     */
+    fun findNeighboringTile(tileSpec: TileSpec): TileSpec? {
+        val specs = tileSpecs()
+        return when (val index = specs.indexOf(tileSpec)) {
+            -1 -> null
+            specs.size - 1 -> { // Last element
+                if (specs.size > 1) {
+                    specs[index - 1]
+                } else {
+                    null
+                }
+            }
+            else -> specs[index + 1] // Return next element
+        }
+    }
+
     private fun indexOf(tileSpec: TileSpec): Int {
         return _tiles.indexOfFirst { it is TileGridCell && it.tile.tileSpec == tileSpec }
     }

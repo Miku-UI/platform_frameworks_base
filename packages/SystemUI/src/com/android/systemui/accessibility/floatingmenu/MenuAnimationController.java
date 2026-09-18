@@ -45,7 +45,7 @@ import java.util.HashMap;
  * Controls the interaction animations of the {@link MenuView}. Also, it will use the relative
  * coordinate based on the {@link MenuViewLayer} to compute the offset of the {@link MenuView}.
  */
-class MenuAnimationController {
+public class MenuAnimationController {
     private static final String TAG = "MenuAnimationController";
     private static final boolean DEBUG = false;
     private static final float MIN_PERCENT = 0.0f;
@@ -391,8 +391,18 @@ class MenuAnimationController {
     }
 
     void cancelAnimations() {
-        cancelAnimation(DynamicAnimation.TRANSLATION_X);
-        cancelAnimation(DynamicAnimation.TRANSLATION_Y);
+        for (DynamicAnimation.ViewProperty key : mPositionAnimations.keySet()) {
+            cancelAnimation(key);
+        }
+    }
+
+    boolean areAnimationsRunning() {
+        for (DynamicAnimation.ViewProperty key : mPositionAnimations.keySet()) {
+            if (mPositionAnimations.get(key).isRunning()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void cancelAnimation(DynamicAnimation.ViewProperty property) {

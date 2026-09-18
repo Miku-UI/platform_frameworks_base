@@ -309,6 +309,22 @@ public class EnvironmentTest {
     }
 
     @Test
+    public void testGetPccDataUserCePackageDirectory() {
+        String volumeUuid = "xxx";
+        String packageName = sContext.getPackageName();
+        assertAbsolute(Environment.getPccDataUserCePackageDirectory(
+                volumeUuid, UserHandle.USER_SYSTEM, packageName));
+    }
+
+    @Test
+    public void testGetPccDataUserPackageDeDirectory() {
+        String volumeUuid = "xxx";
+        String packageName = sContext.getPackageName();
+        assertAbsolute(Environment.getPccDataUserDePackageDirectory(
+                volumeUuid, UserHandle.USER_SYSTEM, packageName));
+    }
+
+    @Test
     public void testGetDataUserDeDirectory_withVolumeUuid() {
         String volumeUuid = "xxx";
         assertAbsolute(Environment.getDataUserDeDirectory(volumeUuid));

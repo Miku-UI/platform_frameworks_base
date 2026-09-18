@@ -244,6 +244,26 @@ public class SliceClientPermissionsTest extends UiServiceTestCase {
         // Should throw exception since the xml is empty
     }
 
+    @Test
+    public void removeAuthority() {
+        SliceClientPermissions client = createClient();
+        ArrayList<SliceAuthority> auths = new ArrayList<>(client.getAuthorities());
+        SliceAuthority first = auths.get(0);
+        SliceAuthority second = auths.get(1);
+        client.removeAuthority(first.getAuthority(), first.getPkg().getUserId());
+        ArrayList<SliceAuthority> updatedAuths = new ArrayList<>(client.getAuthorities());
+        assertEquals(1, updatedAuths.size());
+        assertEquals(second, updatedAuths.get(0));
+    }
+
+    @Test
+    public void clearAuthority() {
+        SliceClientPermissions client = createClient();
+        assertEquals(2, client.getAuthorities().size());
+        client.clear();
+        assertEquals(0, client.getAuthorities().size());
+    }
+
     private void assertEquivalent(SliceClientPermissions o1, SliceClientPermissions o2) {
         assertEquals(o1.getPkg(), o2.getPkg());
         ArrayList<SliceAuthority> a1 = new ArrayList<>(o1.getAuthorities());

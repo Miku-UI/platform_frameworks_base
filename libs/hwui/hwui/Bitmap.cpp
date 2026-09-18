@@ -16,15 +16,15 @@
 #include "Bitmap.h"
 
 #include <android-base/file.h>
+#include <com_android_graphics_surfaceflinger_flags.h>
+#include <utils/Trace.h>
 
 #include "FeatureFlags.h"
 #include "HardwareBitmapUploader.h"
+#include "OutOfProcessRendering.h"
 #include "Properties.h"
 #include "utils/Color.h"
-#include <utils/Trace.h>
-
 #ifdef __ANDROID__  // Layoutlib does not support render thread
-#include <com_android_graphics_surfaceflinger_flags.h>
 #include <private/android/AHardwareBufferHelpers.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/GraphicBufferMapper.h>
@@ -32,9 +32,7 @@
 #include "renderthread/RenderProxy.h"
 #endif
 
-#ifdef __linux__
 #include <com_android_graphics_hwui_flags.h>
-#endif // __linux__
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -54,7 +52,6 @@
 #include <SkHighContrastFilter.h>
 #include <SkImage.h>
 #include <SkImageAndroid.h>
-#include <SkImagePriv.h>
 #include <SkJpegEncoder.h>
 #include <SkJpegGainmapEncoder.h>
 #include <SkPixmap.h>
@@ -66,14 +63,6 @@
 #include <atomic>
 #include <format>
 #include <limits>
-
-#ifdef __linux__
-namespace hwui_flags = com::android::graphics::hwui::flags;
-#else
-namespace hwui_flags {
-constexpr bool bitmap_ashmem_long_name() { return false; }
-}
-#endif
 
 namespace android {
 
@@ -160,7 +149,7 @@ static sk_sp<Bitmap> allocateBitmap(SkBitmap* bitmap, AllocPixelRef alloc) {
 
 std::string Bitmap::getAshmemId(const char* tag, uint64_t bitmapId,
                                 int width, int height, size_t size) {
-    if (!hwui_flags::bitmap_ashmem_long_name()) {
+    if (!uirenderer::Properties::bitmapAshmemLongName) {
         return "bitmap";
     }
     static std::string sCmdline = [] {
@@ -374,6 +363,8 @@ Bitmap::Bitmap(AHardwareBuffer* buffer, const SkImageInfo& info, size_t rowBytes
     setImmutable();  // HW bitmaps are always immutable
     mImage = SkImages::DeferredFromAHardwareBuffer(buffer, mInfo.alphaType(),
                                                    mInfo.refColorSpace());
+    uirenderer::OoprClient::getInstance()->registerBuffer(
+            GraphicBuffer::fromAHardwareBuffer(buffer), mImage);
     traceBitmapCreate();
 }
 #endif
@@ -393,11 +384,13 @@ Bitmap::~Bitmap() {
         case PixelStorageType::Heap:
             free(mPixelStorage.heap.address);
 #ifdef __ANDROID__
-            mallopt(M_PURGE, 0);
+            // Use a purge that will not block for a long time.
+            mallopt(M_PURGE_FAST, 0);
 #endif
             break;
         case PixelStorageType::Hardware:
 #ifdef __ANDROID__ // Layoutlib does not support hardware acceleration
+            uirenderer::OoprClient::getInstance()->deregisterBuffer(mImage);
             auto buffer = mPixelStorage.hardware.buffer;
             AHardwareBuffer_release(buffer);
             mPixelStorage.hardware.buffer = nullptr;
@@ -489,8 +482,12 @@ sk_sp<SkImage> Bitmap::makeImage() {
 #ifdef __ANDROID__
         // pinnable images are only supported with the Ganesh GPU backend compiled in.
         image = SkImages::PinnableRasterFromBitmap(skiaBitmap);
+
+        if (mPixelStorageType == PixelStorageType::Heap) {
+            mOoprResources.createAndRegisterShadowBuffer(skiaBitmap, image);
+        }
 #else
-        image = SkMakeImageFromRasterBitmap(skiaBitmap, kNever_SkCopyPixelsMode);
+        image = SkImages::RasterFromBitmapNoCopy(skiaBitmap);
 #endif
     }
     return image;
@@ -635,7 +632,6 @@ BitmapPalette Bitmap::computePalette(const SkImageInfo& info, const void* addr, 
 }
 
 bool Bitmap::compress(JavaCompressFormat format, int32_t quality, SkWStream* stream) {
-#ifdef __ANDROID__  // TODO: This isn't built for host for some reason?
     if (hasGainmap()) {
         SkBitmap baseBitmap = getSkBitmap();
         SkBitmap gainmapBitmap = gainmap()->bitmap->getSkBitmap();
@@ -666,7 +662,6 @@ bool Bitmap::compress(JavaCompressFormat format, int32_t quality, SkWStream* str
                 ALOGI("Format: %d doesn't support gainmap compression!", format);
         }
     }
-#endif
     SkBitmap skbitmap;
     getSkBitmap(&skbitmap);
     return compress(skbitmap, format, quality, stream);

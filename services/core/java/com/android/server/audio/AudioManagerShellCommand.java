@@ -22,12 +22,17 @@ import static android.media.AudioManager.ADJUST_UNMUTE;
 
 import android.Manifest;
 import android.annotation.RequiresPermission;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioDeviceVolumeManager;
 import android.media.AudioManager;
+import android.media.MediaRecorder.AudioSource;
 import android.media.VolumeInfo;
 import android.media.audiopolicy.AudioProductStrategy;
 import android.os.ShellCommand;
@@ -98,17 +103,31 @@ class AudioManagerShellCommand extends ShellCommand {
             case "adj-group-volume":
                 return adjGroupVolume();
             case "set-hardening":
-                return setEnableHardening();
+                return setHardeningOverride();
+            case "clear-hardening":
+                return clearHardeningOverride();
             case "get-preferred-output-device":
                 return getPreferredOutputDevice();
             case "set-preferred-output-device":
                 return setPreferredOutputDevice();
             case "get-supported-output-devices":
-                return getSupportedOutputDevices();
+                return getSupportedDevices(AudioManager.GET_DEVICES_OUTPUTS);
             case "get-current-output-device":
                 return getCurrentOutputDevice();
             case "get-connected-output-devices":
-                return getConnectedOutputDevices();
+                return getConnectedDevices(AudioManager.GET_DEVICES_OUTPUTS);
+            case "get-connected-input-devices":
+                return getConnectedDevices(AudioManager.GET_DEVICES_INPUTS);
+            case "get-supported-input-devices":
+                return getSupportedDevices(AudioManager.GET_DEVICES_INPUTS);
+            case "get-current-input-device":
+                return getCurrentInputDevice();
+            case "get-preferred-input-device":
+                return getPreferredInputDevice();
+            case "set-preferred-input-device":
+                return setPreferredInputDevice();
+            case "hfp-audio-disconnect":
+                return hfpAudioDisconnect();
         }
         return 0;
     }
@@ -160,8 +179,10 @@ class AudioManagerShellCommand extends ShellCommand {
         pw.println("    Sets the volume for GROUP_ID to VOLUME_INDEX");
         pw.println("  adj-group-volume GROUP_ID <RAISE|LOWER|MUTE|UNMUTE>");
         pw.println("    Adjusts the group volume for GROUP_ID given the specified direction");
-        pw.println("  set-enable-hardening <1|0>");
-        pw.println("    Enables full audio hardening enforcement, disabling any exemptions");
+        pw.println("  set-hardening <1|enable|0|disable|throw>");
+        pw.println("    Enables (1), disables (0) or throws on audio hardening enforcement");
+        pw.println("  clear-hardening");
+        pw.println("    Clears the hardening override, returning to default behavior");
         pw.println("  set-preferred-output-device AUDIO_DEVICE_TYPE [ADDRESS]");
         pw.println("    Sets the output audio device to AUDIO_DEVICE_TYPE "
                 + "(e.g. AUTO, HDMI, BLUETOOTH_A2DP, BUILTIN_SPEAKER) for media strategy."
@@ -183,6 +204,28 @@ class AudioManagerShellCommand extends ShellCommand {
                 + " AudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)");
         pw.println("  get-preferred-output-device");
         pw.println("    Returns the preferred output audio device for the media strategy");
+        pw.println("  set-preferred-input-device AUDIO_SOURCE AUDIO_DEVICE_TYPE [ADDRESS]");
+        pw.println("    Sets the input audio device of AUDIO_SOURCE "
+                + "(e.g. MIC, VOICE_RECOGNITION) to AUDIO_DEVICE_TYPE "
+                + " Optionally, the ADDRESS can be provided to select a specific device."
+                + " 'get-supported-input-devices' and 'get-connected-input-devices'"
+                + " commands to see available input devices");
+        pw.println("  get-supported-input-devices");
+        pw.println("    Returns a list of supported audio input devices using"
+                + " AudioManager.getSupportedDeviceTypes(AudioManager.GET_DEVICES_INPUTS)");
+        pw.println("  get-current-input-device");
+        pw.println("    Returns the current input audio device for the MIC audio source."
+                + " if preferred device is not set then returns first device in the"
+                + " connected list of devices with MIC audio source using"
+                + " AudioManager.getDevicesForAttributes(<AudioSource.MIC>)");
+        pw.println(" get-connected-input-devices");
+        pw.println("    Returns a list of all connected input devices using"
+                + " AudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)");
+        pw.println("  get-preferred-input-device AUDIO_SOURCE");
+        pw.println("    Returns the preferred input audio device for AUDIO_SOURCE");
+        pw.println("  hfp-audio-disconnect REASON [ADDRESS]");
+        pw.println("    Disconnects HFP audio for device with ADDRESS for REASON. If ADDRESS is not"
+                + " provided, the active device will be used.");
     }
 
     private int setSurroundFormatEnabled() {
@@ -471,25 +514,99 @@ class AudioManagerShellCommand extends ShellCommand {
         return 0;
     }
 
-    private int setEnableHardening() {
-        final boolean shouldEnable = !(readIntArg() == 0);
-        getOutPrintWriter()
-                .println("calling AudioManager.setEnableHardening(" + shouldEnable + ")");
+    private int setHardeningOverride() {
+        String hardeningMode = getNextArg();
+        if (hardeningMode == null) {
+            getErrPrintWriter().println("Error: no hardening mode specified");
+            return 1;
+        }
+        final int mode;
+        final String modeName;
+        switch (hardeningMode) {
+            case "enable", "true", "1" -> {
+                mode = AudioManager.HARDENING_ENABLE;
+                modeName = "HARDENING_ENABLE";
+            }
+            case "disable", "false", "0" -> {
+                mode = AudioManager.HARDENING_DISABLE;
+                modeName = "HARDENING_DISABLE";
+            }
+            case "throw" -> {
+                mode = AudioManager.HARDENING_THROW;
+                modeName = "HARDENING_THROW";
+            }
+            case "default" -> {
+                mode = AudioManager.HARDENING_DEFAULT;
+                modeName = "HARDENING_DEFAULT";
+            }
+            default -> {
+                getErrPrintWriter().println("Error: invalid hardening mode: " + hardeningMode);
+                return 1;
+            }
+        }
+        getOutPrintWriter().println("calling AudioManager.setHardeningOverride(" + modeName + ")");
         try {
-            mAudioManager.setEnableHardening(shouldEnable);
+            mAudioManager.setHardeningOverride(mode);
         } catch (Exception e) {
             getOutPrintWriter().println("Exception: " + e);
         }
         return 0;
     }
 
-    private int getConnectedOutputDevices() {
-        AudioDeviceInfo[] devices = mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+    private int clearHardeningOverride() {
+        getOutPrintWriter().println("calling AudioManager.setHardeningOverride(HARDENING_DEFAULT)");
+        try {
+            mAudioManager.setHardeningOverride(AudioManager.HARDENING_DEFAULT);
+        } catch (Exception e) {
+            getOutPrintWriter().println("Exception: " + e);
+        }
+        return 0;
+    }
+
+    private int getConnectedDevices(int flags) {
+        AudioDeviceInfo[] devices = mAudioManager.getDevices(flags);
         List<String> connectedDevices = new ArrayList<>();
         for (AudioDeviceInfo device : devices) {
             connectedDevices.add(convertAudioDeviceTypeToString(device.getType()));
         }
         getOutPrintWriter().println(connectedDevices);
+        return 0;
+    }
+
+    private int hfpAudioDisconnect() {
+        final int reason;
+        try {
+            reason = readIntArg();
+        } catch (IllegalArgumentException e) {
+            return 1;
+        }
+
+        final String deviceAddress = getNextArg();
+
+        final var btManager = mService.mContext.getSystemService(BluetoothManager.class);
+
+        final var btAdapter = btManager.getAdapter();
+        if (btAdapter == null) {
+            getErrPrintWriter().println("Error: Bluetooth is not supported on this device");
+            return 1;
+        }
+
+        BluetoothDevice device = null;
+        if (deviceAddress != null) {
+            if (!BluetoothAdapter.checkBluetoothAddress(deviceAddress)) {
+                getErrPrintWriter().println("Error: invalid device address");
+                return 1;
+            }
+
+            device = btAdapter.getRemoteDevice(deviceAddress);
+        } else {
+            var devices = btAdapter.getActiveDevices(BluetoothProfile.HEADSET);
+            device = !devices.isEmpty() ? devices.get(0) : null;
+        }
+
+        mService.handleBluetoothHfpAudioDisconnected(device, reason);
+        getOutPrintWriter().println("Successfully sent hfp audio disconnect for "
+                + (deviceAddress != null ? deviceAddress : "active device"));
         return 0;
     }
 
@@ -510,9 +627,26 @@ class AudioManagerShellCommand extends ShellCommand {
         return 0;
     }
 
-    private int getSupportedOutputDevices() {
+    @RequiresPermission(Manifest.permission.MODIFY_AUDIO_ROUTING)
+    private int getCurrentInputDevice() {
+        List<AudioDeviceAttributes> devices = mAudioManager
+                .getDevicesForAttributes(
+                    new AudioAttributes.Builder()
+                        .setCapturePreset(AudioSource.MIC)
+                        .build());
+        if (devices.size() == 0) {
+            getErrPrintWriter().println("Error: no audio devices connected");
+            return 1;
+        }
+
+        getOutPrintWriter()
+                        .println(convertAudioDeviceTypeToString(devices.get(0).getType()));
+        return 0;
+    }
+
+    private int getSupportedDevices(int flags) {
         Set<Integer> devices = mAudioManager
-                .getSupportedDeviceTypes(AudioManager.GET_DEVICES_OUTPUTS);
+                .getSupportedDeviceTypes(flags);
         List<String> supportedDevices = new ArrayList<>();
         for (int device : devices) {
             String deviceType = convertAudioDeviceTypeToString(device);
@@ -605,6 +739,87 @@ class AudioManagerShellCommand extends ShellCommand {
             .getAudioProductStrategyForAudioAttributes(audioAttributes, true);
     }
 
+    @RequiresPermission(Manifest.permission.MODIFY_AUDIO_ROUTING)
+    private int getPreferredInputDevice() {
+        final String audioSourceString = getNextArg();
+        int audioSource = convertAudioSourceFromString(audioSourceString);
+        if (audioSource == AudioSource.DEFAULT) {
+            getErrPrintWriter().println("Error: invalid source provided: " + audioSourceString);
+            return 1;
+        }
+        List<AudioDeviceAttributes> devices = mAudioManager
+                .getPreferredDevicesForCapturePreset(audioSource);
+        if (devices.isEmpty()) {
+            getErrPrintWriter().println("no preferred device set");
+            return 1;
+        }
+        getOutPrintWriter().println(convertAudioDeviceTypeToString(devices.get(0).getType()));
+        return 0;
+    }
+
+    private int setPreferredInputDevice() {
+        final String audioSourceString = getNextArg();
+        if (audioSourceString == null || audioSourceString.isEmpty()) {
+            getErrPrintWriter().println("Error: no audio source provided");
+            return 1;
+        }
+
+        final String deviceTypeString = getNextArg();
+        if (deviceTypeString == null || deviceTypeString.isEmpty()) {
+            getErrPrintWriter().println("Error: no output device type provided"
+                        + "\n'get-connected-output-devices' can be used to get supported devices");
+            return 1;
+        }
+
+        int audioSource = convertAudioSourceFromString(audioSourceString);
+        if (audioSource == AudioSource.DEFAULT) {
+            getErrPrintWriter().println("Error: invalid source provided: " + audioSourceString);
+            return 1;
+        }
+        int audioDeviceType = convertAudioDeviceTypeFromString(deviceTypeString);
+        if (audioDeviceType == AudioDeviceInfo.TYPE_UNKNOWN) {
+            getErrPrintWriter().println("Error: invalid input device type provided: "
+                    + deviceTypeString
+                    + "'get-supported-audio-devices' can be used to get supported devices");
+            return 1;
+        }
+
+        // Get all connected output devices
+        AudioDeviceInfo[] devices = mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
+        if (devices.length == 0) {
+            getErrPrintWriter().println("Error: no devices connected");
+            return 1;
+        }
+
+        String address = getNextArg();
+        AudioDeviceInfo selectedDevice = null;
+        // Find the device with the given type
+        for (AudioDeviceInfo device : devices) {
+            if (device.getType() == audioDeviceType
+                    && (address == null || device.getAddress().equals(address))) {
+                selectedDevice = device;
+                break;
+            }
+        }
+
+        if (selectedDevice == null) {
+            getErrPrintWriter().println("Error: no device connected for type: " + deviceTypeString
+                    + (address != null ? " with address: " + address : ""));
+            return 1;
+        }
+
+        AudioDeviceAttributes audioDeviceAttributes = new AudioDeviceAttributes(
+                selectedDevice.getInternalType(), selectedDevice.getAddress());
+        boolean result = mAudioManager
+                .setPreferredDeviceForCapturePreset(audioSource, audioDeviceAttributes);
+        if (!result) {
+            getErrPrintWriter().println("failed to set preferred device");
+            return 1;
+        }
+        getOutPrintWriter().println("successfully set preferred device");
+        return 0;
+    }
+
     private int readIntArg() throws IllegalArgumentException {
         final String argText = getNextArg();
 
@@ -645,6 +860,8 @@ class AudioManagerShellCommand extends ShellCommand {
 
     private static final Map<Integer, String> sDeviceTypeIntegerToString = new HashMap<>();
 
+    private static final Map<String, Integer> sAudioSourceStringToInteger = new HashMap<>();
+
     static {
         sDeviceTypeStringToInteger.put("BUILTIN_EARPIECE", AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
         sDeviceTypeStringToInteger.put("BUILTIN_MIC", AudioDeviceInfo.TYPE_BUILTIN_MIC);
@@ -680,6 +897,8 @@ class AudioManagerShellCommand extends ShellCommand {
         sDeviceTypeStringToInteger.put("BLE_BROADCAST", AudioDeviceInfo.TYPE_BLE_BROADCAST);
         sDeviceTypeStringToInteger.put(
                 "MULTICHANNEL_GROUP", AudioDeviceInfo.TYPE_MULTICHANNEL_GROUP);
+        sDeviceTypeStringToInteger.put(
+                "BLE_HEARING_AID", AudioDeviceInfo.TYPE_BLE_HEARING_AID);
 
         sDeviceTypeIntegerToString.put(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, "BUILTIN_EARPIECE");
         sDeviceTypeIntegerToString.put(AudioDeviceInfo.TYPE_BUILTIN_MIC, "BUILTIN_MIC");
@@ -715,6 +934,24 @@ class AudioManagerShellCommand extends ShellCommand {
         sDeviceTypeIntegerToString.put(AudioDeviceInfo.TYPE_BLE_BROADCAST, "BLE_BROADCAST");
         sDeviceTypeIntegerToString.put(
                 AudioDeviceInfo.TYPE_MULTICHANNEL_GROUP, "MULTICHANNEL_GROUP");
+        sDeviceTypeIntegerToString.put(
+                AudioDeviceInfo.TYPE_BLE_HEARING_AID, "BLE_HEARING_AID");
+
+        // "DEFAULT" indicates invalid audio source.
+        sAudioSourceStringToInteger.put("MIC", AudioSource.MIC);
+        sAudioSourceStringToInteger.put("VOICE_UPLINK", AudioSource.VOICE_UPLINK);
+        sAudioSourceStringToInteger.put("VOICE_DOWNLINK", AudioSource.VOICE_DOWNLINK);
+        sAudioSourceStringToInteger.put("VOICE_CALL", AudioSource.VOICE_CALL);
+        sAudioSourceStringToInteger.put("CAMCORDER", AudioSource.CAMCORDER);
+        sAudioSourceStringToInteger.put("VOICE_RECOGNITION", AudioSource.VOICE_RECOGNITION);
+        sAudioSourceStringToInteger.put("VOICE_COMMUNICATION", AudioSource.VOICE_COMMUNICATION);
+        sAudioSourceStringToInteger.put("REMOTE_SUBMIX", AudioSource.REMOTE_SUBMIX);
+        sAudioSourceStringToInteger.put("UNPROCESSED", AudioSource.UNPROCESSED);
+        sAudioSourceStringToInteger.put("VOICE_PERFORMANCE", AudioSource.VOICE_PERFORMANCE);
+        sAudioSourceStringToInteger.put("ECHO_REFERENCE", AudioSource.ECHO_REFERENCE);
+        sAudioSourceStringToInteger.put("RADIO_TUNER", AudioSource.RADIO_TUNER);
+        sAudioSourceStringToInteger.put("HOTWORD", AudioSource.HOTWORD);
+        sAudioSourceStringToInteger.put("ULTRASOUND", AudioSource.ULTRASOUND);
     }
 
     /**
@@ -737,5 +974,17 @@ class AudioManagerShellCommand extends ShellCommand {
             String deviceTypeString) {
         return sDeviceTypeStringToInteger.getOrDefault(
                 deviceTypeString, AudioDeviceInfo.TYPE_UNKNOWN);
+    }
+
+    /**
+     * Converts a string representation of the audio source to an integer.
+     *
+     * @param audioSourceString The string representing the audio source
+     * @return The integer representing the audio source.
+     */
+    private int convertAudioSourceFromString(
+            String audioSourceString) {
+        return sAudioSourceStringToInteger.getOrDefault(
+                audioSourceString, AudioSource.DEFAULT);
     }
 }

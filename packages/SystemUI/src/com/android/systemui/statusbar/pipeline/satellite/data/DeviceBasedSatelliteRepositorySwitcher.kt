@@ -24,6 +24,7 @@ import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.statusbar.pipeline.satellite.data.demo.DemoDeviceBasedSatelliteRepository
 import com.android.systemui.statusbar.pipeline.satellite.shared.model.SatelliteConnectionState
+import com.android.systemui.util.kotlin.mapDirect
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -31,7 +32,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -86,7 +86,7 @@ constructor(
     @VisibleForTesting
     val activeRepo: StateFlow<DeviceBasedSatelliteRepository> =
         isDemoMode
-            .mapLatest { isDemoMode ->
+            .mapDirect { isDemoMode ->
                 if (isDemoMode) {
                     demoImpl
                 } else {

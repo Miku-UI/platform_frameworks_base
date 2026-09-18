@@ -24,6 +24,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.os.StrictMode;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
@@ -49,6 +50,7 @@ import java.util.LinkedList;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class QueuedWork {
     private static final String LOG_TAG = QueuedWork.class.getSimpleName();
     private static final boolean DEBUG = false;

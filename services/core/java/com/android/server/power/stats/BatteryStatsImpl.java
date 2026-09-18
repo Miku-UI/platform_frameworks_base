@@ -28,6 +28,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessState;
 import android.app.AlarmManager;
 import android.app.usage.NetworkStatsManager;
 import android.bluetooth.BluetoothActivityEnergyInfo;
@@ -117,6 +118,7 @@ import com.android.internal.os.BatteryStatsHistoryIterator;
 import com.android.internal.os.Clock;
 import com.android.internal.os.CpuScalingPolicies;
 import com.android.internal.os.KernelCpuSpeedReader;
+import com.android.internal.os.KernelCpuThreadReader;
 import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidActiveTimeReader;
 import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidClusterTimeReader;
 import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidFreqTimeReader;
@@ -137,6 +139,8 @@ import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 import com.android.server.LocalServices;
 import com.android.server.power.optimization.Flags;
+import com.android.server.power.stats.counters.TimeBase;
+import com.android.server.power.stats.counters.TimeBaseObs;
 import com.android.server.power.stats.format.MobileRadioPowerStatsLayout;
 
 import libcore.util.EmptyArray;
@@ -156,17 +160,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
@@ -298,67 +297,6 @@ public class BatteryStatsImpl extends BatteryStats {
     private final GnssPowerStatsCollector mGnssPowerStatsCollector;
     private final CustomEnergyConsumerPowerStatsCollector mCustomEnergyConsumerPowerStatsCollector;
     private final SparseBooleanArray mPowerStatsCollectorEnabled = new SparseBooleanArray();
-    private boolean mMoveWscLoggingToNotifierEnabled = false;
-
-    static class BatteryStatsSession {
-        private final BatteryStatsHistory mHistory;
-        private final long mMonotonicStartTime;
-        private final long mStartClockTime;
-        private final long mEstimatedBatteryCapacityMah;
-        private final long mBatteryTimeRemainingMs;
-        private final long mChargeTimeRemainingMs;
-        private final String[] mCustomEnergyConsumerNames;
-        private final BatteryStatsImpl mBatteryStats;
-
-        BatteryStatsSession(BatteryStatsHistory history, long monotonicStartTime,
-                long startClockTime, long batteryTimeRemainingMs, long chargeTimeRemainingMs,
-                long estimatedBatteryCapacityMah, String[] customEnergyConsumerNames,
-                BatteryStatsImpl batteryStats) {
-            mHistory = history;
-            mMonotonicStartTime = monotonicStartTime;
-            mStartClockTime = startClockTime;
-            mEstimatedBatteryCapacityMah = estimatedBatteryCapacityMah;
-            mBatteryTimeRemainingMs = batteryTimeRemainingMs;
-            mChargeTimeRemainingMs = chargeTimeRemainingMs;
-            mCustomEnergyConsumerNames = customEnergyConsumerNames;
-            mBatteryStats = batteryStats;
-        }
-
-        BatteryStatsHistory getHistory() {
-            return mHistory;
-        }
-
-        long getMonotonicStartTime() {
-            return mMonotonicStartTime;
-        }
-
-        long getStartClockTime() {
-            return mStartClockTime;
-        }
-
-        long getBatteryTimeRemainingMs() {
-            return mBatteryTimeRemainingMs;
-        }
-
-        long getChargeTimeRemainingMs() {
-            return mChargeTimeRemainingMs;
-        }
-
-        long getEstimatedBatteryCapacity() {
-            return mEstimatedBatteryCapacityMah;
-        }
-
-        String[] getCustomEnergyConsumerNames() {
-            return mCustomEnergyConsumerNames;
-        }
-
-        /** @deprecated This method will be removed once PowerCalculators are removed from the
-         * code base. */
-        @Deprecated
-        public BatteryStatsImpl getBatteryStats() {
-            return mBatteryStats;
-        }
-    }
 
     BatteryStatsSession getBatteryStatsSession() {
         synchronized (this) {
@@ -371,7 +309,7 @@ public class BatteryStatsImpl extends BatteryStats {
                     chargeTimeRemainingUs >= 0 ? chargeTimeRemainingUs / 1000 : -1;
             return new BatteryStatsSession(mHistory, getMonotonicStartTime(), getStartClockTime(),
                     batteryTimeRemainingMs, chargeTimeRemainingMs, getEstimatedBatteryCapacity(),
-                    getCustomEnergyConsumerNames(), this);
+                    getCustomEnergyConsumerNames());
         }
     }
 
@@ -441,7 +379,7 @@ public class BatteryStatsImpl extends BatteryStats {
                 }
             };
 
-    private class BluetoothStatsRetrieverImpl implements
+    private final class BluetoothStatsRetrieverImpl implements
             BluetoothPowerStatsCollector.BluetoothStatsRetriever {
         private final BluetoothManager mBluetoothManager;
 
@@ -575,7 +513,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * implemented so that STATSD can capture those UID times before they are deleted.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    protected final Queue<UidToRemove> mPendingRemovedUids;
+    protected final Queue<UidToRemove> mPendingRemovedUids = new ConcurrentLinkedQueue<>();
 
     @NonNull
     public BatteryStatsHistory getHistory() {
@@ -650,158 +588,6 @@ public class BatteryStatsImpl extends BatteryStats {
         @VisibleForTesting
         public boolean exists(int userId) {
             return userIds != null ? ArrayUtils.contains(userIds, userId) : true;
-        }
-    }
-
-    /** Provide BatteryStatsImpl configuration choices */
-    public static class BatteryStatsConfig {
-        static final int RESET_ON_UNPLUG_HIGH_BATTERY_LEVEL_FLAG = 1 << 0;
-        static final int RESET_ON_UNPLUG_AFTER_SIGNIFICANT_CHARGE_FLAG = 1 << 1;
-
-        private final int mFlags;
-        private final Long mDefaultPowerStatsThrottlePeriod;
-        private final Map<String, Long> mPowerStatsThrottlePeriods;
-        private final int mMaxHistorySizeBytes;
-        private final int mHighBatteryLevelAfterCharge;
-
-        private BatteryStatsConfig(Builder builder) {
-            int flags = 0;
-            if (builder.mResetOnUnplugHighBatteryLevel) {
-                flags |= RESET_ON_UNPLUG_HIGH_BATTERY_LEVEL_FLAG;
-            }
-            if (builder.mResetOnUnplugAfterSignificantCharge) {
-                flags |= RESET_ON_UNPLUG_AFTER_SIGNIFICANT_CHARGE_FLAG;
-            }
-            mFlags = flags;
-            mDefaultPowerStatsThrottlePeriod = builder.mDefaultPowerStatsThrottlePeriod;
-            mPowerStatsThrottlePeriods = builder.mPowerStatsThrottlePeriods;
-            mMaxHistorySizeBytes = builder.mMaxHistorySizeBytes;
-            mHighBatteryLevelAfterCharge = builder.mHighBatteryLevelAfterCharge;
-        }
-
-        /**
-         * Returns whether a BatteryStats reset should occur on unplug when the battery level is
-         * high.
-         */
-        public boolean shouldResetOnUnplugHighBatteryLevel() {
-            return (mFlags & RESET_ON_UNPLUG_HIGH_BATTERY_LEVEL_FLAG)
-                    == RESET_ON_UNPLUG_HIGH_BATTERY_LEVEL_FLAG;
-        }
-
-        /** Returns battery level (as percent of battery) to consider as "high enough" to trigger
-         *  a battery session reset.
-         *  Only has an effect if {@link #shouldResetOnUnplugHighBatteryLevel} is true */
-        public int getHighBatteryLevelAfterCharge() {
-            return mHighBatteryLevelAfterCharge;
-        }
-
-        /**
-         * Returns whether a BatteryStats reset should occur on unplug if the battery charge a
-         * significant amount since it has been plugged in.
-         */
-        public boolean shouldResetOnUnplugAfterSignificantCharge() {
-            return (mFlags & RESET_ON_UNPLUG_AFTER_SIGNIFICANT_CHARGE_FLAG)
-                    == RESET_ON_UNPLUG_AFTER_SIGNIFICANT_CHARGE_FLAG;
-        }
-
-        /**
-         * Returns  the minimum amount of time (in millis) to wait between passes
-         * of power stats collection for the specified power component.
-         */
-        public long getPowerStatsThrottlePeriod(String powerComponentName) {
-            return mPowerStatsThrottlePeriods.getOrDefault(powerComponentName,
-                    mDefaultPowerStatsThrottlePeriod);
-        }
-
-        public int getMaxHistorySizeBytes() {
-            return mMaxHistorySizeBytes;
-        }
-
-        /**
-         * Builder for BatteryStatsConfig
-         */
-        public static class Builder {
-            private static final long DEFAULT_POWER_STATS_THROTTLE_PERIOD =
-                    TimeUnit.HOURS.toMillis(1);
-            private static final long DEFAULT_POWER_STATS_THROTTLE_PERIOD_CPU =
-                    TimeUnit.MINUTES.toMillis(1);
-            private static final int DEFAULT_MAX_HISTORY_SIZE = 4 * 1024 * 1024;
-            private static final int DEFAULT_HIGH_BATTERY_LEVEL_AFTER_CHARGE = 90;
-
-            private boolean mResetOnUnplugHighBatteryLevel;
-            private boolean mResetOnUnplugAfterSignificantCharge;
-            private long mDefaultPowerStatsThrottlePeriod = DEFAULT_POWER_STATS_THROTTLE_PERIOD;
-            private final Map<String, Long> mPowerStatsThrottlePeriods = new HashMap<>();
-            private int mMaxHistorySizeBytes = DEFAULT_MAX_HISTORY_SIZE;
-            private int mHighBatteryLevelAfterCharge = DEFAULT_HIGH_BATTERY_LEVEL_AFTER_CHARGE;
-
-            public Builder() {
-                mResetOnUnplugHighBatteryLevel = true;
-                mResetOnUnplugAfterSignificantCharge = true;
-                setPowerStatsThrottlePeriodMillis(BatteryConsumer.powerComponentIdToString(
-                                BatteryConsumer.POWER_COMPONENT_CPU),
-                        DEFAULT_POWER_STATS_THROTTLE_PERIOD_CPU);
-            }
-
-            /**
-             * Build the BatteryStatsConfig.
-             */
-            public BatteryStatsConfig build() {
-                return new BatteryStatsConfig(this);
-            }
-
-            /**
-             * Set whether a BatteryStats reset should occur on unplug when the battery level is
-             * high.
-             */
-            public Builder setResetOnUnplugHighBatteryLevel(boolean reset) {
-                mResetOnUnplugHighBatteryLevel = reset;
-                return this;
-            }
-
-            /**
-             * Set whether a BatteryStats reset should occur on unplug if the battery charge a
-             * significant amount since it has been plugged in.
-             */
-            public Builder setResetOnUnplugAfterSignificantCharge(boolean reset) {
-                mResetOnUnplugAfterSignificantCharge = reset;
-                return this;
-            }
-
-            /**
-             * Sets the minimum amount of time (in millis) to wait between passes
-             * of power stats collection for the specified power component.
-             */
-            public Builder setPowerStatsThrottlePeriodMillis(String powerComponentName,
-                    long periodMs) {
-                mPowerStatsThrottlePeriods.put(powerComponentName, periodMs);
-                return this;
-            }
-
-            /**
-             * Sets the minimum amount of time (in millis) to wait between passes
-             * of power stats collection for any components not configured explicitly.
-             */
-            public Builder setDefaultPowerStatsThrottlePeriodMillis(long periodMs) {
-                mDefaultPowerStatsThrottlePeriod = periodMs;
-                return this;
-            }
-
-            /**
-             * Sets the maximum amount of disk space, in bytes, that battery history can
-             * utilize. As this space fills up, the oldest history chunks must be expunged.
-             */
-            public Builder setMaxHistorySizeBytes(int maxHistorySizeBytes) {
-                mMaxHistorySizeBytes = maxHistorySizeBytes;
-                return this;
-            }
-
-            /** Sets battery level (as percent of battery) to consider as "high enough" to
-             * trigger a battery session reset.*/
-            public Builder setHighBatteryLevelAfterCharge(int highBatteryLevelAfterCharge) {
-                mHighBatteryLevelAfterCharge = highBatteryLevelAfterCharge;
-                return this;
-            }
         }
     }
 
@@ -948,7 +734,7 @@ public class BatteryStatsImpl extends BatteryStats {
                     mCpuUidFreqTimeReader.getAllUidCpuFreqTimeMs();
             for (int i = allUidCpuFreqTimesMs.size() - 1; i >= 0; --i) {
                 final int uid = allUidCpuFreqTimesMs.keyAt(i);
-                final int parentUid = mapUid(uid);
+                final int parentUid = mPowerStatsUidResolver.getOwnerUid(uid);
                 final Uid u = getAvailableUidStatsLocked(parentUid);
                 if (u == null) {
                     continue;
@@ -970,6 +756,14 @@ public class BatteryStatsImpl extends BatteryStats {
                     mKernelSingleUidTimeReader.addDelta(parentUid, onBatteryCounter,
                             elapsedRealtimeMs);
                     mKernelSingleUidTimeReader.addDelta(parentUid, onBatteryScreenOffCounter,
+                            elapsedRealtimeMs);
+                } else if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()
+                        && Process.isPrivateComputeCoreUid(uid)) {
+                    // TODO: b/467545924 - Remove special handling of PCC UID once the childUid data
+                    // structure recognizes PCC UIDs
+                    mKernelSingleUidTimeReader.addDelta(uid, onBatteryCounter,
+                            elapsedRealtimeMs);
+                    mKernelSingleUidTimeReader.addDelta(uid, onBatteryScreenOffCounter,
                             elapsedRealtimeMs);
                 } else {
                     Uid.ChildUid childUid = u.getChildUid(uid);
@@ -1076,7 +870,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * Mapping child uids to their parent uid.
      */
     @VisibleForTesting
-    protected final PowerStatsUidResolver mPowerStatsUidResolver;
+    protected PowerStatsUidResolver mPowerStatsUidResolver;
 
     /**
      * The statistics we have collected organized by uids.
@@ -1194,7 +988,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     boolean mPretendScreenOff;
 
-    private static class DisplayBatteryStats {
+    private static final class DisplayBatteryStats {
         /**
          * Per display screen state.
          */
@@ -1330,7 +1124,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @RadioAccessTechnology
     int mActiveRat = RADIO_ACCESS_TECHNOLOGY_OTHER;
 
-    private static class RadioAccessTechnologyBatteryStats {
+    private static final class RadioAccessTechnologyBatteryStats {
         /**
          * This RAT is currently being used.
          */
@@ -2028,20 +1822,6 @@ public class BatteryStatsImpl extends BatteryStats {
                     ActivityManager.processStateAmToProto(state));
         }
 
-        public void wakelockStateChanged(int uid, WorkChain wc, String name,
-                int procState, boolean acquired, int powerManagerWakeLockLevel) {
-            int event = acquired
-                    ? FrameworkStatsLog.WAKELOCK_STATE_CHANGED__STATE__ACQUIRE
-                    : FrameworkStatsLog.WAKELOCK_STATE_CHANGED__STATE__RELEASE;
-            if (wc != null) {
-                FrameworkStatsLog.write(FrameworkStatsLog.WAKELOCK_STATE_CHANGED, wc.getUids(),
-                        wc.getTags(), powerManagerWakeLockLevel, name, event, procState);
-            } else {
-                FrameworkStatsLog.write_non_chained(FrameworkStatsLog.WAKELOCK_STATE_CHANGED, uid,
-                        null, powerManagerWakeLockLevel, name, event, procState);
-            }
-        }
-
         public void kernelWakeupReported(long deltaUptimeUs, String lastWakeupReason,
                 long lastWakeupElapsedTimeMs) {
             FrameworkStatsLog.write(FrameworkStatsLog.KERNEL_WAKEUP_REPORTED, lastWakeupReason,
@@ -2123,10 +1903,12 @@ public class BatteryStatsImpl extends BatteryStats {
         mTmpRailStats = new RailStats();
     }
 
-    private class PowerStatsCollectorInjector implements CpuPowerStatsCollector.Injector,
+    @VisibleForTesting
+    final class PowerStatsCollectorInjector implements CpuTimeInStateCollector.Injector,
             ScreenPowerStatsCollector.Injector, MobileRadioPowerStatsCollector.Injector,
             WifiPowerStatsCollector.Injector, BluetoothPowerStatsCollector.Injector,
-            EnergyConsumerPowerStatsCollector.Injector, WakelockPowerStatsCollector.Injector {
+            EnergyConsumerPowerStatsCollector.Injector, WakelockPowerStatsCollector.Injector,
+            CpuCyclePerUidCollector.Injector {
         private PackageManager mPackageManager;
         private NetworkStatsManager mNetworkStatsManager;
         private TelephonyManager mTelephonyManager;
@@ -2180,8 +1962,8 @@ public class BatteryStatsImpl extends BatteryStats {
         }
 
         @Override
-        public CpuPowerStatsCollector.KernelCpuStatsReader getKernelCpuStatsReader() {
-            return new CpuPowerStatsCollector.KernelCpuStatsReader();
+        public CpuTimeInStateCollector.KernelCpuStatsReader getKernelCpuStatsReader() {
+            return new CpuTimeInStateCollector.KernelCpuStatsReader();
         }
 
         @Override
@@ -2256,255 +2038,23 @@ public class BatteryStatsImpl extends BatteryStats {
         public NetworkStats networkStatsDelta(NetworkStats stats, NetworkStats oldStats) {
             return BatteryStatsImpl.this.networkStatsDelta(stats, oldStats);
         }
+
+        public CpuCyclePerUidCollector.KernelCpuCycleReader getKernelCpuCycleReader() {
+            return new CpuCyclePerUidCollector.KernelCpuCycleReader();
+        }
     }
 
     @VisibleForTesting
     protected PowerStatsCollector.ConsumedEnergyRetriever mConsumedEnergyRetriever;
-    private final PowerStatsCollectorInjector mPowerStatsCollectorInjector =
+
+    @VisibleForTesting
+    protected final PowerStatsCollectorInjector mPowerStatsCollectorInjector =
             new PowerStatsCollectorInjector();
-
-    /**
-     * TimeBase observer.
-     */
-    public interface TimeBaseObs {
-        void onTimeStarted(long elapsedRealtimeUs, long baseUptimeUs, long baseRealtimeUs);
-        void onTimeStopped(long elapsedRealtimeUs, long baseUptimeUs, long baseRealtimeUs);
-
-        /**
-         * Reset the observer's state, returns true if the timer/counter is inactive
-         * so it can be destroyed.
-         * @param detachIfReset detach if true, no-op if false.
-         * @return Returns true if the timer/counter is inactive and can be destroyed.
-         */
-        default boolean reset(boolean detachIfReset) {
-            return reset(detachIfReset, SystemClock.elapsedRealtime() * 1000);
-        }
-
-        /**
-         * @see #reset(boolean)
-         * @param detachIfReset detach if true, no-op if false.
-         * @param elapsedRealtimeUs the timestamp when this reset is actually reequested
-         * @return Returns true if the timer/counter is inactive and can be destroyed.
-         */
-        boolean reset(boolean detachIfReset, long elapsedRealtimeUs);
-
-        /**
-         * Detach the observer from TimeBase.
-         */
-        void detach();
-    }
-
-    // methods are protected not private to be VisibleForTesting
-    public static class TimeBase {
-        protected final Collection<TimeBaseObs> mObservers;
-
-        // All below time metrics are in microseconds.
-        protected long mUptimeUs;
-        protected long mRealtimeUs;
-
-        protected boolean mRunning;
-
-        protected long mPastUptimeUs;
-        protected long mUptimeStartUs;
-        protected long mPastRealtimeUs;
-        protected long mRealtimeStartUs;
-        protected long mUnpluggedUptimeUs;
-        protected long mUnpluggedRealtimeUs;
-
-        public void dump(PrintWriter pw, String prefix) {
-            StringBuilder sb = new StringBuilder(128);
-            pw.print(prefix); pw.print("mRunning="); pw.println(mRunning);
-            sb.setLength(0);
-            sb.append(prefix);
-                    sb.append("mUptime=");
-                    formatTimeMs(sb, mUptimeUs / 1000);
-            pw.println(sb.toString());
-            sb.setLength(0);
-            sb.append(prefix);
-                    sb.append("mRealtime=");
-                    formatTimeMs(sb, mRealtimeUs / 1000);
-            pw.println(sb.toString());
-            sb.setLength(0);
-            sb.append(prefix);
-                    sb.append("mPastUptime=");
-                    formatTimeMs(sb, mPastUptimeUs / 1000); sb.append("mUptimeStart=");
-                    formatTimeMs(sb, mUptimeStartUs / 1000);
-                    sb.append("mUnpluggedUptime="); formatTimeMs(sb, mUnpluggedUptimeUs / 1000);
-            pw.println(sb.toString());
-            sb.setLength(0);
-            sb.append(prefix);
-                    sb.append("mPastRealtime=");
-                    formatTimeMs(sb, mPastRealtimeUs / 1000); sb.append("mRealtimeStart=");
-                    formatTimeMs(sb, mRealtimeStartUs / 1000);
-                    sb.append("mUnpluggedRealtime="); formatTimeMs(sb, mUnpluggedRealtimeUs / 1000);
-            pw.println(sb.toString());
-        }
-        /**
-         * The mObservers of TimeBase in BatteryStatsImpl object can contain up to 20k entries.
-         * The mObservers of TimeBase in BatteryStatsImpl.Uid object only contains a few or tens of
-         * entries.
-         * mObservers must have good performance on add(), remove(), also be memory efficient.
-         * This is why we provide isLongList parameter for long and short list user cases.
-         * @param isLongList If true, use HashSet for mObservers list.
-         *                   If false, use ArrayList for mObservers list.
-        */
-        public TimeBase(boolean isLongList) {
-            mObservers = isLongList ? new HashSet<>() : new ArrayList<>();
-        }
-
-        public TimeBase() {
-            this(false);
-        }
-
-        public void add(TimeBaseObs observer) {
-            mObservers.add(observer);
-        }
-
-        public void remove(TimeBaseObs observer) {
-            mObservers.remove(observer);
-        }
-
-        public boolean hasObserver(TimeBaseObs observer) {
-            return mObservers.contains(observer);
-        }
-
-        public void init(long uptimeUs, long elapsedRealtimeUs) {
-            mRealtimeUs = 0;
-            mUptimeUs = 0;
-            mPastUptimeUs = 0;
-            mPastRealtimeUs = 0;
-            mUptimeStartUs = uptimeUs;
-            mRealtimeStartUs = elapsedRealtimeUs;
-            mUnpluggedUptimeUs = getUptime(mUptimeStartUs);
-            mUnpluggedRealtimeUs = getRealtime(mRealtimeStartUs);
-        }
-
-        public void reset(long uptimeUs, long elapsedRealtimeUs) {
-            if (!mRunning) {
-                mPastUptimeUs = 0;
-                mPastRealtimeUs = 0;
-            } else {
-                mUptimeStartUs = uptimeUs;
-                mRealtimeStartUs = elapsedRealtimeUs;
-                // TODO: Since mUptimeStartUs was just reset and we are running, getUptime will
-                // just return mPastUptimeUs. Also, are we sure we don't want to reset that?
-                mUnpluggedUptimeUs = getUptime(uptimeUs);
-                // TODO: likewise.
-                mUnpluggedRealtimeUs = getRealtime(elapsedRealtimeUs);
-            }
-        }
-
-        public long computeUptime(long curTimeUs, int which) {
-            return mUptimeUs + getUptime(curTimeUs);
-        }
-
-        public long computeRealtime(long curTimeUs, int which) {
-            return mRealtimeUs + getRealtime(curTimeUs);
-        }
-
-        public long getUptime(long curTimeUs) {
-            long time = mPastUptimeUs;
-            if (mRunning) {
-                time += curTimeUs - mUptimeStartUs;
-            }
-            return time;
-        }
-
-        public long getRealtime(long curTimeUs) {
-            long time = mPastRealtimeUs;
-            if (mRunning) {
-                time += curTimeUs - mRealtimeStartUs;
-            }
-            return time;
-        }
-
-        public long getUptimeStart() {
-            return mUptimeStartUs;
-        }
-
-        public long getRealtimeStart() {
-            return mRealtimeStartUs;
-        }
-
-        public boolean isRunning() {
-            return mRunning;
-        }
-
-        public boolean setRunning(boolean running, long uptimeUs, long elapsedRealtimeUs) {
-            if (mRunning != running) {
-                mRunning = running;
-                if (running) {
-                    mUptimeStartUs = uptimeUs;
-                    mRealtimeStartUs = elapsedRealtimeUs;
-                    long batteryUptimeUs = mUnpluggedUptimeUs = getUptime(uptimeUs);
-                    long batteryRealtimeUs = mUnpluggedRealtimeUs = getRealtime(elapsedRealtimeUs);
-                    // Normally we do not use Iterator in framework code to avoid alloc/dealloc
-                    // Iterator object, here is an exception because mObservers' type is Collection
-                    // instead of list.
-                    final Iterator<TimeBaseObs> iter = mObservers.iterator();
-                    while (iter.hasNext()) {
-                        iter.next().onTimeStarted(
-                                elapsedRealtimeUs, batteryUptimeUs, batteryRealtimeUs);
-                    }
-                } else {
-                    mPastUptimeUs += uptimeUs - mUptimeStartUs;
-                    mPastRealtimeUs += elapsedRealtimeUs - mRealtimeStartUs;
-                    long batteryUptimeUs = getUptime(uptimeUs);
-                    long batteryRealtimeUs = getRealtime(elapsedRealtimeUs);
-                    // Normally we do not use Iterator in framework code to avoid alloc/dealloc
-                    // Iterator object, here is an exception because mObservers' type is Collection
-                    // instead of list.
-                    final Iterator<TimeBaseObs> iter = mObservers.iterator();
-                    while (iter.hasNext()) {
-                        iter.next().onTimeStopped(
-                                elapsedRealtimeUs, batteryUptimeUs, batteryRealtimeUs);
-                    }
-                }
-                return true;
-            }
-            return false;
-        }
-
-        public void readSummaryFromParcel(Parcel in) {
-            mUptimeUs = in.readLong();
-            mRealtimeUs = in.readLong();
-        }
-
-        public void writeSummaryToParcel(Parcel out, long uptimeUs, long elapsedRealtimeUs) {
-            out.writeLong(computeUptime(uptimeUs, STATS_SINCE_CHARGED));
-            out.writeLong(computeRealtime(elapsedRealtimeUs, STATS_SINCE_CHARGED));
-        }
-
-        public void readFromParcel(Parcel in) {
-            mRunning = false;
-            mUptimeUs = in.readLong();
-            mPastUptimeUs = in.readLong();
-            mUptimeStartUs = in.readLong();
-            mRealtimeUs = in.readLong();
-            mPastRealtimeUs = in.readLong();
-            mRealtimeStartUs = in.readLong();
-            mUnpluggedUptimeUs = in.readLong();
-            mUnpluggedRealtimeUs = in.readLong();
-        }
-
-        public void writeToParcel(Parcel out, long uptimeUs, long elapsedRealtimeUs) {
-            final long runningUptime = getUptime(uptimeUs);
-            final long runningRealtime = getRealtime(elapsedRealtimeUs);
-            out.writeLong(mUptimeUs);
-            out.writeLong(runningUptime);
-            out.writeLong(mUptimeStartUs);
-            out.writeLong(mRealtimeUs);
-            out.writeLong(runningRealtime);
-            out.writeLong(mRealtimeStartUs);
-            out.writeLong(mUnpluggedUptimeUs);
-            out.writeLong(mUnpluggedRealtimeUs);
-        }
-    }
 
     /**
      * State for keeping track of counting information.
      */
-    public static class Counter extends BatteryStats.Counter implements TimeBaseObs {
+    public static final class Counter extends BatteryStats.Counter implements TimeBaseObs {
         final AtomicInteger mCount = new AtomicInteger();
         final TimeBase mTimeBase;
 
@@ -2582,7 +2132,8 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     @VisibleForTesting
-    public static class LongSamplingCounterArray extends LongCounterArray implements TimeBaseObs {
+    public static final class LongSamplingCounterArray extends LongCounterArray
+            implements TimeBaseObs {
         final TimeBase mTimeBase;
         public long[] mCounts;
 
@@ -2708,7 +2259,7 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-    private static class TimeMultiStateCounter extends LongCounter implements TimeBaseObs {
+    private static final class TimeMultiStateCounter extends LongCounter implements TimeBaseObs {
         private final TimeBase mTimeBase;
         private final LongMultiStateCounter mCounter;
 
@@ -2804,7 +2355,7 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-    private static class TimeInFreqMultiStateCounter implements TimeBaseObs {
+    private static final class TimeInFreqMultiStateCounter implements TimeBaseObs {
         private final TimeBase mTimeBase;
         private final LongArrayMultiStateCounter mCounter;
 
@@ -2894,7 +2445,7 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     @VisibleForTesting
-    public static class LongSamplingCounter extends LongCounter implements TimeBaseObs {
+    public static final class LongSamplingCounter extends LongCounter implements TimeBaseObs {
         final TimeBase mTimeBase;
         private long mCount;
 
@@ -3150,7 +2701,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * between calls, the {@link #endSample()} is automatically called and the new value is
      * expected to increase monotonically from that point on.
      */
-    public static class SamplingTimer extends Timer {
+    public static final class SamplingTimer extends Timer {
 
         /**
          * The most recent reported count from /proc/wakelocks.
@@ -3353,7 +2904,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * A timer that increments in batches.  It does not run for durations, but just jumps
      * for a pre-determined amount.
      */
-    public static class BatchTimer extends Timer {
+    public static final class BatchTimer extends Timer {
         final Uid mUid;
 
         /**
@@ -3931,7 +3482,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * State for keeping track of two DurationTimers with different TimeBases, presumably where one
      * TimeBase is effectively a subset of the other.
      */
-    public static class DualTimer extends DurationTimer {
+    public static final class DualTimer extends DurationTimer {
         // This class both is a DurationTimer and also holds a second DurationTimer.
         // The main timer (this) typically tracks the total time. It may be pooled (but since it's a
         // durationTimer, it also has the unpooled getTotalDurationMsLocked() for
@@ -4203,7 +3754,7 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     @SuppressWarnings("ParcelableCreator")
-    public static class ControllerActivityCounterImpl extends ControllerActivityCounter
+    public static final class ControllerActivityCounterImpl extends ControllerActivityCounter
             implements Parcelable {
         private final Clock mClock;
         private final TimeBase mTimeBase;
@@ -4604,13 +4155,8 @@ public class BatteryStatsImpl extends BatteryStats {
     private void onBeforeIsolatedUidRemoved(int isolatedUid, int parentUid) {
         final long realtime = mClock.elapsedRealtime();
         mPowerStatsUidResolver.retainIsolatedUid(isolatedUid);
-        if (Flags.concurrentQueueForPendingRemovedUids()) {
-            mPendingRemovedUids.add(new UidToRemove(isolatedUid, realtime));
-        } else {
-            synchronized (this) {
-                mPendingRemovedUids.add(new UidToRemove(isolatedUid, realtime));
-            }
-        }
+        mPendingRemovedUids.add(new UidToRemove(isolatedUid, realtime));
+
         if (mExternalSync != null) {
             mExternalSync.scheduleCpuSyncDueToRemovedUid(isolatedUid);
         }
@@ -4633,13 +4179,6 @@ public class BatteryStatsImpl extends BatteryStats {
         mPowerStatsUidResolver.releaseIsolatedUid(isolatedUid);
     }
 
-    private int mapUid(int uid) {
-        if (Process.isSdkSandboxUid(uid)) {
-            return Process.getAppUidForSdkSandboxUid(uid);
-        }
-        return mPowerStatsUidResolver.mapUid(uid);
-    }
-
     private int mapIsolatedUid(int uid) {
         return mPowerStatsUidResolver.mapUid(uid);
     }
@@ -4647,7 +4186,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteEventLocked(int code, String name, int uid,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (!mActiveEvents.updateState(code, name, uid, 0)) {
             return;
         }
@@ -4669,7 +4208,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteProcessStartLocked(String name, int uid,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (isOnBattery()) {
             Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
             u.getProcessStatsLocked(name).incStartsLocked();
@@ -4686,7 +4225,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteProcessCrashLocked(String name, int uid,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (isOnBattery()) {
             Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
             u.getProcessStatsLocked(name).incNumCrashesLocked();
@@ -4695,7 +4234,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteProcessAnrLocked(String name, int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (isOnBattery()) {
             Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
             u.getProcessStatsLocked(name).incNumAnrsLocked();
@@ -4703,15 +4242,15 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     @GuardedBy("this")
-    public void noteUidProcessStateLocked(int uid, int state) {
+    public void noteUidProcessStateLocked(int uid, @ProcessState int state) {
         noteUidProcessStateLocked(uid, state, mClock.elapsedRealtime(), mClock.uptimeMillis());
     }
 
     @GuardedBy("this")
     @SuppressWarnings("GuardedBy")   // errorprone false positive on u.updateUidProcessStateLocked
-    public void noteUidProcessStateLocked(int uid, int state,
+    public void noteUidProcessStateLocked(int uid, @ProcessState int state,
             long elapsedRealtimeMs, long uptimeMs) {
-        int parentUid = mapUid(uid);
+        int parentUid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (uid != parentUid) {
             if (Process.isIsolated(uid)) {
                 // Isolated UIDs process state is already rolled up into parent, so no need to track
@@ -4727,7 +4266,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteProcessFinishLocked(String name, int uid,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (!mActiveEvents.updateState(HistoryItem.EVENT_PROC_FINISH, name, uid, 0)) {
             return;
         }
@@ -4744,7 +4283,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteSyncStartLocked(String name, int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteStartSyncLocked(name, elapsedRealtimeMs);
         if (!mActiveEvents.updateState(HistoryItem.EVENT_SYNC_START, name, uid, 0)) {
@@ -4760,7 +4299,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteSyncFinishLocked(String name, int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteStopSyncLocked(name, elapsedRealtimeMs);
         if (!mActiveEvents.updateState(HistoryItem.EVENT_SYNC_FINISH, name, uid, 0)) {
@@ -4776,7 +4315,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteJobStartLocked(String name, int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteStartJobLocked(name, elapsedRealtimeMs);
         if (!mActiveEvents.updateState(HistoryItem.EVENT_JOB_START, name, uid, 0)) {
@@ -4794,7 +4333,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteJobFinishLocked(String name, int uid, int stopReason,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteStopJobLocked(name, elapsedRealtimeMs, stopReason);
         if (!mActiveEvents.updateState(HistoryItem.EVENT_JOB_FINISH, name, uid, 0)) {
@@ -4806,7 +4345,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteJobsDeferredLocked(int uid, int numDeferred, long sinceLast,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteJobsDeferredLocked(numDeferred, sinceLast);
     }
@@ -4846,7 +4385,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
         if (workSource != null) {
             for (int i = 0; i < workSource.size(); ++i) {
-                uid = mapUid(workSource.getUid(i));
+                uid = mPowerStatsUidResolver.getOwnerUid(workSource.getUid(i));
                 if (mActiveEvents.updateState(historyItem, name, uid, 0)) {
                     mHistory.recordEvent(elapsedRealtimeMs, uptimeMs, historyItem, name, uid);
                 }
@@ -4855,14 +4394,14 @@ public class BatteryStatsImpl extends BatteryStats {
             List<WorkChain> workChains = workSource.getWorkChains();
             if (workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
-                    uid = mapUid(workChains.get(i).getAttributionUid());
+                    uid = mPowerStatsUidResolver.getOwnerUid(workChains.get(i).getAttributionUid());
                     if (mActiveEvents.updateState(historyItem, name, uid, 0)) {
                         mHistory.recordEvent(elapsedRealtimeMs, uptimeMs, historyItem, name, uid);
                     }
                 }
             }
         } else {
-            uid = mapUid(uid);
+            uid = mPowerStatsUidResolver.getOwnerUid(uid);
 
             if (mActiveEvents.updateState(historyItem, name, uid, 0)) {
                 mHistory.recordEvent(elapsedRealtimeMs, uptimeMs, historyItem, name, uid);
@@ -4986,7 +4525,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteStartWakeLocked(int uid, int pid, WorkChain wc, String name, String historyName,
             int type, boolean unimportantForLogging, long elapsedRealtimeMs, long uptimeMs) {
-        final int mappedUid = mapUid(uid);
+        final int mappedUid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (type == WAKE_TYPE_PARTIAL) {
             // Only care about partial wake locks, since full wake locks
             // will be canceled when the user puts the screen to sleep.
@@ -5029,11 +4568,6 @@ public class BatteryStatsImpl extends BatteryStats {
 
             Uid uidStats = getUidStatsLocked(mappedUid, elapsedRealtimeMs, uptimeMs);
             uidStats.noteStartWakeLocked(pid, name, type, elapsedRealtimeMs);
-            if (!mMoveWscLoggingToNotifierEnabled) {
-                mFrameworkStatsLogger.wakelockStateChanged(mapIsolatedUid(uid), wc, name,
-                        uidStats.mProcessState, true /* acquired */,
-                        getPowerManagerWakeLockLevel(type));
-            }
         }
     }
 
@@ -5047,7 +4581,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteStopWakeLocked(int uid, int pid, WorkChain wc, String name, String historyName,
             int type, long elapsedRealtimeMs, long uptimeMs) {
-        final int mappedUid = mapUid(uid);
+        final int mappedUid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (type == WAKE_TYPE_PARTIAL) {
             mWakeLockNesting--;
             if (historyName == null) {
@@ -5075,12 +4609,6 @@ public class BatteryStatsImpl extends BatteryStats {
 
             Uid uidStats = getUidStatsLocked(mappedUid, elapsedRealtimeMs, uptimeMs);
             uidStats.noteStopWakeLocked(pid, name, type, elapsedRealtimeMs);
-
-            if (!mMoveWscLoggingToNotifierEnabled) {
-                mFrameworkStatsLogger.wakelockStateChanged(mapIsolatedUid(uid), wc, name,
-                        uidStats.mProcessState, false/* acquired */,
-                        getPowerManagerWakeLockLevel(type));
-            }
 
             if (mappedUid != uid) {
                 // Decrement the ref count for the isolated uid and delete the mapping if uneeded.
@@ -5223,7 +4751,7 @@ public class BatteryStatsImpl extends BatteryStats {
             WorkSource workSource, long elapsedRealtimeMs, long uptimeMs) {
         final int N = workSource.size();
         for (int i = 0; i < N; ++i) {
-            final int uid = mapUid(workSource.getUid(i));
+            final int uid = mPowerStatsUidResolver.getOwnerUid(workSource.getUid(i));
             noteLongPartialWakeLockStartInternal(name, historyName, uid,
                     elapsedRealtimeMs, uptimeMs);
         }
@@ -5242,7 +4770,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     private void noteLongPartialWakeLockStartInternal(String name, String historyName, int uid,
             long elapsedRealtimeMs, long uptimeMs) {
-        final int mappedUid = mapUid(uid);
+        final int mappedUid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (historyName == null) {
             historyName = name;
         }
@@ -5276,7 +4804,7 @@ public class BatteryStatsImpl extends BatteryStats {
             WorkSource workSource, long elapsedRealtimeMs, long uptimeMs) {
         final int N = workSource.size();
         for (int i = 0; i < N; ++i) {
-            final int uid = mapUid(workSource.getUid(i));
+            final int uid = mPowerStatsUidResolver.getOwnerUid(workSource.getUid(i));
             noteLongPartialWakeLockFinishInternal(name, historyName, uid,
                     elapsedRealtimeMs, uptimeMs);
         }
@@ -5295,7 +4823,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     private void noteLongPartialWakeLockFinishInternal(String name, String historyName, int uid,
             long elapsedRealtimeMs, long uptimeMs) {
-        final int mappedUid = mapUid(uid);
+        final int mappedUid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (historyName == null) {
             historyName = name;
         }
@@ -5350,7 +4878,7 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     public void noteProcessDiedLocked(int uid, int pid) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         Uid u = mUidStats.get(uid);
         if (u != null) {
             u.mPids.remove(pid);
@@ -5358,7 +4886,7 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     public void reportExcessiveCpuLocked(int uid, String proc, long overTimeMs, long usedTimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         Uid u = mUidStats.get(uid);
         if (u != null) {
             u.reportExcessiveCpuLocked(proc, overTimeMs, usedTimeMs);
@@ -5372,7 +4900,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteStartSensorLocked(int uid, int sensor, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         mHistory.recordStateStartEvent(elapsedRealtimeMs, uptimeMs,
                 HistoryItem.STATE_SENSOR_ON_FLAG, uid, "sensor:0x" + Integer.toHexString(sensor));
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
@@ -5386,7 +4914,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteStopSensorLocked(int uid, int sensor, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         mHistory.recordStateStopEvent(elapsedRealtimeMs, uptimeMs,
                 HistoryItem.STATE_SENSOR_ON_FLAG, uid, "sensor:0x" + Integer.toHexString(sensor));
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
@@ -5435,7 +4963,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChain != null) {
             uid = workChain.getAttributionUid();
         }
-        final int mappedUid = mapUid(uid);
+        final int mappedUid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mGpsNesting == 0) {
             mHistory.recordStateStartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE_GPS_ON_FLAG, uid, "gnss");
@@ -5456,7 +4984,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChain != null) {
             uid = workChain.getAttributionUid();
         }
-        final int mappedUid = mapUid(uid);
+        final int mappedUid = mPowerStatsUidResolver.getOwnerUid(uid);
         mGpsNesting--;
         if (mGpsNesting == 0) {
             mHistory.recordStateStopEvent(elapsedRealtimeMs, uptimeMs,
@@ -5503,24 +5031,37 @@ public class BatteryStatsImpl extends BatteryStats {
                 display, Display.stateToString(state), Display.stateReasonToString(reason));
     }
 
-    @GuardedBy("this")
-    public void noteScreenStateLocked(int display, int state) {
-        noteScreenStateLocked(display, state, Display.STATE_REASON_UNKNOWN,
-                mClock.elapsedRealtime(), mClock.uptimeMillis(), mClock.currentTimeMillis());
+    /**
+     * Returns the display state priority, to be used for multiple displays for logging.
+     *
+     * @param state The display state to get priority for.
+     * @return The display state priority.
+     */
+    public static int getDisplayStatePriority(final int state) {
+        switch (state) {
+            case Display.STATE_ON:
+                return 4;
+            case Display.STATE_DOZE:
+                return 3;
+            case Display.STATE_DOZE_SUSPEND:
+                return 2;
+            case Display.STATE_OFF:
+                return 1;
+            case Display.STATE_UNKNOWN:
+            default:
+                return 0;
+        }
     }
 
-    @GuardedBy("this")
-    public void noteScreenStateLocked(int display, int displayState,
-            @Display.StateReason int displayStateReason, long elapsedRealtimeMs, long uptimeMs,
-            long currentTimeMs) {
-        if (Flags.batteryStatsScreenStateEvent()) {
-            mHistory.recordEvent(
-                    elapsedRealtimeMs, uptimeMs, HistoryItem.EVENT_DISPLAY_STATE_CHANGED,
-                    getScreenStateTag(display, displayState, displayStateReason),
-                    Process.INVALID_UID);
-        }
-        // Battery stats relies on there being 4 states. To accommodate this, new states beyond the
-        // original 4 are mapped to one of the originals.
+    /**
+     * Returns the state recognized by battery stats for the {@code displayState} passed in.
+     * BatteryStats relies on there being 4 states. To accommodate this, new states beyond the
+     * original 4 are mapped to one of the originals.
+     *
+     * @param displayState the display state for which the sanitized state is desired.
+     * @return the sanitized display state that BatteryStats understands.
+     */
+    public static int getSanitizedDisplayState(int displayState) {
         if (displayState > MAX_TRACKED_SCREEN_STATE) {
             if (Display.isOnState(displayState)) {
                 displayState = Display.STATE_ON;
@@ -5543,6 +5084,33 @@ public class BatteryStatsImpl extends BatteryStats {
         //  - Display.STATE_DOZE_SUSPEND
         //  - Display.STATE_OFF
         //  - Display.STATE_UNKNOWN
+        return displayState;
+    }
+
+    /**
+     * Updates display state and brightness.
+     */
+    @GuardedBy("this")
+    public void noteScreenStateLocked(int display, int state) {
+        noteScreenStateLocked(display, state, Display.STATE_REASON_UNKNOWN,
+                mClock.elapsedRealtime(), mClock.uptimeMillis(), mClock.currentTimeMillis());
+    }
+
+    /**
+     * Updates display state and brightness.
+     */
+    @GuardedBy("this")
+    public void noteScreenStateLocked(int display, int displayState,
+            @Display.StateReason int displayStateReason, long elapsedRealtimeMs, long uptimeMs,
+            long currentTimeMs) {
+        if (Flags.batteryStatsScreenStateEvent()) {
+            mHistory.recordEvent(
+                    elapsedRealtimeMs, uptimeMs, HistoryItem.EVENT_DISPLAY_STATE_CHANGED,
+                    getScreenStateTag(display, displayState, displayStateReason),
+                    Process.INVALID_UID);
+        }
+
+        displayState = getSanitizedDisplayState(displayState);
 
         int state;
         int overallBin = mScreenBrightnessBin;
@@ -5634,22 +5202,14 @@ public class BatteryStatsImpl extends BatteryStats {
                                     + " for display " + display);
             }
 
-            // Reevaluate most important display screen state.
+            // Reevaluate the most important display screen state.
             state = Display.STATE_UNKNOWN;
+            int currentPriority = 0;
             for (int i = 0; i < numDisplay; i++) {
-                final int tempState = mPerDisplayBatteryStats[i].screenState;
-                if (tempState == Display.STATE_ON
-                        || state == Display.STATE_ON) {
-                    state = Display.STATE_ON;
-                } else if (tempState == Display.STATE_DOZE
-                        || state == Display.STATE_DOZE) {
-                    state = Display.STATE_DOZE;
-                } else if (tempState == Display.STATE_DOZE_SUSPEND
-                        || state == Display.STATE_DOZE_SUSPEND) {
-                    state = Display.STATE_DOZE_SUSPEND;
-                } else if (tempState == Display.STATE_OFF
-                        || state == Display.STATE_OFF) {
-                    state = Display.STATE_OFF;
+                if (getDisplayStatePriority(mPerDisplayBatteryStats[i].screenState)
+                        > currentPriority) {
+                    state = mPerDisplayBatteryStats[i].screenState;
+                    currentPriority = getDisplayStatePriority(state);
                 }
             }
         }
@@ -5863,7 +5423,7 @@ public class BatteryStatsImpl extends BatteryStats {
     public void noteUserActivityLocked(int uid, @PowerManager.UserActivityEvent int event,
             long elapsedRealtimeMs, long uptimeMs) {
         if (mOnBatteryInternal) {
-            uid = mapUid(uid);
+            uid = mPowerStatsUidResolver.getOwnerUid(uid);
             getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs).noteUserActivityLocked(event);
         }
     }
@@ -5899,7 +5459,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     private void noteMobileRadioApWakeupLocked(final long elapsedRealtimeMillis,
             final long uptimeMillis, int uid) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         mHistory.recordEvent(elapsedRealtimeMillis, uptimeMillis, HistoryItem.EVENT_WAKEUP_AP, "",
                 uid);
         getUidStatsLocked(uid, elapsedRealtimeMillis, uptimeMillis).noteMobileRadioApWakeupLocked();
@@ -6522,7 +6082,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteAudioOnLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mAudioOnNesting == 0) {
             mHistory.recordStateStartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE_AUDIO_ON_FLAG, uid, "audio");
@@ -6540,7 +6100,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mAudioOnNesting == 0) {
             return;
         }
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (--mAudioOnNesting == 0) {
             mHistory.recordStateStopEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE_AUDIO_ON_FLAG, uid, "audio");
@@ -6554,7 +6114,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteVideoOnLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mVideoOnNesting == 0) {
             mHistory.recordState2StartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_VIDEO_ON_FLAG, uid, "video");
@@ -6572,7 +6132,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mVideoOnNesting == 0) {
             return;
         }
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (--mVideoOnNesting == 0) {
             mHistory.recordState2StopEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_VIDEO_ON_FLAG, uid, "video");
@@ -6619,7 +6179,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteActivityResumedLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteActivityResumedLocked(elapsedRealtimeMs);
     }
@@ -6631,7 +6191,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteActivityPausedLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteActivityPausedLocked(elapsedRealtimeMs);
     }
@@ -6639,21 +6199,21 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     public void noteVibratorOnLocked(int uid, long durationMillis,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteVibratorOnLocked(durationMillis, elapsedRealtimeMs);
     }
 
     @GuardedBy("this")
     public void noteVibratorOffLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteVibratorOffLocked(elapsedRealtimeMs);
     }
 
     @GuardedBy("this")
     public void noteFlashlightOnLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mFlashlightOnNesting++ == 0) {
             mHistory.recordState2StartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_FLASHLIGHT_FLAG, uid, "flashlight");
@@ -6670,7 +6230,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mFlashlightOnNesting == 0) {
             return;
         }
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (--mFlashlightOnNesting == 0) {
             mHistory.recordState2StopEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_FLASHLIGHT_FLAG, uid, "flashlight");
@@ -6684,7 +6244,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteCameraOnLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mCameraOnNesting++ == 0) {
             mHistory.recordState2StartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_CAMERA_FLAG, uid, "camera");
@@ -6705,7 +6265,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mCameraOnNesting == 0) {
             return;
         }
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (--mCameraOnNesting == 0) {
             mHistory.recordState2StopEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_CAMERA_FLAG, uid, "camera");
@@ -6757,7 +6317,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChain != null) {
             uid = workChain.getAttributionUid();
         }
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mBluetoothScanNesting == 0) {
             mHistory.recordState2StartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE2_BLUETOOTH_SCAN_FLAG);
@@ -6798,7 +6358,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChain != null) {
             uid = workChain.getAttributionUid();
         }
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         mBluetoothScanNesting--;
         if (mBluetoothScanNesting == 0) {
             mHistory.recordState2StopEvent(elapsedRealtimeMs, uptimeMs,
@@ -6858,7 +6418,7 @@ public class BatteryStatsImpl extends BatteryStats {
             long elapsedRealtimeMs, long uptimeMs) {
         final int N = ws.size();
         for (int i = 0; i < N; i++) {
-            int uid = mapUid(ws.getUid(i));
+            int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
             getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                     .noteBluetoothScanResultsLocked(numNewResults);
         }
@@ -6867,7 +6427,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChains != null) {
             for (int i = 0; i < workChains.size(); ++i) {
                 final WorkChain wc = workChains.get(i);
-                int uid = mapUid(wc.getAttributionUid());
+                int uid = mPowerStatsUidResolver.getOwnerUid(wc.getAttributionUid());
                 getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                         .noteBluetoothScanResultsLocked(numNewResults);
             }
@@ -6895,7 +6455,7 @@ public class BatteryStatsImpl extends BatteryStats {
     @GuardedBy("this")
     private void noteWifiRadioApWakeupLocked(final long elapsedRealtimeMillis,
             final long uptimeMillis, int uid) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         mHistory.recordEvent(elapsedRealtimeMillis, uptimeMillis, HistoryItem.EVENT_WAKEUP_AP, "",
                 uid);
         getUidStatsLocked(uid, elapsedRealtimeMillis, uptimeMillis).noteWifiRadioApWakeupLocked();
@@ -6933,7 +6493,7 @@ public class BatteryStatsImpl extends BatteryStats {
             mGlobalWifiRunningTimer.startRunningLocked(elapsedRealtimeMs);
             int N = ws.size();
             for (int i=0; i<N; i++) {
-                int uid = mapUid(ws.getUid(i));
+                int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
                 getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                         .noteWifiRunningLocked(elapsedRealtimeMs);
             }
@@ -6941,7 +6501,8 @@ public class BatteryStatsImpl extends BatteryStats {
             List<WorkChain> workChains = ws.getWorkChains();
             if (workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
-                    int uid = mapUid(workChains.get(i).getAttributionUid());
+                    int uid = mPowerStatsUidResolver
+                            .getOwnerUid(workChains.get(i).getAttributionUid());
                     getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                             .noteWifiRunningLocked(elapsedRealtimeMs);
                 }
@@ -6962,7 +6523,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mGlobalWifiRunning) {
             int N = oldWs.size();
             for (int i=0; i<N; i++) {
-                int uid = mapUid(oldWs.getUid(i));
+                int uid = mPowerStatsUidResolver.getOwnerUid(oldWs.getUid(i));
                 getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                         .noteWifiStoppedLocked(elapsedRealtimeMs);
             }
@@ -6970,7 +6531,8 @@ public class BatteryStatsImpl extends BatteryStats {
             List<WorkChain> workChains = oldWs.getWorkChains();
             if (workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
-                    int uid = mapUid(workChains.get(i).getAttributionUid());
+                    int uid = mPowerStatsUidResolver
+                            .getOwnerUid(workChains.get(i).getAttributionUid());
                     getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                             .noteWifiStoppedLocked(elapsedRealtimeMs);
                 }
@@ -6978,7 +6540,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
             N = newWs.size();
             for (int i=0; i<N; i++) {
-                int uid = mapUid(newWs.getUid(i));
+                int uid = mPowerStatsUidResolver.getOwnerUid(newWs.getUid(i));
                 getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                         .noteWifiRunningLocked(elapsedRealtimeMs);
             }
@@ -6986,7 +6548,8 @@ public class BatteryStatsImpl extends BatteryStats {
             workChains = newWs.getWorkChains();
             if (workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
-                    int uid = mapUid(workChains.get(i).getAttributionUid());
+                    int uid = mPowerStatsUidResolver
+                            .getOwnerUid(workChains.get(i).getAttributionUid());
                     getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                             .noteWifiRunningLocked(elapsedRealtimeMs);
                 }
@@ -7005,7 +6568,7 @@ public class BatteryStatsImpl extends BatteryStats {
             mGlobalWifiRunningTimer.stopRunningLocked(elapsedRealtimeMs);
             int N = ws.size();
             for (int i=0; i<N; i++) {
-                int uid = mapUid(ws.getUid(i));
+                int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
                 getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                         .noteWifiStoppedLocked(elapsedRealtimeMs);
             }
@@ -7013,7 +6576,8 @@ public class BatteryStatsImpl extends BatteryStats {
             List<WorkChain> workChains = ws.getWorkChains();
             if (workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
-                    int uid = mapUid(workChains.get(i).getAttributionUid());
+                    int uid = mPowerStatsUidResolver
+                            .getOwnerUid(workChains.get(i).getAttributionUid());
                     getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                             .noteWifiStoppedLocked(elapsedRealtimeMs);
                 }
@@ -7154,13 +6718,13 @@ public class BatteryStatsImpl extends BatteryStats {
 
     public void noteWifiBatchedScanStartedLocked(int uid, int csph,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteWifiBatchedScanStartedLocked(csph, elapsedRealtimeMs);
     }
 
     public void noteWifiBatchedScanStoppedLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs)
                 .noteWifiBatchedScanStoppedLocked(elapsedRealtimeMs);
     }
@@ -7188,7 +6752,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteWifiMulticastEnabledLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         if (mWifiMulticastNesting == 0) {
             mHistory.recordStateStartEvent(elapsedRealtimeMs, uptimeMs,
                     HistoryItem.STATE_WIFI_MULTICAST_ON_FLAG);
@@ -7204,7 +6768,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void noteWifiMulticastDisabledLocked(int uid, long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         mWifiMulticastNesting--;
         if (mWifiMulticastNesting == 0) {
             mHistory.recordStateStopEvent(elapsedRealtimeMs, uptimeMs,
@@ -7225,7 +6789,7 @@ public class BatteryStatsImpl extends BatteryStats {
             long elapsedRealtimeMs, long uptimeMs) {
         int N = ws.size();
         for (int i=0; i<N; i++) {
-            final int uid = mapUid(ws.getUid(i));
+            final int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
             noteFullWifiLockAcquiredLocked(uid, elapsedRealtimeMs, uptimeMs);
         }
 
@@ -7233,7 +6797,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChains != null) {
             for (int i = 0; i < workChains.size(); ++i) {
                 final WorkChain workChain = workChains.get(i);
-                final int uid = mapUid(workChain.getAttributionUid());
+                final int uid = mPowerStatsUidResolver.getOwnerUid(workChain.getAttributionUid());
                 noteFullWifiLockAcquiredLocked(uid, elapsedRealtimeMs, uptimeMs);
             }
         }
@@ -7244,7 +6808,7 @@ public class BatteryStatsImpl extends BatteryStats {
             long elapsedRealtimeMs, long uptimeMs) {
         int N = ws.size();
         for (int i=0; i<N; i++) {
-            final int uid = mapUid(ws.getUid(i));
+            final int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
             noteFullWifiLockReleasedLocked(uid, elapsedRealtimeMs, uptimeMs);
         }
 
@@ -7252,7 +6816,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChains != null) {
             for (int i = 0; i < workChains.size(); ++i) {
                 final WorkChain workChain = workChains.get(i);
-                final int uid = mapUid(workChain.getAttributionUid());
+                final int uid = mPowerStatsUidResolver.getOwnerUid(workChain.getAttributionUid());
                 noteFullWifiLockReleasedLocked(uid, elapsedRealtimeMs, uptimeMs);
             }
         }
@@ -7263,7 +6827,7 @@ public class BatteryStatsImpl extends BatteryStats {
             long elapsedRealtimeMs, long uptimeMs) {
         int N = ws.size();
         for (int i=0; i<N; i++) {
-            final int uid = mapUid(ws.getUid(i));
+            final int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
             noteWifiScanStartedLocked(uid, elapsedRealtimeMs, uptimeMs);
         }
 
@@ -7271,7 +6835,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChains != null) {
             for (int i = 0; i < workChains.size(); ++i) {
                 final WorkChain workChain = workChains.get(i);
-                final int uid = mapUid(workChain.getAttributionUid());
+                final int uid = mPowerStatsUidResolver.getOwnerUid(workChain.getAttributionUid());
                 noteWifiScanStartedLocked(uid, elapsedRealtimeMs, uptimeMs);
             }
         }
@@ -7282,7 +6846,7 @@ public class BatteryStatsImpl extends BatteryStats {
             long elapsedRealtimeMs, long uptimeMs) {
         int N = ws.size();
         for (int i=0; i<N; i++) {
-            final int uid = mapUid(ws.getUid(i));
+            final int uid = mPowerStatsUidResolver.getOwnerUid(ws.getUid(i));
             noteWifiScanStoppedLocked(uid, elapsedRealtimeMs, uptimeMs);
         }
 
@@ -7290,7 +6854,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (workChains != null) {
             for (int i = 0; i < workChains.size(); ++i) {
                 final WorkChain workChain = workChains.get(i);
-                final int uid = mapUid(workChain.getAttributionUid());
+                final int uid = mPowerStatsUidResolver.getOwnerUid(workChain.getAttributionUid());
                 noteWifiScanStoppedLocked(uid, elapsedRealtimeMs, uptimeMs);
             }
         }
@@ -10337,7 +9901,7 @@ public class BatteryStatsImpl extends BatteryStats {
             }
         }
 
-        private class ChildUid {
+        private final class ChildUid {
             public final TimeMultiStateCounter cpuActiveCounter;
             public final LongArrayMultiStateCounter cpuTimeInFreqCounter;
 
@@ -10376,7 +9940,7 @@ public class BatteryStatsImpl extends BatteryStats {
         }
 
         @GuardedBy("mBsi")
-        public void updateUidProcessStateLocked(int procState,
+        public void updateUidProcessStateLocked(@ProcessState int procState,
                 long elapsedRealtimeMs, long uptimeMs) {
             int uidRunningState;
             // Make special note of Foreground Services
@@ -10789,12 +10353,6 @@ public class BatteryStatsImpl extends BatteryStats {
         mClock = clock;
         initKernelStatsReaders();
 
-        if (Flags.concurrentQueueForPendingRemovedUids()) {
-            mPendingRemovedUids = new ConcurrentLinkedQueue<>();
-        } else {
-            mPendingRemovedUids = new LinkedList<>();
-        }
-
         mBatteryStatsConfig = config;
         mMonotonicClock = monotonicClock;
         mHandler = new MyHandler(handler.getLooper());
@@ -10823,7 +10381,11 @@ public class BatteryStatsImpl extends BatteryStats {
         mHistory = new BatteryStatsHistory(null /* historyBuffer */, mConstants.MAX_HISTORY_BUFFER,
                 mBatteryHistoryDirectory, mClock, mMonotonicClock, traceDelegate, eventLogger);
 
-        mCpuPowerStatsCollector = new CpuPowerStatsCollector(mPowerStatsCollectorInjector);
+        if (Flags.x86CpuEnergyAttribution() && !KernelCpuThreadReader.isTimeInStateSupported()) {
+            mCpuPowerStatsCollector = new CpuCyclePerUidCollector(mPowerStatsCollectorInjector);
+        } else {
+            mCpuPowerStatsCollector = new CpuTimeInStateCollector(mPowerStatsCollectorInjector);
+        }
         mCpuPowerStatsCollector.addConsumer(this::recordPowerStats);
 
         mWakelockPowerStatsCollector = new WakelockPowerStatsCollector(
@@ -10981,21 +10543,27 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     private void initPowerProfile() {
-        int[] policies = mCpuScalingPolicies.getPolicies();
-        mKernelCpuSpeedReaders = new KernelCpuSpeedReader[policies.length];
-        for (int i = 0; i < policies.length; i++) {
-            int[] cpus = mCpuScalingPolicies.getRelatedCpus(policies[i]);
-            int[] freqs = mCpuScalingPolicies.getFrequencies(policies[i]);
-            // We need to initialize the KernelCpuSpeedReaders to read from
-            // the first cpu of each core. Once we have the CpuScalingPolicy, we have access to this
-            // information.
-            mKernelCpuSpeedReaders[i] = new KernelCpuSpeedReader(cpus[0], freqs.length);
-        }
-
         // Initialize the estimated battery capacity to a known preset one.
         mEstimatedBatteryCapacityMah = (int) mPowerProfile.getBatteryCapacity();
-
         setDisplayCountLocked(mPowerProfile.getNumDisplays());
+
+        if (KernelCpuThreadReader.isTimeInStateSupported()) {
+            int[] policies = mCpuScalingPolicies.getPolicies();
+            mKernelCpuSpeedReaders = new KernelCpuSpeedReader[policies.length];
+            for (int i = 0; i < policies.length; i++) {
+                int[] cpus = mCpuScalingPolicies.getRelatedCpus(policies[i]);
+                int[] freqs = mCpuScalingPolicies.getFrequencies(policies[i]);
+                // We need to initialize the KernelCpuSpeedReaders to read from
+                // the first cpu of each core. Once we have the CpuScalingPolicy, we have access
+                // to this information.
+                mKernelCpuSpeedReaders[i] = new KernelCpuSpeedReader(cpus[0], freqs.length);
+            }
+        } else {
+            // KernelCpuSpeedReader relies on sysfs files for time_in_state.
+            // If the file is not available (e.g. on x86), we bypass the initialization.
+            // On these platforms, power is calculated dynamically using RAPL.
+            mKernelCpuSpeedReaders = new KernelCpuSpeedReader[0];
+        }
     }
 
     public void setCallback(BatteryCallback cb) {
@@ -11386,6 +10954,30 @@ public class BatteryStatsImpl extends BatteryStats {
 
     public boolean isCharging() {
         return mCharging;
+    }
+
+    @Override
+    protected long getPowerStatsStoreSize() {
+        return mPowerStatsStore != null ? mPowerStatsStore.getStorageSize() : 0L;
+    }
+
+    @Override
+    protected long getBatteryStatsFileSize() {
+        return getAtomicFileSize(mStatsFile);
+    }
+
+    @Override
+    protected long getBatteryStatsCheckinFileSize() {
+        return getAtomicFileSize(mCheckinFile);
+    }
+
+    @Override
+    protected long getBatteryStatsDailyFileSize() {
+        return getAtomicFileSize(mDailyFile);
+    }
+
+    private static long getAtomicFileSize(@Nullable AtomicFile atomicFile) {
+        return atomicFile != null ? atomicFile.getBaseFile().length() : 0L;
     }
 
     void initTimes(long uptimeUs, long realtimeUs) {
@@ -11853,7 +11445,7 @@ public class BatteryStatsImpl extends BatteryStats {
                         continue;
                     }
 
-                    final int uid = mapUid(entry.getUid());
+                    final int uid = mPowerStatsUidResolver.getOwnerUid(entry.getUid());
                     final Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
                     if (entry.getRxBytes() != 0) {
                         u.noteNetworkActivityLocked(NETWORK_WIFI_RX_DATA, entry.getRxBytes(),
@@ -12082,7 +11674,7 @@ public class BatteryStatsImpl extends BatteryStats {
                 }
                 // Converting uWs to mAms.
                 // Conversion: (uWs * (1000ms / 1s) * (1mW / 1000uW)) / mV = mAms
-                long monitoredRailChargeConsumedMaMs = mTmpRailStats != null
+                long monitoredRailChargeConsumedMaMs = mTmpRailStats != null && opVolt != 0
                         ? (long) (mTmpRailStats.getWifiTotalEnergyUseduWs() / opVolt)
                         : 0L;
                 mWifiActivity.getMonitoredRailChargeConsumedMaMs().addCountLocked(
@@ -12222,7 +11814,8 @@ public class BatteryStatsImpl extends BatteryStats {
                     totalTxPackets += entry.getTxPackets();
 
                     final Uid u = getUidStatsLocked(
-                            mapUid(entry.getUid()), elapsedRealtimeMs, uptimeMs);
+                            mPowerStatsUidResolver.getOwnerUid(
+                                    entry.getUid()), elapsedRealtimeMs, uptimeMs);
                     u.noteNetworkActivityLocked(NETWORK_MOBILE_RX_DATA, entry.getRxBytes(),
                             entry.getRxPackets());
                     u.noteNetworkActivityLocked(NETWORK_MOBILE_TX_DATA, entry.getTxBytes(),
@@ -12252,8 +11845,8 @@ public class BatteryStatsImpl extends BatteryStats {
                             continue;
                         }
 
-                        final Uid u = getUidStatsLocked(mapUid(entry.getUid()),
-                                elapsedRealtimeMs, uptimeMs);
+                        final Uid u = getUidStatsLocked(mPowerStatsUidResolver
+                                        .getOwnerUid(entry.getUid()), elapsedRealtimeMs, uptimeMs);
 
                         // Distribute total radio active time in to this app.
                         final long appPackets = entry.getRxPackets() + entry.getTxPackets();
@@ -12594,7 +12187,8 @@ public class BatteryStatsImpl extends BatteryStats {
             mNetworkByteActivityCounters[NETWORK_BT_TX_DATA].addCountLocked(txBytes);
 
             // Add to the UID counters.
-            final Uid u = getUidStatsLocked(mapUid(traffic.getUid()), elapsedRealtimeMs, uptimeMs);
+            final Uid u = getUidStatsLocked(mPowerStatsUidResolver
+                    .getOwnerUid(traffic.getUid()), elapsedRealtimeMs, uptimeMs);
             u.noteNetworkActivityLocked(NETWORK_BT_RX_DATA, rxBytes, 0);
             u.noteNetworkActivityLocked(NETWORK_BT_TX_DATA, txBytes, 0);
 
@@ -12613,7 +12207,8 @@ public class BatteryStatsImpl extends BatteryStats {
                 final long txBytes =
                         traffic.getTxBytes() - mLastBluetoothActivityInfo.uidTxBytes.get(uid);
 
-                final Uid u = getUidStatsLocked(mapUid(uid), elapsedRealtimeMs, uptimeMs);
+                final Uid u = getUidStatsLocked(mPowerStatsUidResolver
+                        .getOwnerUid(uid), elapsedRealtimeMs, uptimeMs);
                 final ControllerActivityCounterImpl counter =
                         u.getOrCreateBluetoothControllerActivityLocked();
 
@@ -13028,7 +12623,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     /**
      * Take a snapshot of the cpu times spent by each uid and update the corresponding counters.
-     * If {@param partialTimers} is not null and empty, then we assign a portion of cpu times to
+     * If {@code partialTimers} is not null and empty, then we assign a portion of cpu times to
      * wakelock holders.
      *
      * @param partialTimers The wakelock holders among which the cpu times will be distributed.
@@ -13052,7 +12647,7 @@ public class BatteryStatsImpl extends BatteryStats {
             }
             long userTimeUs = timesUs[0], systemTimeUs = timesUs[1];
 
-            uid = mapUid(uid);
+            uid = mPowerStatsUidResolver.getOwnerUid(uid);
             if (Process.isIsolated(uid)) {
                 // This could happen if the isolated uid mapping was removed before that process
                 // was actually killed.
@@ -13170,7 +12765,7 @@ public class BatteryStatsImpl extends BatteryStats {
                 return;
             }
 
-            uid = mapUid(uid);
+            uid = mPowerStatsUidResolver.getOwnerUid(uid);
             if (Process.isIsolated(uid)) {
                 if (DEBUG) Slog.d(TAG, "Got freq readings for an isolated uid: " + uid);
                 return;
@@ -13282,7 +12877,7 @@ public class BatteryStatsImpl extends BatteryStats {
         final long startTimeMs = mClock.uptimeMillis();
         final long elapsedRealtimeMs = mClock.elapsedRealtime();
         mCpuUidActiveTimeReader.readAbsolute((uid, cpuActiveTimesMs) -> {
-            final int parentUid = mapUid(uid);
+            final int parentUid = mPowerStatsUidResolver.getOwnerUid(uid);
             if (Process.isIsolated(parentUid)) {
                 if (DEBUG) Slog.w(TAG, "Got active times for an isolated uid: " + uid);
                 return;
@@ -13327,7 +12922,7 @@ public class BatteryStatsImpl extends BatteryStats {
         final long elapsedRealtimeMs = mClock.elapsedRealtime();
         // If power is being accumulated for attribution, data needs to be read immediately.
         mCpuUidClusterTimeReader.readDelta(false, (uid, cpuClusterTimesMs) -> {
-            uid = mapUid(uid);
+            uid = mPowerStatsUidResolver.getOwnerUid(uid);
             if (Process.isIsolated(uid)) {
                 if (DEBUG) Slog.w(TAG, "Got cluster times for an isolated uid: " + uid);
                 return;
@@ -13368,6 +12963,8 @@ public class BatteryStatsImpl extends BatteryStats {
      * Notifies BatteryStatsImpl that the system server is ready.
      */
     public void onSystemReady(Context context) {
+        mPowerStatsUidResolver.setPackageManager(context.getPackageManager());
+
         if (mCpuUidFreqTimeReader != null) {
             mCpuUidFreqTimeReader.onSystemReady();
         }
@@ -14288,6 +13885,10 @@ public class BatteryStatsImpl extends BatteryStats {
             if (Process.isSdkSandboxUid(uid)) {
                 Log.wtf(TAG, "Tracking an SDK Sandbox UID");
             }
+            if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()
+                    && Process.isPrivateComputeCoreUid(uid)) {
+                Log.wtf(TAG, "Tracking a PCC UID");
+            }
             u = new Uid(this, uid, elapsedRealtimeMs, uptimeMs);
             mUidStats.put(uid, u);
         }
@@ -14395,7 +13996,7 @@ public class BatteryStatsImpl extends BatteryStats {
      */
     public Uid.Proc getProcessStatsLocked(int uid, String name,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
         return u.getProcessStatsLocked(name);
     }
@@ -14413,7 +14014,7 @@ public class BatteryStatsImpl extends BatteryStats {
      */
     public Uid.Pkg getPackageStatsLocked(int uid, String pkg,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
         return u.getPackageStatsLocked(pkg);
     }
@@ -14424,7 +14025,7 @@ public class BatteryStatsImpl extends BatteryStats {
      */
     public Uid.Pkg.Serv getServiceStatsLocked(int uid, String pkg, String name,
             long elapsedRealtimeMs, long uptimeMs) {
-        uid = mapUid(uid);
+        uid = mPowerStatsUidResolver.getOwnerUid(uid);
         Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, uptimeMs);
         return u.getServiceStatsLocked(pkg, name);
     }
@@ -14459,15 +14060,6 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-    /**
-     * Controls where the logging of the WakelockStateChanged atom occurs:
-     *   true = Notifier, false = BatteryStatsImpl.
-     */
-    public void setMoveWscLoggingToNotifierEnabled(boolean enabled) {
-        synchronized (this) {
-            mMoveWscLoggingToNotifierEnabled = enabled;
-        }
-    }
     @GuardedBy("this")
     public void systemServicesReady(Context context) {
         mConstants.startObserving(context.getContentResolver());
@@ -16206,7 +15798,10 @@ public class BatteryStatsImpl extends BatteryStats {
             dumpConstantsLocked(pw);
 
             pw.println();
-            mCpuPowerStatsCollector.dumpCpuPowerBracketsLocked(pw);
+            mCpuPowerStatsCollector.dumpLocked(pw);
+
+            pw.print("x86_cpu_energy_attribution enabled: ");
+            pw.println(Flags.x86CpuEnergyAttribution());
         }
     }
 }

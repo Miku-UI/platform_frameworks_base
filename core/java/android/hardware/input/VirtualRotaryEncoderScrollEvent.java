@@ -16,11 +16,9 @@
 
 package android.hardware.input;
 
-import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtualdevice.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
@@ -33,7 +31,6 @@ import com.android.internal.util.Preconditions;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_VIRTUAL_ROTARY)
 @SystemApi
 public final class VirtualRotaryEncoderScrollEvent implements Parcelable {
 

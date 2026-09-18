@@ -20,6 +20,7 @@ import static android.os.Trace.TRACE_TAG_ACTIVITY_MANAGER;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityClient;
 import android.app.ActivityThread.ActivityClientRecord;
 import android.app.ClientTransactionHandler;
 import android.os.IBinder;
@@ -57,6 +58,9 @@ public class DestroyActivityItem extends ActivityLifecycleItem {
     @Override
     public void postExecute(@NonNull ClientTransactionHandler client,
             @NonNull PendingTransactionActions pendingActions) {
+        if (mFinished) {
+            ActivityClient.getInstance().activityDestroyed(getActivityToken());
+        }
         // Cleanup after execution.
         client.getActivitiesToBeDestroyed().remove(getActivityToken());
     }

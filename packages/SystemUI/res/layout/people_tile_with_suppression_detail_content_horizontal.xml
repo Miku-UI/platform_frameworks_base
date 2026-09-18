@@ -41,7 +41,7 @@
         android:singleLine="false"
         android:text="@string/empty_status"
         android:textAppearance="@*android:style/TextAppearance.DeviceDefault.Notification.Title"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/materialColorOnSurfaceVariant"
         android:textSize="@dimen/content_text_size_for_medium" />
 
 </LinearLayout>

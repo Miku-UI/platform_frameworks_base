@@ -18,7 +18,6 @@ package android.service.voice;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -49,7 +48,6 @@ import android.os.ServiceManager;
 import android.os.SharedMemory;
 import android.os.SystemProperties;
 import android.provider.Settings;
-import android.service.voice.flags.Flags;
 import android.util.ArraySet;
 import android.util.Log;
 
@@ -368,6 +366,13 @@ public class VoiceInteractionService extends Service {
      * to receive interaction from it. You should generally do initialization here
      * rather than in {@link #onCreate}. Methods such as {@link #showSession} will
      * not be operational until this point.
+     *
+     * <p>Note: Under some circumstances, it is possible for {@link #onReady} to be called after
+     * {@link #onDestroy} has been called. This can happen in cases where the system is in the
+     * process of shutting down the service, but the {@code IVoiceInteractionManagerService}
+     * still sends a final "ready" signal. Therefore, implementations must be prepared for
+     * {@link #onReady} to be called even after {@link #onDestroy}, and should not rely on a
+     * fixed lifecycle order.
      */
     public void onReady() {
         mSystemService = IVoiceInteractionManagerService.Stub.asInterface(
@@ -401,6 +406,10 @@ public class VoiceInteractionService extends Service {
      * Called during service de-initialization to tell you when the system is shutting the
      * service down.
      * At this point this service may no longer be the active {@link VoiceInteractionService}.
+     *
+     * <p>Note: After this method is called, it is possible for other methods on this service
+     * to be called, including {@link #onReady}. Implementations should be prepared to handle
+     * this case gracefully.
      */
     public void onShutdown() {
     }
@@ -566,9 +575,10 @@ public class VoiceInteractionService extends Service {
      * Like {@link #createAlwaysOnHotwordDetector(String, Locale, AlwaysOnHotwordDetector.Callback)
      * }. Before calling this function, you should set a valid hotword detection service with
      * android:hotwordDetectionService in an android.voice_interaction metadata file and set
-     * android:isolatedProcess="true" in the AndroidManifest.xml of hotword detection service.
-     * Otherwise it will throw IllegalStateException. After calling this function, the system will
-     * also trigger a hotword detection service and pass the read-only data back to it.
+     * android:isolatedProcess="true" or android:privateComputeCore="true" in the
+     * AndroidManifest.xml of hotword detection service. Otherwise it will throw
+     * IllegalStateException. After calling this function, the system will also trigger a
+     * hotword detection service and pass the read-only data back to it.
      *
      * <p>Note: The system will trigger hotword detection service after calling this function when
      * all conditions meet the requirements.
@@ -625,9 +635,10 @@ public class VoiceInteractionService extends Service {
      * Like {@link #createAlwaysOnHotwordDetector(String, Locale, AlwaysOnHotwordDetector.Callback)
      * }. Before calling this function, you should set a valid hotword detection service with
      * android:hotwordDetectionService in an android.voice_interaction metadata file and set
-     * android:isolatedProcess="true" in the AndroidManifest.xml of hotword detection service.
-     * Otherwise it will throw IllegalStateException. After calling this function, the system will
-     * also trigger a hotword detection service and pass the read-only data back to it.
+     * android:isolatedProcess="true" or android:privateComputeCore="true" in the
+     * AndroidManifest.xml of hotword detection service. Otherwise it will throw
+     * IllegalStateException. After calling this function, the system will also trigger a hotword
+     * detection service and pass the read-only data back to it.
      *
      * <p>Note: The system will trigger hotword detection service after calling this function when
      * all conditions meet the requirements.
@@ -765,8 +776,8 @@ public class VoiceInteractionService extends Service {
      *
      * <p>To be able to call this, you need to set android:hotwordDetectionService in the
      * android.voice_interaction metadata file to a valid hotword detection service, and set
-     * android:isolatedProcess="true" in the hotword detection service's declaration. Otherwise,
-     * this throws an {@link IllegalStateException}.
+     * android:isolatedProcess="true" or android:privateComputeCore="true" in the hotword detection
+     * service's declaration. Otherwise, this throws an {@link IllegalStateException}.
      *
      * <p>This instance must be retained and used by the client.
      * Calling this a second time invalidates the previously created hotword detector
@@ -822,8 +833,8 @@ public class VoiceInteractionService extends Service {
      *
      * <p>To be able to call this, you need to set android:hotwordDetectionService in the
      * android.voice_interaction metadata file to a valid hotword detection service, and set
-     * android:isolatedProcess="true" in the hotword detection service's declaration. Otherwise,
-     * this throws an {@link IllegalStateException}.
+     * android:isolatedProcess="true" or android:privateComputeCore="true" in the hotword detection
+     * service's declaration. Otherwise, this throws an {@link IllegalStateException}.
      *
      * <p>This instance must be retained and used by the client.
      * Calling this a second time invalidates the previously created hotword detector
@@ -922,8 +933,8 @@ public class VoiceInteractionService extends Service {
      *
      * <p>To be able to call this, you need to set android:visualQueryDetectionService in the
      * android.voice_interaction metadata file to a valid visual query detection service, and set
-     * android:isolatedProcess="true" in the service's declaration. Otherwise, this throws an
-     * {@link IllegalStateException}.
+     * android:isolatedProcess="true" or android:privateComputeCore="true" in the service's
+     * declaration. Otherwise, this throws an {@link IllegalStateException}.
      *
      * <p>Using this has a noticeable impact on battery, since the microphone is kept open
      * for the lifetime of the recognition {@link VisualQueryDetector#startRecognition() session}.
@@ -1163,11 +1174,7 @@ public class VoiceInteractionService extends Service {
      * @throws SecurityException if the caller is not the current active
      * {@link android.service.voice.VoiceInteractionService}.
      */
-    @FlaggedApi(Flags.FLAG_SET_INVOCATION_EFFECT_ENABLED_API)
     public final void setInvocationEffectEnabled(boolean enabled) {
-        if (!Flags.setInvocationEffectEnabledApi()) {
-            throw new UnsupportedOperationException("Flagged API usage while flag disabled.");
-        }
         try {
             mSystemService.setInvocationEffectEnabled(enabled);
         } catch (RemoteException e) {

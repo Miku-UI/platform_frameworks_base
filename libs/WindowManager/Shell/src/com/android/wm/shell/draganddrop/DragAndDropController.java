@@ -69,6 +69,7 @@ import com.android.wm.shell.common.RemoteCallable;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.annotations.ExternalMainThread;
+import com.android.wm.shell.shared.bubbles.BubbleFeatureConfig;
 import com.android.wm.shell.shared.desktopmode.DesktopState;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.sysui.ShellCommandHandler;
@@ -105,6 +106,7 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
     private final Transitions mTransitions;
     private final DesktopState mDesktopState;
     private SplitScreenController mSplitScreen;
+    private final BubbleFeatureConfig mBubbleFeatureConfig;
     private Lazy<DragToBubbleController> mDragToBubbleController;
     private ShellExecutor mMainExecutor;
     private ArrayList<DragAndDropListener> mListeners = new ArrayList<>();
@@ -153,7 +155,8 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
             Transitions transitions,
             Lazy<DragToBubbleController> dragToBubbleControllerLazy,
             ShellExecutor mainExecutor,
-            DesktopState desktopState) {
+            DesktopState desktopState,
+            BubbleFeatureConfig bubbleFeatureConfig) {
         mContext = context;
         mShellController = shellController;
         mShellCommandHandler = shellCommandHandler;
@@ -166,6 +169,7 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         mDragToBubbleController = dragToBubbleControllerLazy;
         mMainExecutor = mainExecutor;
         mDesktopState = desktopState;
+        mBubbleFeatureConfig = bubbleFeatureConfig;
         shellInit.addInitCallback(this::onInit, this);
     }
 
@@ -184,7 +188,9 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         mShellTaskOrganizer.addTaskVanishedListener(this);
         mShellCommandHandler.addDumpCallback(this::dump, this);
         mGlobalDragListener.setListener(this);
-        addListener(mDragToBubbleController.get());
+        if (mBubbleFeatureConfig.areAppBubblesSupported()) {
+            addListener(mDragToBubbleController.get());
+        }
     }
 
     private ExternalInterfaceBinder createExternalInterface() {
@@ -261,7 +267,7 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         DragToBubbleController dragToBubbleController = null;
         boolean isPrimaryDisplay = context.getDisplayId() == displayId;
         // only add bubble bar drop targets on primary display
-        if (isPrimaryDisplay) {
+        if (isPrimaryDisplay && mBubbleFeatureConfig.areAppBubblesSupported()) {
             dragToBubbleController = mDragToBubbleController.get();
             rootView.addView(dragToBubbleController.getDropTargetContainer());
         }
@@ -452,7 +458,7 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
     public void onCrossWindowDrop(@NonNull ActivityManager.RunningTaskInfo taskInfo) {
         // Bring the task forward when an item is dropped on it
         final WindowContainerTransaction wct = new WindowContainerTransaction();
-        wct.reorder(taskInfo.token, true /* onTop */);
+        wct.reorder(taskInfo.token, true /* onTop */, true /* includingParents */);
         mTransitions.startTransition(WindowManager.TRANSIT_TO_FRONT, wct, null);
     }
 

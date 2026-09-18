@@ -33,7 +33,6 @@ import dagger.multibindings.Multibinds
  * specialized modules (like [QSModule]) and do not include this module directly in SystemUI modules
  */
 @Module(
-    subcomponents = [QSFragmentComponent::class, QSSceneComponent::class],
     includes =
         [
             MediaModule::class,
@@ -43,7 +42,7 @@ import dagger.multibindings.Multibinds
             QSHostModule::class,
             QSPipelineModule::class,
             QSTilesModule::class,
-        ],
+        ]
 )
 interface QSModuleBase {
 

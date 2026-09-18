@@ -16,6 +16,7 @@
 package com.android.server.am;
 
 import static android.Manifest.permission.GET_ANY_PROVIDER_TYPE;
+import static android.app.ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND;
 import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_GET_PROVIDER;
 import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_REMOVE_PROVIDER;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_PROVIDER;
@@ -36,6 +37,8 @@ import static com.android.internal.util.FrameworkStatsLog.PROVIDER_ACQUISITION_E
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_MU;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_PROCESSES;
 import static com.android.server.am.ActivityManagerService.TAG_MU;
+import static com.android.server.am.psc.Constants.PERCEPTIBLE_LOW_APP_ADJ;
+import static com.android.server.am.psc.Constants.SCHED_GROUP_BACKGROUND;
 
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
@@ -89,7 +92,6 @@ import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.LocalServices;
-import com.android.server.crashrecovery.CrashRecoveryAdaptor;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.sdksandbox.SdkSandboxManagerLocal;
@@ -231,12 +233,12 @@ public class ContentProviderHelper {
             if (cpr == null && userId != UserHandle.USER_SYSTEM) {
                 cpr = mProviderMap.getProviderByName(name, UserHandle.USER_SYSTEM);
                 if (cpr != null) {
-                    cpi = cpr.info;
+                    cpi = cpr.mProviderInfo;
 
                     if (mService.isSingleton(
                             cpi.processName, cpi.applicationInfo, cpi.name, cpi.flags)
                                 && mService.isValidSingletonCall(
-                                        r == null ? callingUid : r.uid, cpi.applicationInfo.uid)) {
+                                        r == null ? callingUid : r.uid, cpr.mUid)) {
                         userId = UserHandle.USER_SYSTEM;
                         checkCrossUser = false;
                     } else if (isAuthorityRedirectedForCloneProfileCached(name)) {
@@ -252,26 +254,26 @@ public class ContentProviderHelper {
             }
 
             ProcessRecord dyingProc = null;
-            if (cpr != null && cpr.proc != null) {
-                providerRunning = !cpr.proc.isKilled();
+            if (cpr != null && cpr.mProc != null) {
+                providerRunning = !cpr.mProc.isKilled();
 
                 // Note if killedByAm is also set, this means the provider process has just been
                 // killed by AM (in ProcessRecord.kill()), but appDiedLocked() hasn't been called
                 // yet. So we need to call appDiedLocked() here and let it clean up.
                 // (See the commit message on I2c4ba1e87c2d47f2013befff10c49b3dc337a9a7 to see
                 // how to test this case.)
-                if (cpr.proc.isKilled() && cpr.proc.isKilledByAm()) {
-                    Slog.wtf(TAG, cpr.proc.toString() + " was killed by AM but isn't really dead");
+                if (cpr.mProc.isKilled() && cpr.mProc.isKilledByAm()) {
+                    Slog.wtf(TAG, cpr.mProc.toString() + " was killed by AM but isn't really dead");
                     // Now we are going to wait for the death before starting the new process.
-                    dyingProc = cpr.proc;
+                    dyingProc = cpr.mProc;
                 }
             }
 
             final int callingProcessState = r != null
-                    ? r.getCurProcState() : ActivityManager.PROCESS_STATE_UNKNOWN;
+                    ? r.getProcState() : ActivityManager.PROCESS_STATE_UNKNOWN;
 
             if (providerRunning) {
-                cpi = cpr.info;
+                cpi = cpr.mProviderInfo;
 
 
                 if (r != null && cpr.canRunHere(r)) {
@@ -309,7 +311,7 @@ public class ContentProviderHelper {
                 checkAssociationAndPermissionLocked(r, cpi, callingUid, userId, checkCrossUser,
                         cpr.name.flattenToShortString(), startTime);
 
-                final int providerProcessState = cpr.proc.getCurProcState();
+                final int providerProcessState = cpr.mProc.getProcState();
 
                 final long origId = Binder.clearCallingIdentity();
                 try {
@@ -321,20 +323,20 @@ public class ContentProviderHelper {
                             expectedUserId);
 
                     checkTime(startTime, "getContentProviderImpl: before updateOomAdj");
-                    final int verifiedAdj = cpr.proc.getVerifiedAdj();
+                    final int verifiedAdj = cpr.mProc.getVerifiedAdj();
                     boolean success = mService.mOomAdjuster.evaluateProviderConnectionAdd(r,
-                            cpr.proc) ? mService.mProcessStateController.runUpdate(cpr.proc,
+                            cpr.mProc) ? mService.mProcessStateController.runUpdate(cpr.mProc,
                             OOM_ADJ_REASON_GET_PROVIDER) : true;
                     // XXX things have changed so updateOomAdjLocked doesn't actually tell us
                     // if the process has been successfully adjusted.  So to reduce races with
                     // it, we will check whether the process still exists.  Note that this doesn't
                     // completely get rid of races with LMK killing the process, but should make
                     // them much smaller.
-                    if (success && verifiedAdj != cpr.proc.getSetAdj()
-                            && !isProcessAliveLocked(cpr.proc)) {
+                    if (success && verifiedAdj != cpr.mProc.getSetAdj()
+                            && !isProcessAliveLocked(cpr.mProc)) {
                         success = false;
                     }
-                    maybeUpdateProviderUsageStatsLocked(r, cpr.info.packageName, name);
+                    maybeUpdateProviderUsageStatsLocked(r, cpr.mProviderInfo.packageName, name);
                     checkTime(startTime, "getContentProviderImpl: after updateOomAdj");
                     if (ActivityManagerDebugConfig.DEBUG_PROVIDER) {
                         Slog.i(TAG, "Adjust success: " + success);
@@ -360,12 +362,12 @@ public class ContentProviderHelper {
                         // We'll just start a new process to host the content provider
                         providerRunning = false;
                         conn = null;
-                        dyingProc = cpr.proc;
+                        dyingProc = cpr.mProc;
                     } else {
-                        cpr.proc.setVerifiedAdj(cpr.proc.getSetAdj());
+                        cpr.mProc.setVerifiedAdj(cpr.mProc.getSetAdj());
                         FrameworkStatsLog.write(
                                 PROVIDER_ACQUISITION_EVENT_REPORTED,
-                                cpr.proc.uid, callingUid,
+                                cpr.mProc.uid, callingUid,
                                 PROVIDER_ACQUISITION_EVENT_REPORTED__PROC_START_TYPE__PROCESS_START_TYPE_WARM,
                                 PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_NORMAL,
                                 cpi.packageName, callingPackage,
@@ -395,7 +397,7 @@ public class ContentProviderHelper {
                 boolean singleton = mService.isSingleton(
                         cpi.processName, cpi.applicationInfo, cpi.name, cpi.flags)
                             && mService.isValidSingletonCall(
-                                    r == null ? callingUid : r.uid, cpi.applicationInfo.uid);
+                                    r == null ? callingUid : r.uid, cpi.getUid());
                 if (singleton) {
                     userId = UserHandle.USER_SYSTEM;
                 }
@@ -427,7 +429,7 @@ public class ContentProviderHelper {
                 // we don't want to allow it to run.
                 if (!mService.mUserController.isUserRunning(userId, 0)) {
                     Slog.w(TAG, "Unable to launch app "
-                            + cpi.applicationInfo.packageName + "/" + cpi.applicationInfo.uid
+                            + cpi.applicationInfo.packageName + "/" + cpi.getUid()
                             + " for provider " + name + ": user " + userId + " is stopped");
                     return null;
                 }
@@ -442,7 +444,7 @@ public class ContentProviderHelper {
                 // could get killed unexpectedly. Meanwhile, we should retrieve the latest
                 // application info from package manager instead of reusing the info from
                 // the dying one, as the package could have been updated.
-                boolean firstClass = cpr == null || (dyingProc == cpr.proc && dyingProc != null);
+                boolean firstClass = cpr == null || (dyingProc == cpr.mProc && dyingProc != null);
                 if (firstClass) {
                     final long ident = Binder.clearCallingIdentity();
 
@@ -485,7 +487,7 @@ public class ContentProviderHelper {
 
                 if (ActivityManagerDebugConfig.DEBUG_PROVIDER) {
                     Slog.w(TAG, "LAUNCHING REMOTE PROVIDER (myuid " + (r != null ? r.uid : null)
-                            + " pruid " + cpr.appInfo.uid + "): " + cpr.info.name
+                            + " pruid " + cpr.mUid + "): " + cpr.mProviderInfo.name
                             + " callers=" + Debug.getCallers(6));
                 }
 
@@ -504,28 +506,28 @@ public class ContentProviderHelper {
                     final long origId = Binder.clearCallingIdentity();
 
                     try {
-                        if (!TextUtils.equals(cpr.appInfo.packageName, callingPackage)) {
+                        if (!TextUtils.equals(cpr.mAppInfo.packageName, callingPackage)) {
                             // Report component used since a content provider is being bound.
                             mService.mUsageStatsService.reportEvent(
-                                    cpr.appInfo.packageName, userId, Event.APP_COMPONENT_USED);
+                                    cpr.mAppInfo.packageName, userId, Event.APP_COMPONENT_USED);
                         }
 
                         try {
                             checkTime(startTime,
                                     "getContentProviderImpl: before set stopped state");
                             mService.mPackageManagerInt.notifyComponentUsed(
-                                    cpr.appInfo.packageName, userId, callingPackage,
+                                    cpr.mAppInfo.packageName, userId, callingPackage,
                                     cpr.toString());
                             checkTime(startTime, "getContentProviderImpl: after set stopped state");
                         } catch (IllegalArgumentException e) {
                             Slog.w(TAG, "Failed trying to unstop package "
-                                    + cpr.appInfo.packageName + ": " + e);
+                                    + cpr.mAppInfo.packageName + ": " + e);
                         }
 
                         // Use existing process if already started
                         checkTime(startTime, "getContentProviderImpl: looking for process record");
                         ProcessRecord proc = mService.getProcessRecordLocked(
-                                cpi.processName, cpr.appInfo.uid);
+                                cpi.processName, cpr.mUid);
                         IApplicationThread thread;
                         if (proc != null && (thread = proc.getThread()) != null
                                 && !proc.isKilled()) {
@@ -548,26 +550,28 @@ public class ContentProviderHelper {
                                     PROVIDER_ACQUISITION_EVENT_REPORTED__PROC_START_TYPE__PROCESS_START_TYPE_WARM,
                                     PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_NORMAL,
                                     cpi.packageName, callingPackage,
-                                    callingProcessState, proc.getCurProcState(),
+                                    callingProcessState, proc.getProcState(),
                                     false, 0L);
                         } else {
-                            final boolean stopped = cpr.appInfo.isStopped();
-                            final int packageState = stopped
-                                    ? PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_STOPPED
-                                    : PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_NORMAL;
-                            final boolean firstLaunch = cpr.appInfo.isNotLaunched();
+                            final boolean stopped = cpr.mAppInfo.isStopped();
+                            final int packageState = getPackageStateAtom(stopped);
+                            final boolean firstLaunch = cpr.mAppInfo.isNotLaunched();
                             checkTime(startTime, "getContentProviderImpl: before start process");
+
+                            final HostingRecord hostingRecord = HostingRecord.forContentProvider(
+                                    new ComponentName(cpi.applicationInfo.packageName, cpi.name),
+                                    cpi.shouldRunInPccSandbox(),
+                                    callingUid, r != null ? r.processName : null,
+                                    name, stable);
                             proc = mService.startProcessLocked(
-                                    cpi.processName, cpr.appInfo, false, 0,
-                                    new HostingRecord(HostingRecord.HOSTING_TYPE_CONTENT_PROVIDER,
-                                        new ComponentName(
-                                                cpi.applicationInfo.packageName, cpi.name)),
+                                    cpi.processName, cpr.mAppInfo, false, 0,
+                                    hostingRecord,
                                     Process.ZYGOTE_POLICY_FLAG_EMPTY, false, false);
                             checkTime(startTime, "getContentProviderImpl: after start process");
                             if (proc == null) {
                                 Slog.w(TAG, "Unable to launch app "
                                         + cpi.applicationInfo.packageName + "/"
-                                        + cpi.applicationInfo.uid + " for provider " + name
+                                        + cpr.mUid + " for provider " + name
                                         + ": process is bad");
                                 return null;
                             }
@@ -586,7 +590,7 @@ public class ContentProviderHelper {
                             mService.mProcessList.getAppStartInfoTracker()
                                     .handleProcessContentProviderStart(startTimeNs, proc);
                         }
-                        cpr.launchingApp = proc;
+                        cpr.mLaunchingApp = proc;
                         mLaunchingProviders.add(cpr);
                     } finally {
                         Binder.restoreCallingIdentity(origId);
@@ -611,21 +615,21 @@ public class ContentProviderHelper {
             checkTime(startTime, "getContentProviderImpl: done!");
 
             mService.grantImplicitAccess(userId, null, callingUid,
-                    UserHandle.getAppId(cpi.applicationInfo.uid));
+                    UserHandle.getAppId(cpr.mUid));
 
             if (caller != null) {
                 // The client will be waiting, and we'll notify it when the provider is ready.
                 synchronized (cpr) {
-                    if (cpr.provider == null) {
-                        if (cpr.launchingApp == null) {
+                    if (cpr.mProvider == null) {
+                        if (cpr.mLaunchingApp == null) {
                             Slog.w(TAG, "Unable to launch app "
                                     + cpi.applicationInfo.packageName + "/"
-                                    + cpi.applicationInfo.uid + " for provider "
+                                    + cpr.mUid + " for provider "
                                     + name + ": launching app became null");
                             EventLogTags.writeAmProviderLostProcess(
-                                    UserHandle.getUserId(cpi.applicationInfo.uid),
+                                    UserHandle.getUserId(cpi.getUid()),
                                     cpi.applicationInfo.packageName,
-                                    cpi.applicationInfo.uid, name);
+                                    cpr.mUid, name);
                             return null;
                         }
 
@@ -652,21 +656,21 @@ public class ContentProviderHelper {
                 SystemClock.uptimeMillis() + ContentResolver.CONTENT_PROVIDER_READY_TIMEOUT_MILLIS;
         boolean timedOut = false;
         synchronized (cpr) {
-            while (cpr.provider == null) {
-                if (cpr.launchingApp == null) {
+            while (cpr.mProvider == null) {
+                if (cpr.mLaunchingApp == null) {
                     Slog.w(TAG, "Unable to launch app "
-                            + cpi.applicationInfo.packageName + "/" + cpi.applicationInfo.uid
+                            + cpi.applicationInfo.packageName + "/" + cpr.mUid
                             + " for provider " + name + ": launching app became null");
                     EventLogTags.writeAmProviderLostProcess(
-                            UserHandle.getUserId(cpi.applicationInfo.uid),
-                            cpi.applicationInfo.packageName, cpi.applicationInfo.uid, name);
+                            UserHandle.getUserId(cpr.mUid),
+                            cpi.applicationInfo.packageName, cpr.mUid, name);
                     return null;
                 }
                 try {
                     final long wait = Math.max(0L, timeout - SystemClock.uptimeMillis());
                     if (DEBUG_MU) {
                         Slog.v(TAG_MU, "Waiting to start provider " + cpr
-                                + " launchingApp=" + cpr.launchingApp + " for " + wait + " ms");
+                                + " launchingApp=" + cpr.mLaunchingApp + " for " + wait + " ms");
                     }
                     if (conn != null) {
                         conn.waiting = true;
@@ -674,7 +678,7 @@ public class ContentProviderHelper {
                     if (wait > 0) {
                         cpr.wait(wait);
                     }
-                    if (cpr.provider == null) {
+                    if (cpr.mProvider == null) {
                         timedOut = true;
                         break;
                     }
@@ -700,12 +704,22 @@ public class ContentProviderHelper {
             }
 
             Slog.wtf(TAG, "Timeout waiting for provider "
-                    + cpi.applicationInfo.packageName + "/" + cpi.applicationInfo.uid
+                    + cpi.applicationInfo.packageName + "/" + cpr.mUid
                     + " for provider " + name + " providerRunning=" + providerRunning
                     + " caller=" + callerName + "/" + Binder.getCallingUid());
             return null;
         }
         return cpr.newHolder(conn, false);
+    }
+
+    /**
+     * Returns the package state atom for logging.
+     * @param stopped whether the package is in the STOPPED state.
+     */
+    private static int getPackageStateAtom(boolean stopped) {
+        return stopped
+                ? PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_STOPPED
+                : PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_NORMAL;
     }
 
     private void checkAssociationAndPermissionLocked(ProcessRecord callingApp, ProviderInfo cpi,
@@ -717,8 +731,8 @@ public class ContentProviderHelper {
         }
         checkTime(startTime, "getContentProviderImpl: before checkContentProviderPermission");
         if ((msg = checkContentProviderPermission(
-                    cpi, Binder.getCallingPid(), Binder.getCallingUid(), userId, checkUser,
-                    callingApp != null ? callingApp.toString() : null))
+                cpi, Binder.getCallingPid(), Binder.getCallingUid(), userId, checkUser,
+                callingApp != null ? callingApp.toString() : null))
                 != null) {
             throw new SecurityException(msg);
         }
@@ -754,13 +768,14 @@ public class ContentProviderHelper {
                     continue;
                 }
                 if (DEBUG_MU) {
-                    Slog.v(TAG_MU, "ContentProviderRecord uid = " + dst.uid);
+                    Slog.v(TAG_MU, "ContentProviderRecord uid = " + dst.mUid);
                 }
                 providersPublished = true;
 
-                ComponentName comp = new ComponentName(dst.info.packageName, dst.info.name);
+                ComponentName comp = new ComponentName(dst.mProviderInfo.packageName,
+                        dst.mProviderInfo.name);
                 mProviderMap.putProviderByClass(comp, dst);
-                String[] names = dst.info.authority.split(";");
+                String[] names = dst.mProviderInfo.authority.split(";");
                 for (int j = 0; j < names.length; j++) {
                     mProviderMap.putProviderByName(names[j], dst);
                 }
@@ -785,10 +800,10 @@ public class ContentProviderHelper {
                 // when we generated the providers in generateApplicationProvidersLocked().
                 // But for some reason in some cases we get here with the package no longer
                 // added...  for now just patch it in to make things happy.
-                r.addPackage(dst.info.applicationInfo.packageName,
-                        dst.info.applicationInfo.longVersionCode, mService.mProcessStats);
+                r.addPackage(dst.mProviderInfo.applicationInfo.packageName,
+                        dst.mProviderInfo.applicationInfo.longVersionCode, mService.mProcessStats);
                 synchronized (dst) {
-                    dst.provider = src.provider;
+                    dst.mProvider = src.provider;
                     dst.setProcess(r);
                     dst.notifyAll();
                     dst.onProviderPublishStatusLocked(true);
@@ -837,8 +852,8 @@ public class ContentProviderHelper {
             }
             ActivityManagerService.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                     "removeContentProvider: ",
-                    (conn.provider != null && conn.provider.info != null
-                    ? conn.provider.info.authority : ""));
+                    (conn.provider != null && conn.provider.mProviderInfo != null
+                            ? conn.provider.mProviderInfo.authority : ""));
             try {
                 synchronized (mService) {
                     decProviderCountLocked(conn, null, null, stable, true, true);
@@ -875,12 +890,12 @@ public class ContentProviderHelper {
             }
 
             // update content provider record entry info
-            ComponentName comp = new ComponentName(cpr.info.packageName, cpr.info.name);
+            ComponentName comp = new ComponentName(cpr.mProviderInfo.packageName,
+                    cpr.mProviderInfo.name);
             ContentProviderRecord localCpr = mProviderMap.getProviderByClass(comp, userId);
             if (localCpr.hasExternalProcessHandles()) {
-                if (mService.mProcessStateController.removeExternalProviderClient(localCpr,
-                        token)) {
-                    mService.updateOomAdjLocked(localCpr.proc, OOM_ADJ_REASON_REMOVE_PROVIDER);
+                if (localCpr.removeExternalProcessHandleLocked(token)) {
+                    mService.updateOomAdjLocked(localCpr.mProc, OOM_ADJ_REASON_REMOVE_PROVIDER);
                 } else {
                     Slog.e(TAG, "Attempt to remove content provider " + localCpr
                             + " with no external reference for token: " + token + ".");
@@ -906,11 +921,10 @@ public class ContentProviderHelper {
         }
 
         ActivityManagerService.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "refContentProvider: ",
-                (conn.provider != null && conn.provider.info != null
-                ? conn.provider.info.authority : ""));
+                (conn.provider != null && conn.provider.mProviderInfo != null
+                        ? conn.provider.mProviderInfo.authority : ""));
         try {
-            if (android.app.Flags.skipRefContentProvider()
-                    && unstable <= 0 && conn.unstableCount() <= 0) {
+            if (unstable <= 0 && conn.unstableCount() <= 0) {
                 return false;
             }
             conn.adjustCounts(stable, unstable);
@@ -935,14 +949,14 @@ public class ContentProviderHelper {
 
         ActivityManagerService.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                 "unstableProviderDied: ",
-                (conn.provider != null && conn.provider.info != null
-                ? conn.provider.info.authority : ""));
+                (conn.provider != null && conn.provider.mProviderInfo != null
+                        ? conn.provider.mProviderInfo.authority : ""));
 
         try {
             // Safely retrieve the content provider associated with the connection.
             IContentProvider provider;
             synchronized (mService) {
-                provider = conn.provider.provider;
+                provider = conn.provider.mProvider;
             }
 
             if (provider == null) {
@@ -962,12 +976,12 @@ public class ContentProviderHelper {
 
             // Well look at that!  It's dead!
             synchronized (mService) {
-                if (conn.provider.provider != provider) {
+                if (conn.provider.mProvider != provider) {
                     // But something changed...  good enough.
                     return;
                 }
 
-                ProcessRecord proc = conn.provider.proc;
+                ProcessRecord proc = conn.provider.mProc;
                 if (proc == null || proc.getThread() == null) {
                     // Seems like the process is already cleaned up.
                     return;
@@ -977,7 +991,7 @@ public class ContentProviderHelper {
                 // death notification...  just a bit prematurely.
                 mService.reportUidInfoMessageLocked(TAG, "Process " + proc.processName
                                 + " (pid " + proc.getPid() + ") early provider death",
-                                proc.info.uid);
+                                proc.uid);
                 final long token = Binder.clearCallingIdentity();
                 try {
                     mService.appDiedLocked(proc, "unstable content provider");
@@ -1002,10 +1016,10 @@ public class ContentProviderHelper {
 
         ActivityManagerService.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                 "appNotRespondingViaProvider: ",
-                (conn.provider != null && conn.provider.info != null
-                ? conn.provider.info.authority : ""));
+                (conn.provider != null && conn.provider.mProviderInfo != null
+                        ? conn.provider.mProviderInfo.authority : ""));
         try {
-            final ProcessRecord host = conn.provider.proc;
+            final ProcessRecord host = conn.provider.mProc;
             if (host == null) {
                 Slog.w(TAG, "Failed to find hosting ProcessRecord");
                 return;
@@ -1105,8 +1119,8 @@ public class ContentProviderHelper {
                 android.Manifest.permission.INTERACT_ACROSS_USERS, callingPid,
                 callingUid, -1, true) == PackageManager.PERMISSION_GRANTED
                 || ActivityManagerService.checkComponentPermission(
-                        android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, callingPid,
-                        callingUid, -1, true) == PackageManager.PERMISSION_GRANTED;
+                android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, callingPid,
+                callingUid, -1, true) == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean isHolderVisibleToCaller(@Nullable ContentProviderHolder holder, int callingUid,
@@ -1248,10 +1262,10 @@ public class ContentProviderHelper {
         final List<ProviderInfo> providers;
         try {
             providers = AppGlobals.getPackageManager().queryContentProviders(
-                                app.processName, app.uid, ActivityManagerService.STOCK_PM_FLAGS
+                            app.processName, app.uid, ActivityManagerService.STOCK_PM_FLAGS
                                     | PackageManager.GET_URI_PERMISSION_PATTERNS
                                     | PackageManager.MATCH_DIRECT_BOOT_AUTO, /*metaDataKey=*/ null)
-                            .getList();
+                    .getList();
         } catch (RemoteException ex) {
             return null;
         }
@@ -1265,7 +1279,8 @@ public class ContentProviderHelper {
 
         int numProviders = providers.size();
         final ProcessProviderRecord pr = app.mProviders;
-        pr.ensureProviderCapacity(numProviders + pr.numberOfProviders());
+        mService.mProcessStateController.ensurePublishedProviderCapacity(app,
+                numProviders + pr.numberOfProviders());
         for (int i = 0; i < numProviders; i++) {
             // NOTE: keep logic in sync with installEncryptionUnawareProviders
             ProviderInfo cpi = providers.get(i);
@@ -1300,9 +1315,9 @@ public class ContentProviderHelper {
                 mProviderMap.putProviderByClass(comp, cpr);
             }
             if (DEBUG_MU) {
-                Slog.v(TAG_MU, "generateApplicationProvidersLocked, cpi.uid = " + cpr.uid);
+                Slog.v(TAG_MU, "generateApplicationProvidersLocked, cpr.mUid = " + cpr.mUid);
             }
-            pr.installProvider(cpi.name, cpr);
+            mService.mProcessStateController.addPublishedProvider(app, cpi.name, cpr);
             if (!cpi.multiprocess || !"android".equals(cpi.packageName)) {
                 // Don't add this if it is a platform component that is marked
                 // to run in multiple processes, because this is actually
@@ -1376,15 +1391,12 @@ public class ContentProviderHelper {
         }
 
         mService.mConstants.start(mService.mContext.getContentResolver());
-        mService.mCoreSettingsObserver = new CoreSettingsObserver(mService);
+        mService.mCoreSettingsObserver = CoreSettingsObserver.create(mService);
         mService.mActivityTaskManager.installSystemProviders();
         //new DevelopmentSettingsObserver(); // init to observe developer settings enable/disable
         SettingsToPropertiesMapper.start(mService.mContext.getContentResolver());
         mService.getCachedAppOptimizer().init();
         mService.setupServicePrewarmingOnUserSwitch();
-
-        // Now that the settings provider is published we can consider sending in a rescue party.
-        CrashRecoveryAdaptor.rescuePartyOnSettingsProviderPublished(mService.mContext);
     }
 
     /**
@@ -1420,13 +1432,13 @@ public class ContentProviderHelper {
                                     // NOTE: keep in sync with generateApplicationProvidersLocked
                                     final boolean processMatch =
                                             Objects.equals(pi.processName, app.processName)
-                                            || pi.multiprocess;
+                                                    || pi.multiprocess;
                                     final boolean userMatch = !isSingletonOrSystemUserOnly(pi)
                                             || app.userId == UserHandle.USER_SYSTEM;
                                     final boolean isInstantApp = pi.applicationInfo.isInstantApp();
                                     final boolean splitInstalled = pi.splitName == null
                                             || ArrayUtils.contains(pi.applicationInfo.splitNames,
-                                                    pi.splitName);
+                                            pi.splitName);
                                     if (processMatch && userMatch
                                             && (!isInstantApp || splitInstalled)) {
                                         Log.v(TAG, "Installing " + pi);
@@ -1436,7 +1448,7 @@ public class ContentProviderHelper {
                                     }
                                 }
                             }
-                        } catch (RemoteException|SecurityException ignored) {
+                        } catch (RemoteException | SecurityException ignored) {
                         }
                     });
                 }
@@ -1450,11 +1462,9 @@ public class ContentProviderHelper {
             String callingPackage, String callingTag, boolean stable, boolean updateLru,
             long startTime, ProcessList processList, @UserIdInt int expectedUserId) {
         if (r == null) {
-            mService.mProcessStateController.addExternalProviderClient(cpr, externalProcessToken,
-                    callingUid, callingTag);
+            cpr.addExternalProcessHandleLocked(externalProcessToken, callingUid, callingTag);
             return null;
         }
-
 
         final ProcessProviderRecord pr = r.mProviders;
         for (int i = 0, size = pr.numberOfProviderConnections(); i < size; i++) {
@@ -1470,14 +1480,14 @@ public class ContentProviderHelper {
                 expectedUserId);
         conn.startAssociationIfNeeded();
         conn.initializeCount(stable);
-        cpr.connections.add(conn);
-        if (cpr.proc != null) {
-            cpr.proc.mProfile.addHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
+        cpr.mConnections.add(conn);
+        if (cpr.mProc != null) {
+            cpr.mProc.mProfile.addHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
         }
         mService.mProcessStateController.addProviderConnection(r, conn);
-        mService.startAssociationLocked(r.uid, r.processName, r.getCurProcState(),
-                cpr.uid, cpr.appInfo.longVersionCode, cpr.name, cpr.info.processName);
-        if (updateLru && cpr.proc != null && r.getSetAdj() <= ProcessList.PERCEPTIBLE_LOW_APP_ADJ) {
+        mService.startAssociationLocked(r.uid, r.processName, r.getProcState(),
+                cpr.mUid, cpr.mAppInfo.longVersionCode, cpr.name, cpr.mProviderInfo.processName);
+        if (updateLru && cpr.mProc != null && r.getSetAdj() <= PERCEPTIBLE_LOW_APP_ADJ) {
             // If this is a perceptible app accessing the provider, make
             // sure to count it as being accessed and thus back up on
             // the LRU list.  This is good because content providers are
@@ -1485,7 +1495,7 @@ public class ContentProviderHelper {
             // the "getContentProviderImpl" tag here, because it's part
             // of the checktime log in getContentProviderImpl().
             checkTime(startTime, "getContentProviderImpl: before updateLruProcess");
-            mService.mProcessStateController.updateLruProcess(cpr.proc, false, null);
+            mService.mProcessStateController.updateLruProcess(cpr.mProc, false, null);
             checkTime(startTime, "getContentProviderImpl: after updateLruProcess");
         }
         return conn;
@@ -1496,8 +1506,7 @@ public class ContentProviderHelper {
             ContentProviderRecord cpr, IBinder externalProcessToken, boolean stable,
             boolean enforceDelay, boolean updateOomAdj) {
         if (conn == null) {
-            mService.mProcessStateController.removeExternalProviderClient(cpr,
-                    externalProcessToken);
+            cpr.removeExternalProcessHandleLocked(externalProcessToken);
             return false;
         }
 
@@ -1520,7 +1529,7 @@ public class ContentProviderHelper {
     @GuardedBy("mService")
     private boolean hasProviderConnectionLocked(ProcessRecord proc) {
         for (int i = proc.mProviders.numberOfProviders() - 1; i >= 0; i--) {
-            if (!proc.mProviders.getProviderAt(i).connections.isEmpty()) {
+            if (!proc.mProviders.getProviderAt(i).mConnections.isEmpty()) {
                 return true;
             }
         }
@@ -1537,25 +1546,25 @@ public class ContentProviderHelper {
 
             final ContentProviderRecord cpr = conn.provider;
             conn.stopAssociation();
-            cpr.connections.remove(conn);
-            if (cpr.proc != null && !hasProviderConnectionLocked(cpr.proc)) {
-                cpr.proc.mProfile.clearHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
+            cpr.mConnections.remove(conn);
+            if (cpr.mProc != null && !hasProviderConnectionLocked(cpr.mProc)) {
+                cpr.mProc.mProfile.clearHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
             }
             mService.mProcessStateController.removeProviderConnection(conn.client, conn);
             if (conn.client.getSetProcState() < ActivityManager.PROCESS_STATE_LAST_ACTIVITY) {
                 // The client is more important than last activity -- note the time this
                 // is happening, so we keep the old provider process around a bit as last
                 // activity to avoid thrashing it.
-                if (cpr.proc != null) {
-                    mService.mProcessStateController.setLastProviderTime(cpr.proc,
+                if (cpr.mProc != null) {
+                    mService.mProcessStateController.setLastProviderTime(cpr.mProc,
                             SystemClock.uptimeMillis());
                 }
             }
-            mService.stopAssociationLocked(conn.client.uid, conn.client.processName, cpr.uid,
-                    cpr.appInfo.longVersionCode, cpr.name, cpr.info.processName);
+            mService.stopAssociationLocked(conn.client.uid, conn.client.processName, cpr.mUid,
+                    cpr.mAppInfo.longVersionCode, cpr.name, cpr.mProviderInfo.processName);
             if (updateOomAdj && mService.mOomAdjuster.evaluateProviderConnectionRemoval(conn.client,
-                    cpr.proc)) {
-                mService.updateOomAdjLocked(conn.provider.proc, OOM_ADJ_REASON_REMOVE_PROVIDER);
+                    cpr.mProc)) {
+                mService.updateOomAdjLocked(conn.provider.mProc, OOM_ADJ_REASON_REMOVE_PROVIDER);
             }
         }
     }
@@ -1596,12 +1605,12 @@ public class ContentProviderHelper {
             }
         }
         if (ActivityManagerService.checkComponentPermission(cpi.readPermission,
-                callingPid, callingUid, cpi.applicationInfo.uid, cpi.exported)
+                callingPid, callingUid, cpi.getUid(), cpi.exported)
                 == PackageManager.PERMISSION_GRANTED) {
             return null;
         }
         if (ActivityManagerService.checkComponentPermission(cpi.writePermission,
-                callingPid, callingUid, cpi.applicationInfo.uid, cpi.exported)
+                callingPid, callingUid, cpi.getUid(), cpi.exported)
                 == PackageManager.PERMISSION_GRANTED) {
             return null;
         }
@@ -1614,13 +1623,13 @@ public class ContentProviderHelper {
                 PathPermission pp = pps[i];
                 String pprperm = pp.getReadPermission();
                 if (pprperm != null && ActivityManagerService.checkComponentPermission(pprperm,
-                        callingPid, callingUid, cpi.applicationInfo.uid, cpi.exported)
+                        callingPid, callingUid, cpi.getUid(), cpi.exported)
                         == PackageManager.PERMISSION_GRANTED) {
                     return null;
                 }
                 String ppwperm = pp.getWritePermission();
                 if (ppwperm != null && ActivityManagerService.checkComponentPermission(ppwperm,
-                        callingPid, callingUid, cpi.applicationInfo.uid, cpi.exported)
+                        callingPid, callingUid, cpi.getUid(), cpi.exported)
                         == PackageManager.PERMISSION_GRANTED) {
                     return null;
                 }
@@ -1633,7 +1642,7 @@ public class ContentProviderHelper {
 
         final String suffix;
         if (!cpi.exported) {
-            suffix = " that is not exported from UID " + cpi.applicationInfo.uid;
+            suffix = " that is not exported from UID " + cpi.getUid();
         } else if (android.Manifest.permission.MANAGE_DOCUMENTS.equals(cpi.readPermission)) {
             suffix = " requires that you obtain access using ACTION_OPEN_DOCUMENT or related APIs";
         } else {
@@ -1650,11 +1659,13 @@ public class ContentProviderHelper {
             ProviderInfo cpi) {
         if (callingApp == null) {
             return mService.validateAssociationAllowedLocked(cpi.packageName,
-                    cpi.applicationInfo.uid, null, callingUid) ? null : "<null>";
+                    cpi.getUid(), null, callingUid,
+                    ActivityManagerService.ASSOCIATION_TYPE_PROVIDER) ? null : "<null>";
         }
         final String r = callingApp.getPkgList().searchEachPackage(pkgName -> {
             if (!mService.validateAssociationAllowedLocked(pkgName,
-                        callingApp.uid, cpi.packageName, cpi.applicationInfo.uid)) {
+                        callingApp.uid, cpi.packageName, cpi.getUid(),
+                        ActivityManagerService.ASSOCIATION_TYPE_PROVIDER)) {
                 return cpi.packageName;
             }
             return null;
@@ -1665,7 +1676,7 @@ public class ContentProviderHelper {
     ProviderInfo getProviderInfoLocked(String authority, @UserIdInt int userId, int pmFlags) {
         ContentProviderRecord cpr = mProviderMap.getProviderByName(authority, userId);
         if (cpr != null) {
-            return cpr.info;
+            return cpr.mProviderInfo;
         } else {
             try {
                 return AppGlobals.getPackageManager().resolveContentProvider(
@@ -1678,8 +1689,7 @@ public class ContentProviderHelper {
 
     private void maybeUpdateProviderUsageStatsLocked(ProcessRecord app, String providerPkgName,
             String authority) {
-        if (app == null
-                || app.getCurProcState() > ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND) {
+        if (app == null || app.getProcState() > PROCESS_STATE_IMPORTANT_FOREGROUND) {
             return;
         }
 
@@ -1697,7 +1707,7 @@ public class ContentProviderHelper {
         }
     }
 
-    private static final int[] PROCESS_STATE_STATS_FORMAT = new int[] {
+    private static final int[] PROCESS_STATE_STATS_FORMAT = new int[]{
             PROC_SPACE_TERM,
             PROC_SPACE_TERM | PROC_PARENS,
             PROC_SPACE_TERM | PROC_CHAR | PROC_OUT_LONG,        // 3: process state
@@ -1759,7 +1769,7 @@ public class ContentProviderHelper {
         }
 
         final boolean callerForeground = r == null
-                || r.getSetSchedGroup() != ProcessList.SCHED_GROUP_BACKGROUND;
+                || r.getSetSchedGroup() != SCHED_GROUP_BACKGROUND;
 
         // Show a permission review UI only for starting from a foreground app
         if (!callerForeground) {
@@ -1785,8 +1795,9 @@ public class ContentProviderHelper {
 
     /**
      * Remove the dying provider from known provider map and launching provider map.
-     * @param proc The dying process recoder
-     * @param cpr The provider to be removed.
+     *
+     * @param proc   The dying process recoder
+     * @param cpr    The provider to be removed.
      * @param always If true, remove the provider from launching map always, no more restart attempt
      * @return true if the given provider is in launching
      */
@@ -1800,13 +1811,13 @@ public class ContentProviderHelper {
 
         if (!inLaunching || always) {
             synchronized (cpr) {
-                cpr.launchingApp = null;
+                cpr.mLaunchingApp = null;
                 cpr.notifyAll();
                 cpr.onProviderPublishStatusLocked(false);
                 mService.mHandler.removeMessages(
                         ActivityManagerService.WAIT_FOR_CONTENT_PROVIDER_TIMEOUT_MSG, cpr);
             }
-            final int userId = UserHandle.getUserId(cpr.uid);
+            final int userId = UserHandle.getUserId(cpr.mUid);
             boolean removed = false;
             // Don't remove from provider map if it doesn't match
             // could be a new content provider is starting
@@ -1814,7 +1825,7 @@ public class ContentProviderHelper {
                 mProviderMap.removeProviderByClass(cpr.name, userId);
                 removed = true;
             }
-            String[] names = cpr.info.authority.split(";");
+            String[] names = cpr.mProviderInfo.authority.split(";");
             for (int j = 0; j < names.length; j++) {
                 // Don't remove from provider map if it doesn't match
                 // could be a new content provider is starting
@@ -1823,13 +1834,14 @@ public class ContentProviderHelper {
                     removed = true;
                 }
             }
-            if (removed && cpr.proc != null) {
-                mService.mProcessStateController.removePublishedProvider(cpr.proc, cpr.info.name);
+            if (removed && cpr.mProc != null) {
+                mService.mProcessStateController.removePublishedProvider(cpr.mProc,
+                        cpr.mProviderInfo.name);
             }
         }
 
-        for (int i = cpr.connections.size() - 1; i >= 0; i--) {
-            ContentProviderConnection conn = cpr.connections.get(i);
+        for (int i = cpr.mConnections.size() - 1; i >= 0; i--) {
+            ContentProviderConnection conn = cpr.mConnections.get(i);
             if (conn.waiting) {
                 // If this connection is waiting for the provider, then we don't
                 // need to mess with its process unless we are always removing
@@ -1847,26 +1859,27 @@ public class ContentProviderHelper {
                         && pid != 0 && pid != ActivityManagerService.MY_PID) {
                     capp.killLocked(
                             "depends on provider " + cpr.name.flattenToShortString()
-                            + " in dying proc " + (proc != null ? proc.processName : "??")
-                            + " (adj " + (proc != null ? proc.getSetAdj() : "??") + ")",
+                                    + " in dying proc " + (proc != null ? proc.processName : "??")
+                                    + " (adj " + (proc != null ? proc.getSetAdj() : "??") + ")",
                             ApplicationExitInfo.REASON_DEPENDENCY_DIED,
                             ApplicationExitInfo.SUBREASON_UNKNOWN,
                             true);
                 }
-            } else if (thread != null && conn.provider.provider != null) {
+            } else if (thread != null && conn.provider.mProvider != null) {
                 try {
-                    thread.unstableProviderDied(conn.provider.provider.asBinder());
+                    thread.unstableProviderDied(conn.provider.mProvider.asBinder());
                 } catch (RemoteException e) {
                 }
                 // In the protocol here, we don't expect the client to correctly
                 // clean up this connection, we'll just remove it.
-                cpr.connections.remove(i);
-                if (cpr.proc != null && !hasProviderConnectionLocked(cpr.proc)) {
-                    cpr.proc.mProfile.clearHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
+                cpr.mConnections.remove(i);
+                if (cpr.mProc != null && !hasProviderConnectionLocked(cpr.mProc)) {
+                    cpr.mProc.mProfile.clearHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
                 }
-                if (conn.client.mProviders.removeProviderConnection(conn)) {
+                if (mService.mProcessStateController.removeProviderConnection(conn.client, conn)) {
                     mService.stopAssociationLocked(capp.uid, capp.processName,
-                            cpr.uid, cpr.appInfo.longVersionCode, cpr.name, cpr.info.processName);
+                            cpr.mUid, cpr.mAppInfo.longVersionCode, cpr.name,
+                            cpr.mProviderInfo.processName);
                 }
             }
         }
@@ -1882,13 +1895,14 @@ public class ContentProviderHelper {
     boolean checkAppInLaunchingProvidersLocked(ProcessRecord app) {
         for (int i = mLaunchingProviders.size() - 1; i >= 0; i--) {
             ContentProviderRecord cpr = mLaunchingProviders.get(i);
-            if (cpr.launchingApp == app) {
+            if (cpr.mLaunchingApp == app) {
                 return true;
             }
         }
         return false;
     }
 
+    @GuardedBy("mService")
     boolean cleanupAppInLaunchingProvidersLocked(ProcessRecord app, boolean alwaysBad) {
         // Look through the content providers we are waiting to have launched,
         // and if any run in this process then either schedule a restart of
@@ -1897,7 +1911,7 @@ public class ContentProviderHelper {
         boolean restart = false;
         for (int i = mLaunchingProviders.size() - 1; i >= 0; i--) {
             ContentProviderRecord cpr = mLaunchingProviders.get(i);
-            if (cpr.launchingApp != app) {
+            if (cpr.mLaunchingApp != app) {
                 continue;
             }
 
@@ -1917,9 +1931,9 @@ public class ContentProviderHelper {
     void cleanupLaunchingProvidersLocked() {
         for (int i = mLaunchingProviders.size() - 1; i >= 0; i--) {
             ContentProviderRecord cpr = mLaunchingProviders.get(i);
-            if (cpr.connections.size() <= 0 && !cpr.hasExternalProcessHandles()) {
+            if (cpr.mConnections.size() <= 0 && !cpr.hasExternalProcessHandles()) {
                 synchronized (cpr) {
-                    cpr.launchingApp = null;
+                    cpr.mLaunchingApp = null;
                     cpr.notifyAll();
                 }
             }
@@ -1958,7 +1972,9 @@ public class ContentProviderHelper {
                     printed = true;
                     printedAnything = true;
                 }
-                pw.print("  Launching #"); pw.print(i); pw.print(": ");
+                pw.print("  Launching #");
+                pw.print(i);
+                pw.print(": ");
                 pw.println(r);
             }
         }
@@ -1969,7 +1985,7 @@ public class ContentProviderHelper {
     }
 
     private boolean canAccessContentProviderFromSdkSandbox(ProviderInfo cpi,
-                                                                    int callingUid) {
+            int callingUid) {
         if (!Process.isSdkSandboxUid(callingUid)) {
             return true;
         }
@@ -1985,11 +2001,11 @@ public class ContentProviderHelper {
 
     /**
      * There are three ways to call this:
-     *  - no provider specified: dump all the providers
-     *  - a flattened component name that matched an existing provider was specified as the
-     *    first arg: dump that one provider
-     *  - the first arg isn't the flattened component name of an existing provider:
-     *    dump all providers whose component contains the first arg as a substring
+     * - no provider specified: dump all the providers
+     * - a flattened component name that matched an existing provider was specified as the
+     * first arg: dump that one provider
+     * - the first arg isn't the flattened component name of an existing provider:
+     * dump all providers whose component contains the first arg as a substring
      */
     protected boolean dumpProvider(FileDescriptor fd, PrintWriter pw, String name, String[] args,
             int opti, boolean dumpAll) {

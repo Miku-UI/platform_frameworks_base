@@ -16,6 +16,7 @@
 
 package com.android.server.power.stats;
 
+import static android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT;
 import static android.net.NetworkStats.DEFAULT_NETWORK_NO;
 import static android.net.NetworkStats.METERED_NO;
 import static android.net.NetworkStats.ROAMING_NO;
@@ -40,7 +41,9 @@ import android.os.BatteryConsumer;
 import android.os.BatteryStats;
 import android.os.Handler;
 import android.os.OutcomeReceiver;
+import android.os.Process;
 import android.os.connectivity.CellularBatteryStats;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.ActivityStatsTechSpecificInfo;
@@ -73,6 +76,7 @@ public class MobileRadioPowerStatsCollectorTest {
     private static final int APP_UID2 = 24;
     private static final int APP_UID3 = 44;
     private static final int ISOLATED_UID = 99123;
+    private static final int PRIVATE_COMPUTE_UID = Process.FIRST_PCC_UID;
 
     @Rule(order = 0)
     public final BatteryUsageStatsRule mStatsRule =
@@ -166,9 +170,9 @@ public class MobileRadioPowerStatsCollectorTest {
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephony);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)).thenReturn(true);
-        when(mPowerStatsUidResolver.mapUid(anyInt())).thenAnswer(invocation -> {
+        when(mPowerStatsUidResolver.getOwnerUid(anyInt())).thenAnswer(invocation -> {
             int uid = invocation.getArgument(0);
-            if (uid == ISOLATED_UID) {
+            if (uid == ISOLATED_UID || uid == PRIVATE_COMPUTE_UID) {
                 return APP_UID2;
             } else {
                 return uid;
@@ -235,7 +239,7 @@ public class MobileRadioPowerStatsCollectorTest {
 
     @Test
     public void collectStats() throws Throwable {
-        PowerStats powerStats = collectPowerStats(true);
+        PowerStats powerStats = collectPowerStats(true, false);
         assertThat(powerStats.durationMs).isEqualTo(100);
 
         PowerStats.Descriptor descriptor = powerStats.descriptor;
@@ -289,8 +293,65 @@ public class MobileRadioPowerStatsCollectorTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void collectStats_withPccUidStats() throws Throwable {
+        PowerStats powerStats = collectPowerStats(true, true);
+        assertThat(powerStats.durationMs).isEqualTo(100);
+
+        PowerStats.Descriptor descriptor = powerStats.descriptor;
+        MobileRadioPowerStatsLayout layout = new MobileRadioPowerStatsLayout(descriptor);
+        assertThat(layout.getDeviceSleepTime(powerStats.stats)).isEqualTo(200);
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(300);
+        assertThat(layout.getDeviceCallTime(powerStats.stats)).isEqualTo(40000);
+        assertThat(layout.getDeviceScanTime(powerStats.stats)).isEqualTo(60000);
+        assertThat(layout.getConsumedEnergy(powerStats.stats, 0))
+                .isEqualTo((64321 - 10000) * 1000 / 3500);
+
+        assertThat(powerStats.stateStats.size()).isEqualTo(2);
+        long[] state1 = powerStats.stateStats.get(MobileRadioPowerStatsLayout.makeStateKey(
+                BatteryStats.RADIO_ACCESS_TECHNOLOGY_NR,
+                ServiceState.FREQUENCY_RANGE_MMWAVE
+        ));
+        assertThat(layout.getStateRxTime(state1)).isEqualTo(6000);
+        assertThat(layout.getStateTxTime(state1, 0)).isEqualTo(1000);
+        assertThat(layout.getStateTxTime(state1, 1)).isEqualTo(2000);
+        assertThat(layout.getStateTxTime(state1, 2)).isEqualTo(3000);
+        assertThat(layout.getStateTxTime(state1, 3)).isEqualTo(4000);
+        assertThat(layout.getStateTxTime(state1, 4)).isEqualTo(5000);
+
+        long[] state2 = powerStats.stateStats.get(MobileRadioPowerStatsLayout.makeStateKey(
+                BatteryStats.RADIO_ACCESS_TECHNOLOGY_LTE,
+                ServiceState.FREQUENCY_RANGE_LOW
+        ));
+        assertThat(layout.getStateRxTime(state2)).isEqualTo(7000);
+        assertThat(layout.getStateTxTime(state2, 0)).isEqualTo(8000);
+        assertThat(layout.getStateTxTime(state2, 1)).isEqualTo(9000);
+        assertThat(layout.getStateTxTime(state2, 2)).isEqualTo(1000);
+        assertThat(layout.getStateTxTime(state2, 3)).isEqualTo(2000);
+        assertThat(layout.getStateTxTime(state2, 4)).isEqualTo(3000);
+
+        assertThat(powerStats.uidStats.size()).isEqualTo(2);
+        long[] actual1 = powerStats.uidStats.get(APP_UID1);
+        assertThat(layout.getUidRxBytes(actual1)).isEqualTo(1000);
+        assertThat(layout.getUidTxBytes(actual1)).isEqualTo(2000);
+        assertThat(layout.getUidRxPackets(actual1)).isEqualTo(100);
+        assertThat(layout.getUidTxPackets(actual1)).isEqualTo(200);
+
+        // Combines APP_UID2, ISOLATED_UID and PRIVATE_COMPUTE_UID
+        long[] actual2 = powerStats.uidStats.get(APP_UID2);
+        assertThat(layout.getUidRxBytes(actual2)).isEqualTo(6100);
+        assertThat(layout.getUidTxBytes(actual2)).isEqualTo(3200);
+        assertThat(layout.getUidRxPackets(actual2)).isEqualTo(70);
+        assertThat(layout.getUidTxPackets(actual2)).isEqualTo(50);
+
+        assertThat(powerStats.uidStats.get(ISOLATED_UID)).isNull();
+        assertThat(powerStats.uidStats.get(APP_UID3)).isNull();
+        assertThat(powerStats.uidStats.get(PRIVATE_COMPUTE_UID)).isNull();
+    }
+
+    @Test
     public void collectStats_noPerNetworkTypeData() throws Throwable {
-        PowerStats powerStats = collectPowerStats(false);
+        PowerStats powerStats = collectPowerStats(false, false);
         assertThat(powerStats.durationMs).isEqualTo(100);
 
         PowerStats.Descriptor descriptor = powerStats.descriptor;
@@ -331,8 +392,52 @@ public class MobileRadioPowerStatsCollectorTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void collectStats_noPerNetworkTypeDataWithPccUidStats() throws Throwable {
+        PowerStats powerStats = collectPowerStats(false, true);
+        assertThat(powerStats.durationMs).isEqualTo(100);
+
+        PowerStats.Descriptor descriptor = powerStats.descriptor;
+        MobileRadioPowerStatsLayout layout = new MobileRadioPowerStatsLayout(descriptor);
+        assertThat(layout.getDeviceSleepTime(powerStats.stats)).isEqualTo(200);
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(300);
+        assertThat(layout.getConsumedEnergy(powerStats.stats, 0))
+                .isEqualTo((64321 - 10000) * 1000 / 3500);
+
+        assertThat(powerStats.stateStats.size()).isEqualTo(1);
+        long[] stateStats = powerStats.stateStats.get(MobileRadioPowerStatsLayout.makeStateKey(
+                AccessNetworkConstants.AccessNetworkType.UNKNOWN,
+                ServiceState.FREQUENCY_RANGE_UNKNOWN
+        ));
+        assertThat(layout.getStateRxTime(stateStats)).isEqualTo(6000);
+        assertThat(layout.getStateTxTime(stateStats, 0)).isEqualTo(1000);
+        assertThat(layout.getStateTxTime(stateStats, 1)).isEqualTo(2000);
+        assertThat(layout.getStateTxTime(stateStats, 2)).isEqualTo(3000);
+        assertThat(layout.getStateTxTime(stateStats, 3)).isEqualTo(4000);
+        assertThat(layout.getStateTxTime(stateStats, 4)).isEqualTo(5000);
+
+        assertThat(powerStats.uidStats.size()).isEqualTo(2);
+        long[] actual1 = powerStats.uidStats.get(APP_UID1);
+        assertThat(layout.getUidRxBytes(actual1)).isEqualTo(1000);
+        assertThat(layout.getUidTxBytes(actual1)).isEqualTo(2000);
+        assertThat(layout.getUidRxPackets(actual1)).isEqualTo(100);
+        assertThat(layout.getUidTxPackets(actual1)).isEqualTo(200);
+
+        // Combines APP_UID2, ISOLATED_UID and PRIVATE_COMPUTE_UID
+        long[] actual2 = powerStats.uidStats.get(APP_UID2);
+        assertThat(layout.getUidRxBytes(actual2)).isEqualTo(6100);
+        assertThat(layout.getUidTxBytes(actual2)).isEqualTo(3200);
+        assertThat(layout.getUidRxPackets(actual2)).isEqualTo(70);
+        assertThat(layout.getUidTxPackets(actual2)).isEqualTo(50);
+
+        assertThat(powerStats.uidStats.get(ISOLATED_UID)).isNull();
+        assertThat(powerStats.uidStats.get(APP_UID3)).isNull();
+        assertThat(powerStats.uidStats.get(PRIVATE_COMPUTE_UID)).isNull();
+    }
+
+    @Test
     public void dump() throws Throwable {
-        PowerStats powerStats = collectPowerStats(true);
+        PowerStats powerStats = collectPowerStats(true, false);
         StringWriter sw = new StringWriter();
         IndentingPrintWriter pw = new IndentingPrintWriter(sw);
         powerStats.dump(pw);
@@ -350,12 +455,32 @@ public class MobileRadioPowerStatsCollectorTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void dump_withPccUidStats() throws Throwable {
+        PowerStats powerStats = collectPowerStats(true, true);
+        StringWriter sw = new StringWriter();
+        IndentingPrintWriter pw = new IndentingPrintWriter(sw);
+        powerStats.dump(pw);
+        pw.flush();
+        String dump = sw.toString();
+        assertThat(dump).contains("duration=100");
+        assertThat(dump).contains("sleep: 200 idle: 300 scan: 60000 call: 40000 energy: "
+                + ((64321 - 10000) * 1000 / 3500));
+        assertThat(dump).contains("(LTE) rx: 7000 tx: [8000, 9000, 1000, 2000, 3000]");
+        assertThat(dump).contains("(NR MMWAVE) rx: 6000 tx: [1000, 2000, 3000, 4000, 5000]");
+        assertThat(dump).contains(
+                "UID 24: rx-pkts: 70 rx-B: 6100 tx-pkts: 50 tx-B: 3200");
+        assertThat(dump).contains(
+                "UID 42: rx-pkts: 100 rx-B: 1000 tx-pkts: 200 tx-B: 2000");
+    }
+
+    @Test
     public void getCellularBatteryStats() throws Throwable {
         mBatteryStats.setPowerStatsCollectorEnabled(BatteryConsumer.POWER_COMPONENT_MOBILE_RADIO,
                 true);
 
         mockModemActivityInfo(1000, 2000, 3000, 600, new int[]{100, 200, 300, 400, 500});
-        mockNetworkStats(1100,
+        mockNetworkStats(/* addPccUidStats= */ false, 1100,
                 5321, 421, 3234, 223,
                 8000, 80, 4000, 40);
 
@@ -364,7 +489,7 @@ public class MobileRadioPowerStatsCollectorTest {
         mStatsRule.waitForBackgroundThread();
 
         mockModemActivityInfo(20000, 2222, 3333, 666, new int[]{111, 222, 333, 444, 555});
-        mockNetworkStats(21000,
+        mockNetworkStats(/* addPccUidStats= */ false, 21000,
                 6321, 521, 7234, 423,
                 8888, 88, 4444, 44);
 
@@ -388,7 +513,48 @@ public class MobileRadioPowerStatsCollectorTest {
         assertThat(stats.getNumBytesTx()).isEqualTo(14214);
     }
 
-    private PowerStats collectPowerStats(boolean perNetworkTypeData) throws Throwable {
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void getCellularBatteryStats_withPccUidStats() throws Throwable {
+        mBatteryStats.setPowerStatsCollectorEnabled(BatteryConsumer.POWER_COMPONENT_MOBILE_RADIO,
+                true);
+
+        mockModemActivityInfo(1000, 2000, 3000, 600, new int[]{100, 200, 300, 400, 500});
+        mockNetworkStats(/* addPccUidStats= */ true, 1100,
+                5321, 421, 3234, 223,
+                8000, 80, 4000, 40);
+
+        // This should trigger a baseline sample collection
+        mBatteryStats.onSystemReady(mContext);
+        mStatsRule.waitForBackgroundThread();
+
+        mockModemActivityInfo(20000, 2222, 3333, 666, new int[]{111, 222, 333, 444, 555});
+        mockNetworkStats(/* addPccUidStats= */ true, 21000,
+                6321, 521, 7234, 423,
+                8888, 88, 4444, 44);
+
+        mStatsRule.setTime(30000, 30000);
+        mBatteryStats.getPowerStatsCollector(BatteryConsumer.POWER_COMPONENT_MOBILE_RADIO)
+                .schedule();
+        mStatsRule.waitForBackgroundThread();
+
+        CellularBatteryStats stats = mBatteryStats.getCellularBatteryStats();
+        assertThat(stats.getSleepTimeMillis()).isEqualTo(222);
+        assertThat(stats.getIdleTimeMillis()).isEqualTo(333);
+        assertThat(stats.getRxTimeMillis()).isEqualTo(66);
+        assertThat(stats.getTxTimeMillis(ModemActivityInfo.TX_POWER_LEVEL_0)).isEqualTo(11);
+        assertThat(stats.getTxTimeMillis(ModemActivityInfo.TX_POWER_LEVEL_1)).isEqualTo(22);
+        assertThat(stats.getTxTimeMillis(ModemActivityInfo.TX_POWER_LEVEL_2)).isEqualTo(33);
+        assertThat(stats.getTxTimeMillis(ModemActivityInfo.TX_POWER_LEVEL_3)).isEqualTo(44);
+        assertThat(stats.getTxTimeMillis(ModemActivityInfo.TX_POWER_LEVEL_4)).isEqualTo(55);
+        assertThat(stats.getNumPacketsRx()).isEqualTo(956);
+        assertThat(stats.getNumBytesRx()).isEqualTo(20189);
+        assertThat(stats.getNumPacketsTx()).isEqualTo(814);
+        assertThat(stats.getNumBytesTx()).isEqualTo(14658);
+    }
+
+    private PowerStats collectPowerStats(boolean perNetworkTypeData, boolean addPccUidStats)
+            throws Throwable {
         MobileRadioPowerStatsCollector collector =
                 new MobileRadioPowerStatsCollector(mInjector, null);
         collector.setEnabled(true);
@@ -407,7 +573,7 @@ public class MobileRadioPowerStatsCollectorTest {
         } else {
             mockModemActivityInfo(1000, 2000, 3000, 600, new int[]{100, 200, 300, 400, 500});
         }
-        mockNetworkStats(1000,
+        mockNetworkStats(addPccUidStats, 1000,
                 4321, 321, 1234, 23,
                 4000, 40, 2000, 20);
 
@@ -430,7 +596,7 @@ public class MobileRadioPowerStatsCollectorTest {
         } else {
             mockModemActivityInfo(1100, 2200, 3300, 6600, new int[]{1100, 2200, 3300, 4400, 5500});
         }
-        mockNetworkStats(1100,
+        mockNetworkStats(addPccUidStats, 1100,
                 5321, 421, 3234, 223,
                 8000, 80, 4000, 40);
 
@@ -478,18 +644,33 @@ public class MobileRadioPowerStatsCollectorTest {
         }).when(mTelephony).requestModemActivityInfo(any(), any());
     }
 
-    private void mockNetworkStats(long elapsedRealtime,
+    private void mockNetworkStats(boolean addPccUidStats, long elapsedRealtime,
             long rxBytes1, long rxPackets1, long txBytes1, long txPackets1,
             long rxBytes2, long rxPackets2, long txBytes2, long txPackets2) {
         NetworkStats stats;
         if (RavenwoodRule.isOnRavenwood()) {
             stats = mock(NetworkStats.class);
-            List<NetworkStats.Entry> entries = List.of(
-                    mockNetworkStatsEntry(APP_UID1, rxBytes1, rxPackets1, txBytes1, txPackets1),
-                    mockNetworkStatsEntry(APP_UID2, rxBytes2, rxPackets2, txBytes2, txPackets2),
-                    mockNetworkStatsEntry(ISOLATED_UID, rxBytes2 / 2, rxPackets2 / 2, txBytes2 / 2,
-                            txPackets2 / 2),
-                    mockNetworkStatsEntry(APP_UID3, 314, 281, 314, 281));
+            List<NetworkStats.Entry> entries;
+            if (addPccUidStats) {
+                entries = List.of(
+                        mockNetworkStatsEntry(APP_UID1, rxBytes1, rxPackets1, txBytes1, txPackets1),
+                        mockNetworkStatsEntry(APP_UID2, rxBytes2, rxPackets2, txBytes2, txPackets2),
+                        mockNetworkStatsEntry(ISOLATED_UID, rxBytes2 / 2,
+                                rxPackets2 / 2, txBytes2 / 2,
+                                txPackets2 / 2),
+                        mockNetworkStatsEntry(APP_UID3, 314, 281, 314,
+                                281),
+                        mockNetworkStatsEntry(PRIVATE_COMPUTE_UID, rxBytes2 / 40,
+                                rxPackets2 / 4, txBytes2 / 10, txPackets2));
+            } else {
+                entries = List.of(
+                        mockNetworkStatsEntry(APP_UID1, rxBytes1, rxPackets1, txBytes1, txPackets1),
+                        mockNetworkStatsEntry(APP_UID2, rxBytes2, rxPackets2, txBytes2, txPackets2),
+                        mockNetworkStatsEntry(ISOLATED_UID, rxBytes2 / 2, rxPackets2 / 2,
+                                txBytes2 / 2,
+                                txPackets2 / 2),
+                        mockNetworkStatsEntry(APP_UID3, 314, 281, 314, 281));
+            }
             when(stats.iterator()).thenAnswer(inv -> entries.iterator());
         } else {
             stats = new NetworkStats(elapsedRealtime, 1)
@@ -504,6 +685,12 @@ public class MobileRadioPowerStatsCollectorTest {
                             txBytes2 / 2, txPackets2 / 2, 111))
                     .addEntry(new NetworkStats.Entry("mobile", APP_UID3, 0, 0, METERED_NO,
                             ROAMING_NO, DEFAULT_NETWORK_NO, 314, 281, 314, 281, 111));
+            if (addPccUidStats) {
+                stats = stats
+                        .addEntry(new NetworkStats.Entry("mobile", PRIVATE_COMPUTE_UID, 0, 0,
+                                METERED_NO, ROAMING_NO, DEFAULT_NETWORK_NO, rxBytes2 / 40,
+                                rxPackets2 / 4, txBytes2 / 10, txPackets2, 111));
+            }
         }
         mBatteryStats.setNetworkStats(stats);
         when(mNetworkStatsSupplier.get()).thenReturn(stats);

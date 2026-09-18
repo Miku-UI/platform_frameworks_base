@@ -58,7 +58,7 @@ class FakeUserTracker(
     // userContentResolver is lazy because Ravenwood doesn't support MockContentResolver()
     // and we still want to allow people use this class for tests that don't use it.
     override val userContentResolver: ContentResolver by lazy { userContentResolverProvider() }
-    override val userContext: Context = userContext
+    override var userContext: Context = userContext
 
     override fun addCallback(callback: UserTracker.Callback, executor: Executor) {
         callbacks.add(callback)

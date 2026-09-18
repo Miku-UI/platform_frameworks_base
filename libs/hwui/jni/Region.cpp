@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include "SkRegion.h"
-#include "SkPath.h"
 #include "GraphicsJNI.h"
+#include "Path.h"
+#include "SkPath.h"
+#include "SkRegion.h"
 
 #ifdef __linux__ // Only Linux support parcel
 #include <android/binder_parcel.h>
@@ -65,7 +66,7 @@ static jboolean Region_setRect(JNIEnv* env, jobject, jlong dstHandle, jint left,
 static jboolean Region_setPath(JNIEnv* env, jobject, jlong dstHandle,
                                jlong pathHandle, jlong clipHandle) {
     SkRegion*       dst  = reinterpret_cast<SkRegion*>(dstHandle);
-    const SkPath*   path = reinterpret_cast<SkPath*>(pathHandle);
+    const SkPath* path = AsSkPath(pathHandle);
     const SkRegion* clip = reinterpret_cast<SkRegion*>(clipHandle);
     SkASSERT(dst && path && clip);
     bool result = dst->setPath(*path, *clip);
@@ -82,9 +83,11 @@ static jboolean Region_getBounds(JNIEnv* env, jobject, jlong regionHandle, jobje
 
 static jboolean Region_getBoundaryPath(JNIEnv* env, jobject, jlong regionHandle, jlong pathHandle) {
     const SkRegion* region = reinterpret_cast<SkRegion*>(regionHandle);
-    SkPath*   path = reinterpret_cast<SkPath*>(pathHandle);
-    bool result = region->getBoundaryPath(path);
-    return boolTojboolean(result);
+    if (region->isEmpty()) {
+        return boolTojboolean(false);
+    }
+    *AsSkPath(pathHandle) = region->getBoundaryPath();
+    return boolTojboolean(true);
 }
 
 static jboolean Region_op0(JNIEnv* env, jobject, jlong dstHandle, jint left, jint top, jint right, jint bottom, jint op) {

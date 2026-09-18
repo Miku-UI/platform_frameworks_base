@@ -16,13 +16,16 @@
 
 package com.android.wm.shell.taskview;
 
+import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.view.WindowManager.TRANSIT_OPEN;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
 import static android.view.WindowManager.TRANSIT_TO_FRONT;
 
+import static com.android.window.flags.Flags.FLAG_ENABLE_BUBBLE_ROOT_TASK;
 import static com.android.window.flags.Flags.enableHandlersDebuggingMode;
+import static com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE;
 import static com.android.wm.shell.Flags.FLAG_TASK_VIEW_TRANSITIONS_REFACTOR;
 import static com.android.wm.shell.Flags.taskViewTransitionsRefactor;
 import static com.android.wm.shell.transition.TransitionDispatchState.CAPTURED_UNRELATED_CHANGE;
@@ -41,6 +44,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.graphics.Rect;
 import android.os.IBinder;
@@ -55,15 +59,15 @@ import android.window.WindowContainerTransaction;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.testing.wm.util.StubTransaction;
+import com.android.testing.wm.util.TransitionInfoBuilder;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
+import com.android.wm.shell.bubbles.BubbleHelper;
 import com.android.wm.shell.common.ShellExecutor;
-import com.android.wm.shell.common.SyncTransactionQueue;
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper;
 import com.android.wm.shell.transition.TransitionDispatchState;
-import com.android.wm.shell.transition.TransitionInfoBuilder;
 import com.android.wm.shell.transition.Transitions;
-import com.android.wm.shell.util.StubTransaction;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -76,61 +80,66 @@ import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
 
 import java.util.List;
+import java.util.Optional;
+
 
 /**
- * Class to verify the behavior of startAnimation.
- * 1. Verifies that startAnimation populates TransitionDispatchState correctly.
- * 2. Verifies that changes behind FLAG_ENABLE_HANDLERS_DEBUGGING_MODE don't change the behavior
- *    of startAnimation. Refactor test's life span matches the flag's. Permanent tests are meant to
- *    be added to TaskViewTransitionsTest.
- *    Test failures that manifest only when the flag is on mean that the behavior diverged.
+ * Verifies the behavior of {@link TaskViewTransitions#startAnimation}.
+ *
+ * 1. Verifies that startAnimation populates {@link TransitionDispatchState} correctly.
+ * 2. Verifies that changes behind {@link FLAG_ENABLE_HANDLERS_DEBUGGING_MODE} don't change the
+ *    behavior of startAnimation.
+ *
+ * Build/Install/Run:
+ *  atest WMShellUnitTests:TaskViewTransitionStartAnimationTest
  */
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4.class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
-@UsesFlags(com.android.wm.shell.Flags.class)
+@UsesFlags({com.android.window.flags.Flags.class, com.android.wm.shell.Flags.class})
 public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
+    private static final String TAG = "TVstartAnimTest";
+    private static final Rect BOUNDS = new Rect(0, 0, 100, 100);
+
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
-        return FlagsParameterization.allCombinationsOf(
-                FLAG_TASK_VIEW_TRANSITIONS_REFACTOR);
+        return FlagsParameterization.progressionOf(
+                FLAG_TASK_VIEW_TRANSITIONS_REFACTOR,
+                FLAG_ENABLE_CREATE_ANY_BUBBLE,
+                FLAG_ENABLE_BUBBLE_ROOT_TASK);
     }
 
     @Mock
-    Transitions mTransitions;
-    TaskViewRepository mTaskViewRepository;
-    TaskViewTransitions mTaskViewTransitions;
+    private Transitions mTransitions;
+    @Mock
+    private TaskViewTaskController mTaskViewTaskController;
+    @Mock
+    private ActivityManager.RunningTaskInfo mTaskInfo;
+    @Mock
+    private ActivityManager.RunningTaskInfo mUnregisteredTaskInfo;
+    @Mock
+    private WindowContainerToken mToken;
+    @Mock
+    private IBinder mTokenBinder;
+    @Mock
+    private WindowContainerToken mUnregisteredToken;
+    @Mock
+    private IBinder mUnregisteredTokenBinder;
+    @Mock
+    private IBinder mLaunchCookie;
+    @Mock
+    private SurfaceControl mTaskLeash;
+    @Mock
+    private SurfaceControl mSurfaceControl;
+    @Mock
+    private Transitions.TransitionFinishCallback mFinishCallback;
+    @Mock
+    private BubbleHelper mBubbleHelper;
 
-    @Mock
-    TaskViewTaskController mTaskViewTaskController;
-    @Mock
-    ActivityManager.RunningTaskInfo mTaskInfo;
-    @Mock
-    ActivityManager.RunningTaskInfo mUnregisteredTaskInfo;
-    @Mock
-    WindowContainerToken mToken;
-    @Mock
-    IBinder mTokenBinder;
-    @Mock
-    WindowContainerToken mUnregisteredToken;
-    @Mock
-    IBinder mUnregisteredTokenBinder;
-    @Mock
-    IBinder mLaunchCookie;
-    Rect mBounds;
-    @Mock
-    SurfaceControl mTaskLeash;
-    @Mock
-    SurfaceControl mSurfaceControl;
-    StubTransaction mStartTransaction;
-    StubTransaction mFinishTransaction;
-    @Mock
-    Transitions.TransitionFinishCallback mFinishCallback;
-
-    TaskViewTransitions.PendingTransition mPendingFront;
-    TaskViewTransitions.PendingTransition mPendingBack;
-
-    static final String TAG = "TVstartAnimTest";
+    private final TaskViewRepository mTaskViewRepository = new TaskViewRepository();
+    private TaskViewTransitions mTaskViewTransitions;
+    private StubTransaction mStartTransaction;
+    private StubTransaction mFinishTransaction;
 
     public TaskViewTransitionStartAnimationTest(FlagsParameterization flags) {
         mSetFlagsRule.setFlagsParameterization(flags);
@@ -145,6 +154,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         mTaskInfo = new ActivityManager.RunningTaskInfo();
         mTaskInfo.token = mToken;
         mTaskInfo.taskId = 314;
+        mTaskInfo.parentTaskId = INVALID_TASK_ID;
         mTaskInfo.taskDescription = mock(ActivityManager.TaskDescription.class);
         mTaskInfo.launchCookies.add(mLaunchCookie);
 
@@ -153,29 +163,19 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         mUnregisteredTaskInfo.token = mUnregisteredToken;
         // Same id as the other to match pending info id
         mUnregisteredTaskInfo.taskId = 314;
+        mUnregisteredTaskInfo.parentTaskId = INVALID_TASK_ID;
         mUnregisteredTaskInfo.launchCookies.add(mock(IBinder.class));
         mTaskInfo.taskDescription = mock(ActivityManager.TaskDescription.class);
 
-        mBounds = new Rect(0, 0, 100, 100);
-
-        mTaskViewRepository = new TaskViewRepository();
         mTaskViewTransitions = new TaskViewTransitions(mTransitions, mTaskViewRepository,
-                mock(ShellTaskOrganizer.class), mock(SyncTransactionQueue.class));
+                mock(ShellTaskOrganizer.class), Optional.of(mBubbleHelper),
+                /* taskViewRootTask= */ Optional.empty());
         mTaskViewTransitions.registerTaskView(mTaskViewTaskController);
         when(mTaskViewTaskController.getTaskInfo()).thenReturn(mTaskInfo);
         when(mTaskViewTaskController.getPendingInfo()).thenReturn(mTaskInfo);
         when(mTaskViewTaskController.getTaskToken()).thenReturn(mToken);
         when(mTaskViewTaskController.getSurfaceControl()).thenReturn(mSurfaceControl);
-        when(mTaskViewTaskController.prepareOpen(any(), any())).thenReturn(mBounds);
-
-        mPendingFront =
-                new TaskViewTransitions.PendingTransition(
-                        TRANSIT_TO_FRONT, mock(WindowContainerTransaction.class),
-                        mTaskViewTaskController, mLaunchCookie);
-        mPendingBack =
-                new TaskViewTransitions.PendingTransition(
-                        TRANSIT_TO_BACK, mock(WindowContainerTransaction.class),
-                        mTaskViewTaskController, mLaunchCookie);
+        when(mTaskViewTaskController.prepareOpen(any(), any())).thenReturn(BOUNDS);
 
         mFinishCallback = mock(Transitions.TransitionFinishCallback.class);
 
@@ -183,49 +183,17 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         mFinishTransaction = spy(new StubTransaction());
     }
 
-    TransitionInfo.Change getTaskView(@TransitionInfo.TransitionMode int type) {
-        return getTask(type, true);
-    }
-
-    TransitionInfo.Change getTask(@TransitionInfo.TransitionMode int type, boolean registered) {
-        TransitionInfo.Change change = mock(TransitionInfo.Change.class);
-        when(change.getLeash()).thenReturn(mTaskLeash);
-        when(change.getTaskInfo()).thenReturn(registered ? mTaskInfo : mUnregisteredTaskInfo);
-        when(change.getMode()).thenReturn(type);
-        return change;
-    }
-
-    TaskViewTransitions.PendingTransition setPendingTransaction(boolean visible, boolean opening) {
-        TaskViewRepository.TaskViewState state =
-                mTaskViewRepository.byTaskView(mTaskViewTaskController);
-        assertWithMessage("state can't be null here").that(state).isNotNull();
-        state.mVisible = !visible;
-        state.mBounds = mBounds;
-        TaskViewTransitions.PendingTransition pending;
-        if (opening) {
-            mTaskViewTransitions.startTaskView(mock(WindowContainerTransaction.class),
-                    mTaskViewTaskController, mLaunchCookie);
-            pending = mTaskViewTransitions.findPending(mTaskViewTaskController, TRANSIT_OPEN);
-        } else {
-            mTaskViewTransitions.setTaskViewVisible(mTaskViewTaskController, visible);
-            pending = mTaskViewTransitions.findPending(
-                            mTaskViewTaskController, visible ? TRANSIT_TO_FRONT : TRANSIT_TO_BACK);
-        }
-        assertWithMessage("pending can't be null").that(pending).isNotNull();
-        return pending;
-    }
-
     /**
-     * Tests on TransitionDispatchState
+     * Tests on {@link TransitionDispatchState}
      */
     @Test
     public void taskView_dispatchStateFindsIncompatible_animationMode() {
         assumeTrue(enableHandlersDebuggingMode());
         assumeTrue(taskViewTransitionsRefactor()); // To avoid running twice
 
-        TransitionInfo.Change showingTV = getTaskView(TRANSIT_TO_FRONT);
-        TransitionInfo.Change nonTV = getTask(TRANSIT_TO_BACK, false /* registered */);
-        TaskViewTransitions.PendingTransition pending =
+        final TransitionInfo.Change showingTV = getTaskView(TRANSIT_TO_FRONT);
+        final TransitionInfo.Change nonTV = getTask(TRANSIT_TO_BACK, false /* registered */);
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         // Showing taskView + normal task.
         // TaskView is accepted, but normal task is detected as error
@@ -234,17 +202,17 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
                 .addChange(nonTV)
                 .build();
 
-        TransitionDispatchState dispatchState =
+        final TransitionDispatchState dispatchState =
                 spy(new TransitionDispatchState(pending.mClaimed, info));
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 dispatchState, mStartTransaction, mFinishTransaction, mFinishCallback);
 
         Slog.v(TAG, "DispatchState:\n" + dispatchState.getDebugInfo());
         // Has animated the taskView
         assertWithMessage("Handler should play the transition")
                 .that(handled).isTrue();
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
         assertWithMessage("Expected wct to be created and sent to callback")
@@ -262,9 +230,9 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         assumeTrue(enableHandlersDebuggingMode());
         assumeTrue(taskViewTransitionsRefactor()); // To avoid running twice
 
-        TransitionInfo.Change showingTV = getTaskView(TRANSIT_TO_FRONT);
-        TransitionInfo.Change nonTV = getTask(TRANSIT_TO_BACK, false /* registered */);
-        TaskViewTransitions.PendingTransition pending =
+        final TransitionInfo.Change showingTV = getTaskView(TRANSIT_TO_FRONT);
+        final TransitionInfo.Change nonTV = getTask(TRANSIT_TO_BACK, false /* registered */);
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         // Showing taskView + normal task.
         // TaskView is detected as change that could have played
@@ -273,10 +241,10 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
                 .addChange(nonTV)
                 .build();
 
-        TransitionDispatchState dispatchState =
+        final TransitionDispatchState dispatchState =
                 spy(new TransitionDispatchState(pending.mClaimed, info));
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, null,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, null,
                 dispatchState, mStartTransaction, mFinishTransaction, mFinishCallback);
 
         Slog.v(TAG, "DispatchState:\n" + dispatchState.getDebugInfo());
@@ -297,12 +265,12 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
      */
     @Test
     public void hideTaskViewHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(false /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_BACK)
                 .addChange(getTaskView(TRANSIT_TO_BACK)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
@@ -313,36 +281,57 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
 
     @Test
     public void removeTaskViewHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(false /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_BACK)
                 .addChange(getTaskView(TRANSIT_CLOSE)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
                 .that(handled).isTrue();
-        verify(mTaskViewTaskController).prepareCloseAnimation();
+        verify(mTaskViewTaskController).prepareCloseAnimation(mTaskLeash, mStartTransaction);
     }
 
     @Test
     public void openTaskViewHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, true /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
                 .addChange(getTaskView(TRANSIT_OPEN)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
                 .that(handled).isTrue();
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
-        WindowContainerTransaction wct = wctCaptor.getValue();
-        prepareOpenAnimationAssertions(pending, wct, true /* newTask */, mTokenBinder);
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertOpenAnimationPreparation(mTokenBinder, pending, wct, true /* newTask */,
+                true /* shouldInterceptBack */, true /* shouldCorpWindow */);
+    }
+
+    @Test
+    public void openTaskView_withParentTask_doesNotInterceptBack() {
+        mTaskInfo.parentTaskId = 3;  // Simulate bubble root task
+        final TaskViewTransitions.PendingTransition pending =
+                setPendingTransaction(true /* visible*/, true /* opening */);
+        final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
+                .addChange(getTaskView(TRANSIT_OPEN)).build();
+
+        mTaskViewTransitions.startAnimation(pending.mClaimed, info, mStartTransaction,
+                mFinishTransaction, mFinishCallback);
+
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+                ArgumentCaptor.forClass(WindowContainerTransaction.class);
+        verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertOpenAnimationPreparation(mTokenBinder, pending, wct, true /* newTask */,
+                false /* shouldInterceptBack */,
+                !BubbleFlagHelper.enableRootTaskForBubble() /* shouldCorpWindow */);
     }
 
     @Test
@@ -362,21 +351,22 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
 
     @Test
     public void showTaskViewHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
                 .addChange(getTaskView(TRANSIT_TO_FRONT)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
                 .that(handled).isTrue();
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
-        WindowContainerTransaction wct = wctCaptor.getValue();
-        prepareOpenAnimationAssertions(pending, wct, false /* newTask */, mTokenBinder);
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertOpenAnimationPreparation(mTokenBinder, pending, wct, false /* newTask */,
+                false /* shouldInterceptBack */, true /* shouldCorpWindow */);
     }
 
     @Test
@@ -398,29 +388,50 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
 
     @Test
     public void taskToTaskViewHandled() {
-        assumeTrue(BubbleAnythingFlagHelper.enableCreateAnyBubble());
+        assumeTrue(BubbleFlagHelper.enableCreateAnyBubble());
 
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
                 .addChange(getTask(TRANSIT_TO_FRONT, false /* register */)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
                 .that(handled).isTrue();
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
-        WindowContainerTransaction wct = wctCaptor.getValue();
-        prepareOpenAnimationAssertions(pending, wct, true /* newTask */, mUnregisteredTokenBinder);
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertOpenAnimationPreparation(mUnregisteredTokenBinder, pending, wct, true /* newTask */,
+                true /* shouldInterceptBack */, true /* shouldCorpWindow */);
+    }
+
+    @Test
+    public void taskToTaskView_withParentTask_doesNotInterceptBack() {
+        assumeTrue(BubbleFlagHelper.enableCreateAnyBubble());
+
+        mTaskInfo.parentTaskId = 3;  // Simulate bubble root task
+        final TaskViewTransitions.PendingTransition pending =
+                setPendingTransaction(true /* visible*/, false /* opening */);
+        final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
+                .addChange(getTask(TRANSIT_TO_FRONT, false /* register */)).build();
+
+        mTaskViewTransitions.startAnimation(pending.mClaimed, info, mStartTransaction,
+                mFinishTransaction, mFinishCallback);
+
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+                ArgumentCaptor.forClass(WindowContainerTransaction.class);
+        verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertOpenAnimationPreparation(mUnregisteredTokenBinder, pending, wct, true /* newTask */,
+                false /* shouldInterceptBack */,
+                !BubbleFlagHelper.enableRootTaskForBubble() /* shouldCorpWindow */);
     }
 
     @Test
     public void testMergeAnimation_dispatchDisplayTransition() {
-        assumeTrue(com.android.wm.shell.Flags.fixTaskViewRotationAnimation());
-
         final TransitionInfo.Change displayChange = new TransitionInfo.Change(
                 /* container= */ null, new SurfaceControl());
         displayChange.setStartAbsBounds(new Rect(0, 0, 500, 1000));
@@ -452,7 +463,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
                 mStartTransaction, mFinishTransaction, setTaskBoundsTransition, mFinishCallback);
 
         verify(mStartTransaction).setWindowCrop(eq(boundsChange.getLeash()),
-                eq(newBounds.width()), eq(newBounds.height()));
+                eq(BOUNDS.width()), eq(BOUNDS.height()));
         verify(mTransitions).dispatchTransition(eq(displayTransition), eq(displayChangeInfo),
                 eq(mStartTransaction), eq(mFinishTransaction),
                 eq(mFinishCallback), eq(mTaskViewTransitions));
@@ -460,36 +471,37 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
 
     @Test
     public void changingTaskViewHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
                 .addChange(getTaskView(TRANSIT_CHANGE)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
                 .that(handled).isTrue();
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
-        WindowContainerTransaction wct = wctCaptor.getValue();
-        wctSetBoundsAssertions(wct, mTokenBinder);
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertBoundsAndSurfaceTransactions(wct.getChanges().get(mTokenBinder),
+                true /* shouldCorpWindow */);
     }
 
     @Test
     public void closingTaskHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(false /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_BACK)
                 .addChange(getTask(TRANSIT_CLOSE, false /* registered */)).build();
 
-        boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
+        final boolean handled = mTaskViewTransitions.startAnimation(pending.mClaimed, info,
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         assertWithMessage("Handler should have consumed transition")
                 .that(handled).isTrue();
-        verify(mTaskViewTaskController, never()).prepareCloseAnimation();
+        verify(mTaskViewTaskController, never()).prepareCloseAnimation(any(), any());
     }
 
     @Test
@@ -513,7 +525,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
      */
     @Test
     public void hidingTaskNotHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(false /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_BACK)
                 .addChange(getTask(TRANSIT_TO_BACK, false /* registered */)).build();
@@ -524,7 +536,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         verify(mStartTransaction, never()).hide(any());
         verify(pending.mTaskView, never()).prepareHideAnimation(any());
 
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
         assertWithMessage("No wct should have been created")
@@ -533,7 +545,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
 
     @Test
     public void showingTaskNotHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         final TransitionInfo info =
                 new TransitionInfoBuilder(TRANSIT_TO_FRONT)
@@ -545,7 +557,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         mTaskViewTransitions.startAnimation(
                 pending.mClaimed, info, mStartTransaction, mFinishTransaction, mFinishCallback);
         verify(mTaskViewTaskController, never()).notifyAppeared(anyBoolean());
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
         assertWithMessage("No wct should have been created")
@@ -554,7 +566,7 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
 
     @Test
     public void changingTaskNotHandled() {
-        TaskViewTransitions.PendingTransition pending =
+        final TaskViewTransitions.PendingTransition pending =
                 setPendingTransaction(true /* visible*/, false /* opening */);
         final TransitionInfo info = new TransitionInfoBuilder(TRANSIT_TO_FRONT)
                 .addChange(getTask(TRANSIT_CHANGE, false /* registered */)).build();
@@ -564,17 +576,59 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
                 mStartTransaction, mFinishTransaction, mFinishCallback);
 
         verify(mTaskViewTaskController, never()).prepareOpen(any(), any());
-        ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mFinishCallback).onTransitionFinished(wctCaptor.capture());
         assertWithMessage("No wct should have been created")
                 .that(wctCaptor.getValue()).isNull();
     }
 
+    private TransitionInfo.Change getTaskView(@TransitionInfo.TransitionMode int type) {
+        return getTask(type, true);
+    }
+
+    private TransitionInfo.Change getTask(@TransitionInfo.TransitionMode int type,
+            boolean registered) {
+        final TransitionInfo.Change change = mock(TransitionInfo.Change.class);
+        when(change.getLeash()).thenReturn(mTaskLeash);
+        when(change.getTaskInfo()).thenReturn(registered ? mTaskInfo : mUnregisteredTaskInfo);
+        when(change.getMode()).thenReturn(type);
+        return change;
+    }
+
+    private TaskViewTransitions.PendingTransition setPendingTransaction(boolean visible,
+            boolean opening) {
+        final TaskViewRepository.TaskViewState state =
+                mTaskViewRepository.byTaskView(mTaskViewTaskController);
+        assertWithMessage("state can't be null here").that(state).isNotNull();
+        state.mVisible = !visible;
+        state.mBounds = BOUNDS;
+        final TaskViewTransitions.PendingTransition pending;
+        if (opening) {
+            mTaskViewTransitions.startTaskView(mock(WindowContainerTransaction.class),
+                    mTaskViewTaskController, mLaunchCookie);
+            pending = mTaskViewTransitions.findPending(mTaskViewTaskController, TRANSIT_OPEN);
+        } else {
+            mTaskViewTransitions.setTaskViewVisible(mTaskViewTaskController, visible);
+            pending = mTaskViewTransitions.findPending(
+                    mTaskViewTaskController, visible ? TRANSIT_TO_FRONT : TRANSIT_TO_BACK);
+        }
+        assertWithMessage("pending can't be null").that(pending).isNotNull();
+        return pending;
+    }
+
     // assertions to verify TaskViewTransitions.prepareOpenAnimation is called
-    private void prepareOpenAnimationAssertions(TaskViewTransitions.PendingTransition pending,
-            WindowContainerTransaction wct, boolean newTask, IBinder binder) {
-        wctSetBoundsAssertions(wct, binder);
+    private void assertOpenAnimationPreparation(@NonNull IBinder binder,
+            @NonNull TaskViewTransitions.PendingTransition pending,
+            @NonNull WindowContainerTransaction wct, boolean newTask, boolean shouldInterceptBack,
+            boolean shouldCorpWindow) {
+        final WindowContainerTransaction.Change change = wct.getChanges().get(binder);
+        assertBoundsAndSurfaceTransactions(change, shouldCorpWindow);
+        if (shouldInterceptBack) {
+            assertWithMessage("wct.setInterceptBackPressedOnTaskRoot(token, true) should be called")
+                    .that(change.getInterceptBackPressed()).isTrue();
+        }
+
         assertWithMessage("no hierarchyOp set")
                 .that(wct.getHierarchyOps()).isNotEmpty();
         assertWithMessage("isTrimmableFromRecents should be set to false")
@@ -582,17 +636,19 @@ public class TaskViewTransitionStartAnimationTest extends ShellTestCase {
         verify(pending.mTaskView).notifyAppeared(eq(newTask));
     }
 
-    // assertions to verify wct.setBounds(mToken, mBounds) is called
-    private void wctSetBoundsAssertions(WindowContainerTransaction wct, IBinder binder) {
-        WindowContainerTransaction.Change change = wct.getChanges().get(binder);
+    private void assertBoundsAndSurfaceTransactions(WindowContainerTransaction.Change change,
+            boolean shouldCorpWindow) {
         assertThat(change).isNotNull();
-        assertThat(change.getConfiguration().windowConfiguration.getBounds()).isEqualTo(mBounds);
+        assertWithMessage("wct.setBounds(token, bounds) should be called")
+                .that(change.getConfiguration().windowConfiguration.getBounds()).isEqualTo(BOUNDS);
 
         verify(mStartTransaction).reparent(eq(mTaskLeash), eq(mSurfaceControl));
         verify(mStartTransaction).show(eq(mTaskLeash));
         verify(mFinishTransaction).reparent(eq(mTaskLeash), eq(mSurfaceControl));
         verify(mFinishTransaction).setPosition(eq(mTaskLeash), eq(0.0f), eq(0.0f));
-        verify(mFinishTransaction).setWindowCrop(eq(mTaskLeash), eq(100), eq(100));
+        if (shouldCorpWindow) {
+            verify(mFinishTransaction).setWindowCrop(eq(mTaskLeash), eq(100), eq(100));
+        }
         verify(mTaskViewTaskController).applyCaptionInsetsIfNeeded();
     }
 }

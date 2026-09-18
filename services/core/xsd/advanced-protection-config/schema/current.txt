@@ -1,0 +1,42 @@
+// Signature format: 6.0
+// - style=java
+package com.android.server.security.advancedprotection.config {
+
+  public class AdvancedProtectionConfig {
+    ctor public AdvancedProtectionConfig();
+    method public com.android.server.security.advancedprotection.config.Protections getAvailableProtections();
+    method public void setAvailableProtections(com.android.server.security.advancedprotection.config.Protections);
+  }
+
+  public enum ProtectionId {
+    method public String getRawName();
+    enum_constant public static final com.android.server.security.advancedprotection.config.ProtectionId DISALLOW_CELLULAR_2G;
+    enum_constant public static final com.android.server.security.advancedprotection.config.ProtectionId DISALLOW_INSECURE_WIFI_AUTOJOIN;
+    enum_constant public static final com.android.server.security.advancedprotection.config.ProtectionId DISALLOW_INSTALL_UNKNOWN_SOURCES;
+    enum_constant public static final com.android.server.security.advancedprotection.config.ProtectionId DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICES;
+    enum_constant public static final com.android.server.security.advancedprotection.config.ProtectionId DISALLOW_USB;
+    enum_constant public static final com.android.server.security.advancedprotection.config.ProtectionId ENABLE_MTE;
+  }
+
+  public class Protections {
+    ctor public Protections();
+    method public java.util.List<com.android.server.security.advancedprotection.config.Protections.Protection> getProtection();
+  }
+
+  public static class Protections.Protection {
+    ctor public Protections.Protection();
+    method public String getFeatureFlag();
+    method public com.android.server.security.advancedprotection.config.ProtectionId getId();
+    method public void setFeatureFlag(String);
+    method public void setId(com.android.server.security.advancedprotection.config.ProtectionId);
+  }
+
+  public class XmlParser {
+    ctor public XmlParser();
+    method public static com.android.server.security.advancedprotection.config.AdvancedProtectionConfig read(java.io.InputStream) throws javax.xml.datatype.DatatypeConfigurationException, java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+    method public static String readText(org.xmlpull.v1.XmlPullParser) throws java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+    method public static void skip(org.xmlpull.v1.XmlPullParser) throws java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+  }
+
+}
+

@@ -41,6 +41,18 @@ public class AppWindowLayoutSettingsPackageMonitor extends PackageMonitor {
         mPackageAddedCallback.onPackageAdded(packageName, userId);
     }
 
+    // With Archived Apps feature, `onPackageAdded` might be called even before an app is fully
+    // installed (the app will be in a pre-archived state, or archived for restore). This will
+    // happen before user aspect ratio is restored, and package data is not yet available.
+    // This callback is thus needed to try and restore user min aspect ratio when an app is fully
+    // installed.
+    @Override
+    public void onPackageAppeared(String packageName, int uid) {
+        super.onPackageAppeared(packageName, uid);
+        final int userId = getChangingUserId();
+        mPackageAddedCallback.onPackageAdded(packageName, userId);
+    }
+
     interface PackageAddedCallback {
         void onPackageAdded(String packageName, int userId);
     }

@@ -33,36 +33,29 @@ import kotlin.random.Random
 
 /**
  * Manages the listener and callbacks for unhandled global drags.
+ *
  * This is only used by DragAndDropController and should not be used directly by other classes.
  */
 class GlobalDragListener(
     private val wmService: IWindowManager,
-    private val mainExecutor: ShellExecutor
+    private val mainExecutor: ShellExecutor,
 ) {
     private var callback: GlobalDragListenerCallback? = null
 
     private val globalDragListener: IGlobalDragListener =
         object : IGlobalDragListener.Stub() {
             override fun onCrossWindowDrop(taskInfo: ActivityManager.RunningTaskInfo) {
-                mainExecutor.execute() {
-                    this@GlobalDragListener.onCrossWindowDrop(taskInfo)
-                }
+                mainExecutor.execute() { this@GlobalDragListener.onCrossWindowDrop(taskInfo) }
             }
 
             override fun onUnhandledDrop(event: DragEvent, callback: IUnhandledDragCallback) {
-                mainExecutor.execute() {
-                    this@GlobalDragListener.onUnhandledDrop(event, callback)
-                }
+                mainExecutor.execute() { this@GlobalDragListener.onUnhandledDrop(event, callback) }
             }
         }
 
-    /**
-     * Callbacks for global drag events.
-     */
+    /** Callbacks for global drag events. */
     interface GlobalDragListenerCallback {
-        /**
-         * Called when a global drag is successfully handled by another window.
-         */
+        /** Called when a global drag is successfully handled by another window. */
         fun onCrossWindowDrop(taskInfo: ActivityManager.RunningTaskInfo) {}
 
         /**
@@ -75,20 +68,19 @@ class GlobalDragListener(
         fun onUnhandledDrop(dragEvent: DragEvent, onFinishedCallback: Consumer<Boolean>) {}
     }
 
-    /**
-     * Sets a listener for callbacks when an unhandled drag happens.
-     */
+    /** Sets a listener for callbacks when an unhandled drag happens. */
     fun setListener(listener: GlobalDragListenerCallback?) {
-        val updateWm = (callback == null && listener != null)
-                || (callback != null && listener == null)
+        val updateWm =
+            (callback == null && listener != null) || (callback != null && listener == null)
         callback = listener
         if (updateWm) {
             try {
-                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
+                ProtoLog.v(
+                    ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
                     "%s unhandled drag listener",
-                    if (callback != null) "Registering" else "Unregistering")
-                wmService.setGlobalDragListener(
-                    if (callback != null) globalDragListener else null)
+                    if (callback != null) "Registering" else "Unregistering",
+                )
+                wmService.setGlobalDragListener(if (callback != null) globalDragListener else null)
             } catch (e: RemoteException) {
                 Log.e(TAG, "Failed to set unhandled drag listener")
             }
@@ -97,31 +89,41 @@ class GlobalDragListener(
 
     @VisibleForTesting
     fun onCrossWindowDrop(taskInfo: ActivityManager.RunningTaskInfo) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
-            "onCrossWindowDrop: %s", taskInfo)
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP, "onCrossWindowDrop: %s", taskInfo)
         callback?.onCrossWindowDrop(taskInfo)
     }
 
     @VisibleForTesting
     fun onUnhandledDrop(dragEvent: DragEvent, wmCallback: IUnhandledDragCallback) {
         val traceCookie = Random.nextInt()
-        Trace.asyncTraceBegin(TRACE_TAG_WINDOW_MANAGER, "GlobalDragListener.onUnhandledDrop",
-            traceCookie);
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
-            "onUnhandledDrop: %s", dragEvent)
+        Trace.asyncTraceBegin(
+            TRACE_TAG_WINDOW_MANAGER,
+            "GlobalDragListener.onUnhandledDrop",
+            traceCookie,
+        )
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP, "onUnhandledDrop: %s", dragEvent)
         if (callback == null) {
             wmCallback.notifyUnhandledDropComplete(false)
-            Trace.asyncTraceEnd(TRACE_TAG_WINDOW_MANAGER, "GlobalDragListener.onUnhandledDrop",
-                traceCookie);
+            Trace.asyncTraceEnd(
+                TRACE_TAG_WINDOW_MANAGER,
+                "GlobalDragListener.onUnhandledDrop",
+                traceCookie,
+            )
             return
         }
 
         callback?.onUnhandledDrop(dragEvent) {
-            ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
-                "Notifying onUnhandledDrop complete: %b", it)
+            ProtoLog.v(
+                ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
+                "Notifying onUnhandledDrop complete: %b",
+                it,
+            )
             wmCallback.notifyUnhandledDropComplete(it)
-            Trace.asyncTraceEnd(TRACE_TAG_WINDOW_MANAGER, "GlobalDragListener.onUnhandledDrop",
-                traceCookie);
+            Trace.asyncTraceEnd(
+                TRACE_TAG_WINDOW_MANAGER,
+                "GlobalDragListener.onUnhandledDrop",
+                traceCookie,
+            )
         }
     }
 

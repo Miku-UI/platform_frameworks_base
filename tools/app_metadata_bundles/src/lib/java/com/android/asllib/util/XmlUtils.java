@@ -144,7 +144,7 @@ public class XmlUtils {
     }
 
     /**
-     * Gets the single {@link Element} within {@param parentEle} and having the {@param tagName}.
+     * Gets the single {@link Element} within {@code parentEle} and having the {@code tagName}.
      */
     public static Element getSingleChildElement(
             Node parentEle, String tagName, Set<String> requiredStrings)
@@ -153,7 +153,7 @@ public class XmlUtils {
     }
 
     /**
-     * Gets the single {@link Element} within {@param parentEle} and having the {@param tagName}.
+     * Gets the single {@link Element} within {@code parentEle} and having the {@code tagName}.
      */
     public static Element getSingleChildElement(Node parentEle, String tagName, boolean required)
             throws MalformedXmlException {
@@ -179,7 +179,7 @@ public class XmlUtils {
         return elements.get(0);
     }
 
-    /** Gets the single {@link Element} within {@param elements}. */
+    /** Gets the single {@link Element} within {@code elements}. */
     public static Element getSingleElement(List<Element> elements) {
         if (elements.size() != 1) {
             throw new IllegalStateException(
@@ -188,7 +188,7 @@ public class XmlUtils {
         return elements.get(0);
     }
 
-    /** Converts {@param nodeList} into List of {@link Element}. */
+    /** Converts {@code nodeList} into List of {@link Element}. */
     public static List<Element> asElementList(NodeList nodeList) {
         List<Element> elementList = new ArrayList<Element>();
         for (int i = 0; i < nodeList.getLength(); i++) {
@@ -200,7 +200,7 @@ public class XmlUtils {
         return elementList;
     }
 
-    /** Appends {@param children} to the {@param ele}. */
+    /** Appends {@code children} to the {@code ele}. */
     public static void appendChildren(Element ele, List<Element> children) {
         for (Element c : children) {
             ele.appendChild(c);
@@ -325,7 +325,7 @@ public class XmlUtils {
     }
 
     /**
-     * Gets the single {@link Element} within {@param parentEle} and having the {@param tagName}.
+     * Gets the single {@link Element} within {@code parentEle} and having the {@code tagName}.
      */
     public static Boolean getBoolAttr(Element ele, String attrName, Set<String> requiredStrings)
             throws MalformedXmlException {
@@ -477,7 +477,7 @@ public class XmlUtils {
     }
 
     /**
-     * Gets the single {@link Element} within {@param parentEle} and having the {@param tagName}.
+     * Gets the single {@link Element} within {@code parentEle} and having the {@code tagName}.
      */
     public static String getStringAttr(Element ele, String attrName, Set<String> requiredStrings)
             throws MalformedXmlException {

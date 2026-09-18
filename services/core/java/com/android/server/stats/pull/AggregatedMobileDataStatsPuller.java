@@ -335,6 +335,8 @@ class AggregatedMobileDataStatsPuller {
         if (isEmpty(latestStats)) {
             if (DEBUG) {
                 Slog.w(TAG, "getMobileUidStats() failed");
+            }
+            if (traceEnabled) {
                 Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
             }
             return;

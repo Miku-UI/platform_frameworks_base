@@ -18,8 +18,6 @@ package com.android.server.am.psc;
 import android.os.Handler;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
-import com.android.server.am.ProcessStateController;
-
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -109,7 +107,7 @@ public class AsyncBatchSession extends BatchSession {
     }
 
     @Override
-    protected void onClose() {
+    protected void onLastClose() {
         final ArrayList<Runnable> list = new ArrayList<>(mBatchList);
         final boolean runUpdate = mRunUpdate;
 

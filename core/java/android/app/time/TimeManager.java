@@ -64,15 +64,15 @@ public final class TimeManager {
     public TimeManager() throws ServiceNotFoundException {
         // TimeManager is an API over one or possibly more services. At least until there's an
         // internal refactoring.
-        mITimeZoneDetectorService = ITimeZoneDetectorService.Stub.asInterface(
-                ServiceManager.getServiceOrThrow(Context.TIME_ZONE_DETECTOR_SERVICE));
-        mITimeDetectorService = ITimeDetectorService.Stub.asInterface(
-                ServiceManager.getServiceOrThrow(Context.TIME_DETECTOR_SERVICE));
+        mITimeZoneDetectorService =
+                ITimeZoneDetectorService.Stub.asInterface(
+                        ServiceManager.getServiceOrThrow(Context.TIME_ZONE_DETECTOR_SERVICE));
+        mITimeDetectorService =
+                ITimeDetectorService.Stub.asInterface(
+                        ServiceManager.getServiceOrThrow(Context.TIME_DETECTOR_SERVICE));
     }
 
-    /**
-     * Returns the calling user's time zone capabilities and configuration.
-     */
+    /** Returns the calling user's time zone capabilities and configuration. */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     @NonNull
     public TimeZoneCapabilitiesAndConfig getTimeZoneCapabilitiesAndConfig() {
@@ -86,9 +86,7 @@ public final class TimeManager {
         }
     }
 
-    /**
-     * Returns the calling user's time capabilities and configuration.
-     */
+    /** Returns the calling user's time capabilities and configuration. */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     @NonNull
     public TimeCapabilitiesAndConfig getTimeCapabilitiesAndConfig() {
@@ -105,26 +103,24 @@ public final class TimeManager {
     /**
      * Modifies the time detection configuration.
      *
-     * <p>The ability to modify configuration settings can be subject to restrictions. For
-     * example, they may be determined by device hardware, general policy (i.e. only the primary
-     * user can set them), or by a managed device policy. Use {@link
-     * #getTimeCapabilitiesAndConfig()} to obtain information at runtime about the user's
-     * capabilities.
+     * <p>The ability to modify configuration settings can be subject to restrictions. For example,
+     * they may be determined by device hardware, general policy (i.e. only the primary user can set
+     * them), or by a managed device policy. Use {@link #getTimeCapabilitiesAndConfig()} to obtain
+     * information at runtime about the user's capabilities.
      *
      * <p>Attempts to modify configuration settings with capabilities that are {@link
-     * Capabilities#CAPABILITY_NOT_SUPPORTED} or {@link
-     * Capabilities#CAPABILITY_NOT_ALLOWED} will have no effect and a {@code false}
-     * will be returned. Modifying configuration settings with capabilities that are {@link
-     * Capabilities#CAPABILITY_NOT_APPLICABLE} or {@link
-     * Capabilities#CAPABILITY_POSSESSED} will succeed. See {@link
-     * TimeZoneCapabilities} for further details.
+     * Capabilities#CAPABILITY_NOT_SUPPORTED} or {@link Capabilities#CAPABILITY_NOT_ALLOWED} will
+     * have no effect and a {@code false} will be returned. Modifying configuration settings with
+     * capabilities that are {@link Capabilities#CAPABILITY_NOT_APPLICABLE} or {@link
+     * Capabilities#CAPABILITY_POSSESSED} will succeed. See {@link TimeZoneCapabilities} for further
+     * details.
      *
      * <p>If the supplied configuration only has some values set, then only the specified settings
      * will be updated (where the user's capabilities allow) and other settings will be left
      * unchanged.
      *
-     * @return {@code true} if all the configuration settings specified have been set to the
-     *   new values, {@code false} if none have
+     * @return {@code true} if all the configuration settings specified have been set to the new
+     *     values, {@code false} if none have
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     public boolean updateTimeConfiguration(@NonNull TimeConfiguration configuration) {
@@ -144,26 +140,24 @@ public final class TimeManager {
      * <p>Configuration settings vary in scope: some may be global (affect all users), others may be
      * specific to the current user.
      *
-     * <p>The ability to modify configuration settings can be subject to restrictions. For
-     * example, they may be determined by device hardware, general policy (i.e. only the primary
-     * user can set them), or by a managed device policy. Use {@link
-     * #getTimeZoneCapabilitiesAndConfig()} to obtain information at runtime about the user's
-     * capabilities.
+     * <p>The ability to modify configuration settings can be subject to restrictions. For example,
+     * they may be determined by device hardware, general policy (i.e. only the primary user can set
+     * them), or by a managed device policy. Use {@link #getTimeZoneCapabilitiesAndConfig()} to
+     * obtain information at runtime about the user's capabilities.
      *
      * <p>Attempts to modify configuration settings with capabilities that are {@link
-     * Capabilities#CAPABILITY_NOT_SUPPORTED} or {@link
-     * Capabilities#CAPABILITY_NOT_ALLOWED} will have no effect and a {@code false}
-     * will be returned. Modifying configuration settings with capabilities that are {@link
-     * Capabilities#CAPABILITY_NOT_APPLICABLE} or {@link
-     * Capabilities#CAPABILITY_POSSESSED} will succeed. See {@link
-     * TimeZoneCapabilities} for further details.
+     * Capabilities#CAPABILITY_NOT_SUPPORTED} or {@link Capabilities#CAPABILITY_NOT_ALLOWED} will
+     * have no effect and a {@code false} will be returned. Modifying configuration settings with
+     * capabilities that are {@link Capabilities#CAPABILITY_NOT_APPLICABLE} or {@link
+     * Capabilities#CAPABILITY_POSSESSED} will succeed. See {@link TimeZoneCapabilities} for further
+     * details.
      *
      * <p>If the supplied configuration only has some values set, then only the specified settings
      * will be updated (where the user's capabilities allow) and other settings will be left
      * unchanged.
      *
-     * @return {@code true} if all the configuration settings specified have been set to the
-     *   new values, {@code false} if none have
+     * @return {@code true} if all the configuration settings specified have been set to the new
+     *     values, {@code false} if none have
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     public boolean updateTimeZoneConfiguration(@NonNull TimeZoneConfiguration configuration) {
@@ -177,9 +171,7 @@ public final class TimeManager {
         }
     }
 
-    /**
-     * An interface that can be used to listen for changes to the time zone detector behavior.
-     */
+    /** An interface that can be used to listen for changes to the time zone detector behavior. */
     @FunctionalInterface
     public interface TimeZoneDetectorListener {
         /**
@@ -198,8 +190,8 @@ public final class TimeManager {
      * behavior changes.
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
-    public void addTimeZoneDetectorListener(@NonNull Executor executor,
-            @NonNull TimeZoneDetectorListener listener) {
+    public void addTimeZoneDetectorListener(
+            @NonNull Executor executor, @NonNull TimeZoneDetectorListener listener) {
 
         if (DEBUG) {
             Log.d(TAG, "addTimeZoneDetectorListener called: " + listener);
@@ -212,12 +204,13 @@ public final class TimeManager {
             }
 
             if (mTimeZoneDetectorReceiver == null) {
-                ITimeZoneDetectorListener iListener = new ITimeZoneDetectorListener.Stub() {
-                    @Override
-                    public void onChange() {
-                        notifyTimeZoneDetectorListeners();
-                    }
-                };
+                ITimeZoneDetectorListener iListener =
+                        new ITimeZoneDetectorListener.Stub() {
+                            @Override
+                            public void onChange() {
+                                notifyTimeZoneDetectorListeners();
+                            }
+                        };
                 mTimeZoneDetectorReceiver = iListener;
                 try {
                     mITimeZoneDetectorService.addListener(mTimeZoneDetectorReceiver);
@@ -244,8 +237,8 @@ public final class TimeManager {
     }
 
     /**
-     * Removes a listener previously passed to
-     * {@link #addTimeZoneDetectorListener(Executor, TimeZoneDetectorListener)}
+     * Removes a listener previously passed to {@link #addTimeZoneDetectorListener(Executor,
+     * TimeZoneDetectorListener)}
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     public void removeTimeZoneDetectorListener(@NonNull TimeZoneDetectorListener listener) {
@@ -276,8 +269,8 @@ public final class TimeManager {
     /**
      * Suggests the current time from an external time source. For example, a form factor-specific
      * HAL. This time <em>may</em> be used to set the device system clock, depending on the device
-     * configuration and user settings. This method call is processed asynchronously.
-     * See {@link ExternalTimeSuggestion} for more details.
+     * configuration and user settings. This method call is processed asynchronously. See {@link
+     * ExternalTimeSuggestion} for more details.
      */
     @RequiresPermission(android.Manifest.permission.SUGGEST_EXTERNAL_TIME)
     public void suggestExternalTime(@NonNull ExternalTimeSuggestion timeSuggestion) {
@@ -315,9 +308,9 @@ public final class TimeManager {
      * automatic time detection setting, but only to confirm the current time (which may have been
      * set via automatic means). Use {@link #getTimeState()} to obtain the time state to confirm.
      *
-     * <p>Returns {@code false} if the confirmation is invalid, i.e. if the time being
-     * confirmed is no longer the time the device is currently set to. Confirming a time
-     * in which the system already has high confidence will return {@code true}.
+     * <p>Returns {@code false} if the confirmation is invalid, i.e. if the time being confirmed is
+     * no longer the time the device is currently set to. Confirming a time in which the system
+     * already has high confidence will return {@code true}.
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     public boolean confirmTime(@NonNull UnixEpochTime unixEpochTime) {
@@ -337,8 +330,8 @@ public final class TimeManager {
      *
      * <p>Returns {@code false} if the time is invalid, or the device configuration / user
      * capabilities prevents the time being accepted, e.g. if the device is currently set to
-     * "automatic time detection". This method returns {@code true} if the time was accepted even
-     * if it is the same as the current device time.
+     * "automatic time detection". This method returns {@code true} if the time was accepted even if
+     * it is the same as the current device time.
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_TIME_AND_ZONE_DETECTION)
     public boolean setManualTime(@NonNull UnixEpochTime unixEpochTime) {

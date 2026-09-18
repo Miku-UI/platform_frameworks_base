@@ -55,12 +55,16 @@ public enum ScreenshotEvent implements UiEventLogger.UiEventEnum {
     SCREENSHOT_PREVIEW_TAPPED(307),
     @UiEvent(doc = "screenshot edit button tapped")
     SCREENSHOT_EDIT_TAPPED(308),
+    @UiEvent(doc = "screenshot open button tapped")
+    SCREENSHOT_OPEN_TAPPED(2527),
     @UiEvent(doc = "screenshot share button tapped")
     SCREENSHOT_SHARE_TAPPED(309),
     @UiEvent(doc = "screenshot smart action chip tapped")
     SCREENSHOT_SMART_ACTION_TAPPED(374),
     @UiEvent(doc = "screenshot scroll tapped")
     SCREENSHOT_SCROLL_TAPPED(373),
+    @UiEvent(doc = "screenshot copy tapped")
+    SCREENSHOT_COPY_TAPPED(2519),
     @UiEvent(doc = "screenshot interaction timed out")
     SCREENSHOT_INTERACTION_TIMEOUT(310),
     @UiEvent(doc = "screenshot explicitly dismissed")
@@ -96,7 +100,9 @@ public enum ScreenshotEvent implements UiEventLogger.UiEventEnum {
     @UiEvent(doc = "User has discarded the result of a long screenshot")
     SCREENSHOT_LONG_SCREENSHOT_EXIT(911),
     @UiEvent(doc = "A screenshot has been taken and saved to work profile")
-    SCREENSHOT_SAVED_TO_WORK_PROFILE(1240);
+    SCREENSHOT_SAVED_TO_WORK_PROFILE(1240),
+    @UiEvent(doc = "Captured scroll screenshot image is NOT taller than the scroll viewport")
+    SCREENSHOT_LONG_SCREENSHOT_FITS_VIEWPORT(2699);
 
     private final int mId;
 

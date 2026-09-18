@@ -33,13 +33,16 @@ import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_HELP_FINGERPR
 import static com.android.systemui.DejankUtils.whitelistIpcs;
 import static com.android.systemui.Flags.showLockedByYourWatchKeyguardIndicator;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.IMPORTANT_MSG_MIN_DURATION;
-import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_IS_DISMISSIBLE;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_ADAPTIVE_AUTH;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_ALIGNMENT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_BATTERY;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_BIOMETRIC_MESSAGE;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP;
+import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_CLICK_TO_UNLOCK_HINT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_DISCLOSURE;
+import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_ENTER_TO_UNLOCK_HINT;
+import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_IS_DISMISSIBLE;
+import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_KEY_TO_UNLOCK_HINT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_LOGOUT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_OWNER_INFO;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_PERSISTENT_UNLOCK_MESSAGE;
@@ -94,6 +97,7 @@ import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.biometrics.FaceHelpMessageDeferral;
 import com.android.systemui.biometrics.FaceHelpMessageDeferralFactory;
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor;
+import com.android.systemui.bouncer.domain.interactor.BouncerInteractor;
 import com.android.systemui.bouncer.domain.interactor.BouncerMessageInteractor;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.SysUISingleton;
@@ -137,15 +141,15 @@ import javax.inject.Inject;
 
 /**
  * Controls the indications and error messages shown on the Keyguard
- *
+ * <p>
  * On AoD, only one message shows with the following priorities:
- *   1. Biometric
- *   2. Transient
- *   3. Charging alignment
- *   4. Battery information
- *
+ * 1. Biometric
+ * 2. Transient
+ * 3. Charging alignment
+ * 4. Battery information
+ * <p>
  * On the lock screen, message rotate through different message types.
- *   See {@link KeyguardIndicationRotateTextViewController.IndicationType} for the list of types.
+ * See {@link KeyguardIndicationRotateTextViewController.IndicationType} for the list of types.
  */
 @SysUISingleton
 public class KeyguardIndicationController {
@@ -158,7 +162,7 @@ public class KeyguardIndicationController {
     private static final long TRANSIENT_BIOMETRIC_ERROR_TIMEOUT = 1300;
     public static final long DEFAULT_MESSAGE_TIME = 3500;
     public static final long DEFAULT_HIDE_DELAY_MS =
-            DEFAULT_MESSAGE_TIME + KeyguardIndicationTextView.Y_IN_DURATION;
+            DEFAULT_MESSAGE_TIME + KeyguardIndicationTextView.Y_TRANSLATE_DURATION;
 
     private final Context mContext;
     private final BroadcastDispatcher mBroadcastDispatcher;
@@ -187,6 +191,7 @@ public class KeyguardIndicationController {
     private final AccessibilityManager mAccessibilityManager;
     private final Handler mHandler;
     private final AlternateBouncerInteractor mAlternateBouncerInteractor;
+    private final BouncerInteractor mBouncerInteractor;
 
     @VisibleForTesting
     public KeyguardIndicationRotateTextViewController mRotateTextViewController;
@@ -237,6 +242,7 @@ public class KeyguardIndicationController {
     private KeyguardUpdateMonitorCallback mUpdateMonitorCallback;
 
     private boolean mDozing;
+    private boolean mDreaming;
     private final ScreenLifecycle mScreenLifecycle;
     @VisibleForTesting
     final Consumer<Set<Integer>> mCoExAcquisitionMsgIdsToShowCallback =
@@ -250,8 +256,8 @@ public class KeyguardIndicationController {
                 }
             };
     @VisibleForTesting
-    final Consumer<Boolean> mIsLogoutEnabledCallback =
-            (Boolean isLogoutEnabled) -> {
+    final Consumer<Boolean> mIsPolicyManagerLogoutEnabledCallback =
+            (Boolean isPolicyManagerLogoutEnabled) -> {
                 if (mVisible) {
                     updateDeviceEntryIndication(false);
                 }
@@ -316,6 +322,7 @@ public class KeyguardIndicationController {
             FaceHelpMessageDeferralFactory faceHelpMessageDeferral,
             KeyguardLogger keyguardLogger,
             AlternateBouncerInteractor alternateBouncerInteractor,
+            BouncerInteractor bouncerInteractor,
             AlarmManager alarmManager,
             UserTracker userTracker,
             BouncerMessageInteractor bouncerMessageInteractor,
@@ -350,6 +357,7 @@ public class KeyguardIndicationController {
         mKeyguardLogger = keyguardLogger;
         mScreenLifecycle.addObserver(mScreenObserver);
         mAlternateBouncerInteractor = alternateBouncerInteractor;
+        mBouncerInteractor = bouncerInteractor;
         mUserTracker = userTracker;
         mBouncerMessageInteractor = bouncerMessageInteractor;
         mIndicationHelper = indicationHelper;
@@ -396,12 +404,13 @@ public class KeyguardIndicationController {
         mInited = true;
 
         mDockManager.addAlignmentStateListener(
-                alignState -> mHandler.post(() -> handleAlignStateChanged(alignState)));
+                alignState -> mExecutor.execute(() -> handleAlignStateChanged(alignState)));
         mKeyguardUpdateMonitor.registerCallback(getKeyguardCallback());
         mStatusBarStateController.addCallback(mStatusBarStateListener);
         mKeyguardStateController.addCallback(mKeyguardStateCallback);
 
         mStatusBarStateListener.onDozingChanged(mStatusBarStateController.isDozing());
+        mStatusBarStateListener.onDreamingChanged(mStatusBarStateController.isDreaming());
     }
 
     @Nullable
@@ -461,8 +470,8 @@ public class KeyguardIndicationController {
         collectFlow(mIndicationArea, mDeviceEntryFingerprintAuthInteractor.isEngaged(),
                 mIsFingerprintEngagedCallback);
         collectFlow(mIndicationArea,
-                mUserLogoutInteractor.isLogoutEnabled(),
-                mIsLogoutEnabledCallback);
+                mUserLogoutInteractor.isPolicyManagerLogoutEnabled(),
+                mIsPolicyManagerLogoutEnabledCallback);
         collectFlow(mIndicationArea,
                 mDeviceEntryBiometricSettingsInteractor.getAuthenticationFlags(),
                 mDeviceEntryBiometricSettingsInteractorCallback);
@@ -527,7 +536,7 @@ public class KeyguardIndicationController {
 
         // Update persistent messages. The following methods should only be called if we're on the
         // lock screen:
-        updateForceIsDimissibileChanged();
+        updateForceIsDismissibleChanged();
         updateLockScreenDisclosureMsg();
         updateLockScreenOwnerInfo();
         updateLockScreenBatteryMsg(animate);
@@ -543,6 +552,9 @@ public class KeyguardIndicationController {
         if (secureLockDevice()) {
             updateLockScreenSecureLockDeviceMsg();
         }
+        updateClickToUnlockMsg();
+        updatePressEnterToUnlockMsg();
+        updatePressKeyToUnlockMsg();
     }
 
     private void updateOrganizedOwnedDevice() {
@@ -551,10 +563,10 @@ public class KeyguardIndicationController {
         updateDeviceEntryIndication(false);
     }
 
-    private void updateForceIsDimissibileChanged() {
+    private void updateForceIsDismissibleChanged() {
         if (mForceIsDismissible) {
             mRotateTextViewController.updateIndication(
-                    INDICATION_IS_DISMISSIBLE,
+                    INDICATION_TYPE_IS_DISMISSIBLE,
                     new KeyguardIndication.Builder()
                             .setMessage(mContext.getResources().getString(
                                     com.android.systemui.res.R.string.dismissible_keyguard_swipe)
@@ -563,7 +575,7 @@ public class KeyguardIndicationController {
                             .build(),
                     /* updateImmediately */ true);
         } else {
-            mRotateTextViewController.hideIndication(INDICATION_IS_DISMISSIBLE);
+            mRotateTextViewController.hideIndication(INDICATION_TYPE_IS_DISMISSIBLE);
         }
     }
 
@@ -576,12 +588,12 @@ public class KeyguardIndicationController {
                 mExecutor.execute(() -> {
                     if (mKeyguardStateController.isShowing()) {
                         mRotateTextViewController.updateIndication(
-                              INDICATION_TYPE_DISCLOSURE,
-                              new KeyguardIndication.Builder()
-                                      .setMessage(disclosure)
-                                      .setTextColor(getInitialTextColorState())
-                                      .build(),
-                              /* updateImmediately */ false);
+                                INDICATION_TYPE_DISCLOSURE,
+                                new KeyguardIndication.Builder()
+                                        .setMessage(disclosure)
+                                        .setTextColor(getInitialTextColorState())
+                                        .build(),
+                                /* updateImmediately */ false);
                     }
                 });
             });
@@ -686,6 +698,59 @@ public class KeyguardIndicationController {
         }
     }
 
+    private void updateClickToUnlockMsg() {
+        if ((Flags.addNewUnlockHintOnKeyguard() || Flags.addNewUnlockHintOnKeyguard2())
+                && mBouncerInteractor.isImproveLargeScreenInteractionEnabled()) {
+            mRotateTextViewController.updateIndication(
+                    INDICATION_TYPE_CLICK_TO_UNLOCK_HINT,
+                    new KeyguardIndication.Builder()
+                            .setMessage(mContext.getResources().getText(
+                                    com.android.internal.R.string.lockscreen_click_to_unlock_hint))
+                            .setTextColor(getInitialTextColorState())
+                            .build(),
+                    false);
+        } else {
+            mRotateTextViewController.hideIndication(
+                    INDICATION_TYPE_CLICK_TO_UNLOCK_HINT);
+        }
+    }
+
+    private void updatePressKeyToUnlockMsg() {
+        if ((Flags.addNewUnlockHintOnKeyguard() || Flags.addNewUnlockHintOnKeyguard2())
+                && Flags.pressAnyKeyToAccessBouncer2()
+                && mBouncerInteractor.isImproveLargeScreenInteractionEnabled()) {
+            mRotateTextViewController.updateIndication(
+                    INDICATION_TYPE_KEY_TO_UNLOCK_HINT,
+                    new KeyguardIndication.Builder()
+                            .setMessage(mContext.getResources().getText(
+                                    com.android.internal.R.string.lockscreen_key_to_unlock_hint))
+                            .setTextColor(getInitialTextColorState())
+                            .build(),
+                    false);
+        } else {
+            mRotateTextViewController.hideIndication(
+                    INDICATION_TYPE_KEY_TO_UNLOCK_HINT);
+        }
+    }
+
+    private void updatePressEnterToUnlockMsg() {
+        if ((Flags.addNewUnlockHintOnKeyguard() || Flags.addNewUnlockHintOnKeyguard2())
+                && !Flags.pressAnyKeyToAccessBouncer2()
+                && mBouncerInteractor.isImproveLargeScreenInteractionEnabled()) {
+            mRotateTextViewController.updateIndication(
+                    INDICATION_TYPE_ENTER_TO_UNLOCK_HINT,
+                    new KeyguardIndication.Builder()
+                            .setMessage(mContext.getResources().getText(
+                                    com.android.internal.R.string.lockscreen_enter_to_unlock_hint))
+                            .setTextColor(getInitialTextColorState())
+                            .build(),
+                    false);
+        } else {
+            mRotateTextViewController.hideIndication(
+                    INDICATION_TYPE_ENTER_TO_UNLOCK_HINT);
+        }
+    }
+
     private void updateBiometricMessage() {
         if (mDozing) {
             updateDeviceEntryIndication(false);
@@ -712,6 +777,7 @@ public class KeyguardIndicationController {
                     INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP,
                     new KeyguardIndication.Builder()
                             .setMessage(mBiometricMessageFollowUp)
+                            .setForceAccessibilityLiveRegionAssertive()
                             .setMinVisibilityMillis(IMPORTANT_MSG_MIN_DURATION)
                             .setTextColor(getInitialTextColorState())
                             .build(),
@@ -793,7 +859,7 @@ public class KeyguardIndicationController {
     }
 
     private void updateLockScreenLogoutView() {
-        if (mUserLogoutInteractor.isLogoutEnabled().getValue()) {
+        if (mUserLogoutInteractor.isPolicyManagerLogoutEnabled().getValue()) {
             mRotateTextViewController.updateIndication(
                     INDICATION_TYPE_LOGOUT,
                     new KeyguardIndication.Builder()
@@ -832,6 +898,7 @@ public class KeyguardIndicationController {
             mRotateTextViewController.hideIndication(INDICATION_TYPE_ADAPTIVE_AUTH);
         }
     }
+
     private void updateLockScreenWatchDisconnectedMsg(int userId) {
         final boolean deviceLocked = mAuthenticationFlags != null
                 && mAuthenticationFlags.isSomeAuthRequiredAfterWatchDisconnected();
@@ -955,28 +1022,28 @@ public class KeyguardIndicationController {
     }
 
     /**
-     * Hides transient indication in {@param delayMs}.
+     * Hides transient indication in {@code delayMs}.
      */
     public void hideTransientIndicationDelayed(long delayMs) {
         mHideTransientMessageHandler.schedule(delayMs, AlarmTimeout.MODE_RESCHEDULE_IF_SCHEDULED);
     }
 
     /**
-     * Hides biometric indication in {@param delayMs}.
+     * Hides biometric indication in {@code delayMs}.
      */
     public void hideBiometricMessageDelayed(long delayMs) {
         mHideBiometricMessageHandler.schedule(delayMs, AlarmTimeout.MODE_RESCHEDULE_IF_SCHEDULED);
     }
 
     /**
-     * Shows {@param transientIndication} until it is hidden by {@link #hideTransientIndication}.
+     * Shows {@code transientIndication} until it is hidden by {@link #hideTransientIndication}.
      */
     public void showTransientIndication(int transientIndication) {
         showTransientIndication(mContext.getResources().getString(transientIndication));
     }
 
     /**
-     * Shows {@param transientIndication} until it is hidden by {@link #hideTransientIndication}.
+     * Shows {@code transientIndication} until it is hidden by {@link #hideTransientIndication}.
      */
     private void showTransientIndication(CharSequence transientIndication) {
         mTransientIndication = transientIndication;
@@ -1017,7 +1084,7 @@ public class KeyguardIndicationController {
     }
 
     /**
-     * Shows {@param biometricMessage} and {@param biometricMessageFollowUp}
+     * Shows {@code biometricMessage} and {@code biometricMessageFollowUp}
      * until they are hidden by {@link #hideBiometricMessage}. Messages are rotated through
      * by {@link KeyguardIndicationRotateTextViewController}, see class for rotating message
      * logic.
@@ -1139,7 +1206,9 @@ public class KeyguardIndicationController {
                                 useMisalignmentColor
                                         ? mContext.getColor(R.color.misalignment_text_color)
                                         : Color.WHITE));
-                if (mBiometricMessage != null && newIndication == mBiometricMessage) {
+                if (mBiometricMessage != null && newIndication == mBiometricMessage
+                        || mBiometricMessageFollowUp != null
+                        && newIndication == mBiometricMessageFollowUp) {
                     builder.setForceAccessibilityLiveRegionAssertive();
                 }
 
@@ -1237,9 +1306,7 @@ public class KeyguardIndicationController {
      * Show message on the keyguard for how the user can unlock/enter their device.
      */
     public void showActionToUnlock() {
-        if (mDozing
-                && !mKeyguardUpdateMonitor.getUserCanSkipBouncer(
-                        getCurrentUser())) {
+        if (mDozing && !mKeyguardUpdateMonitor.getUserCanSkipBouncer(getCurrentUser())) {
             return;
         }
 
@@ -1397,8 +1464,9 @@ public class KeyguardIndicationController {
         @Override
         public void onBiometricAcquired(BiometricSourceType biometricSourceType, int acquireInfo) {
             if (biometricSourceType == FACE) {
-                if (acquireInfo == FACE_ACQUIRED_START) {
-                    // Let's hide any previous messages when authentication starts, otherwise
+                if (mBiometricMessageSource == BiometricSourceType.FACE
+                        && acquireInfo == FACE_ACQUIRED_START) {
+                    // Let's hide any previous face messages when authentication starts, otherwise
                     // multiple auth attempts would overlap.
                     hideBiometricMessage();
                     mBiometricErrorMessageToShowOnScreenOn = null;
@@ -1762,39 +1830,51 @@ public class KeyguardIndicationController {
 
     private final StatusBarStateController.StateListener mStatusBarStateListener =
             new StatusBarStateController.StateListener() {
-        @Override
-        public void onDozingChanged(boolean dozing) {
-            if (mDozing == dozing) {
-                return;
-            }
-            mDozing = dozing;
+                @Override
+                public void onDozingChanged(boolean dozing) {
+                    if (mDozing == dozing) {
+                        return;
+                    }
+                    mDozing = dozing;
 
-            if (mDozing) {
-                hideBiometricMessage();
-            }
-            updateDeviceEntryIndication(false);
-        }
-    };
+                    if (mDozing) {
+                        hideBiometricMessage();
+                    }
+                    updateDeviceEntryIndication(false);
+                }
+
+                @Override
+                public void onDreamingChanged(boolean dreaming) {
+                    if (mDreaming == dreaming) {
+                        return;
+                    }
+                    mDreaming = dreaming;
+
+                    if (mDreaming) {
+                        hideBiometricMessage();
+                    }
+                }
+            };
 
     private final KeyguardStateController.Callback mKeyguardStateCallback =
             new KeyguardStateController.Callback() {
-        @Override
-        public void onUnlockedChanged() {
-            mTrustAgentErrorMessage = null;
-            updateDeviceEntryIndication(false);
-        }
+                @Override
+                public void onUnlockedChanged() {
+                    mTrustAgentErrorMessage = null;
+                    updateDeviceEntryIndication(false);
+                }
 
-        @Override
-        public void onKeyguardShowingChanged() {
-            // All transient messages are gone the next time keyguard is shown
-            if (!mKeyguardStateController.isShowing()) {
-                mKeyguardLogger.log(TAG, LogLevel.DEBUG, "clear messages");
-                mTopIndicationView.clearMessages();
-                mRotateTextViewController.clearMessages();
-                mTrustAgentErrorMessage = null;
-            } else {
-                updateDeviceEntryIndication(false);
-            }
-        }
-    };
+                @Override
+                public void onKeyguardShowingChanged() {
+                    // All transient messages are gone the next time keyguard is shown
+                    if (!mKeyguardStateController.isShowing()) {
+                        mKeyguardLogger.log(TAG, LogLevel.DEBUG, "clear messages");
+                        mTopIndicationView.clearMessages();
+                        mRotateTextViewController.clearMessages();
+                        mTrustAgentErrorMessage = null;
+                    } else {
+                        updateDeviceEntryIndication(false);
+                    }
+                }
+            };
 }

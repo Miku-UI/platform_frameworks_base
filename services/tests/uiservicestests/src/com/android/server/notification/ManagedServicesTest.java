@@ -15,7 +15,8 @@
  */
 package com.android.server.notification;
 
-import static android.app.Flags.FLAG_LIFETIME_EXTENSION_REFACTOR;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_MANAGED_SERVICE_PRIMARY_APPROVED;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_MANAGED_SERVICE_SECONDARY_APPROVED;
 import static android.content.Context.DEVICE_POLICY_SERVICE;
 import static android.os.UserHandle.USER_ALL;
 import static android.os.UserHandle.USER_CURRENT;
@@ -30,7 +31,6 @@ import static com.android.server.notification.Flags.FLAG_MANAGED_SERVICES_CONCUR
 import static com.android.server.notification.Flags.managedServicesConcurrentMultiuser;
 import static com.android.server.notification.ManagedServices.APPROVAL_BY_COMPONENT;
 import static com.android.server.notification.ManagedServices.APPROVAL_BY_PACKAGE;
-import static com.android.server.notification.NotificationManagerService.privateSpaceFlagsEnabled;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -45,7 +45,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -57,6 +56,7 @@ import static org.mockito.Mockito.when;
 import android.app.ActivityManager;
 import android.app.IBinderSession;
 import android.app.admin.DevicePolicyManager;
+import android.app.backup.BackupRestoreEventLogger;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -94,15 +94,13 @@ import com.android.server.UiServiceTestCase;
 
 import com.google.android.collect.Lists;
 
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -119,6 +117,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
 
 @RunWith(ParameterizedAndroidJunit4.class)
 public class ManagedServicesTest extends UiServiceTestCase {
@@ -137,6 +138,8 @@ public class ManagedServicesTest extends UiServiceTestCase {
     private ManagedServices.UserProfiles mUserProfiles;
     @Mock private DevicePolicyManager mDpm;
     Object mLock = new Object();
+    @Mock
+    BackupRestoreEventLogger mLogger;
 
     UserInfo mZero = new UserInfo(0, "zero", 0);
     UserInfo mTen = new UserInfo(10, "ten", 0);
@@ -170,7 +173,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_MANAGED_SERVICES_CONCURRENT_MULTIUSER, Flags.FLAG_USE_ON_BINDING_DIED);
+                android.app.Flags.FLAG_BACKUP_RESTORE_LOGGING);
     }
 
     public ManagedServicesTest(FlagsParameterization flags) {
@@ -437,7 +440,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             TypedXmlPullParser parser =
                     getParserWithEntries(service, getXmlEntry(resolvedValue, 0, true));
 
-            service.readXml(parser, null, true, 10);
+            service.readXml(parser, null, true, 10, mLogger);
 
             assertFalse(service.isPackageOrComponentAllowed(resolvedValue, 0));
             assertTrue(service.isPackageOrComponentAllowed(resolvedValue, 10));
@@ -459,7 +462,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             String xmlEntry = getXmlEntry(resolvedValue, 0, true, false);
             TypedXmlPullParser parser = getParserWithEntries(service, xmlEntry);
 
-            service.readXml(parser, null, true, 0);
+            service.readXml(parser, null, true, 0, mLogger);
 
             assertFalse("Failed while parsing xml:\n" + xmlEntry,
                     service.isPackageOrComponentUserSet(resolvedValue, 0));
@@ -467,7 +470,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             xmlEntry = getXmlEntry(resolvedValue, 0, true, true);
             parser = getParserWithEntries(service, xmlEntry);
 
-            service.readXml(parser, null, true, 0);
+            service.readXml(parser, null, true, 0, mLogger);
 
             assertTrue("Failed while parsing xml:\n" + xmlEntry,
                     service.isPackageOrComponentUserSet(resolvedValue, 0));
@@ -492,7 +495,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
         //data setup
         service1.addDefaultComponentOrPackage("package/class");
         serializer.startDocument(null, true);
-        service1.writeXml(serializer, false, 0);
+        service1.writeXml(serializer, false, 0, null);
         serializer.endDocument();
         outStream.flush();
 
@@ -502,7 +505,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
 
         parser.setInput(input, StandardCharsets.UTF_8.name());
         XmlUtils.beginDocument(parser, "test");
-        service2.readXml(parser, null, false, 0);
+        service2.readXml(parser, null, false, 0, null);
         ArraySet<ComponentName> defaults = service2.getDefaultComponents();
 
         assertEquals(1, defaults.size());
@@ -655,16 +658,23 @@ public class ManagedServicesTest extends UiServiceTestCase {
                             service,
                             getXmlEntry(resolvedValue0, 0, true),
                             getXmlEntry(resolvedValue10, 10, true));
-            service.readXml(parser, null, false, UserHandle.USER_ALL);
+            service.readXml(parser, null, false, UserHandle.USER_ALL, null);
 
             // Write backup.
             TypedXmlSerializer serializer = Xml.newFastSerializer();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
             serializer.startDocument(null, true);
-            service.writeXml(serializer, true, 10);
+            service.writeXml(serializer, true, 10, mLogger);
             serializer.endDocument();
             serializer.flush();
+
+            if (android.app.Flags.backupRestoreLogging()) {
+                verify(mLogger).logItemsBackedUp(
+                        DATA_TYPE_MANAGED_SERVICE_PRIMARY_APPROVED, 1);
+                verify(mLogger).logItemsBackedUp(
+                        DATA_TYPE_MANAGED_SERVICE_SECONDARY_APPROVED, 0);
+            }
 
             // Reset values.
             service.setPackageOrComponentEnabled(resolvedValue0, 0, true, false);
@@ -675,11 +685,20 @@ public class ManagedServicesTest extends UiServiceTestCase {
             restoreParser.setInput(
                     new BufferedInputStream(new ByteArrayInputStream(baos.toByteArray())), null);
             restoreParser.nextTag();
-            service.readXml(restoreParser, null, true, 10);
+            service.readXml(restoreParser, null, true, 10, mLogger);
+
+            if (android.app.Flags.backupRestoreLogging()) {
+                verify(mLogger).logItemsRestored(
+                        DATA_TYPE_MANAGED_SERVICE_PRIMARY_APPROVED, 1);
+                verify(mLogger).logItemsRestored(
+                        DATA_TYPE_MANAGED_SERVICE_SECONDARY_APPROVED, 0);
+            }
 
             assertFalse(service.isPackageOrComponentAllowed(resolvedValue0, 0));
             assertFalse(service.isPackageOrComponentAllowed(resolvedValue0, 10));
             assertTrue(service.isPackageOrComponentAllowed(resolvedValue10, 10));
+
+            Mockito.reset(mLogger);
         }
     }
 
@@ -727,7 +746,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
             serializer.startDocument(null, true);
             for (UserInfo userInfo : mUm.getUsers()) {
-                service.writeXml(serializer, true, userInfo.id);
+                service.writeXml(serializer, true, userInfo.id, mLogger);
             }
             serializer.endDocument();
             serializer.flush();
@@ -737,7 +756,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
                     new ByteArrayInputStream(baos.toByteArray())), null);
             parser.nextTag();
             for (UserInfo userInfo : mUm.getUsers()) {
-                service.readXml(parser, null, true, userInfo.id);
+                service.readXml(parser, null, true, userInfo.id, mLogger);
             }
 
             verifyExpectedApprovedEntries(service);
@@ -758,7 +777,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
             serializer.startDocument(null, true);
-            service.writeXml(serializer, false, UserHandle.USER_ALL);
+            service.writeXml(serializer, false, UserHandle.USER_ALL, null);
             serializer.endDocument();
             serializer.flush();
 
@@ -790,7 +809,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
             serializer.startDocument(null, true);
-            service.writeXml(serializer, false, UserHandle.USER_ALL);
+            service.writeXml(serializer, false, UserHandle.USER_ALL, null);
             serializer.endDocument();
             serializer.flush();
 
@@ -814,7 +833,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
             serializer.startDocument(null, true);
-            service.writeXml(serializer, false, UserHandle.USER_ALL);
+            service.writeXml(serializer, false, UserHandle.USER_ALL, null);
             serializer.endDocument();
             serializer.flush();
 
@@ -824,7 +843,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
                     new ByteArrayInputStream(rawOutput)), null);
             parser.nextTag();
             for (UserInfo userInfo : mUm.getUsers()) {
-                service.readXml(parser, null, true, userInfo.id);
+                service.readXml(parser, null, false, userInfo.id, null);
             }
 
             String resolvedUserSetComponent = approvalLevel == APPROVAL_BY_PACKAGE
@@ -1160,6 +1179,58 @@ public class ManagedServicesTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_IGNORE_DUPLICATE_BINDINGS)
+    public void duplicateBindingsIgnored() throws PackageManager.NameNotFoundException {
+        Context context = mock(Context.class);
+        PackageManager pm = mock(PackageManager.class);
+        ApplicationInfo ai = new ApplicationInfo();
+        ai.targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
+
+        when(context.getPackageName()).thenReturn(mPkg);
+        when(context.getUserId()).thenReturn(mUser.getIdentifier());
+        when(context.getPackageManager()).thenReturn(pm);
+        when(pm.getApplicationInfo(anyString(), anyInt())).thenReturn(ai);
+
+        final Set<ManagedServices.ManagedServiceInfo> seen = new ArraySet<>(2);
+
+        ManagedServices service = new TestManagedServices(context, mLock, mUserProfiles, mIpm,
+                APPROVAL_BY_COMPONENT) {
+            @Override
+            protected void onServiceAdded(ManagedServiceInfo info) {
+                super.onServiceAdded(info);
+                assertFalse("Duplicate initialization for " + info, seen.contains(info));
+                seen.add(info);
+            }
+        };
+        ComponentName cn = ComponentName.unflattenFromString("a/a");
+
+        when(context.bindServiceAsUser(any(), any(), any(), any())).thenAnswer(invocation -> {
+            Object[] args = invocation.getArguments();
+            Intent intent = (Intent) args[0];
+            ServiceConnection sc = (ServiceConnection) args[1];
+            sc.onServiceConnected(intent.getComponent(), mock(IBinder.class),
+                    mock(IBinderSession.class));
+            return true;
+        });
+
+        service.registerService(cn, 0);
+        assertEquals(1, service.mServices.size());
+        assertEquals(1, seen.size());
+        assertTrue(service.isBound(cn, 0));
+
+        service.registerService(cn, 0);
+        assertEquals(1, service.mServices.size());
+        assertEquals(1, seen.size());
+        assertTrue(service.isBound(cn, 0));
+
+        service.registerService(cn, 10);
+        assertEquals(2, service.mServices.size());
+        assertEquals(2, seen.size());
+        assertTrue(service.isBound(cn, 0));
+        assertTrue(service.isBound(cn, 10));
+    }
+
+    @Test
     public void testPackageUninstall_packageNoLongerInApprovedList() throws Exception {
         for (int approvalLevel : new int[] {APPROVAL_BY_COMPONENT, APPROVAL_BY_PACKAGE}) {
             ManagedServices service = new TestManagedServices(getContext(), mLock, mUserProfiles,
@@ -1309,16 +1380,14 @@ public class ManagedServicesTest extends UiServiceTestCase {
     }
 
     @Test
+    @DisableFlags(FLAG_MANAGED_SERVICES_CONCURRENT_MULTIUSER)
     public void testUpgradeAppNoPermissionNoRebind() throws Exception {
         Context context = spy(getContext());
-        ArgumentCaptor<ServiceConnection> captor = ArgumentCaptor.forClass(ServiceConnection.class);
-        doReturn(true).when(context).bindServiceAsUser(any(), captor.capture(), any(), any());
-        doNothing().when(context).unbindService(any());
+        doReturn(true).when(context).bindServiceAsUser(any(), any(), any(), any());
 
         ManagedServices service = new TestManagedServices(context, mLock, mUserProfiles,
                 mIpm,
                 APPROVAL_BY_COMPONENT);
-        service.setRebindAsyncDelay(false);
 
         List<String> packages = new ArrayList<>();
         packages.add("package");
@@ -1335,11 +1404,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
         mExpectedSecondaryPackages.clear();
 
         loadXml(service);
-
-        captor.getAllValues().get(0).onServiceConnected(
-                unapprovedComponent, mock(IBinder.class), mock(IBinderSession.class));
-        captor.getAllValues().get(1).onServiceConnected(
-                approvedComponent, mock(IBinder.class), mock(IBinderSession.class));
 
         //Component package/C1 loses bind permission
         when(mIpm.getServiceInfo(any(), anyLong(), anyInt())).thenAnswer(
@@ -1362,18 +1426,63 @@ public class ManagedServicesTest extends UiServiceTestCase {
         );
 
         // Trigger package update
-        if (Flags.useOnBindingDied()) {
-            captor.getAllValues().get(0).onBindingDied(unapprovedComponent);
-            captor.getAllValues().get(1).onBindingDied(approvedComponent);
-        } else {
-            service.onPackagesChanged(false, new String[]{"package"}, new int[]{0});
-        }
+        service.onPackagesChanged(false, new String[]{"package"}, new int[]{0});
+
+        assertFalse(service.isComponentEnabledForCurrentProfiles(unapprovedComponent));
+        assertTrue(service.isComponentEnabledForCurrentProfiles(approvedComponent));
+    }
+
+    @Test
+    @EnableFlags(FLAG_MANAGED_SERVICES_CONCURRENT_MULTIUSER)
+    public void testUpgradeAppNoPermissionNoRebind_concurrent_multiUser() throws Exception {
+        Context context = spy(getContext());
+        doReturn(true).when(context).bindServiceAsUser(any(), any(), any(), any());
+
+        ManagedServices service = new TestManagedServices(context, mLock, mUserProfiles,
+                mIpm,
+                APPROVAL_BY_COMPONENT);
+
+        List<String> packages = new ArrayList<>();
+        packages.add("package");
+        addExpectedServices(service, packages, 0);
+
+        final ComponentName unapprovedComponent = ComponentName.unflattenFromString("package/C1");
+        final ComponentName approvedComponent = ComponentName.unflattenFromString("package/C2");
+
+        // Both components are approved initially
+        mExpectedPrimaryComponentNames.clear();
+        mExpectedPrimaryPackages.clear();
+        mExpectedPrimaryComponentNames.put(0, "package/C1:package/C2");
+        mExpectedSecondaryComponentNames.clear();
+        mExpectedSecondaryPackages.clear();
+
+        loadXml(service);
+
+        //Component package/C1 loses bind permission
+        when(mIpm.getServiceInfo(any(), anyLong(), anyInt())).thenAnswer(
+                (Answer<ServiceInfo>) invocation -> {
+                    ComponentName invocationCn = invocation.getArgument(0);
+                    if (invocationCn != null) {
+                        ServiceInfo serviceInfo = new ServiceInfo();
+                        serviceInfo.packageName = invocationCn.getPackageName();
+                        serviceInfo.name = invocationCn.getClassName();
+                        if (invocationCn.equals(unapprovedComponent)) {
+                            serviceInfo.permission = "none";
+                        } else {
+                            serviceInfo.permission = service.getConfig().bindPermission;
+                        }
+                        serviceInfo.metaData = null;
+                        return serviceInfo;
+                    }
+                    return null;
+                }
+        );
+
+        // Trigger package update
+        service.onPackagesChanged(false, new String[]{"package"}, new int[]{0});
 
         assertFalse(service.isComponentEnabledForUser(unapprovedComponent, 0));
         assertTrue(service.isComponentEnabledForUser(approvedComponent, 0));
-
-        assertThat(service.isBound(unapprovedComponent, 0)).isFalse();
-        assertThat(service.isBound(approvedComponent, 0)).isTrue();
     }
 
     @Test
@@ -1949,7 +2058,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
                 APPROVAL_BY_COMPONENT);
         ComponentName cn = ComponentName.unflattenFromString("a/a");
 
-        service.registerSystemService(cn, 0);
         when(context.bindServiceAsUser(any(), any(), any(), any())).thenAnswer(invocation -> {
             Object[] args = invocation.getArguments();
             ServiceConnection sc = (ServiceConnection) args[1];
@@ -1979,7 +2087,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
                 APPROVAL_BY_COMPONENT);
         ComponentName cn = ComponentName.unflattenFromString("a/a");
 
-        service.registerSystemService(cn, 0);
         when(context.bindServiceAsUser(any(), any(), any(), any())).thenAnswer(invocation -> {
             Object[] args = invocation.getArguments();
             ServiceConnection sc = (ServiceConnection) args[1];
@@ -2224,10 +2331,8 @@ public class ManagedServicesTest extends UiServiceTestCase {
         clone.userType = USER_TYPE_PROFILE_CLONE;
         users.add(clone);
         UserInfo privateProfile = new UserInfo(14, "14", UserInfo.FLAG_PROFILE);
-        if (privateSpaceFlagsEnabled()) {
-            privateProfile.userType = USER_TYPE_PROFILE_PRIVATE;
-            users.add(privateProfile);
-        }
+        privateProfile.userType = USER_TYPE_PROFILE_PRIVATE;
+        users.add(privateProfile);
         when(mUm.getProfiles(ActivityManager.getCurrentUser())).thenReturn(users);
         when(mUm.getProfileParent(anyInt())).thenReturn(new UserInfo(0, "primary", 0));
 
@@ -2237,9 +2342,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
         assertFalse(profiles.isProfileUser(ActivityManager.getCurrentUser(), mContext));
         assertTrue(profiles.isProfileUser(12, mContext));
         assertTrue(profiles.isProfileUser(13, mContext));
-        if (privateSpaceFlagsEnabled()) {
-            assertTrue(profiles.isProfileUser(14, mContext));
-        }
+        assertTrue(profiles.isProfileUser(14, mContext));
     }
 
     @Test
@@ -2468,7 +2571,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
     public void testManagedServiceInfoIsSystemUi() {
         ManagedServices service = new TestManagedServices(getContext(), mLock, mUserProfiles, mIpm,
                 APPROVAL_BY_COMPONENT);
@@ -2586,7 +2688,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LIMIT_MANAGED_SERVICES_COUNT)
     public void setPackageOrComponentEnabled_tooManyPackages_stopsAdding() {
         ManagedServices service = new TestManagedServices(getContext(), mLock, mUserProfiles,
                 mIpm, APPROVAL_BY_PACKAGE);
@@ -2614,7 +2715,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LIMIT_MANAGED_SERVICES_COUNT)
     public void setPackageOrComponentEnabled_tooManyChanges_stopsAddingToUserSet() {
         ManagedServices service = new TestManagedServices(getContext(), mLock, mUserProfiles,
                 mIpm, APPROVAL_BY_PACKAGE);
@@ -2647,6 +2747,55 @@ public class ManagedServicesTest extends UiServiceTestCase {
         assertThat(service.setPackageOrComponentEnabled("onemore", userId, true, true)).isTrue();
         assertThat(service.setPackageOrComponentEnabled("onemore", userId, true, false)).isTrue();
         assertThat(service.isPackageOrComponentUserSet("onemore", userId)).isTrue();
+    }
+
+    @Test
+    public void registerSystemService_linksToDeath() throws Exception {
+        IInterface service = mock(IInterface.class);
+        IBinder binder = mock(IBinder.class);
+        when(service.asBinder()).thenReturn(binder);
+
+        mService.registerSystemService(service, ComponentName.unflattenFromString("a/a"), 0, 15);
+
+        verify(binder).linkToDeath(any(), anyInt());
+    }
+
+    @Test
+    public void registerGuestService_doesNotLinkToDeath() throws Exception {
+        ManagedServices ownerService = new TestManagedServices(getContext(), mLock, mUserProfiles,
+                mIpm, APPROVAL_BY_PACKAGE);
+        IInterface service = mock(IInterface.class);
+        IBinder binder = mock(IBinder.class);
+        when(service.asBinder()).thenReturn(binder);
+        ManagedServices.ManagedServiceInfo guest = ownerService.new ManagedServiceInfo(service,
+                ComponentName.unflattenFromString("a/a"), 0, false, mock(ServiceConnection.class),
+                26, 34);
+
+        mService.registerGuestService(guest);
+
+        verify(binder, never()).linkToDeath(any(), anyInt());
+    }
+
+    @Test
+    public void registerService_bindAsUserSuccess_isBound() {
+        ComponentName cn = ComponentName.unflattenFromString("a/a");
+        doReturn(true).when(mContext).bindServiceAsUser(any(), any(), any(), any());
+        assertThat(mService.isBound(cn, mUserId)).isFalse();
+
+        mService.registerService(cn, mUserId);
+
+        assertThat(mService.isBound(cn, mUserId)).isTrue();
+    }
+
+    @Test
+    public void registerService_bindAsUserFailure_isNotBound() {
+        ComponentName cn = ComponentName.unflattenFromString("a/a");
+        doReturn(false).when(mContext).bindServiceAsUser(any(), any(), any(), any());
+        assertThat(mService.isBound(cn, mUserId)).isFalse();
+
+        mService.registerService(cn, mUserId);
+
+        assertThat(mService.isBound(cn, mUserId)).isFalse();
     }
 
     private void mockServiceInfoWithMetaData(List<ComponentName> componentNames,
@@ -2686,7 +2835,7 @@ public class ManagedServicesTest extends UiServiceTestCase {
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(xmlString.getBytes())), null);
         parser.nextTag();
-        service.readXml(parser, null, false, UserHandle.USER_ALL);
+        service.readXml(parser, null, false, UserHandle.USER_ALL, null);
     }
 
     private String createXml(ManagedServices service) {
@@ -2900,7 +3049,6 @@ public class ManagedServicesTest extends UiServiceTestCase {
             }
         }
     }
-
 
     private void verifyExpectedApprovedPackages(ManagedServices service) {
         verifyExpectedApprovedPackages(service, true);

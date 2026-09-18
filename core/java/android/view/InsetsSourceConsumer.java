@@ -156,7 +156,7 @@ public class InsetsSourceConsumer {
                 // Canceling existing animation if there is any.
                 cancelTypes[0] |= mType;
             }
-            final boolean requestedVisible = isRequestedVisibleAwaitingControl();
+            final boolean requestedVisible = isRequestedVisible();
             final SurfaceControl oldLeash = lastControl != null ? lastControl.getLeash() : null;
             final SurfaceControl newLeash = control.getLeash();
             if (newLeash != null && (oldLeash == null || !newLeash.isSameSurface(oldLeash))
@@ -204,15 +204,6 @@ public class InsetsSourceConsumer {
         return mSourceControl;
     }
 
-    /**
-     * Determines if the consumer will be shown after control is available.
-     *
-     * @return {@code true} if consumer has a pending show.
-     */
-    protected boolean isRequestedVisibleAwaitingControl() {
-        return (mController.getRequestedVisibleTypes() & mType) != 0;
-    }
-
     int getId() {
         return mId;
     }
@@ -249,7 +240,7 @@ public class InsetsSourceConsumer {
             mPendingVisibleFrame = null;
         }
 
-        final boolean showRequested = isShowRequested();
+        final boolean showRequested = isRequestedVisible();
         final boolean cancelledForNewAnimation =
                 (mController.getCancelledForNewAnimationTypes() & mType) != 0;
 
@@ -269,7 +260,7 @@ public class InsetsSourceConsumer {
         return insetsChanged;
     }
 
-    protected boolean isShowRequested() {
+    private boolean isRequestedVisible() {
         return (mController.getRequestedVisibleTypes() & getType()) != 0;
     }
 
@@ -303,7 +294,7 @@ public class InsetsSourceConsumer {
         if (source == null || source.hasFlags(InsetsSource.FLAG_INVALID)) {
             return false;
         }
-        final boolean requestedVisible = (mController.getRequestedVisibleTypes() & mType) != 0;
+        final boolean requestedVisible = isRequestedVisible();
 
         // If we don't have control or the leash (in case of the IME), we enforce the
         // visibility to be hidden, as otherwise we would let the app know too early.
@@ -402,7 +393,7 @@ public class InsetsSourceConsumer {
             return;
         }
 
-        final boolean visible = (mController.getRequestedVisibleTypes() & mType) != 0;
+        final boolean visible = isRequestedVisible();
         final Point surfacePosition = mSourceControl.getSurfacePosition();
 
         if (DEBUG) Log.d(TAG, "applyRequestedVisibilityAndPositionToControl: visible=" + visible
@@ -422,7 +413,7 @@ public class InsetsSourceConsumer {
     void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         proto.write(HAS_WINDOW_FOCUS, mHasWindowFocus);
-        proto.write(IS_REQUESTED_VISIBLE, isShowRequested());
+        proto.write(IS_REQUESTED_VISIBLE, isRequestedVisible());
         if (mSourceControl != null) {
             mSourceControl.dumpDebug(proto, SOURCE_CONTROL);
         }

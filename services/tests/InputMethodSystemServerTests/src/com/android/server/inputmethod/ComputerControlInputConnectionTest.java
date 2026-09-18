@@ -16,12 +16,10 @@
 
 package com.android.server.inputmethod;
 
-import static org.mockito.Mockito.when;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.when;
 
-import android.companion.virtualdevice.flags.Flags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -34,7 +32,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
-@EnableFlags(Flags.FLAG_COMPUTER_CONTROL_TYPING)
 public class ComputerControlInputConnectionTest extends InputMethodManagerServiceTestBase {
 
     @Rule
@@ -47,8 +44,10 @@ public class ComputerControlInputConnectionTest extends InputMethodManagerServic
         startInputOrWindowGainedFocus();
 
         UserData data = mInputMethodManagerService.getUserData(mUserId);
-        assertEquals(mRemoteComputerControlInputConnection,
-                data.mComputerControlInputConnectionMap.get(CLIENT_DISPLAY_ID));
+        InputMethodManagerInternal.ComputerControlInputConnectionData ccData =
+                data.mComputerControlInputConnectionMap.get(CLIENT_DISPLAY_ID);
+        assertEquals(mRemoteComputerControlInputConnection, ccData.inputConnection());
+        assertEquals(mEditorInfo, ccData.editorInfo());
     }
 
     @Test

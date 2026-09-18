@@ -25,33 +25,6 @@ public class Utils {
     private Utils() {}
 
     /**
-     * Copy health info struct.
-     *
-     * @param dst destination
-     * @param src source
-     */
-    public static void copy(
-            android.hardware.health.V1_0.HealthInfo dst,
-            android.hardware.health.V1_0.HealthInfo src) {
-        dst.chargerAcOnline = src.chargerAcOnline;
-        dst.chargerUsbOnline = src.chargerUsbOnline;
-        dst.chargerWirelessOnline = src.chargerWirelessOnline;
-        dst.maxChargingCurrent = src.maxChargingCurrent;
-        dst.maxChargingVoltage = src.maxChargingVoltage;
-        dst.batteryStatus = src.batteryStatus;
-        dst.batteryHealth = src.batteryHealth;
-        dst.batteryPresent = src.batteryPresent;
-        dst.batteryLevel = src.batteryLevel;
-        dst.batteryVoltage = src.batteryVoltage;
-        dst.batteryTemperature = src.batteryTemperature;
-        dst.batteryCurrent = src.batteryCurrent;
-        dst.batteryCycleCount = src.batteryCycleCount;
-        dst.batteryFullCharge = src.batteryFullCharge;
-        dst.batteryChargeCounter = src.batteryChargeCounter;
-        dst.batteryTechnology = src.batteryTechnology;
-    }
-
-    /**
      * Copy battery fields of {@link android.hardware.health.HealthInfo} V1. This excludes
      * non-battery fields like {@link android.hardware.health.HealthInfo#diskStats diskStats} and
      * {@link android.hardware.health.HealthInfo#storageInfos storageInfos}

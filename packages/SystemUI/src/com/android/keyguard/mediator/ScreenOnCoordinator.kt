@@ -19,7 +19,6 @@ package com.android.keyguard.mediator
 import android.annotation.BinderThread
 import android.os.Handler
 import android.os.Trace
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.shade.display.EnsureWallpaperDrawnOnDisplaySwitch
@@ -72,12 +71,8 @@ constructor(
         }
 
         pendingTasks.onTasksComplete {
-            if (Flags.enableBackgroundKeyguardOndrawnCallback()) {
-                // called by whatever thread completes the last task registered.
-                onDrawn.run()
-            } else {
-                mainHandler.post { onDrawn.run() }
-            }
+            // called by whatever thread completes the last task registered.
+            onDrawn.run()
         }
         Trace.endSection()
     }

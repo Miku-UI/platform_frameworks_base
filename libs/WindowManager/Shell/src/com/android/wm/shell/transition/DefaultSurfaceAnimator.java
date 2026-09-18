@@ -28,61 +28,152 @@ import android.view.Choreographer;
 import android.view.SurfaceControl;
 import android.view.animation.Animation;
 import android.view.animation.Transformation;
+import android.window.TransitionInfo;
 
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.shared.TransactionPool;
 
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class DefaultSurfaceAnimator {
+public class DefaultSurfaceAnimator implements Runnable {
 
-    /** Builds an animator for the surface and adds it to the `animations` list. */
-    static void buildSurfaceAnimation(@NonNull ArrayList<Animator> animations,
-            @NonNull Animation anim, @NonNull SurfaceControl leash,
-            @NonNull Runnable finishCallback, @NonNull TransactionPool pool,
-            @NonNull ShellExecutor mainExecutor, @Nullable Point position, float cornerRadius,
+    private static final ThreadLocal<DefaultSurfaceAnimator> sSurfaceAnimator =
+            ThreadLocal.withInitial(DefaultSurfaceAnimator::new);
+
+    private final Choreographer mChoreographer = Choreographer.getInstance();
+    private SurfaceControl.Transaction mTransaction;
+    private boolean mScheduled;
+    private long mLastAppliedVsyncId;
+    private int mNumRunningAnimations;
+
+    private DefaultSurfaceAnimator() {
+    }
+
+    void schedule() {
+        if (!mScheduled) {
+            mChoreographer.postCallback(Choreographer.CALLBACK_TRAVERSAL, this, null /* token */);
+            mScheduled = true;
+        }
+    }
+
+    @Override
+    public void run() {
+        mScheduled = false;
+        mLastAppliedVsyncId = mChoreographer.getVsyncId();
+        mTransaction.setFrameTimelineVsync(mLastAppliedVsyncId);
+        mTransaction.apply();
+    }
+
+    private static void onAnimationStart(@NonNull AnimationAdapter animation) {
+        final DefaultSurfaceAnimator animator = sSurfaceAnimator.get();
+        animation.mSurfaceAnimator = animator;
+        if (animator.mTransaction != null) {
+            animation.mTransaction = animator.mTransaction;
+        } else {
+            animation.mTransaction = animator.mTransaction = animation.mTransactionPool.acquire();
+        }
+        animator.mNumRunningAnimations++;
+    }
+
+    private static void onAnimationEnd(@NonNull AnimationAdapter animation) {
+        final DefaultSurfaceAnimator animator = animation.mSurfaceAnimator;
+        animator.mNumRunningAnimations--;
+        if (animator.mScheduled || animator.mNumRunningAnimations > 0) {
+            // In case Animation#end is called between the applied frame and the next frame, the
+            // transaction of end animation should be applied before the finish transaction of
+            // transition. Otherwise, the real end state of transition may be overwritten.
+            if (animator.mLastAppliedVsyncId == animator.mChoreographer.getVsyncId()) {
+                animator.mTransaction.apply();
+            } else if (animator.mScheduled) {
+                // While Animator#isPostNotifyEndListenerEnabled is true, this usually happens when
+                // the first frame is the end (i.e. animation duration is 0). Apply the transaction
+                // before notifying the end callback to ensure the order with finish transaction.
+                animator.mTransaction.apply();
+                if (animator.mNumRunningAnimations == 0) {
+                    animator.mScheduled = false;
+                    animator.mChoreographer.removeCallbacks(Choreographer.CALLBACK_TRAVERSAL,
+                            animator, null /* token */);
+                }
+            }
+            return;
+        }
+        animation.mTransactionPool.release(animator.mTransaction);
+        animator.mTransaction = null;
+    }
+
+    /**
+     * Builds an animator for the surface without creating a WindowAnimation and with no finish
+     * callback function.
+     */
+    static ValueAnimator createAnimator(@NonNull Animation anim, @NonNull SurfaceControl leash,
+            @NonNull TransactionPool pool, @Nullable Point position, float cornerRadius,
+            @Nullable Rect clipRect) {
+        final DefaultAnimationAdapter adapter = new DefaultAnimationAdapter(anim, leash,
+                position, clipRect, cornerRadius, null /* roundedBounds */);
+        return buildSurfaceAnimation(anim, null /* finishRunnable */, pool, null /* mainExecutor */,
+                adapter);
+    }
+
+    /** Builds an animator for the surface and attaches a WindowAnimation to the adapter. */
+    static WindowAnimation buildWindowAnimation(@NonNull Animation anim,
+            @NonNull TransitionInfo.Change change,
+            @NonNull SurfaceControl leash,
+            Consumer<WindowAnimation> finishCallback, @NonNull TransactionPool pool,
+            ShellExecutor mainExecutor, @Nullable Point position, float cornerRadius,
             @Nullable Rect clipRect,
             @Nullable TransitionAnimationHelper.RoundedContentPerDisplay roundedBounds) {
         final DefaultAnimationAdapter adapter = new DefaultAnimationAdapter(anim, leash,
                 position, clipRect, cornerRadius, roundedBounds);
-        buildSurfaceAnimation(animations, anim, finishCallback, pool, mainExecutor, adapter);
+        return buildWindowAnimation(anim, change, adapter, finishCallback, pool, mainExecutor,
+                cornerRadius);
     }
 
-    /** Builds an animator for the surface and adds it to the `animations` list. */
-    static void buildSurfaceAnimation(@NonNull ArrayList<Animator> animations,
-            @NonNull Animation anim, @NonNull Runnable finishCallback,
-            @NonNull TransactionPool pool, @NonNull ShellExecutor mainExecutor,
+    /** Builds an animator for the surface and attaches a WindowAnimation to the adapter. */
+    static WindowAnimation buildWindowAnimation(@NonNull Animation anim,
+            @NonNull TransitionInfo.Change change,
+            @NonNull AnimationAdapter adapter,
+            Consumer<WindowAnimation> finishCallback, @NonNull TransactionPool pool,
+            ShellExecutor mainExecutor,
+            float cornerRadius) {
+        ValueAnimator va = buildSurfaceAnimation(anim, null /* finishRunnable */,
+                pool, null /* mainExecutor */, adapter);
+        WindowAnimation windowAnimation = new WindowAnimation(change, cornerRadius, anim, va);
+        if (finishCallback != null && mainExecutor != null) {
+            windowAnimation.addFinishCallback(finishCallback, mainExecutor);
+        }
+        return windowAnimation;
+    }
+
+    /** Builds an animator for the surface. */
+    static ValueAnimator buildSurfaceAnimation(
+            @NonNull Animation anim, Runnable finishRunnable,
+            @NonNull TransactionPool pool, ShellExecutor mainExecutor,
             @NonNull AnimationAdapter updateListener) {
-        final SurfaceControl.Transaction transaction = pool.acquire();
-        updateListener.setTransaction(transaction);
+        updateListener.mTransactionPool = pool;
         final ValueAnimator va = ValueAnimator.ofFloat(0f, 1f);
         // Animation length is already expected to be scaled.
         va.overrideDurationScale(1.0f);
         va.setDuration(anim.computeDurationHint());
         setupValueAnimator(va, updateListener, (vanim) -> {
-            pool.release(transaction);
-            mainExecutor.execute(() -> {
-                animations.remove(vanim);
-                finishCallback.run();
-            });
+            DefaultSurfaceAnimator.onAnimationEnd(updateListener);
+            if (mainExecutor != null && finishRunnable != null) {
+                mainExecutor.execute(finishRunnable);
+            }
         });
-        animations.add(va);
+        return va;
     }
 
     /** The animation adapter for buildSurfaceAnimation. */
     abstract static class AnimationAdapter implements ValueAnimator.AnimatorUpdateListener {
+        @NonNull  final Transformation mTransformation = new Transformation();
         @NonNull final SurfaceControl mLeash;
         @NonNull SurfaceControl.Transaction mTransaction;
-        private Choreographer mChoreographer;
+        private TransactionPool mTransactionPool;
+        private DefaultSurfaceAnimator mSurfaceAnimator;
 
         AnimationAdapter(@NonNull SurfaceControl leash) {
             mLeash = Objects.requireNonNull(leash, "leash is null in AnimationAdapter constructor");
-        }
-
-        void setTransaction(@NonNull SurfaceControl.Transaction transaction) {
-            mTransaction = transaction;
         }
 
         @Override
@@ -93,18 +184,13 @@ public class DefaultSurfaceAnimator {
                     ? animator.getDuration()
                     : Math.min(animator.getDuration(), animator.getCurrentPlayTime());
             applyTransformation(animator, currentPlayTime);
-            if (mChoreographer == null) {
-                mChoreographer = Choreographer.getInstance();
-            }
-            mTransaction.setFrameTimelineVsync(mChoreographer.getVsyncId());
-            mTransaction.apply();
+            mSurfaceAnimator.schedule();
         }
 
         abstract void applyTransformation(@NonNull ValueAnimator animator, long currentPlayTime);
     }
 
     private static class DefaultAnimationAdapter extends AnimationAdapter {
-        final Transformation mTransformation = new Transformation();
         final float[] mMatrix = new float[9];
         @NonNull final Animation mAnim;
         @Nullable final Point mPosition;
@@ -117,7 +203,8 @@ public class DefaultSurfaceAnimator {
          * Inset changes aren't synchronized with transitions, so use a "provider" to track the
          * bottom of the display content during the animation.
          */
-        @Nullable final TransitionAnimationHelper.RoundedContentPerDisplay mRoundedContentBounds;
+        @Nullable
+        final TransitionAnimationHelper.RoundedContentPerDisplay mRoundedContentBounds;
 
         DefaultAnimationAdapter(@NonNull Animation anim, @NonNull SurfaceControl leash,
                 @Nullable Point position, @Nullable Rect clipRect, float cornerRadius,
@@ -192,6 +279,9 @@ public class DefaultSurfaceAnimator {
 
             @Override
             public void onAnimationStart(Animator animation) {
+                if (updateListener instanceof AnimationAdapter animationAdapter) {
+                    DefaultSurfaceAnimator.onAnimationStart(animationAdapter);
+                }
             }
 
             @Override

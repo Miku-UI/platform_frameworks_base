@@ -72,10 +72,10 @@ data class WeatherData(
         }
 
         private fun readIntFromBundle(extras: Bundle, key: String): Int? {
-            try {
-                return extras.getString(key)?.toInt()
+            return try {
+                extras.getString(key)?.toInt()
             } catch (e: Exception) {
-                return null
+                null
             }
         }
 

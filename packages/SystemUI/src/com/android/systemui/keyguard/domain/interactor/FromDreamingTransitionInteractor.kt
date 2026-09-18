@@ -29,7 +29,6 @@ import com.android.systemui.communal.shared.model.CommunalTransitionKeys
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
 import com.android.systemui.keyguard.shared.model.DozeStateModel
@@ -63,7 +62,6 @@ constructor(
     powerInteractor: PowerInteractor,
     keyguardOcclusionInteractor: KeyguardOcclusionInteractor,
     private val dreamManager: DreamManager,
-    private val deviceEntryInteractor: DeviceEntryInteractor,
 ) :
     TransitionInteractor(
         fromState = KeyguardState.DREAMING,
@@ -140,7 +138,7 @@ constructor(
         }
     }
 
-    fun startToLockscreenOrGlanceableHubTransition(openHub: Boolean) {
+    fun startTransitionFromDream(openHub: Boolean) {
         scope.launch {
             if (
                 transitionInteractor.startedKeyguardTransitionStep.value.to ==
@@ -157,13 +155,26 @@ constructor(
                                 else null,
                         )
                     } else {
-                        startTransitionTo(
-                            KeyguardState.LOCKSCREEN,
-                            ownerReason = "Dream has ended and device is awake",
-                        )
+                        if (isDismissible()) {
+                            startTransitionTo(
+                                KeyguardState.GONE,
+                                ownerReason = "Dream has ended and device is dismissible",
+                            )
+                        } else {
+                            startTransitionTo(
+                                KeyguardState.LOCKSCREEN,
+                                ownerReason = "Dream has ended and device is awake",
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+
+    fun dismissFromDreaming() {
+        scope.launch {
+            startTransitionTo(KeyguardState.GONE, ownerReason = "Dismiss from dreaming")
         }
     }
 
@@ -171,7 +182,11 @@ constructor(
     private fun listenForDreamingToOccludedOrGoneOrLockscreen() {
         if (SceneContainerFlag.isEnabled) return
         scope.launch {
-            combine(keyguardInteractor.isKeyguardOccluded, keyguardInteractor.isAbleToDream, ::Pair)
+            combine(
+                    keyguardInteractor.isKeyguardOccluded,
+                    keyguardInteractor.isDreamingNotDozing,
+                    ::Pair,
+                )
                 // Debounce signals since there is a race condition between the occluded and
                 // dreaming signals when starting or stopping dreaming. We therefore add a small
                 // delay to give enough time for occluded to flip to false when the dream
@@ -179,11 +194,7 @@ constructor(
                 .debounce(100.milliseconds)
                 .filterRelevantKeyguardStateAnd { (isOccluded, isDreaming) -> !isDreaming }
                 .collect { (isOccluded, isDreaming) ->
-                    val isDismissible =
-                        keyguardInteractor.isKeyguardDismissible.value &&
-                            !keyguardInteractor.isKeyguardShowing.value
-
-                    if (isDismissible) {
+                    if (isDismissible()) {
                         startTransitionTo(
                             KeyguardState.GONE,
                             ownerReason = "No longer dreaming; dismissable",
@@ -209,7 +220,7 @@ constructor(
         scope.launch {
             keyguardInteractor.biometricUnlockState
                 .filterRelevantKeyguardStateAnd { biometricUnlockState ->
-                    biometricUnlockState.mode == BiometricUnlockMode.WAKE_AND_UNLOCK_FROM_DREAM
+                    biometricUnlockState.mode == BiometricUnlockMode.WAKE_AND_DISMISS_FROM_DREAM
                 }
                 .collect { startTransitionTo(KeyguardState.GONE) }
         }
@@ -238,6 +249,11 @@ constructor(
                     else -> DEFAULT_DURATION
                 }.inWholeMilliseconds
         }
+    }
+
+    private fun isDismissible(): Boolean {
+        return keyguardInteractor.isKeyguardDismissible.value &&
+            !keyguardInteractor.isKeyguardShowing.value
     }
 
     companion object {

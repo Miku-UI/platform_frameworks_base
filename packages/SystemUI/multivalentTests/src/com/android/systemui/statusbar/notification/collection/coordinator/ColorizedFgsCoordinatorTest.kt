@@ -23,8 +23,6 @@ import android.app.PendingIntent
 import android.app.Person
 import android.content.Intent
 import android.graphics.Color
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -38,7 +36,6 @@ import com.android.systemui.mediaprojection.data.repository.fakeMediaProjectionR
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.screenrecord.data.repository.screenRecordRepository
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.notification.collection.buildEntry
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildOngoingCallEntry
@@ -48,9 +45,7 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.makeClassifiedConversation
 import com.android.systemui.statusbar.notification.collection.notifPipeline
 import com.android.systemui.statusbar.notification.domain.interactor.renderNotificationListInteractor
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.promotedNotificationsInteractor
-import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.withArgCaptor
 import com.google.common.truth.Truth.assertThat
@@ -59,8 +54,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.any
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 
 @SmallTest
@@ -163,8 +156,7 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testIncludePromotedOngoingInSection_flagEnabled() {
+    fun testIncludePromotedOngoingInSection() {
         // GIVEN the notification has FLAG_PROMOTED_ONGOING
         val entry = buildEntry { setFlag(mContext, Notification.FLAG_PROMOTED_ONGOING, true) }
 
@@ -173,17 +165,6 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testDiscludePromotedOngoingInSection_flagDisabled() {
-        // GIVEN the notification has FLAG_PROMOTED_ONGOING
-        val entry = buildEntry { setFlag(mContext, Notification.FLAG_PROMOTED_ONGOING, true) }
-
-        // THEN the entry is NOT in the fgs section
-        assertFalse(sectioner.isInSection(entry))
-    }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun testIncludeScreenRecordNotifInSection_importanceDefault() =
         kosmos.runTest {
             // GIVEN a screen record event + screen record notif that has a status bar chip
@@ -203,16 +184,13 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(promotedNotificationsInteractor.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly(screenRecordEntry.key)
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(screenRecordEntry.key).inOrder()
 
             // THEN the entry is in the fgs section
             assertTrue(sectioner.isInSection(screenRecordEntry))
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun testDiscludeScreenRecordNotifInSection_importanceMin() =
         kosmos.runTest {
             // GIVEN a screen record event + screen record notif that has a status bar chip
@@ -232,46 +210,14 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(promotedNotificationsInteractor.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly(screenRecordEntry.key)
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(screenRecordEntry.key).inOrder()
 
             // THEN the entry is NOT in the fgs section
             assertFalse(sectioner.isInSection(screenRecordEntry))
         }
 
     @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testDiscludeScreenRecordNotifInSection_flagDisabled() =
-        kosmos.runTest {
-            // GIVEN a screen record event + screen record notif that has a status bar chip
-            screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
-            fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(
-                    hostPackage = "com.android.systemui.tests"
-                )
-            val screenRecordEntry =
-                buildNotificationEntry(tag = "screenRecord", promoted = false) {
-                    setImportance(NotificationManager.IMPORTANCE_DEFAULT)
-                    setFlag(context, FLAG_FOREGROUND_SERVICE, true)
-                }
-
-            renderNotificationListInteractor.setRenderedList(listOf(screenRecordEntry))
-
-            val orderedChipNotificationKeys by
-                collectLastValue(promotedNotificationsInteractor.orderedChipNotificationKeys)
-
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly(screenRecordEntry.key)
-                .inOrder()
-
-            // THEN the entry is NOT in the fgs section
-            assertFalse(sectioner.isInSection(screenRecordEntry))
-        }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun promoterSelectsPromotedOngoing_flagEnabled() {
+    fun promoterSelectsPromotedOngoing() {
         val promoter: NotifPromoter = withArgCaptor { verify(notifPipeline).addPromoter(capture()) }
 
         // GIVEN the notification has FLAG_PROMOTED_ONGOING
@@ -282,8 +228,7 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun promoterIgnoresNonPromotedOngoing_flagEnabled() {
+    fun promoterIgnoresNonPromotedOngoing() {
         val promoter: NotifPromoter = withArgCaptor { verify(notifPipeline).addPromoter(capture()) }
 
         // GIVEN the notification does not have FLAG_PROMOTED_ONGOING
@@ -294,17 +239,6 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun noPromoterAdded_flagDisabled() {
-        verify(notifPipeline, never()).addPromoter(any())
-    }
-
-    @Test
-    @EnableFlags(
-        PromotedNotificationUi.FLAG_NAME,
-        StatusBarChipsModernization.FLAG_NAME,
-        StatusBarRootModernization.FLAG_NAME,
-    )
     fun comparatorPutsCallBeforeOther() =
         kosmos.runTest {
             // GIVEN a call and a promoted ongoing notification
@@ -320,11 +254,7 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
                 collectLastValue(kosmos.promotedNotificationsInteractor.orderedChipNotificationKeys)
 
             // THEN the order of the notification keys should be the call then the RON
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly(
-                    callEntry.key,
-                    ronEntry.key,
-                )
+            assertThat(orderedChipNotificationKeys).containsExactly(callEntry.key, ronEntry.key)
 
             // VERIFY that the comparator puts the call before the ron
             assertThat(sectioner.comparator!!.compare(callEntry, ronEntry)).isLessThan(0)

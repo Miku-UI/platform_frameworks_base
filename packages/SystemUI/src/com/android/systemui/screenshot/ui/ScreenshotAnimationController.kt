@@ -159,6 +159,7 @@ class ScreenshotAnimationController(
             scrollingScrim.setAlpha(1 - animation.animatedFraction)
         }
         scrollTransitionPreview.visibility = View.VISIBLE
+        // TODO: b/468307035
         if (true) {
             scrollTransitionPreview.setImageBitmap(longScreenshot.toBitmap())
             val startX: Float = scrollTransitionPreview.x
@@ -376,7 +377,7 @@ class ScreenshotAnimationController(
     }
 
     private fun viewClosestToLeftEdge(): Boolean {
-        var rect = Rect()
+        val rect = Rect()
         view.getBoundsOnScreen(rect)
         return rect.centerX() < view.resources.displayMetrics.widthPixels / 2f
     }

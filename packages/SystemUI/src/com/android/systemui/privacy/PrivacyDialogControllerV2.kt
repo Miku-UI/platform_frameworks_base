@@ -31,7 +31,9 @@ import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.core.view.isVisible
 import com.android.internal.logging.UiEventLogger
+import com.android.systemui.Flags.groupedPrivacyChip
 import com.android.systemui.animation.DialogTransitionAnimator
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.appops.AppOpsController
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -43,79 +45,36 @@ import com.android.systemui.statusbar.policy.KeyguardStateController
 import java.util.concurrent.Executor
 import javax.inject.Inject
 
-private val defaultDialogProvider =
-    object : PrivacyDialogControllerV2.DialogProvider {
-        override fun makeDialog(
-            context: Context,
-            list: List<PrivacyDialogV2.PrivacyElement>,
-            manageApp: (String, Int, Intent) -> Unit,
-            closeApp: (String, Int) -> Unit,
-            openPrivacyDashboard: () -> Unit
-        ): PrivacyDialogV2 {
-            return PrivacyDialogV2(context, list, manageApp, closeApp, openPrivacyDashboard)
-        }
-    }
-
 /**
- * Controller for [PrivacyDialogV2].
+ * Controller for [PrivacyDialogDelegateV2].
  *
  * This controller shows and dismissed the dialog, as well as determining the information to show in
  * it.
  */
 @SysUISingleton
-class PrivacyDialogControllerV2(
+class PrivacyDialogControllerV2
+@Inject
+constructor(
     private val permissionManager: PermissionManager,
     private val packageManager: PackageManager,
     private val locationManager: LocationManager,
     private val privacyItemController: PrivacyItemController,
     private val userTracker: UserTracker,
     private val activityStarter: ActivityStarter,
-    private val backgroundExecutor: Executor,
-    private val uiExecutor: Executor,
+    @Background private val backgroundExecutor: Executor,
+    @Main private val uiExecutor: Executor,
     private val privacyLogger: PrivacyLogger,
     private val keyguardStateController: KeyguardStateController,
     private val appOpsController: AppOpsController,
     private val uiEventLogger: UiEventLogger,
     private val dialogTransitionAnimator: DialogTransitionAnimator,
-    private val dialogProvider: DialogProvider
+    private val privacyDialogDelegateV2Factory: PrivacyDialogDelegateV2.Factory,
 ) {
-
-    @Inject
-    constructor(
-        permissionManager: PermissionManager,
-        packageManager: PackageManager,
-        locationManager: LocationManager,
-        privacyItemController: PrivacyItemController,
-        userTracker: UserTracker,
-        activityStarter: ActivityStarter,
-        @Background backgroundExecutor: Executor,
-        @Main uiExecutor: Executor,
-        privacyLogger: PrivacyLogger,
-        keyguardStateController: KeyguardStateController,
-        appOpsController: AppOpsController,
-        uiEventLogger: UiEventLogger,
-        dialogTransitionAnimator: DialogTransitionAnimator
-    ) : this(
-        permissionManager,
-        packageManager,
-        locationManager,
-        privacyItemController,
-        userTracker,
-        activityStarter,
-        backgroundExecutor,
-        uiExecutor,
-        privacyLogger,
-        keyguardStateController,
-        appOpsController,
-        uiEventLogger,
-        dialogTransitionAnimator,
-        defaultDialogProvider
-    )
 
     private var dialog: Dialog? = null
 
     private val onDialogDismissed =
-        object : PrivacyDialogV2.OnDialogDismissed {
+        object : PrivacyDialogDelegateV2.OnDialogDismissed {
             override fun onDialogDismissed() {
                 privacyLogger.logPrivacyDialogDismissed()
                 uiEventLogger.log(PrivacyDialogEvent.PRIVACY_DIALOG_DISMISSED)
@@ -128,7 +87,7 @@ class PrivacyDialogControllerV2(
         uiEventLogger.log(
             PrivacyDialogEvent.PRIVACY_DIALOG_ITEM_CLICKED_TO_CLOSE_APP,
             userId,
-            packageName
+            packageName,
         )
         privacyLogger.logCloseAppFromDialog(packageName, userId)
         ActivityManager.getService().stopAppForUser(packageName, userId)
@@ -139,7 +98,7 @@ class PrivacyDialogControllerV2(
         uiEventLogger.log(
             PrivacyDialogEvent.PRIVACY_DIALOG_ITEM_CLICKED_TO_APP_SETTINGS,
             userId,
-            packageName
+            packageName,
         )
         privacyLogger.logStartSettingsActivityFromDialog(packageName, userId)
         startActivity(navigationIntent)
@@ -174,7 +133,7 @@ class PrivacyDialogControllerV2(
         packageName: String,
         permGroupName: String,
         attributionTag: CharSequence?,
-        isAttributionSupported: Boolean
+        isAttributionSupported: Boolean,
     ): Intent? {
         // We should only limit this intent to location provider
         if (
@@ -213,10 +172,11 @@ class PrivacyDialogControllerV2(
     }
 
     /**
-     * Show the [PrivacyDialogV2]
+     * Show the [PrivacyDialogDelegateV2] dialog
      *
      * This retrieves the permission usage from [PermissionManager] and creates a new
-     * [PrivacyDialogV2] with a list of [PrivacyDialogV2.PrivacyElement] to show.
+     * [PrivacyDialogDelegateV2] dialog with a list of [PrivacyDialogDelegateV2.PrivacyElement] to
+     * show.
      *
      * This list will be filtered by [filterAndSelect]. Only types available by
      * [PrivacyItemController] will be shown.
@@ -224,7 +184,7 @@ class PrivacyDialogControllerV2(
      * @param context A context to use to create the dialog.
      * @see filterAndSelect
      */
-    fun showDialog(context: Context, privacyChip: OngoingPrivacyChip? = null) {
+    fun showDialog(context: Context, privacyChip: AbstractOngoingPrivacyChip? = null) {
         dismissDialog()
         backgroundExecutor.execute {
             val usage = permGroupUsage()
@@ -253,9 +213,9 @@ class PrivacyDialogControllerV2(
                                 it.attributionTag,
                                 // attributionLabel is set only when subattribution policies
                                 // are supported and satisfied
-                                it.attributionLabel != null
+                                it.attributionLabel != null,
                             )
-                        PrivacyDialogV2.PrivacyElement(
+                        PrivacyDialogDelegateV2.PrivacyElement(
                             permGroupToPrivacyType(it.permissionGroupName)!!,
                             it.packageName,
                             userId,
@@ -269,7 +229,7 @@ class PrivacyDialogControllerV2(
                             viewUsageIntent != null,
                             it.permissionGroupName,
                             viewUsageIntent
-                                ?: getDefaultManageAppPermissionsIntent(it.packageName, userId)
+                                ?: getDefaultManageAppPermissionsIntent(it.packageName, userId),
                         )
                     } else {
                         null
@@ -278,22 +238,31 @@ class PrivacyDialogControllerV2(
             uiExecutor.execute {
                 val elements = filterAndSelect(items)
                 if (elements.isNotEmpty()) {
-                    val d =
-                        dialogProvider.makeDialog(
+                    val delegate =
+                        privacyDialogDelegateV2Factory.create(
                             context,
                             elements,
                             this::manageApp,
                             this::closeApp,
-                            this::openPrivacyDashboard
+                            this::openPrivacyDashboard,
                         )
+                    val d = delegate.createDialog()
                     d.setShowForAllUsers(true)
-                    d.addOnDismissListener(onDialogDismissed)
+                    delegate.addOnDismissListener(onDialogDismissed)
                     if (privacyChip != null) {
                         val controller = getPrivacyDialogController(privacyChip)
                         if (controller == null) {
                             d.show()
                         } else {
-                            dialogTransitionAnimator.show(d, controller)
+                            if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                                dialogTransitionAnimator.show(
+                                    d,
+                                    privacyChip.expandable::dialogTransitionController,
+                                    controller.cuj,
+                                )
+                            } else {
+                                dialogTransitionAnimator.show(d, controller)
+                            }
                         }
                     } else {
                         d.show()
@@ -308,11 +277,14 @@ class PrivacyDialogControllerV2(
     }
 
     private fun getPrivacyDialogController(
-        source: OngoingPrivacyChip
+        source: AbstractOngoingPrivacyChip
     ): DialogTransitionAnimator.Controller? {
         val delegate =
-            DialogTransitionAnimator.Controller.fromView(source.launchableContentView)
-                ?: return null
+            if (groupedPrivacyChip()) {
+                source.expandable.dialogTransitionController()
+            } else {
+                DialogTransitionAnimator.Controller.fromView(source.launchableContentView)
+            } ?: return null
         return object : DialogTransitionAnimator.Controller by delegate {
             override fun shouldAnimateExit() = source.isVisible
         }
@@ -360,8 +332,8 @@ class PrivacyDialogControllerV2(
      * it'll return the most recent access
      */
     private fun filterAndSelect(
-        list: List<PrivacyDialogV2.PrivacyElement>
-    ): List<PrivacyDialogV2.PrivacyElement> {
+        list: List<PrivacyDialogDelegateV2.PrivacyElement>
+    ): List<PrivacyDialogDelegateV2.PrivacyElement> {
         return list
             .groupBy { it.type }
             .toSortedMap()
@@ -374,21 +346,5 @@ class PrivacyDialogControllerV2(
                         ?: emptyList()
                 }
             }
-    }
-
-    /**
-     * Interface to create a [PrivacyDialogV2].
-     *
-     * Can be used to inject a mock creator.
-     */
-    interface DialogProvider {
-        /** Create a [PrivacyDialogV2]. */
-        fun makeDialog(
-            context: Context,
-            list: List<PrivacyDialogV2.PrivacyElement>,
-            manageApp: (String, Int, Intent) -> Unit,
-            closeApp: (String, Int) -> Unit,
-            openPrivacyDashboard: () -> Unit
-        ): PrivacyDialogV2
     }
 }

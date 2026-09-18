@@ -30,11 +30,13 @@ import android.graphics.Rect;
 import android.view.Display;
 import android.window.WindowContainerToken;
 
+import com.android.testing.wm.util.MockToken;
+
 public final class TestRunningTaskInfoBuilder {
     static int sNextTaskId = 500;
     private Rect mBounds = new Rect(0, 0, 100, 100);
 
-    private WindowContainerToken mToken = new MockToken().token();
+    private WindowContainerToken mToken;
     private int mParentTaskId = INVALID_TASK_ID;
     private int mUid = INVALID_TASK_ID;
     private int mTaskId = INVALID_TASK_ID;
@@ -53,6 +55,14 @@ public final class TestRunningTaskInfoBuilder {
     private boolean mIsActivityStackTransparent = false;
     private int mNumActivities = 1;
     private long mLastActiveTime;
+
+    public TestRunningTaskInfoBuilder() {
+        this(null);
+    }
+
+    public TestRunningTaskInfoBuilder(String name) {
+        setToken(new MockToken(name).token());
+    }
 
     public TestRunningTaskInfoBuilder setToken(WindowContainerToken token) {
         mToken = token;

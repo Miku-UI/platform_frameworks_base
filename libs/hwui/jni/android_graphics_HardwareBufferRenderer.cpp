@@ -111,10 +111,10 @@ static int android_graphics_HardwareBufferRenderer_render(JNIEnv* env, jobject, 
             width, height, matrix, colorSpace, createRenderCallback(env, consumer)));
     nsecs_t vsync = systemTime(SYSTEM_TIME_MONOTONIC);
     UiFrameInfoBuilder(proxy->frameInfo())
-                .setVsync(vsync, vsync, UiFrameInfoBuilder::INVALID_VSYNC_ID,
-                    UiFrameInfoBuilder::UNKNOWN_DEADLINE,
-                    UiFrameInfoBuilder::UNKNOWN_FRAME_INTERVAL)
-                .addFlag(FrameInfoFlags::SurfaceCanvas);
+            .setVsync(vsync, UiFrameInfoBuilder::INVALID_VSYNC_ID,
+                      UiFrameInfoBuilder::UNKNOWN_DEADLINE,
+                      UiFrameInfoBuilder::UNKNOWN_FRAME_INTERVAL)
+            .addFlag(FrameInfoFlags::SurfaceCanvas);
     return proxy->syncAndDrawFrame();
 }
 

@@ -50,10 +50,6 @@
     <!-- Color for various surfaces related to system-wide blur -->
     <color name="shade_panel_fg">@color/shade_panel_fg_color</color>
     <color name="shade_panel_bg">@color/shade_panel_bg_color</color>
-    <color name="surface_effect_0">@color/surface_effect_0_color</color>
-    <color name="surface_effect_1">@color/surface_effect_1_color</color>
-    <color name="surface_effect_2">@color/surface_effect_2_color</color>
-    <color name="surface_effect_3">@color/surface_effect_3_color</color>
 
     <!-- Color for side fps toast dark theme-->
     <color name="side_fps_toast_background">#2E3132</color>
@@ -63,4 +59,17 @@
     <!-- Color for APM USB Data Protection Notification-->
     <!-- Notification icon tint color-->
     <color name="security_privacy_notification_tint_normal">#8AB4F8</color>
+
+    <color name="system_on_primary_fixed">@color/system_on_primary_fixed_dark</color>
+    <color name="system_on_primary_fixed_variant">@color/system_on_primary_fixed_variant_dark</color>
+    <color name="system_on_secondary_fixed">@color/system_on_secondary_fixed_dark</color>
+    <color name="system_on_secondary_fixed_variant">@color/system_on_secondary_fixed_variant_dark</color>
+    <color name="system_on_tertiary_fixed">@color/system_on_tertiary_fixed_dark</color>
+    <color name="system_on_tertiary_fixed_variant">@color/system_on_tertiary_fixed_variant_dark</color>
+    <color name="system_primary_fixed">@color/system_primary_fixed_dark</color>
+    <color name="system_primary_fixed_dim">@color/system_primary_fixed_dim_dark</color>
+    <color name="system_secondary_fixed">@color/system_secondary_fixed_dark</color>
+    <color name="system_secondary_fixed_dim">@color/system_secondary_fixed_dim_dark</color>
+    <color name="system_tertiary_fixed">@color/system_tertiary_fixed_dark</color>
+    <color name="system_tertiary_fixed_dim">@color/system_tertiary_fixed_dim_dark</color>
 </resources>

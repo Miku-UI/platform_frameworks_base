@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.notification.row
 
 import android.annotation.WorkerThread
-import android.app.ActivityManager
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
@@ -25,7 +24,6 @@ import android.util.Dumpable
 import android.util.Log
 import android.util.Size
 import androidx.annotation.MainThread
-import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.R
 import com.android.internal.widget.NotificationDrawableConsumer
 import com.android.internal.widget.NotificationIconManager
@@ -47,6 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.android.app.tracing.coroutines.launchTraced as launch
 
 private const val TAG = "BigPicImageLoader"
 private const val DEBUG = false
@@ -207,27 +206,11 @@ constructor(
         return Pair(drawable, state)
     }
 
-    private fun isLowRam(): Boolean {
-        return ActivityManager.isLowRamDeviceStatic()
-    }
-
     private fun getMaxWidth() =
-        context.resources.getDimensionPixelSize(
-            if (isLowRam()) {
-                R.dimen.notification_big_picture_max_width_low_ram
-            } else {
-                R.dimen.notification_big_picture_max_width
-            }
-        )
+        context.resources.getDimensionPixelSize(R.dimen.notification_big_picture_max_width)
 
     private fun getMaxHeight() =
-        context.resources.getDimensionPixelSize(
-            if (isLowRam()) {
-                R.dimen.notification_big_picture_max_height_low_ram
-            } else {
-                R.dimen.notification_big_picture_max_height
-            }
-        )
+        context.resources.getDimensionPixelSize(R.dimen.notification_big_picture_max_height)
 
     /**
      * We don't support lazy-loading or set placeholders for bitmap and data based icons, because

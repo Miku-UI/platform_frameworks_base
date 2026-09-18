@@ -42,6 +42,7 @@ import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessCapability;
 import android.app.ActivityManager.ProcessState;
 import android.app.AppOpsManager;
 import android.app.IUidObserver;
@@ -301,7 +302,7 @@ public class UsageStatsService extends SystemService implements
         switch (msg.what) {
             case MSG_UID_STATE_CHANGED: {
                 final int uid = msg.arg1;
-                final int procState = msg.arg2;
+                @ProcessState final int procState = msg.arg2;
 
                 final int newCounter = (procState <= ActivityManager.PROCESS_STATE_TOP) ? 0 : 1;
                 synchronized (mUidToKernelCounter) {
@@ -431,12 +432,9 @@ public class UsageStatsService extends SystemService implements
     public void onBootPhase(int phase) {
         mAppStandby.onBootPhase(phase);
         if (phase == PHASE_SYSTEM_SERVICES_READY) {
-            // initialize mDpmInternal
+            // initialize internal services
             getDpmInternal();
-            // initialize mShortcutServiceInternal
-            if (android.app.supervision.flags.Flags.deprecateDpmSupervisionApis()) {
-                getSupervisionManagerInternal();
-            }
+            getSupervisionManagerInternal();
             getShortcutServiceInternal();
             mResponseStatsTracker.onSystemServicesReady(getContext());
 
@@ -680,7 +678,8 @@ public class UsageStatsService extends SystemService implements
 
     private final IUidObserver mUidObserver = new UidObserver() {
         @Override
-        public void onUidStateChanged(int uid, int procState, long procStateSeq, int capability) {
+        public void onUidStateChanged(int uid, @ProcessState int procState,
+                long procStateSeq, @ProcessCapability int capability) {
             mIoHandler.obtainMessage(MSG_UID_STATE_CHANGED, uid, procState).sendToTarget();
         }
 
@@ -754,13 +753,8 @@ public class UsageStatsService extends SystemService implements
     }
 
     private boolean isSupervisionEnabled(int callingUid) {
-        if (android.app.supervision.flags.Flags.deprecateDpmSupervisionApis()) {
-            SupervisionManagerInternal smInternal = getSupervisionManagerInternal();
-            return smInternal != null && smInternal.isActiveSupervisionApp(callingUid);
-        } else {
-            DevicePolicyManagerInternal dpmInternal = getDpmInternal();
-            return dpmInternal != null && dpmInternal.isActiveSupervisionApp(callingUid);
-        }
+        SupervisionManagerInternal smInternal = getSupervisionManagerInternal();
+        return smInternal != null && smInternal.isActiveSupervisionApp(callingUid);
     }
 
     private static void deleteRecursively(final File path) {
@@ -1098,11 +1092,10 @@ public class UsageStatsService extends SystemService implements
     }
 
     /**
-     * Assuming the event's timestamp is measured in milliseconds since boot,
-     * convert it to a system wall time. System and real time snapshots are updated before
-     * conversion.
+     * Assuming the given timestamp is measured in milliseconds since boot, convert it to a system
+     * wall time. System and real time snapshots are updated before conversion.
      */
-    private void convertToSystemTimeLocked(Event event) {
+    private long convertToSystemTimeLocked(long timeStamp) {
         final long actualSystemTime = System.currentTimeMillis();
         if (ENABLE_TIME_CHANGE_CORRECTION) {
             final long actualRealtime = SystemClock.elapsedRealtime();
@@ -1116,7 +1109,7 @@ public class UsageStatsService extends SystemService implements
                 mSystemTimeSnapshot = actualSystemTime;
             }
         }
-        event.mTimeStamp = Math.max(0, event.mTimeStamp - mRealTimeSnapshot) + mSystemTimeSnapshot;
+        return Math.max(0, timeStamp - mRealTimeSnapshot) + mSystemTimeSnapshot;
     }
 
     /**
@@ -1262,8 +1255,8 @@ public class UsageStatsService extends SystemService implements
                     logAppUsageEventReportedAtomLocked(Event.USER_INTERACTION, uid, event.mPackage);
                     // Fall through.
                 case Event.APP_COMPONENT_USED:
-                    convertToSystemTimeLocked(event);
-                    mLastTimeComponentUsedGlobal.put(event.mPackage, event.mTimeStamp);
+                    mLastTimeComponentUsedGlobal.put(
+                            event.mPackage, convertToSystemTimeLocked(event.mTimeStamp));
                     break;
                 case Event.SHORTCUT_INVOCATION:
                 case Event.CHOOSER_ACTION:
@@ -1284,10 +1277,15 @@ public class UsageStatsService extends SystemService implements
         mIoHandler.obtainMessage(MSG_NOTIFY_USAGE_EVENT_LISTENER, userId, 0, event).sendToTarget();
     }
 
+    // TODO: add UT for logAppUsageEventReportedAtomLocked
     @GuardedBy("mLock")
     private void logAppUsageEventReportedAtomLocked(int eventType, int uid, String packageName) {
         FrameworkStatsLog.write(FrameworkStatsLog.APP_USAGE_EVENT_OCCURRED, uid, packageName,
                 "", getAppUsageEventOccurredAtomEventType(eventType));
+        if (Flags.addReportEventMetrics()) {
+            FrameworkStatsLog.write(FrameworkStatsLog.USAGE_EVENT_REPORTED_STATS,
+                    getAppUsageEventReportedAtomEventType(eventType));
+        }
     }
 
     /** Make sure align with the EventType defined in the AppUsageEventOccurred atom. */
@@ -1321,6 +1319,53 @@ public class UsageStatsService extends SystemService implements
                 Slog.w(TAG, "Unsupported usage event logging: " + eventType);
                 return -1;
         }
+    }
+
+    /**
+     * These events are kept in sync with the EventTypes defined in the AppUsageEventReported atom.
+     *
+     * New event types defined separately to avoid modification APP_USAGE_EVENT_OCCURRED atom.
+     */
+    private int getAppUsageEventReportedAtomEventType(int eventType) {
+        return switch (eventType) {
+            case Event.ACTIVITY_RESUMED -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__MOVE_TO_FOREGROUND;
+            case Event.ACTIVITY_PAUSED -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__MOVE_TO_BACKGROUND;
+            case Event.CONFIGURATION_CHANGE -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__CONFIGURATION_CHANGE;
+            case Event.USER_INTERACTION -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__USER_INTERACTION;
+            case Event.SHORTCUT_INVOCATION -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__SHORTCUT_INVOCATION;
+            case Event.CHOOSER_ACTION -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__CHOOSER_ACTION;
+            case Event.NOTIFICATION_SEEN -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__NOTIFICATION_SEEN;
+            case Event.STANDBY_BUCKET_CHANGED -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__STANDBY_BUCKET_CHANGED;
+            case Event.SLICE_PINNED -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__SLICE_PINNED;
+            case Event.SCREEN_INTERACTIVE -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__SCREEN_INTERACTIVE;
+            case Event.SCREEN_NON_INTERACTIVE -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__SCREEN_NON_INTERACTIVE;
+            case Event.KEYGUARD_SHOWN -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__KEYGUARD_SHOWN;
+            case Event.KEYGUARD_HIDDEN -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__KEYGUARD_HIDDEN;
+            case Event.FOREGROUND_SERVICE_START -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__FOREGROUND_SERVICE_START;
+            case Event.FOREGROUND_SERVICE_STOP -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__FOREGROUND_SERVICE_STOP;
+            case Event.LOCUS_ID_SET -> FrameworkStatsLog
+                    .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__LOCUS_ID_SET;
+            default -> {
+                Slog.w(TAG, "Unsupported usage event logging: " + eventType);
+                yield FrameworkStatsLog
+                        .USAGE_EVENT_REPORTED_STATS__EVENT_TYPE__NONE;
+            }
+        };
     }
 
     private String getUsageSourcePackage(Event event) {
@@ -1855,18 +1900,10 @@ public class UsageStatsService extends SystemService implements
     }
 
     private boolean shouldDeleteObsoleteData(UserHandle userHandle) {
-        if (android.app.supervision.flags.Flags.deprecateDpmSupervisionApis()) {
-            final SupervisionManagerInternal smInternal = getSupervisionManagerInternal();
-            // If supervision is not enabled for the given user, obsolete data should be deleted.
-            return smInternal == null
-                    || !smInternal.isSupervisionEnabledForUser(userHandle.getIdentifier());
-        } else {
-            final DevicePolicyManagerInternal dpmInternal = getDpmInternal();
-            // If a profile owner is not defined for the given user, obsolete data should be deleted
-            return dpmInternal == null
-                    || dpmInternal.getProfileOwnerOrDeviceOwnerSupervisionComponent(userHandle)
-                            == null;
-        }
+        final SupervisionManagerInternal smInternal = getSupervisionManagerInternal();
+        // If supervision is not enabled for the given user, obsolete data should be deleted.
+        return smInternal == null
+                || !smInternal.isSupervisionEnabledForUser(userHandle.getIdentifier());
     }
 
     private String buildFullToken(String packageName, String token) {
@@ -2038,13 +2075,6 @@ public class UsageStatsService extends SystemService implements
                 }
             }
         }
-
-        // Flags status.
-        pw.println("Flags:");
-        pw.println("    " + Flags.FLAG_USER_INTERACTION_TYPE_API
-                + ": " + Flags.userInteractionTypeApi());
-        pw.println("    " + Flags.FLAG_FILTER_BASED_EVENT_QUERY_API
-                + ": " + Flags.filterBasedEventQueryApi());
 
         final int[] userIds;
         synchronized (mLock) {
@@ -2300,8 +2330,7 @@ public class UsageStatsService extends SystemService implements
             final int callingUid = Binder.getCallingUid();
             final int callingUserId = UserHandle.getUserId(callingUid);
 
-            if (mPackageManagerInternal.getPackageUid(pkg, /*flags=*/ 0,
-                    callingUserId) != callingUid) {
+            if (!mPackageManagerInternal.isSameApp(pkg, callingUid, callingUserId)) {
                 throw new SecurityException("Calling uid " + callingUid + " cannot query events"
                         + "for package " + pkg);
             }
@@ -2437,17 +2466,24 @@ public class UsageStatsService extends SystemService implements
             return null;
         }
 
+        // TODO: add UT to verify the queryEvents API and metrics loogging.
         @Override
         public UsageEvents queryEvents(long beginTime, long endTime, String callingPackage) {
             if (!hasQueryPermission(callingPackage)) {
                 return null;
             }
-
-            return queryEventsHelper(UserHandle.getCallingUserId(), beginTime, endTime,
-                    callingPackage, /* eventTypeFilter= */ EmptyArray.INT,
+            final UsageEvents events = queryEventsHelper(UserHandle.getCallingUserId(), beginTime,
+                    endTime, callingPackage, /* eventTypeFilter= */ EmptyArray.INT,
                     /* pkgNameFilter= */ null);
+            if (events != null) {
+                FrameworkStatsLog.write(FrameworkStatsLog.APP_USAGE_QUERY_EVENT_STATS,
+                        Binder.getCallingUid(), events.getEventCount(),
+                        /* timespan= */ (endTime - beginTime));
+            }
+            return events;
         }
 
+        // TODO: add UT to verify the queryEventsWithFilter API and metrics loogging.
         @Override
         public UsageEvents queryEventsWithFilter(@NonNull UsageEventsQuery query,
                 @NonNull String callingPackage) {
@@ -2469,12 +2505,18 @@ public class UsageStatsService extends SystemService implements
                         Manifest.permission.INTERACT_ACROSS_USERS_FULL,
                         "No permission to query usage stats for user " + userId);
             }
-
-            return queryEventsHelper(userId, query.getBeginTimeMillis(),
+            final UsageEvents events = queryEventsHelper(userId, query.getBeginTimeMillis(),
                     query.getEndTimeMillis(), callingPackage, query.getEventTypes(),
                     /* pkgNameFilter= */ new ArraySet<>(query.getPackageNames()));
+            if (events != null) {
+                FrameworkStatsLog.write(FrameworkStatsLog.APP_USAGE_QUERY_EVENT_STATS,
+                        Binder.getCallingUid(), events.getEventCount(),
+                        /* timespan= */ (query.getEndTimeMillis() - query.getBeginTimeMillis()));
+            }
+            return events;
         }
 
+        // TODO: add UT to verify the queryEventsForPackage API and metrics loogging.
         @Override
         public UsageEvents queryEventsForPackage(long beginTime, long endTime,
                 String callingPackage) {
@@ -2486,8 +2528,14 @@ public class UsageStatsService extends SystemService implements
 
             final long token = Binder.clearCallingIdentity();
             try {
-                return UsageStatsService.this.queryEventsForPackage(callingUserId, beginTime,
-                        endTime, callingPackage, includeTaskRoot);
+                final UsageEvents events = UsageStatsService.this.queryEventsForPackage(
+                        callingUserId, beginTime, endTime, callingPackage, includeTaskRoot);
+                if (events != null) {
+                    FrameworkStatsLog.write(FrameworkStatsLog.APP_USAGE_QUERY_EVENT_STATS,
+                            callingUid, events.getEventCount(),
+                            /* timespan= */ (endTime - beginTime));
+                }
+                return events;
             } finally {
                 Binder.restoreCallingIdentity(token);
             }

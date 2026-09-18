@@ -22,6 +22,8 @@ import static com.android.internal.util.Preconditions.checkCollectionNotEmpty;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SdkConstant;
+import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ContentProvider;
@@ -255,6 +257,37 @@ public final class DocumentsContract {
             ACTION_DOCUMENT_ROOT_SETTINGS = "android.provider.action.DOCUMENT_ROOT_SETTINGS";
 
     /**
+     * Intent category to filter for activities that can handle document intents.
+     *
+     * <p>Indicates that an approved activity can receive intents {@link Intent#ACTION_SEND} and/or
+     * {@link Intent#ACTION_SEND_MULTIPLE}. The activity's package must be allowlisted by the system
+     * file manager. The activity will appear in the system file manager as a menu item when
+     * acceptable files are selected. The activity must also define an `android:label` to be
+     * accepted as a menu item.
+     *
+     * <p>Optionally, the activity can declare the intent to be shown as an action button instead of
+     * a menu item in `AndroidManifest.xml`. It must include an `android:icon` and a meta-data entry
+     * `android.approvedtarget.as_button` with a value of `true`.
+     *
+     * <p>An example declaration:
+     *
+     * <pre>
+     * &lt;activity android:name=".ApprovedDocumentHandlerActivity"
+     *         ...
+     *   &lt;intent-filter&gt;
+     *       &lt;action android:name="android.intent.action.SEND" /&gt;
+     *       &lt;category android:name="android.provider.category.APPROVED_DOCUMENT_HANDLER" /&gt;
+     *       &lt;data android:mimeType="text/plain" /&gt;
+     *   &lt;/intent-filter&gt;
+     * &lt;/activity&gt;
+     * </pre>
+     */
+    @SdkConstant(SdkConstantType.INTENT_CATEGORY)
+    @FlaggedApi(Flags.FLAG_CATEGORY_APPROVED_DOCUMENT_HANDLER)
+    public static final String CATEGORY_APPROVED_DOCUMENT_HANDLER =
+            "android.provider.category.APPROVED_DOCUMENT_HANDLER";
+
+    /**
      * External Storage Provider's authority string
      * @hide
      */
@@ -420,6 +453,84 @@ public final class DocumentsContract {
          * Type: INTEGER (long)
          */
         public static final String COLUMN_SIZE = OpenableColumns.SIZE;
+
+        /**
+         * Column indicating the synchronization state of the document's contents represented as a
+         * bitmask, {@code null} if not provided. This is an optional column.
+         * Type: Integer (int)
+         *
+         * @see #SYNC_STATE_FLAG_AVAILABLE_LOCALLY
+         * @see #SYNC_STATE_FLAG_LOCAL_CHANGES
+         * @see #SYNC_STATE_FLAG_UPLOAD_PROGRESS
+         * @see #SYNC_STATE_FLAG_DOWNLOAD_PROGRESS
+         * @see #SYNC_STATE_FLAG_UPLOAD_ERROR
+         * @see #SYNC_STATE_FLAG_DOWNLOAD_ERROR
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final String COLUMN_CONTENT_SYNC_STATE_FLAGS = "content_sync_state_flags";
+
+        /**
+         * The relative path of the original location of a trashed document.
+         * This column is only valid for trashed documents.
+         * <p>Type: STRING
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+        public static final String COLUMN_ORIGINAL_RELATIVE_PATH = "original_relative_path";
+        /**
+         * Flag indicating that the document's contents are available locally. When the device does
+         * not have internet connection, certain document operations may be disabled, see
+         * {@link Root#FLAG_LIMITED_FUNCTIONALITY_WHEN_OFFLINE} for more details.
+         *
+         * @see Root#FLAG_LIMITED_FUNCTIONALITY_WHEN_OFFLINE
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int SYNC_STATE_FLAG_AVAILABLE_LOCALLY = 1 << 0;
+
+        /**
+         * Flag indicating that the local version of the document has changes that require an
+         * upload. This flag is only meaningful if {@link #SYNC_STATE_FLAG_AVAILABLE_LOCALLY} is
+         * also set.
+         *
+         * @see #COLUMN_CONTENT_SYNC_STATE_FLAGS
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int SYNC_STATE_FLAG_LOCAL_CHANGES = 1 << 1;
+
+        /**
+         * Flag indicating that an upload of local changes is currently in progress. This flag
+         * typically implies {@link #SYNC_STATE_FLAG_AVAILABLE_LOCALLY} and
+         * {@link #SYNC_STATE_FLAG_LOCAL_CHANGES} are also set.
+         *
+         * @see #COLUMN_CONTENT_SYNC_STATE_FLAGS
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int SYNC_STATE_FLAG_UPLOAD_PROGRESS = 1 << 2;
+
+        /**
+         * Flag indicating that a download of remote changes is currently in progress.
+         *
+         * @see #COLUMN_CONTENT_SYNC_STATE_FLAGS
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int SYNC_STATE_FLAG_DOWNLOAD_PROGRESS = 1 << 3;
+
+        /**
+         * Flag indicating that the last upload attempt resulted in an error. This flag typically
+         * implies {@link #SYNC_STATE_FLAG_AVAILABLE_LOCALLY} and
+         * {@link #SYNC_STATE_FLAG_LOCAL_CHANGES} are also set.
+         *
+         * @see #COLUMN_CONTENT_SYNC_STATE_FLAGS
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int SYNC_STATE_FLAG_UPLOAD_ERROR = 1 << 4;
+
+        /**
+         * Flag indicating that the last download attempt resulted in an error.
+         *
+         * @see #COLUMN_CONTENT_SYNC_STATE_FLAGS
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int SYNC_STATE_FLAG_DOWNLOAD_ERROR = 1 << 5;
 
         /**
          * MIME type of a document which is a directory that may contain
@@ -655,6 +766,8 @@ public final class DocumentsContract {
          * @see #FLAG_SUPPORTS_CREATE
          * @see #FLAG_SUPPORTS_RECENTS
          * @see #FLAG_SUPPORTS_SEARCH
+         * @see #FLAG_SUPPORTS_QUERY_TRASH
+         * @see #FLAG_LIMITED_FUNCTIONALITY_WHEN_OFFLINE
          */
         public static final String COLUMN_FLAGS = "flags";
 
@@ -857,6 +970,60 @@ public final class DocumentsContract {
          */
         @SystemApi
         public static final int FLAG_REMOVABLE_USB = 1 << 19;
+
+        /**
+         * Flag indicating that this root can be queried to provide trashed documents.
+         *
+         * @see #COLUMN_FLAGS
+         * @see DocumentsContract#buildTrashDocumentsUri(String, String)
+         * @see DocumentsProvider#queryTrashDocuments(String, String[], Bundle, CancellationSignal)
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+        public static final int FLAG_SUPPORTS_QUERY_TRASH = 1 << 20;
+
+        /**
+         * Flag indicating that this root has limited functionality when the device does not have an
+         * internet connection. This will affect how the system file picker and file manager
+         * presents files to the user when the device does not have internet connection.
+         *
+         * Operations such as open, copy and move, that require reading file contents, will be
+         * disabled on files that do not have content available locally. Specifically, the following
+         * conditions have to be met to disable these actions:
+         *    - the device does not have internet connection
+         *    - {@link Document#COLUMN_CONTENT_SYNC_STATE_FLAGS} is non-null and
+         *          {@link Document#SYNC_STATE_FLAG_AVAILABLE_LOCALLY} is not set
+         *    - {@link #FLAG_LIMITED_FUNCTIONALITY_WHEN_OFFLINE} is set
+         *    - {@link Document#FLAG_VIRTUAL_DOCUMENT} is not set
+         *    - {@link Document#COLUMN_MIME_TYPE} does not equal {@link Document#MIME_TYPE_DIR}
+         *
+         * Folder opens will be unaffected by the state of this flag to allow users to be able to
+         * still navigate around the file system. However, other operations that require reading
+         * file contents will be disabled on folders because they may contain files that don't have
+         * content available locally. Specifically, the following conditions have to be met to
+         * disable these actions:
+         *    - the device does not have internet connection
+         *    - {@link #FLAG_LIMITED_FUNCTIONALITY_WHEN_OFFLINE} is set
+         *    - {@link Document#COLUMN_MIME_TYPE} equals {@link Document#MIME_TYPE_DIR}
+         *
+         * Operations such as rename and delete, that don't require reading file contents, will be
+         * unaffected by the state of this flag.
+         *
+         * In addition, when this flag is set and the device if offline, the file picker and file
+         * manager will show a message to the user indicating that there is limited functionality
+         * when offline.
+         *
+         * Note that even if the device has an internet connection, the documents provider
+         * implementation may be limited or prevented from accessing it because of various system
+         * restrictions and battery saving features. There will be no UI change for this case.
+         *
+         * @see #COLUMN_FLAGS
+         * @see Document#COLUMN_CONTENT_SYNC_STATE_FLAGS
+         * @see Document#SYNC_STATE_FLAG_AVAILABLE_LOCALLY
+         * @see Document#FLAG_VIRTUAL_DOCUMENT
+         * @see Document#COLUMN_MIME_TYPE
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_SYNC_STATE)
+        public static final int FLAG_LIMITED_FUNCTIONALITY_WHEN_OFFLINE = 1 << 21;
     }
 
     /**
@@ -984,18 +1151,18 @@ public final class DocumentsContract {
                 .appendPath(PATH_RECENT).build();
     }
 
-
-
     /**
      * Returns URI representing the query trash documents of a specific document provider.
      *
-     * @see DocumentsProvider#queryTrashDocuments(String[])
+     * @see DocumentsProvider#queryTrashDocuments(String, String[], Bundle, CancellationSignal)
+     * @see #getRootId(Uri)
      */
     @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
     @NonNull
-    public static Uri buildTrashDocumentsUri(@NonNull String authority) {
+    public static Uri buildTrashDocumentsUri(@NonNull String authority, @NonNull String rootId) {
         return new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT)
-                .authority(authority).appendPath(PATH_TRASH).build();
+                .authority(authority).appendPath(PATH_ROOT).appendPath(rootId)
+                .appendPath(PATH_TRASH).build();
     }
 
     /**

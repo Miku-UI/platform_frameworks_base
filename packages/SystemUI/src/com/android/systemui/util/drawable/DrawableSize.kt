@@ -59,7 +59,7 @@ class DrawableSize {
                 }
 
                 // Do not touch drawables that are already within bounds.
-                if (originalWidth < maxWidth && originalHeight < maxHeight) {
+                if (originalWidth <= maxWidth && originalHeight <= maxHeight) {
                     if (Log.isLoggable(TAG, Log.DEBUG)) {
                         Log.d(
                             TAG,

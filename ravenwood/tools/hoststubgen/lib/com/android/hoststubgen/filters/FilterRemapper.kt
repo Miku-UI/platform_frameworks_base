@@ -15,34 +15,29 @@
  */
 package com.android.hoststubgen.filters
 
+import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.log
 import org.objectweb.asm.commons.Remapper
 
 /**
  * A [Remapper] that uses [OutputFilter.remapType]
  */
-class FilterRemapper(val filter: OutputFilter) : Remapper() {
+class FilterRemapper(
+    val filter: OutputFilter,
+    val allClasses: ClassNodes
+) : Remapper() {
     private val cache = mutableMapOf<String, String>()
 
+    override fun map(typeInternalName: String): String {
+        return cache.computeIfAbsent(typeInternalName, this::mapInner)
+    }
 
-    override fun map(typeInternalName: String?): String? {
-        if (typeInternalName == null) {
-            return null
-        }
+    private fun mapInner(typeInternalName: String): String {
+        // We only rename classes within the same JAR
+        allClasses.findClass(typeInternalName) ?: return typeInternalName
 
-        cache[typeInternalName]?.let {
-            // log.d("Cached rename from $typeInternalName to $it")
-            return it
-        }
-
-        var mapped = filter.remapType(typeInternalName)
-        if (mapped != null) {
-            log.d("Renaming type $typeInternalName to $mapped")
-        } else {
-            // log.d("Not renaming type $typeInternalName")
-        }
-        mapped = mapped ?: typeInternalName
-        cache[typeInternalName] = mapped
+        val mapped = filter.remapType(typeInternalName) ?: return typeInternalName
+        log.d("Renaming type $typeInternalName to $mapped")
         return mapped
     }
 }

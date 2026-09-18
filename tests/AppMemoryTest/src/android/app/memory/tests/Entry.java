@@ -31,6 +31,11 @@ public class Entry {
         return 0;
     }
 
+    // Number of objects represented by this entry. Default is zero.
+    long count() {
+        return 0;
+    }
+
     // Print self to the output stream.
     void dump(PrintStream o) { }
 
@@ -77,6 +82,13 @@ public class Entry {
 
         @Override void dump(PrintStream o) {
             o.format("String \"%s\"\n", new String(mValue));
+        }
+    }
+
+    static class ArtClock extends Entry {
+        final long mTime;
+        ArtClock(Scanner s, Context c) {
+            mTime = s.jJ();
         }
     }
 
@@ -244,6 +256,10 @@ public class Entry {
         void dump(PrintStream o) { }
 
         long size() {
+            return 0;
+        }
+
+        long count() {
             return 0;
         }
     }
@@ -437,6 +453,10 @@ public class Entry {
         @Override long size() {
             return mDataLen;
         }
+
+        @Override long count() {
+            return 1;
+        }
     }
 
     static class ObjectArray extends Alloc {
@@ -459,6 +479,10 @@ public class Entry {
         @Override long size() {
             return (long) mCount * 8;
         }
+
+        @Override long count() {
+            return 1;
+        }
     }
 
     static class PrimitiveArray extends Alloc {
@@ -476,6 +500,10 @@ public class Entry {
 
         @Override long size() {
             return mData.length;
+        }
+
+        @Override long count() {
+            return 1;
         }
 
         @Override void dump(PrintStream o) {
@@ -514,14 +542,18 @@ public class Entry {
     }
 
     static class DumpInfo extends Alloc {
-        final long mName;
+        final String mHeapName;
+
         DumpInfo(long id, Scanner s, Context c) {
             super(Root.DumpInfo, id);
-            mName = s.id();
+
+            long nameId = s.id();
+            HeapString heapString = c.getStr(nameId);
+            this.mHeapName = (heapString != null) ? heapString.toString() : "unknown";
         }
 
         @Override void dump(PrintStream o) {
-            o.println("  dump info");
+            o.println("  dump info for heap: " + mHeapName);
         }
     }
 
@@ -544,11 +576,36 @@ public class Entry {
 
         @Override
         long size() {
-            long s = 0;
+            long totalAppHeapSize = 0;
+            boolean inAppHeap = false;
+
             for (Alloc a : mAlloc) {
-                s += a.size();
+                if (a instanceof DumpInfo) {
+                    // flip flag to indicate we are in app heap section
+                    DumpInfo info = (DumpInfo) a;
+                    inAppHeap = "app".equals(info.mHeapName);
+                } else if (inAppHeap) {
+                    totalAppHeapSize += a.size();
+                }
             }
-            return s;
+            return totalAppHeapSize;
+        }
+
+        @Override
+        long count() {
+            long totalAppHeapCount = 0;
+            boolean inAppHeap = false;
+
+            for (Alloc a : mAlloc) {
+                if (a instanceof DumpInfo) {
+                    // flip flag to indicate we are in app heap section
+                    DumpInfo info = (DumpInfo) a;
+                    inAppHeap = "app".equals(info.mHeapName);
+                } else if (inAppHeap) {
+                    totalAppHeapCount += a.count();
+                }
+            }
+            return totalAppHeapCount;
         }
 
         private Alloc alloc(Scanner s, Context c) {
@@ -587,6 +644,7 @@ public class Entry {
         // A sentinel for the end-of-heap
     }
 
+    // LINT.IfChange(hprof-tags)
     static Entry inflate(int tag, Scanner s, Context c) {
         return switch (tag) {
             case 0x01 -> new HeapString(s, c);
@@ -600,6 +658,7 @@ public class Entry {
             case 0x0c -> new HeapDump(s, c);
             case 0x1c -> new HeapDump(s, c);
             case 0x2c -> new EndOfHeap();
+            case 0xa0 -> new ArtClock(s, c);
             default -> throw new RuntimeException(String.format("unknown tag: 0x%x\n", tag));
         };
     }
@@ -617,7 +676,9 @@ public class Entry {
             case 0x0c -> "HeapDump";
             case 0x1c -> "HeapDump";
             case 0x2c -> "End";
+            case 0xa0 -> "ArtClock";
             default -> throw new RuntimeException(String.format("unknown tag: 0x%x\n", tag));
         };
     }
+    // LINT.ThenChange(//depot/google3/art/runtime/hprof/hprof.cc:hprof-tags)
 }

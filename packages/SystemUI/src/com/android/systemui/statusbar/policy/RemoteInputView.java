@@ -17,11 +17,9 @@
 package com.android.systemui.statusbar.policy;
 
 import static android.view.WindowInsetsAnimation.Callback.DISPATCH_MODE_STOP;
-import static android.view.accessibility.Flags.FLAG_REQUEST_RECTANGLE_WITH_SOURCE;
 
 import static com.android.systemui.statusbar.notification.stack.StackStateAnimator.ANIMATION_DURATION_STANDARD;
 
-import android.annotation.FlaggedApi;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -88,7 +86,6 @@ import com.android.systemui.statusbar.RemoteInputController;
 import com.android.systemui.statusbar.notification.collection.RemoteInputEntryAdapter;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationViewWrapper;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.phone.LightBarController;
 
 import java.util.ArrayList;
@@ -397,13 +394,8 @@ public class RemoteInputView extends LinearLayout implements View.OnClickListene
                 LayoutInflater.from(context).inflate(R.layout.remote_input, root, false);
         v.mController = controller;
         v.mRow = parent;
-        if (NotificationBundleUi.isEnabled()) {
-            v.mRemoteInputEntryAdapter = remoteInputEntryAdapter;
-            v.mSbn = parent.getEntryAdapter().getSbn();
-        } else {
-            v.mRemoteInputEntryAdapter = parent.getEntryLegacy().getRemoteInputEntryAdapter();
-            v.mSbn = parent.getEntryLegacy().getSbn();
-        }
+        v.mRemoteInputEntryAdapter = remoteInputEntryAdapter;
+        v.mSbn = parent.getEntryAdapter().getSbn();
         UserHandle user = computeTextOperationUser(v.mSbn.getUser());
         v.mEditText.mUser = user;
         v.mEditText.setTextOperationUser(user);
@@ -1067,13 +1059,10 @@ public class RemoteInputView extends LinearLayout implements View.OnClickListene
                     RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
         }
 
-        @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
         @Override
         public boolean requestRectangleOnScreen(@NonNull Rect rectangle, boolean immediate,
                 @RectangleOnScreenRequestSource int source) {
-            if (android.view.accessibility.Flags.requestRectangleWithSource()) {
-                super.requestRectangleOnScreen(rectangle, immediate, source);
-            }
+            super.requestRectangleOnScreen(rectangle, immediate, source);
             return mRemoteInputView.requestScrollTo();
         }
 

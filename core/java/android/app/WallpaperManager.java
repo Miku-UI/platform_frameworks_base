@@ -19,8 +19,11 @@ package android.app;
 import static android.Manifest.permission.MANAGE_EXTERNAL_STORAGE;
 import static android.Manifest.permission.READ_WALLPAPER_INTERNAL;
 import static android.Manifest.permission.SET_WALLPAPER_DIM_AMOUNT;
+import static android.app.Flags.FLAG_POSTPONE_WALLPAPER_CHANGE_NOTIFICATION_ON_UNLOCK_USER;
+import static android.app.Flags.optimizeDefaultWallpaper;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.ParcelFileDescriptor.MODE_READ_ONLY;
+import static android.view.Display.INVALID_DISPLAY;
 
 import static com.android.server.backup.Flags.FLAG_ENABLE_CROSS_PLATFORM_TRANSFER;
 import static com.android.window.flags.Flags.FLAG_MULTI_CROP;
@@ -95,7 +98,6 @@ import android.util.Pair;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.WindowManagerGlobal;
-import android.window.DesktopExperienceFlags;
 
 import com.android.internal.R;
 import com.android.internal.annotations.Keep;
@@ -597,6 +599,7 @@ public class WallpaperManager {
             forgetLoadedWallpaper();
         }
 
+        @Override
         public void onWallpaperChanged() {
             /* The wallpaper has changed but we shouldn't eagerly load the
              * wallpaper as that would be inefficient. Reset the cached wallpaper
@@ -892,13 +895,8 @@ public class WallpaperManager {
                     return null;
                 }
                 try (InputStream is = new ParcelFileDescriptor.AutoCloseInputStream(pfd)) {
-                    ImageDecoder.Source src;
-                    if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue()) {
-                        src = ImageDecoder.createSource(context.getResources(), is,
-                                /* density= */ 0);
-                    } else {
-                        src = ImageDecoder.createSource(context.getResources(), is);
-                    }
+                    ImageDecoder.Source src = ImageDecoder.createSource(context.getResources(), is,
+                        /* density= */ 0);
                     return ImageDecoder.decodeBitmap(src, ((decoder, info, source) -> {
                         // Mutable and hardware config can't be set at the same time.
                         decoder.setMutableRequired(!hardware);
@@ -2377,8 +2375,6 @@ public class WallpaperManager {
         try {
             Resources resources = mContext.getResources();
             WallpaperDescription description = new WallpaperDescription.Builder().build();
-            // This code no longer executes because multiCrop() is always true. This is just so
-            // that this compiles.
             ParcelFileDescriptor fd = sGlobals.mService.setWallpaper(
                     "res:" + resources.getResourceName(resid), mContext.getOpPackageName(),
                     description, false, result, which, completion, mContext.getUserId());
@@ -2803,6 +2799,25 @@ public class WallpaperManager {
         }
     }
 
+    /**
+     * Returns whether any wallpaper has been set yet. Will be false until the first wallpaper is
+     * set during boot.
+     *
+     * @hide
+     */
+    @FlaggedApi(FLAG_POSTPONE_WALLPAPER_CHANGE_NOTIFICATION_ON_UNLOCK_USER)
+    public boolean hasSetWallpaper() {
+        if (sGlobals.mService == null) {
+            Log.w(TAG, "WallpaperManagerService not running");
+            throw new RuntimeException(new DeadSystemException());
+        }
+        try {
+            return sGlobals.mService.hasSetWallpaper();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
     // TODO(b/181083333): add multiple root display area support on this API.
     /**
      * Returns the desired minimum width for the wallpaper. Callers of
@@ -2885,7 +2900,7 @@ public class WallpaperManager {
     public void suggestDesiredDimensions(int minimumWidth, int minimumHeight) {
         StrictMode.assertUiContext(mContext, "suggestDesiredDimensions");
         try {
-            /**
+            /*
              * The framework makes no attempt to limit the window size
              * to the maximum texture size. Any window larger than this
              * cannot be composited.
@@ -3047,7 +3062,8 @@ public class WallpaperManager {
             throw new RuntimeException(new DeadSystemException());
         }
         try {
-            sGlobals.mService.setWallpaperDimAmount(MathUtils.saturate(dimAmount));
+            sGlobals.mService.setWallpaperDimAmount(MathUtils.saturate(dimAmount), INVALID_DISPLAY,
+                    false);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -3405,6 +3421,35 @@ public class WallpaperManager {
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static InputStream openDefaultWallpaper(Context context, @SetWallpaperFlags int which) {
+        if (optimizeDefaultWallpaper() && context.getResources().getBoolean(
+                R.bool.config_optimizeDefaultWallpaper)) {
+            if (sGlobals.mService != null) {
+                try {
+                    int displayId = context.getDisplayId();
+                    ParcelFileDescriptor pfd = sGlobals.mService.getCroppedDefaultWallpaper(
+                            context.getOpPackageName(), which, displayId);
+                    if (pfd != null) {
+                        return new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                    }
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
+        return openRawDefaultWallpaper(context, which);
+    }
+
+    /**
+     * Opens the raw default wallpaper without attempting to request a scaled version
+     * from the service.
+     *
+     * If the device defines no default wallpaper of the requested kind,
+     * {@code null} is returned.
+     *
+     * @hide
+     */
+    public static InputStream openRawDefaultWallpaper(Context context,
+            @SetWallpaperFlags int which) {
         final String whichProp;
         final int defaultResId;
         /* Factory-default lock wallpapers are not yet supported.

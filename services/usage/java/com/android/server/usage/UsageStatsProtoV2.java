@@ -523,8 +523,13 @@ final class UsageStatsProtoV2 {
                                 IntervalStatsObfuscatedProto.EVENT_LOG);
                         UsageEvents.Event event = parseEvent(proto, stats.beginTime);
                         proto.end(eventsToken);
-                        if (event != null) {
-                            stats.events.insert(event);
+                        if (event != null
+                                && event.mPackageToken != PackagesTokenData.UNASSIGNED_TOKEN) {
+                            // TODO: b/452129902 - we can pass the token data into this read method
+                            //  and then deobfuscate and insert normally - however, this may lead
+                            //  to some non-trivial changes to the database parsing so the change
+                            //  should be evaluvated carefully.
+                            stats.events.insertObfuscated(event);
                         }
                     } catch (IOException e) {
                         Slog.e(TAG, "Unable to read some events from proto.", e);

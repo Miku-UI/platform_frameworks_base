@@ -24,6 +24,8 @@ import static androidx.window.common.ExtensionHelper.rotateRectToDisplayRotation
 import static androidx.window.common.ExtensionHelper.transformToWindowSpaceRect;
 import static androidx.window.common.layout.CommonFoldingFeature.COMMON_STATE_FLAT;
 import static androidx.window.common.layout.CommonFoldingFeature.COMMON_STATE_HALF_OPENED;
+import static androidx.window.extensions.layout.UiContextUtils.assertUiContext;
+import static androidx.window.extensions.layout.UiContextUtils.dumpAllBaseContextToString;
 
 import android.app.Activity;
 import android.app.ActivityThread;
@@ -31,7 +33,6 @@ import android.app.Application;
 import android.app.WindowConfiguration;
 import android.content.ComponentCallbacks;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManagerGlobal;
@@ -39,6 +40,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.StrictMode;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 import android.view.DisplayInfo;
 import android.view.Surface;
@@ -57,6 +59,7 @@ import androidx.window.extensions.util.DeduplicateConsumer;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,7 +75,7 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
 
     @GuardedBy("mLock")
     private final Map<Context, DeduplicateConsumer<WindowLayoutInfo>> mWindowLayoutChangeListeners =
-            new ArrayMap<>();
+            new HashMap<>();
 
     @GuardedBy("mLock")
     private final DeviceStateManagerFoldingFeatureProducer mFoldingFeatureProducer;
@@ -101,6 +104,15 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
 
     private final DisplayStateProvider mDisplayStateProvider;
 
+    private final EngagementModeUpdateListener mEngagementModeListener;
+
+    @GuardedBy("mLock")
+    private final ArrayMap<Integer, Integer> mLastReportedEngagementModes = new ArrayMap<>();
+
+    // TODO(b/444335819): Always use the EngagementModeClient's default for now. This should be
+    // updated to use a generic default or the System API's default if available.
+    private final int mDefaultEngagementMode = EngagementModeClient.DEFAULT_ENGAGEMENT_MODE;
+
     public WindowLayoutComponentImpl(@NonNull Context context,
             @NonNull DeviceStateManagerFoldingFeatureProducer foldingFeatureProducer) {
         this(context, foldingFeatureProducer, new DisplayStateProvider() {
@@ -114,13 +126,22 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
             public DisplayInfo getDisplayInfo(int displayId) {
                 return DisplayManagerGlobal.getInstance().getDisplayInfo(displayId);
             }
-        });
+        }, null /* injectedEngagementModeListener */);
     }
 
     @VisibleForTesting
     WindowLayoutComponentImpl(@NonNull Context context,
             @NonNull DeviceStateManagerFoldingFeatureProducer foldingFeatureProducer,
             @NonNull DisplayStateProvider displayStateProvider) {
+        this(context, foldingFeatureProducer, displayStateProvider,
+                null /* injectedEngagementModeListener */);
+    }
+
+    @VisibleForTesting
+    WindowLayoutComponentImpl(@NonNull Context context,
+            @NonNull DeviceStateManagerFoldingFeatureProducer foldingFeatureProducer,
+            @NonNull DisplayStateProvider displayStateProvider,
+            @Nullable EngagementModeUpdateListener injectedEngagementModeListener) {
         mDisplayStateProvider = displayStateProvider;
         ((Application) context.getApplicationContext())
                 .registerActivityLifecycleCallbacks(new NotifyOnConfigurationChanged());
@@ -129,6 +150,12 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
         final List<DisplayFoldFeature> displayFoldFeatures = ListUtil.map(
                 mFoldingFeatureProducer.getDisplayFeatures(), DisplayFoldFeatureUtil::translate);
         mSupportedWindowFeatures = new SupportedWindowFeatures.Builder(displayFoldFeatures).build();
+        if (injectedEngagementModeListener != null) {
+            mEngagementModeListener = injectedEngagementModeListener;
+        } else {
+            mEngagementModeListener = EngagementModeUpdateListener.create(
+                    context, this::onEngagementModeChanged, this::getActiveValidDisplayIds);
+        }
     }
 
     /**
@@ -172,11 +199,22 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
             assertUiContext(context);
             Log.d(TAG, "Register WindowLayoutInfoListener on "
                     + dumpAllBaseContextToString(context));
+            mWindowLayoutChangeListeners.put(context, new DeduplicateConsumer<>(consumer));
+
+            final int displayId = context.getAssociatedDisplayId();
+            mEngagementModeListener.register(displayId);
+
             mFoldingFeatureProducer.getData((features) -> {
-                WindowLayoutInfo newWindowLayout = getWindowLayoutInfo(context, features);
+                final WindowLayoutInfo newWindowLayout;
+                int currentEngagementMode;
+                synchronized (mLock) {
+                    currentEngagementMode = mLastReportedEngagementModes.getOrDefault(
+                            displayId, mDefaultEngagementMode);
+                }
+                newWindowLayout =
+                        getWindowLayoutInfo(context, features, currentEngagementMode);
                 consumer.accept(newWindowLayout);
             });
-            mWindowLayoutChangeListeners.put(context, new DeduplicateConsumer<>(consumer));
 
             final IBinder windowContextToken = context.getWindowContextToken();
             if (windowContextToken != null) {
@@ -190,15 +228,7 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
         }
     }
 
-    @NonNull
-    private String dumpAllBaseContextToString(@NonNull Context context) {
-        final StringBuilder builder = new StringBuilder("Context=" + context);
-        while ((context instanceof ContextWrapper wrapper) && wrapper.getBaseContext() != null) {
-            context = wrapper.getBaseContext();
-            builder.append(", of which baseContext=").append(context);
-        }
-        return builder.toString();
-    }
+
 
     @Override
     public void removeWindowLayoutInfoListener(
@@ -221,23 +251,33 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
     @Override
     public void removeWindowLayoutInfoListener(@NonNull Consumer<WindowLayoutInfo> consumer) {
         synchronized (mLock) {
-            DeduplicateConsumer<WindowLayoutInfo> consumerToRemove = null;
-            for (Context context : mWindowLayoutChangeListeners.keySet()) {
-                final DeduplicateConsumer<WindowLayoutInfo> deduplicateConsumer =
-                        mWindowLayoutChangeListeners.get(context);
-                if (!deduplicateConsumer.matchesConsumer(consumer)) {
-                    continue;
+            Context contextToRemove = null;
+            for (Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>> entry :
+                    mWindowLayoutChangeListeners.entrySet()) {
+                if (entry.getValue().matchesConsumer(consumer)) {
+                    contextToRemove = entry.getKey();
+                    break;
                 }
-                final IBinder token = context.getWindowContextToken();
-                consumerToRemove = deduplicateConsumer;
-                if (token != null) {
-                    context.unregisterComponentCallbacks(mConfigurationChangeListeners.get(token));
-                    mConfigurationChangeListeners.remove(token);
-                }
-                break;
             }
-            if (consumerToRemove != null) {
-                mWindowLayoutChangeListeners.values().remove(consumerToRemove);
+
+            if (contextToRemove == null) {
+                return;
+            }
+
+            mWindowLayoutChangeListeners.remove(contextToRemove);
+            final IBinder token = contextToRemove.getWindowContextToken();
+            if (token != null) {
+                ConfigurationChangeListener listener = mConfigurationChangeListeners.remove(token);
+                if (listener != null) {
+                    contextToRemove.unregisterComponentCallbacks(listener);
+                }
+            }
+            if (mWindowLayoutChangeListeners.isEmpty()) {
+                // If this was the last listener, unregister any active callbacks.
+                mEngagementModeListener.unregister();
+                // Clear the last reported engagement modes. This prevents new listeners from
+                // getting a stale value when they first register.
+                mLastReportedEngagementModes.clear();
             }
         }
     }
@@ -279,6 +319,19 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
         return false;
     }
 
+    private Set<Integer> getActiveValidDisplayIds() {
+        final Set<Integer> displayIds = new ArraySet<>();
+        synchronized (mLock) {
+            for (final Context c : getContextsListeningForLayoutChanges()) {
+                final int contextDisplayId = c.getAssociatedDisplayId();
+                if (contextDisplayId != INVALID_DISPLAY) {
+                    displayIds.add(contextDisplayId);
+                }
+            }
+        }
+        return displayIds;
+    }
+
     /**
      * A convenience method to translate from the common feature state to the extensions feature
      * state.  More specifically, translates from {@link CommonFoldingFeature.State} to
@@ -301,19 +354,85 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
         }
     }
 
+    /**
+     * Central handler for engagement mode updates from any source (SystemAPI or side-channel).
+     * Dispatches new layout info to all listeners on a specific display on engagement mode changed.
+     * This method is thread-safe. It creates a defensive copy of the listeners under a lock,
+     * then iterates and calls them outside the lock to prevent potential deadlocks if a
+     * listener tried to acquire its own lock.
+     */
     @VisibleForTesting
-    void onDisplayFeaturesChanged(List<CommonFoldingFeature> storedFeatures) {
+    void onEngagementModeChanged(int displayId, int newEngagementMode) {
+        // Create a safe copy of the listener entries and display features inside lock.
+        final List<Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>>> listenerEntries;
+        final List<CommonFoldingFeature> currentDisplayFeatures;
+        synchronized (mLock) {
+            if (mLastReportedEngagementModes.getOrDefault(
+                    displayId, mDefaultEngagementMode) == newEngagementMode) {
+                return;
+            }
+            mLastReportedEngagementModes.put(displayId, newEngagementMode);
+            listenerEntries = new ArrayList<>(mWindowLayoutChangeListeners.entrySet());
+            currentDisplayFeatures = new ArrayList<>(mLastReportedFoldingFeatures);
+        }
+        dispatchNewLayoutInfoOnEngagementModeChanged(
+                listenerEntries, displayId, newEngagementMode, currentDisplayFeatures);
+    }
+
+    private void dispatchNewLayoutInfoOnEngagementModeChanged(
+            @NonNull List<Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>>> listeners,
+            int displayId, int engagementMode,
+            @NonNull List<CommonFoldingFeature> currentDisplayFeatures) {
+        for (final Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>> entry : listeners) {
+            final Context context = entry.getKey();
+            if (context.getAssociatedDisplayId() != displayId) {
+                continue;
+            }
+            final DeduplicateConsumer<WindowLayoutInfo> layoutConsumer = entry.getValue();
+
+            final WindowLayoutInfo newWindowLayout =
+                    getWindowLayoutInfo(context, currentDisplayFeatures, engagementMode);
+            layoutConsumer.accept(newWindowLayout);
+        }
+    }
+
+    /**
+     * Dispatches the new layout state to all registered listeners on display features changed.
+     * This method is thread-safe. It creates a defensive copy of the listeners under a lock,
+     * then iterates and calls them outside the lock to prevent potential deadlocks if a
+     * listener tried to acquire its own lock.
+     */
+    @VisibleForTesting
+    void onDisplayFeaturesChanged(@NonNull List<CommonFoldingFeature> features) {
+        // Create a safe copy of the listener entries and engagement modes inside lock.
+        final List<Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>>> listenerEntries;
+        final Map<Integer, Integer> currentDisplayEngagementModes;
         synchronized (mLock) {
             mLastReportedFoldingFeatures.clear();
-            mLastReportedFoldingFeatures.addAll(storedFeatures);
-            for (Context context : getContextsListeningForLayoutChanges()) {
-                // Get the WindowLayoutInfo from the activity and pass the value to the
-                // layoutConsumer.
-                Consumer<WindowLayoutInfo> layoutConsumer = mWindowLayoutChangeListeners.get(
-                        context);
-                WindowLayoutInfo newWindowLayout = getWindowLayoutInfo(context, storedFeatures);
-                layoutConsumer.accept(newWindowLayout);
-            }
+            mLastReportedFoldingFeatures.addAll(features);
+            listenerEntries = new ArrayList<>(mWindowLayoutChangeListeners.entrySet());
+            currentDisplayEngagementModes = new ArrayMap<>(mLastReportedEngagementModes);
+        }
+        dispatchNewLayoutInfoOnDisplayFeaturesChanged(
+                listenerEntries, features, currentDisplayEngagementModes);
+    }
+
+    private void dispatchNewLayoutInfoOnDisplayFeaturesChanged(
+            @NonNull List<Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>>> listeners,
+            @NonNull List<CommonFoldingFeature> displayFeatures,
+            Map<Integer, Integer> currentDisplayEngagementModes) {
+        for (final Map.Entry<Context, DeduplicateConsumer<WindowLayoutInfo>> entry : listeners) {
+            // Get the WindowLayoutInfo from the activity and pass the value to the
+            // layoutConsumer.
+            final Context context = entry.getKey();
+            final int displayId = context.getAssociatedDisplayId();
+            final DeduplicateConsumer<WindowLayoutInfo> layoutConsumer = entry.getValue();
+
+            final int currentEngagementMode = currentDisplayEngagementModes.getOrDefault(
+                    displayId, mDefaultEngagementMode);
+            final WindowLayoutInfo newWindowLayout =
+                    getWindowLayoutInfo(context, displayFeatures, currentEngagementMode);
+            layoutConsumer.accept(newWindowLayout);
         }
     }
 
@@ -326,9 +445,13 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
      */
     @NonNull
     private WindowLayoutInfo getWindowLayoutInfo(@NonNull @UiContext Context context,
-            List<CommonFoldingFeature> storedFeatures) {
+                                                 List<CommonFoldingFeature> storedFeatures,
+                                                 int engagementMode) {
         List<DisplayFeature> displayFeatureList = getDisplayFeatures(context, storedFeatures);
-        return new WindowLayoutInfo(displayFeatureList);
+        return new WindowLayoutInfo.Builder()
+                .setDisplayFeatures(displayFeatureList)
+                .setEngagementModeFlags(engagementMode)
+                .build();
     }
 
     /**
@@ -341,8 +464,10 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
     public WindowLayoutInfo getCurrentWindowLayoutInfo(int displayId,
             @NonNull WindowConfiguration windowConfiguration) {
         synchronized (mLock) {
+            final int currentEngagementMode = mLastReportedEngagementModes.getOrDefault(
+                    displayId, mDefaultEngagementMode);
             return getWindowLayoutInfo(displayId, windowConfiguration,
-                    mLastReportedFoldingFeatures);
+                    mLastReportedFoldingFeatures, currentEngagementMode);
         }
     }
 
@@ -350,8 +475,12 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
     @NonNull
     public WindowLayoutInfo getCurrentWindowLayoutInfo(@NonNull @UiContext Context context) {
         assertUiContext(context);
+        final int displayId = context.getAssociatedDisplayId();
         synchronized (mLock) {
-            return getWindowLayoutInfo(context, mLastReportedFoldingFeatures);
+            final int currentEngagementMode = mLastReportedEngagementModes.getOrDefault(
+                    displayId, mDefaultEngagementMode);
+            return getWindowLayoutInfo(
+                    context, mLastReportedFoldingFeatures, currentEngagementMode);
         }
     }
 
@@ -364,32 +493,17 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
         return mSupportedWindowFeatures;
     }
 
-    private void assertUiContext(@NonNull Context context) {
-        final IllegalArgumentException exception = new IllegalArgumentException(
-                "Context must be a UI Context with display association, which should be "
-                        + "an Activity, WindowContext or InputMethodService");
-        if (!context.isUiContext()) {
-            throw exception;
-        }
-        if (context.getAssociatedDisplayId() == INVALID_DISPLAY) {
-            // This is to identify if #isUiContext of a non-UI Context is overridden.
-            // #isUiContext is more likely to be overridden than #getAssociatedDisplayId
-            // since #isUiContext is a public API.
-            StrictMode.onIncorrectContextUsed("The given context is a UI context, "
-                    + "but it is not associated with any display. "
-                    + "This context may not receive WindowLayoutInfo updates and "
-                    + "may get an empty WindowLayoutInfo return value. "
-                    + dumpAllBaseContextToString(context), exception);
-        }
-    }
-
     /** @see #getWindowLayoutInfo(Context, List) */
     private WindowLayoutInfo getWindowLayoutInfo(int displayId,
-            @NonNull WindowConfiguration windowConfiguration,
-            List<CommonFoldingFeature> storedFeatures) {
+                                                 @NonNull WindowConfiguration windowConfiguration,
+                                                 List<CommonFoldingFeature> storedFeatures,
+                                                 int engagementMode) {
         List<DisplayFeature> displayFeatureList = getDisplayFeatures(displayId, windowConfiguration,
                 storedFeatures);
-        return new WindowLayoutInfo(displayFeatureList);
+        return new WindowLayoutInfo.Builder()
+                .setDisplayFeatures(displayFeatureList)
+                .setEngagementModeFlags(engagementMode)
+                .build();
     }
 
     /**
@@ -561,6 +675,8 @@ public class WindowLayoutComponentImpl implements WindowLayoutComponent {
         public void onLowMemory() {
         }
     }
+
+
 
     @VisibleForTesting
     interface DisplayStateProvider {

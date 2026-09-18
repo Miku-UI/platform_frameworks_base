@@ -18,6 +18,7 @@ import static android.view.DisplayCutout.BOUNDS_POSITION_BOTTOM;
 import static android.view.DisplayCutout.BOUNDS_POSITION_LEFT;
 import static android.view.DisplayCutout.BOUNDS_POSITION_RIGHT;
 import static android.view.DisplayCutout.BOUNDS_POSITION_TOP;
+import static android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
@@ -61,6 +62,8 @@ import android.graphics.drawable.Drawable;
 import android.hardware.display.DisplayManager;
 import android.hardware.graphics.common.DisplayDecorationSupport;
 import android.os.Handler;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
 import android.util.PathParser;
@@ -1013,6 +1016,29 @@ public class ScreenDecorationsTest extends SysuiTestCase {
         assertThat(mScreenDecorations.getWindowLayoutParams(1).privateFlags
                         & PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY,
                 is(PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY));
+    }
+
+    /**
+     * See b/423676187. This window must be touchable at long as there is any view hosted that is
+     * important for accessibility.
+     */
+    @Test
+    @EnableFlags(Flags.FLAG_STATUS_BAR_SCREEN_DECOR_TOUCH_HANDLING_FIX)
+    public void doesNotSetFlagNotTouchable() {
+        assertThat(mScreenDecorations.getWindowLayoutBaseParams().flags
+                        & FLAG_NOT_TOUCHABLE)
+                .isEqualTo(0);
+    }
+
+    /**
+     * Existing behavior. Remove when the flag is rolled out
+     */
+    @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_SCREEN_DECOR_TOUCH_HANDLING_FIX)
+    public void setsFlagNotTouchable_flagOff() {
+        assertThat(mScreenDecorations.getWindowLayoutBaseParams().flags
+                & FLAG_NOT_TOUCHABLE)
+                .isEqualTo(FLAG_NOT_TOUCHABLE);
     }
 
     @Test

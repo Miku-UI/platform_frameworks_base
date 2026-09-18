@@ -18,10 +18,8 @@ package com.android.systemui.qs.panels.ui.compose
 
 import android.widget.Switch
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.click
@@ -35,21 +33,18 @@ import com.android.compose.animation.scene.TestScenes.SceneA
 import com.android.compose.animation.scene.rememberMutableSceneTransitionLayoutState
 import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.animation.Expandable
 import com.android.systemui.grid.ui.compose.VerticalSpannedGrid
-import com.android.systemui.haptics.msdl.tileHapticsViewModelFactoryProvider
+import com.android.systemui.haptics.msdl.tileHapticsViewModelFactory
 import com.android.systemui.motion.createSysUiComposeMotionTestRule
 import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.qs.FakeQSTile
-import com.android.systemui.qs.panels.shared.model.SizedTileImpl
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.Tile
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.TileBounceMotionTestKeys
 import com.android.systemui.qs.panels.ui.viewmodel.BounceableTileViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
 import com.android.systemui.qs.pipeline.shared.TileSpec
-import com.android.systemui.qs.shared.ui.QuickSettings.Elements.toElementKey
-import com.android.systemui.res.R
 import com.android.systemui.testKosmos
-import kotlin.time.Duration.Companion.milliseconds
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,8 +56,7 @@ import platform.test.motion.compose.MotionControl
 import platform.test.motion.compose.feature
 import platform.test.motion.compose.recordMotion
 import platform.test.motion.compose.runTest
-import platform.test.motion.golden.FeatureCapture
-import platform.test.motion.golden.asDataPoint
+import platform.test.motion.golden.dataPointType
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.Displays.Phone
 
@@ -71,17 +65,11 @@ import platform.test.screenshot.Displays.Phone
 class TileBounceMotionTest : SysuiTestCase() {
     private val deviceSpec = DeviceEmulationSpec(Phone)
     private val kosmos = testKosmos()
-    private val tileHapticsViewModelFactoryProvider = kosmos.tileHapticsViewModelFactoryProvider
+    private val tileHapticsViewModelFactory = kosmos.tileHapticsViewModelFactory
     @get:Rule val motionTestRule = createSysUiComposeMotionTestRule(kosmos, deviceSpec)
 
     @Composable
-    private fun TestTileGrid(
-        tiles: List<TestTile>,
-        tappedIndex: Int,
-        bounceType: BounceType,
-        play: Boolean,
-        done: () -> Unit,
-    ) {
+    private fun TestTileGrid(tiles: List<TestTile>) {
         val bounceables = remember { List(tiles.size) { BounceableTileViewModel() } }
         val spans = remember { tiles.map { it.span } }
         PlatformTheme {
@@ -105,51 +93,8 @@ class TileBounceMotionTest : SysuiTestCase() {
                                     nextTile = bounceables.getOrNull(index + 1),
                                     bounceEnd = index != tiles.size - 1,
                                 ),
-                            tileHapticsViewModelFactoryProvider =
-                                tileHapticsViewModelFactoryProvider,
+                            tileHapticsViewModelFactory = tileHapticsViewModelFactory,
                             detailsViewModel = null,
-                            interactionSource = null,
-                        )
-                    }
-                }
-            }
-        }
-
-        LaunchedEffect(play) {
-            if (play) {
-                when (bounceType) {
-                    BounceType.Container -> bounceables[tappedIndex].animateContainerBounce()
-                    BounceType.Content ->
-                        bounceables[tappedIndex].animateContentBounce(tiles[tappedIndex].iconOnly)
-                }
-                done()
-            }
-        }
-    }
-
-    @Composable
-    private fun TestMaterialExpressiveTileGrid(tiles: List<TestTile>) {
-        val sizedTiles = tiles.map { SizedTileImpl(it.viewModel, it.span) }
-        PlatformTheme {
-            SceneTransitionLayout(rememberMutableSceneTransitionLayoutState(SceneA)) {
-                scene(SceneA) {
-                    ButtonGroupGrid(
-                        sizedTiles,
-                        keys = { it.spec },
-                        elementKey = { it.spec.toElementKey() },
-                        horizontalPadding = dimensionResource(R.dimen.qs_tile_margin_horizontal),
-                        columns = 4,
-                    ) { tile, interactionSource ->
-                        Tile(
-                            tile = tile.tile,
-                            iconOnly = tile.isIcon,
-                            squishiness = { 1f },
-                            coroutineScope = rememberCoroutineScope(),
-                            bounceableInfo = null,
-                            tileHapticsViewModelFactoryProvider =
-                                tileHapticsViewModelFactoryProvider,
-                            detailsViewModel = null,
-                            interactionSource = interactionSource,
                         )
                     }
                 }
@@ -160,20 +105,13 @@ class TileBounceMotionTest : SysuiTestCase() {
     @Test
     fun containerBounce_iconTile() {
         val tiles =
-            listOf(TestTile("small_previous"), TestTile("small_clicked"), TestTile("small_next"))
-        motionTestRule.runTest { containerBounceTest(tiles) }
-    }
-
-    @Test
-    fun containerBounce_withMaterialExpressive_iconTile() {
-        val tiles =
             listOf(
                 TestTile("small_previous"),
                 TestTile("small_clicked", toggleable = true),
                 TestTile("small_next"),
             )
         motionTestRule.runTest {
-            materialExpressiveContainerBounceTest(tiles) {
+            containerBounceTest(tiles) {
                 onNode(hasContentDescription("_clicked", substring = true))
             }
         }
@@ -184,40 +122,20 @@ class TileBounceMotionTest : SysuiTestCase() {
         val tiles =
             listOf(
                 TestTile("small_previous"),
-                TestTile("large_clicked", iconOnly = false),
-                TestTile("small_next"),
-            )
-        motionTestRule.runTest { containerBounceTest(tiles) }
-    }
-
-    @Test
-    fun containerBounce_withMaterialExpressive_largeTile() {
-        val tiles =
-            listOf(
-                TestTile("small_previous"),
                 TestTile("large_clicked", iconOnly = false, toggleable = true),
                 TestTile("small_next"),
             )
         motionTestRule.runTest {
-            materialExpressiveContainerBounceTest(tiles) {
-                onNode(hasText("_clicked", substring = true))
-            }
+            containerBounceTest(tiles) { onNode(hasText("_clicked", substring = true)) }
         }
     }
 
     @Test
     fun containerBounce_bounceEndDisabled() {
         // Click on the last tile of the row to verify it bounces on one side only
-        val tiles = listOf(TestTile("small_previous"), TestTile("small_clicked"))
-        motionTestRule.runTest { containerBounceTest(tiles) }
-    }
-
-    @Test
-    fun containerBounce_withMaterialExpressive_bounceEndDisabled() {
-        // Click on the last tile of the row to verify it bounces on one side only
         val tiles = listOf(TestTile("small_previous"), TestTile("small_clicked", toggleable = true))
         motionTestRule.runTest {
-            materialExpressiveContainerBounceTest(tiles) {
+            containerBounceTest(tiles) {
                 onNode(hasContentDescription("_clicked", substring = true))
             }
         }
@@ -225,13 +143,8 @@ class TileBounceMotionTest : SysuiTestCase() {
 
     @Test
     fun iconBounce() {
-        motionTestRule.runTest { contentBounceTest(TestTile("small")) }
-    }
-
-    @Test
-    fun iconBounce_withMaterialExpressive() {
         motionTestRule.runTest {
-            materialExpressiveContentBounceTest(TestTile("small_clicked")) {
+            contentBounceTest(TestTile("small_clicked")) {
                 onNode(hasContentDescription("_clicked", substring = true))
             }
         }
@@ -239,58 +152,24 @@ class TileBounceMotionTest : SysuiTestCase() {
 
     @Test
     fun textBounce() {
-        motionTestRule.runTest { contentBounceTest(TestTile("large", iconOnly = false)) }
-    }
-
-    @Test
-    fun textBounce_withMaterialExpressive() {
         motionTestRule.runTest {
-            materialExpressiveContentBounceTest(TestTile("large_clicked", iconOnly = false)) {
+            contentBounceTest(TestTile("large_clicked", iconOnly = false)) {
                 onNode(hasText("_clicked", substring = true))
             }
         }
     }
 
-    private fun MotionTestRule<ComposeToolkit>.containerBounceTest(tiles: List<TestTile>) {
-        var done = false
-        val motion =
-            recordMotion(
-                { play ->
-                    TestTileGrid(
-                        tiles,
-                        tappedIndex = 1,
-                        bounceType = BounceType.Container,
-                        play = play,
-                    ) {
-                        done = true
-                    }
-                },
-                ComposeRecordingSpec(MotionControl { awaitCondition { done } }) {
-                    for (tile in tiles) {
-                        val matcher =
-                            if (tile.iconOnly) {
-                                hasContentDescription(tile.spec)
-                            } else {
-                                hasText(tile.spec)
-                            }
-                        feature(matcher, ComposeFeatureCaptures.dpSize, name = "tile-${tile.spec}")
-                    }
-                },
-            )
-        assertThat(motion).timeSeriesMatchesGolden()
-    }
-
-    private fun MotionTestRule<ComposeToolkit>.materialExpressiveContainerBounceTest(
+    private fun MotionTestRule<ComposeToolkit>.containerBounceTest(
         tiles: List<TestTile>,
         onNode: SemanticsNodeInteractionsProvider.() -> SemanticsNodeInteraction,
     ) {
         val motion =
             recordMotion(
-                content = { TestMaterialExpressiveTileGrid(tiles) },
+                content = { TestTileGrid(tiles) },
                 ComposeRecordingSpec(
                     MotionControl {
                         performTouchInputAsync(onNode()) { click() }
-                        awaitDelay(500.milliseconds)
+                        awaitIdle()
                     }
                 ) {
                     for (tile in tiles) {
@@ -307,65 +186,23 @@ class TileBounceMotionTest : SysuiTestCase() {
         assertThat(motion).timeSeriesMatchesGolden()
     }
 
-    private fun MotionTestRule<ComposeToolkit>.contentBounceTest(tile: TestTile) {
-        var done = false
-        val motion =
-            recordMotion(
-                { play ->
-                    TestTileGrid(
-                        listOf(tile),
-                        tappedIndex = 0,
-                        bounceType = BounceType.Content,
-                        play = play,
-                    ) {
-                        done = true
-                    }
-                },
-                ComposeRecordingSpec(MotionControl { awaitCondition { done } }) {
-                    feature(
-                        motionTestValueKey = TileBounceMotionTestKeys.BounceScale,
-                        capture =
-                            FeatureCapture(
-                                TileBounceMotionTestKeys.BounceScale.semanticsPropertyKey.name
-                            ) {
-                                it.asDataPoint()
-                            },
-                    )
-                },
-            )
-        assertThat(motion).timeSeriesMatchesGolden()
-    }
-
-    private fun MotionTestRule<ComposeToolkit>.materialExpressiveContentBounceTest(
+    private fun MotionTestRule<ComposeToolkit>.contentBounceTest(
         tile: TestTile,
         onNode: SemanticsNodeInteractionsProvider.() -> SemanticsNodeInteraction,
     ) {
         val motion =
             recordMotion(
-                content = { TestMaterialExpressiveTileGrid(listOf(tile)) },
+                content = { TestTileGrid(listOf(tile)) },
                 ComposeRecordingSpec(
                     MotionControl {
                         performTouchInputAsync(onNode()) { click() }
-                        awaitDelay(500.milliseconds)
+                        awaitIdle()
                     }
                 ) {
-                    feature(
-                        motionTestValueKey = TileBounceMotionTestKeys.BounceScale,
-                        capture =
-                            FeatureCapture(
-                                TileBounceMotionTestKeys.BounceScale.semanticsPropertyKey.name
-                            ) {
-                                it.asDataPoint()
-                            },
-                    )
+                    feature(TileBounceMotionTestKeys.BounceScale, Float.dataPointType)
                 },
             )
         assertThat(motion).timeSeriesMatchesGolden()
-    }
-
-    private enum class BounceType {
-        Container,
-        Content,
     }
 
     private class TestTile(
@@ -392,7 +229,7 @@ class TileBounceMotionTest : SysuiTestCase() {
                         }
                     )
                 }
-                .let { TileViewModel(it, TileSpec.create(spec)) }
+                .let { TileViewModel(it, TileSpec.create(spec), Expandable()) }
         }
     }
 }

@@ -41,10 +41,14 @@ void MethodDefinition::Print(bool final, Printer* printer, bool) const {
   printer->Print("}");
 }
 
-ClassDefinition::Result ClassDefinition::AddMember(std::unique_ptr<ClassMember> member) {
+ClassDefinition::Result ClassDefinition::AddMember(std::unique_ptr<ClassMember> member,
+                                                   bool can_overwrite) {
   Result result = Result::kAdded;
   auto iter = indexed_members_.find(member->GetName());
   if (iter != indexed_members_.end()) {
+    if (!can_overwrite) {
+      return Result::kAlreadyExists; // Member exists, but overwriting is disallowed.
+    }
     // Overwrite the entry. Be careful, as the key in indexed_members_ is actually memory owned
     // by the value at ordered_members_[index]. Since overwriting a value for a key doesn't replace
     // the key (the initial key inserted into the unordered_map is kept), we must erase and then

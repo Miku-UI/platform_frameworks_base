@@ -20,6 +20,7 @@
 #include "CreateJavaOutputStreamAdaptor.h"
 
 #include "SkPDFDocument.h"
+#include "SkPDFJpegHelpers.h"
 #include "SkPicture.h"
 #include "SkPictureRecorder.h"
 #include "SkRect.h"
@@ -86,7 +87,8 @@ public:
     }
 
     void write(SkWStream* stream) {
-        sk_sp<SkDocument> document = SkPDF::MakeDocument(stream);
+        SkPDF::Metadata metadata = SkPDF::JPEG::MetadataWithCallbacks();
+        sk_sp<SkDocument> document = SkPDF::MakeDocument(stream, metadata);
         for (unsigned i = 0; i < mPages.size(); i++) {
             PageRecord* page =  mPages[i];
 

@@ -29,98 +29,100 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import org.mockito.Mockito
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.verify
 
 class BubbleDataRepositoryTest : ShellTestCase() {
 
-    private val user0BubbleEntities = listOf(
-        BubbleEntity(
-            userId = 0,
-            packageName = "com.example.messenger",
-            shortcutId = "shortcut-1",
-            key = "0k1",
-            desiredHeight = 120,
-            desiredHeightResId = 0,
-            title = null,
-            taskId = 1,
-            locus = null,
-            isDismissable = true
-        ),
-        BubbleEntity(
-            userId = 10,
-            packageName = "com.example.chat",
-            shortcutId = "alice and bob",
-            key = "0k2",
-            desiredHeight = 0,
-            desiredHeightResId = 16537428,
-            title = "title",
-            taskId = 2,
-            locus = null
-        ),
-        BubbleEntity(
-            userId = 0,
-            packageName = "com.example.messenger",
-            shortcutId = "shortcut-2",
-            key = "0k3",
-            desiredHeight = 120,
-            desiredHeightResId = 0,
-            title = null,
-            taskId = ActivityTaskManager.INVALID_TASK_ID,
-            locus = null
+    private val user0BubbleEntities =
+        listOf(
+            BubbleEntity(
+                userId = 0,
+                packageName = "com.example.messenger",
+                shortcutId = "shortcut-1",
+                key = "0k1",
+                desiredHeight = 120,
+                desiredHeightResId = 0,
+                title = null,
+                taskId = 1,
+                locus = null,
+                isDismissable = true,
+            ),
+            BubbleEntity(
+                userId = 10,
+                packageName = "com.example.chat",
+                shortcutId = "alice and bob",
+                key = "0k2",
+                desiredHeight = 0,
+                desiredHeightResId = 16537428,
+                title = "title",
+                taskId = 2,
+                locus = null,
+            ),
+            BubbleEntity(
+                userId = 0,
+                packageName = "com.example.messenger",
+                shortcutId = "shortcut-2",
+                key = "0k3",
+                desiredHeight = 120,
+                desiredHeightResId = 0,
+                title = null,
+                taskId = ActivityTaskManager.INVALID_TASK_ID,
+                locus = null,
+            ),
         )
-    )
 
-    private val user1BubbleEntities = listOf(
-        BubbleEntity(
-            userId = 1,
-            packageName = "com.example.messenger",
-            shortcutId = "shortcut-1",
-            key = "1k1",
-            desiredHeight = 120,
-            desiredHeightResId = 0,
-            title = null,
-            taskId = 3,
-            locus = null,
-            isDismissable = true
-        ),
-        BubbleEntity(
-            userId = 12,
-            packageName = "com.example.chat",
-            shortcutId = "alice and bob",
-            key = "1k2",
-            desiredHeight = 0,
-            desiredHeightResId = 16537428,
-            title = "title",
-            taskId = 4,
-            locus = null
-        ),
-        BubbleEntity(
-            userId = 1,
-            packageName = "com.example.messenger",
-            shortcutId = "shortcut-2",
-            key = "1k3",
-            desiredHeight = 120,
-            desiredHeightResId = 0,
-            title = null,
-            taskId = ActivityTaskManager.INVALID_TASK_ID,
-            locus = null
-        ),
-        BubbleEntity(
-            userId = 12,
-            packageName = "com.example.chat",
-            shortcutId = "alice",
-            key = "1k4",
-            desiredHeight = 0,
-            desiredHeightResId = 16537428,
-            title = "title",
-            taskId = 5,
-            locus = null
+    private val user1BubbleEntities =
+        listOf(
+            BubbleEntity(
+                userId = 1,
+                packageName = "com.example.messenger",
+                shortcutId = "shortcut-1",
+                key = "1k1",
+                desiredHeight = 120,
+                desiredHeightResId = 0,
+                title = null,
+                taskId = 3,
+                locus = null,
+                isDismissable = true,
+            ),
+            BubbleEntity(
+                userId = 12,
+                packageName = "com.example.chat",
+                shortcutId = "alice and bob",
+                key = "1k2",
+                desiredHeight = 0,
+                desiredHeightResId = 16537428,
+                title = "title",
+                taskId = 4,
+                locus = null,
+            ),
+            BubbleEntity(
+                userId = 1,
+                packageName = "com.example.messenger",
+                shortcutId = "shortcut-2",
+                key = "1k3",
+                desiredHeight = 120,
+                desiredHeightResId = 0,
+                title = null,
+                taskId = ActivityTaskManager.INVALID_TASK_ID,
+                locus = null,
+            ),
+            BubbleEntity(
+                userId = 12,
+                packageName = "com.example.chat",
+                shortcutId = "alice",
+                key = "1k4",
+                desiredHeight = 0,
+                desiredHeightResId = 16537428,
+                title = "title",
+                taskId = 5,
+                locus = null,
+            ),
         )
-    )
 
     private val testHandler = Handler(Looper.getMainLooper())
     private val mainExecutor = HandlerExecutor(testHandler)
@@ -153,15 +155,14 @@ class BubbleDataRepositoryTest : ShellTestCase() {
         // Matches all the users in user0BubbleEntities & user1BubbleEntities
         val activeUserIds = listOf(0, 10, 1, 12)
 
-        val validEntitiesByUser = dataRepository.filterForActiveUsersAndPersist(
-            activeUserIds, persistedBubbles)
+        val validEntitiesByUser =
+            dataRepository.filterForActiveUsersAndPersist(activeUserIds, persistedBubbles)
 
         // No invalid users, so no changes
         assertThat(persistedBubbles).isEqualTo(validEntitiesByUser)
 
         // No invalid users, so no persist to disk happened
-        verify(dataRepository, never()).persistToDisk(
-            any(SparseArray<List<BubbleEntity>>()::class.java))
+        verify(dataRepository, never()).persistToDisk(any())
     }
 
     @Test
@@ -170,8 +171,8 @@ class BubbleDataRepositoryTest : ShellTestCase() {
         assertThat(persistedBubbles.get(0)).isNotEmpty()
 
         val activeUserIds = listOf(10, 1, 12) // Missing user 0
-        val validEntitiesByUser = dataRepository.filterForActiveUsersAndPersist(
-            activeUserIds, persistedBubbles)
+        val validEntitiesByUser =
+            dataRepository.filterForActiveUsersAndPersist(activeUserIds, persistedBubbles)
 
         // We no longer have any user 0 bubbles.
         assertThat(validEntitiesByUser.get(0)).isNull()
@@ -192,8 +193,8 @@ class BubbleDataRepositoryTest : ShellTestCase() {
         assertThat(persistedBubbles.get(1).containsAll(user1EntitiesWithUser12)).isTrue()
 
         val activeUserIds = listOf(0, 10, 1) // Missing user 1's child user 12
-        val validEntitiesByUser = dataRepository.filterForActiveUsersAndPersist(
-            activeUserIds, persistedBubbles)
+        val validEntitiesByUser =
+            dataRepository.filterForActiveUsersAndPersist(activeUserIds, persistedBubbles)
 
         // We no longer have any user 12 bubbles.
         assertThat(validEntitiesByUser.get(1)).isEqualTo(user1EntitiesWithoutUser12)
@@ -201,6 +202,4 @@ class BubbleDataRepositoryTest : ShellTestCase() {
         // Verify that persist to disk happened with the new valid entities list.
         verify(dataRepository).persistToDisk(validEntitiesByUser)
     }
-
-    fun <T> any(type: Class<T>): T = Mockito.any<T>(type)
 }

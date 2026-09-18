@@ -18,12 +18,12 @@ package com.android.wm.shell.compatui.letterbox.events
 
 import android.graphics.Rect
 import android.testing.AndroidTestingRunner
+import android.view.MotionEvent
 import android.window.WindowContainerToken
 import android.window.WindowContainerTransaction
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.suppliers.WindowContainerTransactionSupplier
-import com.android.wm.shell.compatui.letterbox.LetterboxEvents.motionEventAt
 import com.android.wm.shell.compatui.letterbox.animations.LetterboxAnimationHandler
 import com.android.wm.shell.compatui.letterbox.asMode
 import com.android.wm.shell.transition.Transitions
@@ -46,20 +46,25 @@ import org.mockito.kotlin.verify
 class ReachabilityGestureListenerTest : ShellTestCase() {
 
     @Test
-    fun `Only events outside the bounds are handled`() {
+    fun `Use relative coords for bounds check but raw coords for transition when flag enabled`() {
         runTestScenario { r ->
+            // Task is offset by 500 in Y. Activity bounds are relative to task.
+            // Touching at relative (50, 100), which is INSIDE the activity.
+            // Raw coordinates are (50, 600).
             r.updateActivityBounds(Rect(0, 0, 100, 200))
-            r.sendMotionEvent(50, 100)
+            r.sendMotionEvent(x = 50f, y = 100f, rawX = 50f, rawY = 600f)
 
-            r.verifyReachabilityTransitionCreated(expected = false, 50, 100)
+            // Should be ignored because the relative touch is inside the bounds.
+            r.verifyReachabilityTransitionCreated(expected = false, 50, 600)
             r.verifyReachabilityTransitionStarted(expected = false)
             r.verifyEventIsHandled(expected = false)
-            r.verifyLetterboxInputSourceId(expectedInputSourceId = -1)
 
-            r.updateActivityBounds(Rect(0, 0, 10, 50))
-            r.sendMotionEvent(50, 100)
+            // Touching at relative (50, 300), which is OUTSIDE the activity.
+            // Raw coordinates are (50, 800).
+            r.sendMotionEvent(x = 50f, y = 300f, rawX = 50f, rawY = 800f)
 
-            r.verifyReachabilityTransitionCreated(expected = true, 50, 100)
+            // Should be handled, and transition should use RAW coordinates (50, 800).
+            r.verifyReachabilityTransitionCreated(expected = true, 50, 800)
             r.verifyReachabilityTransitionStarted(expected = true)
             r.verifyEventIsHandled(expected = true)
             r.verifyLetterboxInputSourceId()
@@ -113,8 +118,15 @@ class ReachabilityGestureListenerTest : ShellTestCase() {
             reachabilityListener.updateActivityBounds(activityBounds)
         }
 
-        fun sendMotionEvent(x: Int, y: Int) {
-            eventHandled = reachabilityListener.onDoubleTap(motionEventAt(x.toFloat(), y.toFloat()))
+        fun sendMotionEvent(x: Float, y: Float, rawX: Float, rawY: Float) {
+            val event =
+                mock<MotionEvent> {
+                    on { getX() } doReturn x
+                    on { getY() } doReturn y
+                    on { getRawX() } doReturn rawX
+                    on { getRawY() } doReturn rawY
+                }
+            eventHandled = reachabilityListener.onDoubleTap(event)
         }
 
         fun verifyReachabilityTransitionCreated(

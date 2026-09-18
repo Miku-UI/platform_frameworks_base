@@ -50,19 +50,22 @@ public class TimeZoneProviderStatusTest {
 
     @Test
     public void parseProviderStatus() {
-        TimeZoneProviderStatus status = new TimeZoneProviderStatus.Builder()
-                .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_BLOCKED_BY_SETTINGS)
-                .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
-                .build();
+        TimeZoneProviderStatus status =
+                new TimeZoneProviderStatus.Builder()
+                        .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_BLOCKED_BY_SETTINGS)
+                        .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
+                        .build();
 
         assertEquals(status, TimeZoneProviderStatus.parseProviderStatus(status.toString()));
     }
 
     @Test
     @Parameters(method = "couldEnableTelephonyFallbackParams")
-    public void couldEnableTelephonyFallback(@DependencyStatus int locationDetectionStatus,
-            @DependencyStatus int connectivityStatus, @OperationStatus int tzResolutionStatus) {
+    public void couldEnableTelephonyFallback(
+            @DependencyStatus int locationDetectionStatus,
+            @DependencyStatus int connectivityStatus,
+            @OperationStatus int tzResolutionStatus) {
         TimeZoneProviderStatus providerStatus =
                 new TimeZoneProviderStatus.Builder()
                         .setLocationDetectionDependencyStatus(locationDetectionStatus)
@@ -77,7 +80,8 @@ public class TimeZoneProviderStatusTest {
                         || connectivityStatus == DEPENDENCY_STATUS_BLOCKED_BY_SETTINGS);
         boolean tzResolutionStatusCouldEnableFallback = false;
 
-        assertEquals(locationDetectionStatusCouldEnableFallback
+        assertEquals(
+                locationDetectionStatusCouldEnableFallback
                         || connectivityStatusCouldEnableFallback
                         || tzResolutionStatusCouldEnableFallback,
                 providerStatus.couldEnableTelephonyFallback());
@@ -86,21 +90,23 @@ public class TimeZoneProviderStatusTest {
     /** Parameters for {@link #couldEnableTelephonyFallback}. */
     public static Integer[][] couldEnableTelephonyFallbackParams() {
         List<Integer[]> params = new ArrayList<>();
-        @DependencyStatus int[] dependencyStatuses =
+        @DependencyStatus
+        int[] dependencyStatuses =
                 IntStream.rangeClosed(
-                        DEPENDENCY_STATUS_UNKNOWN, DEPENDENCY_STATUS_BLOCKED_BY_SETTINGS).toArray();
-        @OperationStatus int[] operationStatuses =
+                                DEPENDENCY_STATUS_UNKNOWN, DEPENDENCY_STATUS_BLOCKED_BY_SETTINGS)
+                        .toArray();
+        @OperationStatus
+        int[] operationStatuses =
                 IntStream.rangeClosed(OPERATION_STATUS_UNKNOWN, OPERATION_STATUS_FAILED).toArray();
 
         // Cartesian product: dependencyStatus x dependencyStatus x operationStatus
         for (@DependencyStatus int locationDetectionStatus : dependencyStatuses) {
             for (@DependencyStatus int connectivityStatus : dependencyStatuses) {
                 for (@OperationStatus int tzResolutionStatus : operationStatuses) {
-                    params.add(new Integer[] {
-                            locationDetectionStatus,
-                            connectivityStatus,
-                            tzResolutionStatus
-                    });
+                    params.add(
+                            new Integer[] {
+                                locationDetectionStatus, connectivityStatus, tzResolutionStatus
+                            });
                 }
             }
         }

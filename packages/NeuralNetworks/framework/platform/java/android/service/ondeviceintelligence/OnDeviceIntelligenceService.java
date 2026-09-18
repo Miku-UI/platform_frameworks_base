@@ -16,6 +16,7 @@
 
 package android.service.ondeviceintelligence;
 import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4;
+import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_26Q2;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
 
@@ -37,6 +38,12 @@ import android.app.ondeviceintelligence.IListFeaturesCallback;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceException;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.StateParams;
+import android.app.ondeviceintelligence.embedding.EmbeddingModel;
+import android.app.ondeviceintelligence.embedding.IEmbeddingModelCallback;
+import android.app.ondeviceintelligence.embedding.IEmbeddingModelListCallback;
+import android.app.ondeviceintelligence.imagedescription.ImageDescriptionModel;
+import android.app.ondeviceintelligence.imagedescription.IImageDescriptionModelCallback;
+import android.app.ondeviceintelligence.imagedescription.IImageDescriptionModelListCallback;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Bundle;
@@ -252,6 +259,52 @@ public abstract class OnDeviceIntelligenceService extends Service {
                                     OnDeviceIntelligenceService.this,
                                     feature,
                                     remoteCallback::sendResult));
+                }
+
+                @Override
+                public void listEmbeddingModels(int callerUid,
+                        IEmbeddingModelListCallback callback) {
+                    Objects.requireNonNull(callback);
+                    mHandler.executeOrSendMessage(
+                            obtainMessage(
+                                    OnDeviceIntelligenceService::onListEmbeddingModels,
+                                    OnDeviceIntelligenceService.this, callerUid,
+                                    wrapEmbeddingModelListCallback(callback)));
+                }
+
+                @Override
+                public void fetchEmbeddingModel(int callerUid, String modelSignature,
+                        IEmbeddingModelCallback callback) {
+                    Objects.requireNonNull(modelSignature);
+                    Objects.requireNonNull(callback);
+                    mHandler.executeOrSendMessage(
+                            obtainMessage(
+                                    OnDeviceIntelligenceService::onFetchEmbeddingModel,
+                                    OnDeviceIntelligenceService.this, callerUid,
+                                    modelSignature, wrapEmbeddingModelCallback(callback)));
+                }
+
+                @Override
+                public void listImageDescriptionModels(int callerUid,
+                        IImageDescriptionModelListCallback callback) {
+                    Objects.requireNonNull(callback);
+                    mHandler.executeOrSendMessage(
+                            obtainMessage(
+                                    OnDeviceIntelligenceService::onListImageDescriptionModels,
+                                    OnDeviceIntelligenceService.this, callerUid,
+                                    wrapImageDescriptionModelListCallback(callback)));
+                }
+
+                @Override
+                public void fetchImageDescriptionModel(int callerUid, String modelSignature,
+                        IImageDescriptionModelCallback callback) {
+                    Objects.requireNonNull(modelSignature);
+                    Objects.requireNonNull(callback);
+                    mHandler.executeOrSendMessage(
+                            obtainMessage(
+                                    OnDeviceIntelligenceService::onFetchImageDescriptionModel,
+                                    OnDeviceIntelligenceService.this, callerUid,
+                                    modelSignature, wrapImageDescriptionModelCallback(callback)));
                 }
 
                 @Override
@@ -602,4 +655,189 @@ public abstract class OnDeviceIntelligenceService extends Service {
      * @param versionConsumer consumer to populate the version.
      */
     public abstract void onGetVersion(@NonNull LongConsumer versionConsumer);
+
+    /**
+     * Invoked when the caller requests to list available embedding models.
+     *
+     * <p> The implementation should ensure the results are in order of preference
+     * (most strongly recommended to least strongly recommended).
+     *
+     * @param callerUid UID of the caller that initiated this call chain.
+     * @param callback Callback to populate with the list of {@link EmbeddingModel}.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+    public void onListEmbeddingModels(
+            int callerUid,
+            @NonNull
+                    OutcomeReceiver<List<EmbeddingModel>, OnDeviceIntelligenceException>
+                            callback) {
+        callback.onError(
+                new OnDeviceIntelligenceException(
+                        OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                        "Service unavailable"));
+    }
+
+    /**
+     * Invoked when the caller requests to fetch a specific embedding model by signature.
+     *
+     * @param callerUid UID of the caller that initiated this call chain.
+     * @param modelSignature The unique signature of the embedding model to retrieve.
+     * @param callback Callback to populate with the {@link EmbeddingModel}.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+    public void onFetchEmbeddingModel(
+            int callerUid,
+            @NonNull String modelSignature,
+            @NonNull OutcomeReceiver<EmbeddingModel, OnDeviceIntelligenceException> callback) {
+        callback.onError(
+                new OnDeviceIntelligenceException(
+                        OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                        "Service unavailable"));
+    }
+
+    /**
+     * Get the list of available image description models.
+     *
+     * <p> The implementation should ensure the results are in order of preference
+     * (most strongly recommended to least strongly recommended).
+     *
+     * @param callerUid UID of the caller that initiated this call chain.
+     * @param callback Callback to populate with the list of {@link ImageDescriptionModelInfo}.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+    public void onListImageDescriptionModels(
+            int callerUid,
+            @NonNull
+                    OutcomeReceiver<List<ImageDescriptionModel>, OnDeviceIntelligenceException>
+                            callback) {
+        callback.onError(
+                new OnDeviceIntelligenceException(
+                        OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                        "Service unavailable"));
+    }
+
+
+    /**
+     * Invoked when the caller requests to fetch a specific image description model.
+     *
+     * @param callerUid UID of the caller that initiated this call chain.
+     * @param modelSignature The unique signature of the image description model to retrieve.
+     * @param callback Callback to populate with the {@link ImageDescriptionModel}.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+    public void onFetchImageDescriptionModel(
+            int callerUid,
+            @NonNull String modelSignature,
+            @NonNull
+                    OutcomeReceiver<ImageDescriptionModel, OnDeviceIntelligenceException>
+                            callback) {
+        callback.onError(
+                new OnDeviceIntelligenceException(
+                        OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                        "Service unavailable"));
+    }
+
+    private OutcomeReceiver<List<EmbeddingModel>, OnDeviceIntelligenceException>
+            wrapEmbeddingModelListCallback(IEmbeddingModelListCallback callback) {
+        return new OutcomeReceiver<>() {
+            @Override
+            public void onResult(List<EmbeddingModel> result) {
+                try {
+                    callback.onSuccess(result);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending result: " + e);
+                }
+            }
+
+            @Override
+            public void onError(OnDeviceIntelligenceException exception) {
+                try {
+                    callback.onFailure(
+                            exception.getErrorCode(),
+                            exception.getMessage(),
+                            exception.getErrorParams());
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending failure: " + e);
+                }
+            }
+        };
+    }
+
+    private OutcomeReceiver<EmbeddingModel, OnDeviceIntelligenceException>
+            wrapEmbeddingModelCallback(IEmbeddingModelCallback callback) {
+        return new OutcomeReceiver<>() {
+            @Override
+            public void onResult(EmbeddingModel result) {
+                try {
+                    callback.onSuccess(result);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending result: " + e);
+                }
+            }
+
+            @Override
+            public void onError(OnDeviceIntelligenceException exception) {
+                try {
+                    callback.onFailure(
+                            exception.getErrorCode(),
+                            exception.getMessage(),
+                            exception.getErrorParams());
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending failure: " + e);
+                }
+            }
+        };
+    }
+
+    private OutcomeReceiver<List<ImageDescriptionModel>, OnDeviceIntelligenceException>
+            wrapImageDescriptionModelListCallback(IImageDescriptionModelListCallback callback) {
+        return new OutcomeReceiver<>() {
+            @Override
+            public void onResult(List<ImageDescriptionModel> result) {
+                try {
+                    callback.onSuccess(result);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending result: " + e);
+                }
+            }
+
+            @Override
+            public void onError(OnDeviceIntelligenceException exception) {
+                try {
+                    callback.onFailure(
+                            exception.getErrorCode(),
+                            exception.getMessage(),
+                            exception.getErrorParams());
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending failure: " + e);
+                }
+            }
+        };
+    }
+
+    private OutcomeReceiver<ImageDescriptionModel, OnDeviceIntelligenceException>
+            wrapImageDescriptionModelCallback(IImageDescriptionModelCallback callback) {
+        return new OutcomeReceiver<>() {
+            @Override
+            public void onResult(ImageDescriptionModel result) {
+                try {
+                    callback.onSuccess(result);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending result: " + e);
+                }
+            }
+
+            @Override
+            public void onError(OnDeviceIntelligenceException exception) {
+                try {
+                    callback.onFailure(
+                            exception.getErrorCode(),
+                            exception.getMessage(),
+                            exception.getErrorParams());
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending failure: " + e);
+                }
+            }
+        };
+    }
 }

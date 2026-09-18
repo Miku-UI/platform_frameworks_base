@@ -16,13 +16,13 @@
 
 package com.android.systemui.statusbar.lockscreen
 
+import android.app.WallpaperManager
 import android.app.smartspace.SmartspaceAction
 import android.app.smartspace.SmartspaceManager
 import android.app.smartspace.SmartspaceSession
 import android.app.smartspace.SmartspaceSession.OnTargetsAvailableListener
 import android.app.smartspace.SmartspaceTarget
 import android.content.ComponentName
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.UserInfo
 import android.database.ContentObserver
@@ -31,13 +31,18 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.UserHandle
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import android.testing.TestableLooper.RunWithLooper
 import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.internal.colorextraction.ColorExtractor.OnColorsChangedListener
 import com.android.keyguard.KeyguardUpdateMonitor
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.colorextraction.SysuiColorExtractor
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.plugins.ActivityStarter
@@ -83,6 +88,7 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.mock
 
 @SmallTest
 @RunWithLooper(setAsMainLooper = true)
@@ -106,7 +112,7 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
 
     @Mock private lateinit var userTracker: UserTracker
 
-    @Mock private lateinit var contentResolver: ContentResolver
+    @Mock private lateinit var sysuiColorExtractor: SysuiColorExtractor
 
     @Mock private lateinit var configurationController: ConfigurationController
 
@@ -142,6 +148,9 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
 
     @Captor private lateinit var settingsObserverCaptor: ArgumentCaptor<ContentObserver>
 
+    @Captor
+    private lateinit var onColorsChangedListenerCaptor: ArgumentCaptor<OnColorsChangedListener>
+
     @Captor private lateinit var configChangeListenerCaptor: ArgumentCaptor<ConfigurationListener>
 
     @Captor private lateinit var statusBarStateListenerCaptor: ArgumentCaptor<StateListener>
@@ -155,6 +164,7 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
     private lateinit var sessionListener: OnTargetsAvailableListener
     private lateinit var userListener: UserTracker.Callback
     private lateinit var settingsObserver: ContentObserver
+    private lateinit var onColorsChangedListener: OnColorsChangedListener
     private lateinit var configChangeListener: ConfigurationListener
     private lateinit var statusBarStateListener: StateListener
     private lateinit var bypassStateChangeListener:
@@ -228,7 +238,7 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
                 clock,
                 secureSettings,
                 userTracker,
-                contentResolver,
+                sysuiColorExtractor,
                 configurationController,
                 statusBarStateController,
                 deviceProvisionedController,
@@ -306,6 +316,7 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_SCENE_CONTAINER)
     fun testDisconnect_emitsEmptyListAndRemovesNotifier() {
         // GIVEN a registered listener on an active session
         connectSession()
@@ -321,6 +332,27 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
         verify(plugin).onTargetsAvailable(emptyList())
         verify(plugin).setEventDispatcher(null)
         verify(weatherPlugin).onTargetsAvailable(emptyList())
+        verify(weatherPlugin).setEventDispatcher(null)
+        verify(datePlugin).setEventDispatcher(null)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER)
+    fun testDisconnect_doesNotEmitEmptyListAndRemovesNotifier() {
+        // GIVEN a registered listener on an active session
+        connectSession()
+        clearInvocations(plugin)
+
+        // WHEN the session is closed
+        controller.stateChangeListener.onViewDetachedFromWindow(dateSmartspaceView as View)
+        controller.stateChangeListener.onViewDetachedFromWindow(weatherSmartspaceView as View)
+        controller.stateChangeListener.onViewDetachedFromWindow(smartspaceView as View)
+        controller.disconnect()
+
+        // THEN the listener receives an empty list of targets and unregisters the notifier
+        verify(plugin, never()).onTargetsAvailable(emptyList())
+        verify(plugin).setEventDispatcher(null)
+        verify(weatherPlugin, never()).onTargetsAvailable(emptyList())
         verify(weatherPlugin).setEventDispatcher(null)
         verify(datePlugin).setEventDispatcher(null)
     }
@@ -347,6 +379,34 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
 
         // THEN we request a new smartspace update
         verify(smartspaceSession).requestSmartspaceUpdate()
+    }
+
+    @Test
+    fun testLockscreenWallpaperColorChange_updatesBackgroundColor() {
+        `when`(sysuiColorExtractor.getWallpaperColors(anyInt())).thenReturn(mock())
+
+        // GIVEN a connected smartspace session
+        connectSession()
+
+        // WHEN the lock screen wallpaper changes
+        onColorsChangedListener.onColorsChanged(sysuiColorExtractor, WallpaperManager.FLAG_LOCK)
+
+        // THEN we update the new background color according to the lock screen wallpaper.
+        verify(smartspaceView).setHighContrastBackgroundColor(anyInt())
+    }
+
+    @Test
+    fun testHomeScreenWallpaperColorChange_doesNotUpdateBackgroundColor() {
+        `when`(sysuiColorExtractor.getWallpaperColors(anyInt())).thenReturn(mock())
+
+        // GIVEN a connected smartspace session
+        connectSession()
+
+        // WHEN the home screen wallpaper changes
+        onColorsChangedListener.onColorsChanged(sysuiColorExtractor, WallpaperManager.FLAG_SYSTEM)
+
+        // We don't update the background color for the home screen wallpaper.
+        verify(smartspaceView, never()).setHighContrastBackgroundColor(anyInt())
     }
 
     @Test
@@ -740,7 +800,8 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
         verify(smartspaceSession).removeOnTargetsAvailableListener(sessionListener)
         verify(smartspaceSession).close()
         verify(userTracker).removeCallback(userListener)
-        verify(contentResolver).unregisterContentObserver(settingsObserver)
+        verify(secureSettings).unregisterContentObserverAsync(settingsObserver)
+        verify(sysuiColorExtractor).removeOnColorsChangedListener(onColorsChangedListener)
         verify(configurationController).removeCallback(configChangeListener)
         verify(statusBarStateController).removeCallback(statusBarStateListener)
         verify(keyguardBypassController)
@@ -793,7 +854,48 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
         // THEN no calls to createSmartspaceSession should occur
         verify(smartspaceManager, never()).createSmartspaceSession(any())
         // THEN no listeners should be registered
+        verify(sysuiColorExtractor, never()).addOnColorsChangedListener(any())
         verify(configurationController, never()).addCallback(any())
+    }
+
+    @Test
+    fun testMediaTargetChanges_ViewAttached() {
+        connectSession()
+
+        val mediaComponent = ComponentName("testpackage", "media")
+        val action =
+            SmartspaceAction.Builder("deviceMediaTitle", "TITLE").setSubtitle("ARTIST").build()
+        val target =
+            SmartspaceTarget.Builder("deviceMedia", mediaComponent, userHandlePrimary)
+                .setFeatureType(41) // MEDIA_CURRENT_PLAYING
+                .setHeaderAction(action)
+                .build()
+
+        // controller should immediately send target to all attached views
+        controller.setMediaTarget(target)
+        verify(smartspaceView).setMediaTarget(target)
+    }
+
+    @Test
+    fun testMediaTargetChanges_ViewDetached() {
+        connectSession()
+        controller.stateChangeListener.onViewDetachedFromWindow(smartspaceView as View)
+
+        val mediaComponent = ComponentName("testpackage", "media")
+        val action =
+            SmartspaceAction.Builder("deviceMediaTitle", "TITLE").setSubtitle("ARTIST").build()
+        val target =
+            SmartspaceTarget.Builder("deviceMedia", mediaComponent, userHandlePrimary)
+                .setFeatureType(41) // MEDIA_CURRENT_PLAYING
+                .setHeaderAction(action)
+                .build()
+
+        // controller should only send target to view when it is next attached
+        controller.setMediaTarget(target)
+        verify(smartspaceView, never()).setMediaTarget(target)
+
+        controller.stateChangeListener.onViewAttachedToWindow(smartspaceView as View)
+        verify(smartspaceView).setMediaTarget(target)
     }
 
     private fun connectSession() {
@@ -840,14 +942,18 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
         verify(userTracker).addCallback(capture(userTrackerCaptor), any())
         userListener = userTrackerCaptor.value
 
-        verify(contentResolver)
-            .registerContentObserver(
+        verify(secureSettings)
+            .registerContentObserverForUserAsync(
                 eq(fakePrivateLockscreenSettingUri),
                 eq(true),
                 capture(settingsObserverCaptor),
                 eq(UserHandle.USER_ALL),
             )
         settingsObserver = settingsObserverCaptor.value
+
+        verify(sysuiColorExtractor)
+            .addOnColorsChangedListener(onColorsChangedListenerCaptor.capture())
+        onColorsChangedListener = onColorsChangedListenerCaptor.value
 
         verify(configurationController).addCallback(configChangeListenerCaptor.capture())
         configChangeListener = configChangeListenerCaptor.value
@@ -1012,6 +1118,10 @@ class LockscreenSmartspaceControllerTest : SysuiTestCase() {
                 override fun registerConfigProvider(plugin: BcSmartspaceConfigPlugin?) {}
 
                 override fun setPrimaryTextColor(color: Int) {}
+
+                // This is needed because `verify(smartspaceView, never())` doesn't work with the
+                // interface default method.
+                override fun setHighContrastBackgroundColor(wallpaperColorHints: Int) {}
 
                 override fun setUiSurface(uiSurface: String) {}
 

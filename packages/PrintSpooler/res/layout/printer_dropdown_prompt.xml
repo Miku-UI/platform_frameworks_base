@@ -18,7 +18,7 @@
       android:layout_width="fill_parent"
       android:layout_height="?android:attr/listPreferredItemHeightSmall"
       android:textAppearance="?android:attr/textAppearanceMedium"
-      android:textColor="?android:attr/textColorPrimary"
+      android:textColor="@color/materialColorOnSurface"
       android:paddingStart="20dip"
       style="?android:attr/spinnerItemStyle"
       android:text="@string/destination_default_text"

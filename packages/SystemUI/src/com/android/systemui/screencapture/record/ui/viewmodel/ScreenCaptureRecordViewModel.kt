@@ -25,7 +25,7 @@ class ScreenCaptureRecordViewModel
 @AssistedInject
 constructor(interactor: ScreenCaptureUiInteractor) : HydratedActivatable() {
 
-    val isLargeScreen: Boolean? by interactor.isLargeScreen.hydratedStateOf(null)
+    val isLargeScreen: Boolean by interactor.isLargeScreen.hydratedStateOf()
 
     @AssistedFactory
     interface Factory {

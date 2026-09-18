@@ -17,12 +17,14 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.graphics.Rect
 import android.tools.Rotation
 import android.tools.device.apphelpers.SettingsHelper
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.After
 import org.junit.Before
 import org.junit.Ignore
@@ -43,14 +45,14 @@ abstract class ResizeActivityEmbeddedAppToMinimumWindow(
 
     @Before
     fun setup() {
-        settingsApp.launchViaIntent(wmHelper)
-        settingsApp.enterDesktopModeViaKeyboard(wmHelper)
+        settingsApp.enterDesktopMode(wmHelper, device)
         // Maximize app windows to see the two-pane view.
         settingsApp.maximiseDesktopApp(wmHelper, device)
     }
 
     @Test
     open fun resizeAppWithCornerResize() {
+        val initialBounds = wmHelper.getWindowRegion(settingsApp).bounds
         settingsApp.cornerResize(
             wmHelper,
             device,
@@ -58,6 +60,18 @@ abstract class ResizeActivityEmbeddedAppToMinimumWindow(
             horizontalChange = -1500,
             verticalChange = 1500,
         )
+
+        val finalBounds = wmHelper.getWindowRegion(settingsApp).bounds
+        assertWindowShrunkFromTopRight(initialBounds, finalBounds)
+    }
+
+    private fun assertWindowShrunkFromTopRight(initialBounds: Rect, finalBounds: Rect) {
+        assertWithMessage("Window width should have decreased")
+            .that(finalBounds.width())
+            .isLessThan(initialBounds.width())
+        assertWithMessage("Window height should have decreased")
+            .that(finalBounds.height())
+            .isLessThan(initialBounds.height())
     }
 
     @After

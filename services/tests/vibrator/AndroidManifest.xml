@@ -35,6 +35,8 @@
     <!-- Required to play vendor effects and start vendor sessions -->
     <uses-permission android:name="android.permission.VIBRATE_VENDOR_EFFECTS" />
     <uses-permission android:name="android.permission.START_VIBRATION_SESSIONS" />
+    <!-- Required to start haptic generator sessions -->
+    <uses-permission android:name="android.permission.USE_VIBRATOR_HAPTIC_GENERATOR"/>
 
     <application android:debuggable="true">
         <uses-library android:name="android.test.mock" android:required="true" />

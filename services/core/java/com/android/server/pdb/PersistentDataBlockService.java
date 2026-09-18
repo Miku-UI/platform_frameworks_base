@@ -317,15 +317,6 @@ public class PersistentDataBlockService extends SystemService {
         mAllowedUid = uid;
     }
 
-    private void formatIfOemUnlockEnabled() {
-        boolean enabled = doGetOemUnlockEnabled();
-        if (enabled) {
-            synchronized (mLock) {
-                formatPartitionLocked(true);
-            }
-        }
-    }
-
     private void enforceOemUnlockReadPermission() {
         if (mContext.checkCallingOrSelfPermission(Manifest.permission.READ_OEM_UNLOCK_STATE)
                 == PackageManager.PERMISSION_DENIED
@@ -362,12 +353,19 @@ public class PersistentDataBlockService extends SystemService {
         }
     }
 
-    private void enforceIsAdmin() {
-        final int userId = UserHandle.getCallingUserId();
-        final boolean isAdmin = UserManager.get(mContext).isUserAdmin(userId);
-        if (!isAdmin) {
+    @VisibleForTesting
+    protected int getCallingUserId() {
+        return UserHandle.getCallingUserId();
+    }
+
+    private void enforceIsAdminOrSystem() {
+        final int userId = getCallingUserId();
+        final boolean isAdminOrSystem =
+                (android.multiuser.Flags.hsuNotAdmin() && userId == UserHandle.USER_SYSTEM)
+                        || UserManager.get(mContext).isUserAdmin(userId);
+        if (!isAdminOrSystem) {
             throw new SecurityException(
-                    "Only the Admin user is allowed to change OEM unlock state");
+                    "Only the Admin or System user is allowed to change OEM unlock state");
         }
     }
 
@@ -446,7 +444,7 @@ public class PersistentDataBlockService extends SystemService {
             byte[] digest = computeDigestLocked(storedDigest);
             if (digest == null || !Arrays.equals(storedDigest, digest)) {
                 Slog.i(TAG, "Formatting FRP partition...");
-                formatPartitionLocked(false);
+                formatPartitionLocked();
                 return false;
             }
         }
@@ -525,7 +523,7 @@ public class PersistentDataBlockService extends SystemService {
     }
 
     @VisibleForTesting
-    void formatPartitionLocked(boolean setOemUnlockEnabled) {
+    void formatPartitionLocked() {
 
         try (FileChannel channel = getBlockOutputChannelIgnoringFrp()) {
             // Format the data selectively.
@@ -577,7 +575,6 @@ public class PersistentDataBlockService extends SystemService {
             return;
         }
 
-        doSetOemUnlockEnabledLocked(setOemUnlockEnabled);
         computeAndWriteDigestLocked();
     }
 
@@ -1097,7 +1094,7 @@ public class PersistentDataBlockService extends SystemService {
             }
 
             enforceOemUnlockWritePermission();
-            enforceIsAdmin();
+            enforceIsAdminOrSystem();
 
             if (enabled) {
                 // Do not allow oem unlock to be enabled if it's disallowed by a user restriction.

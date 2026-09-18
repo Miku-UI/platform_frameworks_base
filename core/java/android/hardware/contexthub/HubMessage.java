@@ -42,7 +42,7 @@ public final class HubMessage implements Parcelable {
     private final int mMessageType;
     private final byte[] mMessageBody;
 
-    private final boolean mResponseRequired;
+    private boolean mResponseRequired;
     private int mMessageSequenceNumber;
 
     private HubMessage(int messageType, @NonNull byte[] messageBody, boolean responseRequired) {
@@ -76,6 +76,15 @@ public final class HubMessage implements Parcelable {
      */
     public boolean isResponseRequired() {
         return mResponseRequired;
+    }
+
+    /**
+     * Set whether a response is required when the peer endpoint receives the message.
+     *
+     * @hide
+     */
+    public void setIsResponseRequired(boolean responseRequired) {
+        mResponseRequired = responseRequired;
     }
 
     /**

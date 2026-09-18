@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android {
 
   public static final class Manifest.permission {
@@ -100,15 +101,16 @@ package android.content {
     method @NonNull public android.content.Context createContextForSdkInSandbox(@NonNull android.content.pm.ApplicationInfo, int) throws android.content.pm.PackageManager.NameNotFoundException;
     method @NonNull public android.os.IBinder getProcessToken();
     method @NonNull public android.os.UserHandle getUser();
-    field @FlaggedApi("android.os.profiling.anomaly.flags.anomaly_detector_core") public static final String ANOMALY_DETECTOR_SERVICE = "anomaly_detector";
+    field @FlaggedApi("android.os.profiling.anomaly.flags.anomaly_detector_core_c") public static final String ANOMALY_DETECTOR_SERVICE = "anomaly_detector";
     field @FlaggedApi("android.app.ondeviceintelligence.flags.enable_on_device_intelligence_module") public static final int BIND_FOREGROUND_SERVICE = 67108864; // 0x4000000
     field public static final String PAC_PROXY_SERVICE = "pac_proxy";
     field public static final String TEST_NETWORK_SERVICE = "test_network";
+    field @FlaggedApi("android.security.uprobestats_bridge_service") public static final String UPROBESTATS_BRIDGE_SERVICE = "uprobestats_bridge";
     field @FlaggedApi("android.os.mainline_vcn_platform_api") public static final String VCN_MANAGEMENT_SERVICE = "vcn_management";
     field @FlaggedApi("android.webkit.update_service_ipc_wrapper") public static final String WEBVIEW_UPDATE_SERVICE = "webviewupdate";
   }
 
-  public class Intent implements java.lang.Cloneable android.os.Parcelable {
+  public class Intent implements Cloneable android.os.Parcelable {
     field public static final String ACTION_SETTING_RESTORED = "android.os.action.SETTING_RESTORED";
     field public static final String EXTRA_SETTING_NAME = "setting_name";
     field public static final String EXTRA_SETTING_NEW_VALUE = "new_value";
@@ -135,12 +137,6 @@ package android.content.pm {
     method @RequiresPermission(android.Manifest.permission.MAKE_UID_VISIBLE) public void makeUidVisible(int, int);
     field public static final String EXTRA_VERIFICATION_ROOT_HASH = "android.content.pm.extra.VERIFICATION_ROOT_HASH";
     field public static final int MATCH_STATIC_SHARED_AND_SDK_LIBRARIES = 67108864; // 0x4000000
-  }
-
-  @FlaggedApi("android.permission.flags.enhanced_confirmation_mode_apis_enabled") public class SignedPackage {
-    method @NonNull public byte[] getCertificateDigest();
-    method @FlaggedApi("android.permission.flags.app_function_access_api_enabled") @Nullable public byte[] getCertificateDigestOrNull();
-    method @NonNull public String getPackageName();
   }
 
 }
@@ -181,10 +177,13 @@ package android.media {
   public class AudioManager {
     method public void adjustStreamVolumeForUid(int, int, int, @NonNull String, int, int, int);
     method public void adjustSuggestedStreamVolumeForUid(int, int, int, @NonNull String, int, int, int);
+    method @FlaggedApi("android.media.audio.fused_telecom_route_api") @NonNull @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE) public android.media.AudioModeSession createAudioModeSession(@NonNull android.media.AudioModeSession.Request, @NonNull java.util.concurrent.Executor, @NonNull android.media.AudioModeSession.Callback);
+    method @FlaggedApi("android.media.audio.bt_device_category_api") @RequiresPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED) public int getBluetoothAudioDeviceCategory(@NonNull String);
     method @NonNull public java.util.List<android.bluetooth.BluetoothCodecConfig> getHwOffloadFormatsSupportedForA2dp();
     method @NonNull public java.util.List<android.bluetooth.BluetoothLeAudioCodecConfig> getHwOffloadFormatsSupportedForLeAudio();
     method @NonNull public java.util.List<android.bluetooth.BluetoothLeAudioCodecConfig> getHwOffloadFormatsSupportedForLeBroadcast();
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_STACK) public void handleBluetoothActiveDeviceChanged(@Nullable android.bluetooth.BluetoothDevice, @Nullable android.bluetooth.BluetoothDevice, @NonNull android.media.BluetoothProfileConnectionInfo);
+    method @FlaggedApi("android.media.audio.bt_audio_disconnect_api") @RequiresPermission(android.Manifest.permission.BLUETOOTH_STACK) public void handleBluetoothHfpAudioDisconnected(@NonNull android.bluetooth.BluetoothDevice, int);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_STACK) public void setA2dpSuspended(boolean);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_STACK) public void setBluetoothHeadsetProperties(@NonNull String, boolean, boolean);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_STACK) public void setHfpEnabled(boolean);
@@ -193,6 +192,59 @@ package android.media {
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_STACK) public void setLeAudioSuspended(boolean);
     method public void setStreamVolumeForUid(int, int, int, @NonNull String, int, int, int);
     field public static final int FLAG_FROM_KEY = 4096; // 0x1000
+    field @FlaggedApi("android.media.audio.bt_audio_disconnect_api") public static final int HFP_AUDIO_DISCONNECT_CODEC_NEGOTIATION_FAILED = 2; // 0x2
+    field @FlaggedApi("android.media.audio.bt_audio_disconnect_api") public static final int HFP_AUDIO_DISCONNECT_INTERNAL_ERROR = 4; // 0x4
+    field @FlaggedApi("android.media.audio.bt_audio_disconnect_api") public static final int HFP_AUDIO_DISCONNECT_PRECONDITION_FAILED = 3; // 0x3
+    field @FlaggedApi("android.media.audio.bt_audio_disconnect_api") public static final int HFP_AUDIO_DISCONNECT_REMOTE_INITIATED = 1; // 0x1
+  }
+
+  @FlaggedApi("android.media.audio.fused_telecom_route_api") public final class AudioModeSession implements AutoCloseable {
+    method public void close();
+    method @NonNull public java.util.List<android.media.AudioModeSession.AudioRoute> getAvailableRoutes();
+    method public void setClientPaused(boolean);
+    method public void setDisplayActiveUseCase(boolean);
+    method public void setMode(int);
+    method public int setRequestedRoute(@Nullable android.media.AudioModeSession.AudioRoute);
+    field public static final int ROUTING_RESULT_FAILED = 1; // 0x1
+    field public static final int ROUTING_RESULT_PREEMPTED = 2; // 0x2
+    field public static final int ROUTING_RESULT_SUCCESSFUL = 0; // 0x0
+    field public static final int ROUTING_RESULT_TIMED_OUT = 3; // 0x3
+  }
+
+  @FlaggedApi("android.media.audio.fused_telecom_route_api") public static final class AudioModeSession.AudioRoute {
+    method @Nullable public android.media.AudioDeviceAttributes getInputDevice();
+    method @NonNull public android.media.AudioDeviceAttributes getPrimaryDevice();
+  }
+
+  @FlaggedApi("android.media.audio.fused_telecom_route_api") public static final class AudioModeSession.AudioRoute.Builder {
+    ctor public AudioModeSession.AudioRoute.Builder(@NonNull android.media.AudioDeviceAttributes);
+    method @NonNull public android.media.AudioModeSession.AudioRoute build();
+    method @NonNull public android.media.AudioModeSession.AudioRoute.Builder setInputDevice(@Nullable android.media.AudioDeviceAttributes);
+  }
+
+  @FlaggedApi("android.media.audio.fused_telecom_route_api") public static interface AudioModeSession.Callback {
+    method public void onAvailableRoutesChanged(@NonNull java.util.List<android.media.AudioModeSession.AudioRoute>);
+    method public void onClosed();
+    method public void onExternalRequestedRouteChanged(@Nullable android.media.AudioModeSession.AudioRoute, int);
+    method public void onPaused();
+    method public void onResumed(int);
+    method public void onRoutingResult(int, @Nullable android.media.AudioModeSession.AudioRoute, int);
+  }
+
+  @FlaggedApi("android.media.audio.fused_telecom_route_api") public static final class AudioModeSession.Request {
+    method @Nullable public android.content.AttributionSource getClientAttribution();
+    method public int getInitialMode();
+    method @NonNull public java.util.List<Integer> getNoFocusModes();
+    method public boolean isDisplayActiveUseCase();
+  }
+
+  @FlaggedApi("android.media.audio.fused_telecom_route_api") public static final class AudioModeSession.Request.Builder {
+    ctor public AudioModeSession.Request.Builder();
+    method @NonNull public android.media.AudioModeSession.Request build();
+    method @NonNull public android.media.AudioModeSession.Request.Builder setClientAttribution(@Nullable android.content.AttributionSource);
+    method @NonNull public android.media.AudioModeSession.Request.Builder setDisplayActiveUseCase(boolean);
+    method @NonNull public android.media.AudioModeSession.Request.Builder setInitialMode(int);
+    method @NonNull public android.media.AudioModeSession.Request.Builder setNoFocusModes(@NonNull java.util.List<Integer>);
   }
 
   public final class BluetoothProfileConnectionInfo implements android.os.Parcelable {
@@ -202,6 +254,7 @@ package android.media {
     method @FlaggedApi("android.media.audio.sco_managed_by_audio") @NonNull public static android.media.BluetoothProfileConnectionInfo createHfpInfo();
     method @NonNull public static android.media.BluetoothProfileConnectionInfo createLeAudioInfo(boolean, boolean);
     method @NonNull public static android.media.BluetoothProfileConnectionInfo createLeAudioOutputInfo(boolean, int);
+    method @FlaggedApi("android.media.audio.ble_peripheral_devices") @NonNull public static android.media.BluetoothProfileConnectionInfo createLeAudioPeripheralInfo(boolean);
     method public int describeContents();
     method public int getProfile();
     method public int getVolume();
@@ -211,7 +264,7 @@ package android.media {
     field @NonNull public static final android.os.Parcelable.Creator<android.media.BluetoothProfileConnectionInfo> CREATOR;
   }
 
-  public class MediaMetadataRetriever implements java.lang.AutoCloseable {
+  public class MediaMetadataRetriever implements AutoCloseable {
     field public static final int METADATA_KEY_VIDEO_CODEC_MIME_TYPE = 40; // 0x28
   }
 
@@ -225,7 +278,13 @@ package android.media {
     method @Nullable public android.os.IBinder get();
   }
 
-  @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public final class VibrationUtils {
+  public class RingtoneManager {
+    field @FlaggedApi("android.media.audio.support_per_phone_account_ringtone") public static final String PHONE_ACCOUNT_HANDLE_COMPONENT_NAME = "phone_account_component";
+    field @FlaggedApi("android.media.audio.support_per_phone_account_ringtone") public static final String PHONE_ACCOUNT_HANDLE_ID = "phone_account_id";
+    field @FlaggedApi("android.media.audio.support_per_phone_account_ringtone") public static final String PHONE_ACCOUNT_HANDLE_USER_HANDLE = "phone_account_user_handle";
+  }
+
+  @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public final class RingtoneVibrationUtils {
     method @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public static boolean hasVibrationParameter(@Nullable android.net.Uri);
     field @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public static final String SYNCHRONIZED_VIBRATION = "synchronized";
     field @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public static final String VIBRATION_URI_PARAM = "vibration_uri";
@@ -310,6 +369,8 @@ package android.net {
   }
 
   @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) public class VpnManager {
+    method @FlaggedApi("android.provider.expose_vpn_app_exclusion_settings") @Nullable @RequiresPermission(anyOf={android.Manifest.permission.NETWORK_SETTINGS, android.net.NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, android.Manifest.permission.NETWORK_STACK}) public java.util.List<String> getAppExclusionList(@NonNull android.os.UserHandle, @NonNull String);
+    method @FlaggedApi("android.provider.expose_vpn_app_exclusion_settings") @RequiresPermission(anyOf={android.Manifest.permission.NETWORK_SETTINGS, android.net.NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, android.Manifest.permission.NETWORK_STACK}) public boolean setAppExclusionList(@NonNull android.os.UserHandle, @NonNull String, @NonNull java.util.List<String>);
     field public static final int TYPE_VPN_LEGACY = 3; // 0x3
     field public static final int TYPE_VPN_NONE = -1; // 0xffffffff
     field public static final int TYPE_VPN_OEM = 4; // 0x4
@@ -349,7 +410,7 @@ package android.nfc {
     method @NonNull public android.nfc.NfcServiceManager.ServiceRegisterer getNfcManagerServiceRegisterer();
   }
 
-  public static class NfcServiceManager.ServiceNotFoundException extends java.lang.Exception {
+  public static class NfcServiceManager.ServiceNotFoundException extends Exception {
     ctor public NfcServiceManager.ServiceNotFoundException(@NonNull String);
   }
 
@@ -375,14 +436,14 @@ package android.os {
   }
 
   public final class BatteryStatsManager {
-    method @RequiresPermission(anyOf={android.net.NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, android.Manifest.permission.NETWORK_STACK}) public void reportNetworkInterfaceForTransports(@NonNull String, @NonNull int[]) throws java.lang.RuntimeException;
+    method @RequiresPermission(anyOf={android.net.NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, android.Manifest.permission.NETWORK_STACK}) public void reportNetworkInterfaceForTransports(@NonNull String, @NonNull int[]) throws RuntimeException;
   }
 
   public class BluetoothServiceManager {
     method @NonNull public android.os.BluetoothServiceManager.ServiceRegisterer getBluetoothManagerServiceRegisterer();
   }
 
-  public static class BluetoothServiceManager.ServiceNotFoundException extends java.lang.Exception {
+  public static class BluetoothServiceManager.ServiceNotFoundException extends Exception {
     ctor public BluetoothServiceManager.ServiceNotFoundException(@NonNull String);
   }
 
@@ -401,7 +462,7 @@ package android.os {
     field public static final int DEVICE_INITIAL_SDK_INT;
   }
 
-  public final class Bundle extends android.os.BaseBundle implements java.lang.Cloneable android.os.Parcelable {
+  public final class Bundle extends android.os.BaseBundle implements Cloneable android.os.Parcelable {
     method @FlaggedApi("android.os.enable_has_binders") public int hasBinders();
     field @FlaggedApi("android.os.enable_has_binders") public static final int STATUS_BINDERS_NOT_PRESENT = 0; // 0x0
     field @FlaggedApi("android.os.enable_has_binders") public static final int STATUS_BINDERS_PRESENT = 1; // 0x1
@@ -415,7 +476,7 @@ package android.os {
   }
 
   public class IpcDataCache<Query, Result> {
-    ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
+    ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query, Result>);
     method public void disableForCurrentProcess();
     method public static void disableForCurrentProcess(@NonNull String);
     method public void invalidateCache();
@@ -442,11 +503,11 @@ package android.os {
     method @NonNull public android.os.ProfilingServiceManager.ServiceRegisterer getProfilingServiceRegisterer();
   }
 
-  public static class ProfilingServiceManager.ServiceNotFoundException extends java.lang.Exception {
+  @FlaggedApi("android.os.telemetry_apis_framework_initialization") public static class ProfilingServiceManager.ServiceNotFoundException extends Exception {
     ctor public ProfilingServiceManager.ServiceNotFoundException(@NonNull String);
   }
 
-  public static final class ProfilingServiceManager.ServiceRegisterer {
+  @FlaggedApi("android.os.telemetry_apis_framework_initialization") public static final class ProfilingServiceManager.ServiceRegisterer {
     method @Nullable public android.os.IBinder get();
     method @Nullable public android.os.IBinder getOrThrow() throws android.os.ProfilingServiceManager.ServiceNotFoundException;
   }
@@ -463,7 +524,7 @@ package android.os {
     method @NonNull public android.os.StatsServiceManager.ServiceRegisterer getStatsdServiceRegisterer();
   }
 
-  public static class StatsServiceManager.ServiceNotFoundException extends java.lang.Exception {
+  public static class StatsServiceManager.ServiceNotFoundException extends Exception {
     ctor public StatsServiceManager.ServiceNotFoundException(@NonNull String);
   }
 
@@ -482,11 +543,19 @@ package android.os {
     method @FlaggedApi("android.permission.flags.enhanced_confirmation_mode_apis_enabled") @NonNull @RequiresPermission(android.Manifest.permission.MANAGE_ENHANCED_CONFIRMATION_STATES) public java.util.Set<android.content.pm.SignedPackage> getEnhancedConfirmationTrustedPackages();
   }
 
+  @FlaggedApi("android.telecom.flags.telecom_mainline_api") public class TelecomServiceManager {
+    method @NonNull public static android.os.TelecomServiceManager.ServiceRegisterer getTelecomServiceRegisterer();
+  }
+
+  @FlaggedApi("android.telecom.flags.telecom_mainline_api") public static final class TelecomServiceManager.ServiceRegisterer {
+    method @Nullable public android.os.IBinder get();
+  }
+
   @FlaggedApi("com.android.internal.telephony.flags.enable_phone_number_parsing_api") public final class TelephonyServiceManager {
     method @NonNull public android.os.TelephonyServiceManager.ServiceRegisterer getPhoneNumberServiceRegisterer();
   }
 
-  public static final class TelephonyServiceManager.ServiceRegisterer {
+  @FlaggedApi("com.android.internal.telephony.flags.enable_phone_number_parsing_api") public static final class TelephonyServiceManager.ServiceRegisterer {
     method @Nullable public android.os.IBinder get();
     method public void publishBinderService(@NonNull android.os.IBinder);
   }
@@ -529,7 +598,7 @@ package android.os.storage {
 package android.provider {
 
   public static final class ContactsContract.RawContactsEntity implements android.provider.BaseColumns android.provider.ContactsContract.DataColumns android.provider.ContactsContract.RawContactsColumns {
-    method @NonNull @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS) public static java.util.Map<java.lang.String,java.util.List<android.content.ContentValues>> queryRawContactEntity(@NonNull android.content.ContentResolver, long);
+    method @NonNull @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS) public static java.util.Map<String, java.util.List<android.content.ContentValues>> queryRawContactEntity(@NonNull android.content.ContentResolver, long);
   }
 
   public class DeviceConfigInitializer {
@@ -541,7 +610,7 @@ package android.provider {
     method @NonNull public android.provider.DeviceConfigServiceManager.ServiceRegisterer getDeviceConfigUpdatableServiceRegisterer();
   }
 
-  public static class DeviceConfigServiceManager.ServiceNotFoundException extends java.lang.Exception {
+  public static class DeviceConfigServiceManager.ServiceNotFoundException extends Exception {
   }
 
   public static final class DeviceConfigServiceManager.ServiceRegisterer {
@@ -561,15 +630,15 @@ package android.provider {
   public static final class Settings.Config extends android.provider.Settings.NameValueTable {
     method @RequiresPermission(android.Manifest.permission.MONITOR_DEVICE_CONFIG_ACCESS) public static void clearMonitorCallback(@NonNull android.content.ContentResolver);
     method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static boolean deleteString(@NonNull String, @NonNull String);
-    method @NonNull public static java.util.Map<java.lang.String,java.lang.String> getAllStrings();
+    method @NonNull public static java.util.Map<String, String> getAllStrings();
     method @Nullable @RequiresPermission(android.Manifest.permission.READ_DEVICE_CONFIG) public static String getString(@NonNull String);
-    method @NonNull @RequiresPermission(android.Manifest.permission.READ_DEVICE_CONFIG) public static java.util.Map<java.lang.String,java.lang.String> getStrings(@NonNull String, @NonNull java.util.List<java.lang.String>);
+    method @NonNull @RequiresPermission(android.Manifest.permission.READ_DEVICE_CONFIG) public static java.util.Map<String, String> getStrings(@NonNull String, @NonNull java.util.List<String>);
     method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static int getSyncDisabledMode();
     method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static boolean putString(@NonNull String, @NonNull String, @Nullable String, boolean);
     method public static void registerContentObserver(@Nullable String, boolean, @NonNull android.database.ContentObserver);
     method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static void resetToDefaults(int, @Nullable String);
     method @RequiresPermission(android.Manifest.permission.MONITOR_DEVICE_CONFIG_ACCESS) public static void setMonitorCallback(@NonNull android.content.ContentResolver, @NonNull java.util.concurrent.Executor, @NonNull android.provider.DeviceConfig.MonitorCallback);
-    method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static boolean setStrings(@NonNull String, @NonNull java.util.Map<java.lang.String,java.lang.String>) throws android.provider.DeviceConfig.BadConfigException;
+    method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static boolean setStrings(@NonNull String, @NonNull java.util.Map<String, String>) throws android.provider.DeviceConfig.BadConfigException;
     method @RequiresPermission(android.Manifest.permission.WRITE_DEVICE_CONFIG) public static void setSyncDisabledMode(int);
     method public static void unregisterContentObserver(@NonNull android.database.ContentObserver);
   }
@@ -607,7 +676,7 @@ package android.se.omapi {
     method @FlaggedApi("android.nfc.enable_nfc_mainline") @NonNull public android.se.omapi.SeServiceManager.ServiceRegisterer getSeManagerServiceRegisterer();
   }
 
-  @FlaggedApi("android.nfc.enable_nfc_mainline") public static class SeServiceManager.ServiceNotFoundException extends java.lang.Exception {
+  @FlaggedApi("android.nfc.enable_nfc_mainline") public static class SeServiceManager.ServiceNotFoundException extends Exception {
     ctor @FlaggedApi("android.nfc.enable_nfc_mainline") public SeServiceManager.ServiceNotFoundException(@NonNull String);
   }
 
@@ -620,10 +689,11 @@ package android.se.omapi {
 
 }
 
-package android.telecom {
+package android.service.uprobestats {
 
-  public abstract class ConnectionService extends android.app.Service {
-    method @Nullable @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE) public android.telecom.Connection onCreateUnknownConnection(@NonNull android.telecom.PhoneAccountHandle, @NonNull android.telecom.ConnectionRequest);
+  @FlaggedApi("android.security.dynamic_instrumentation_api") public final class DynamicInstrumentationManager {
+    method @FlaggedApi("android.security.dynamic_instrumentation_api") @Nullable public android.content.ComponentName getDynamicInstrumentationEventConsumer();
+    method @FlaggedApi("android.security.dynamic_instrumentation_api") public void setDynamicInstrumentationEventConsumer(@Nullable android.content.ComponentName);
   }
 
 }
@@ -649,7 +719,7 @@ package android.telephony {
 
   public class TelephonyManager {
     method @NonNull public static int[] getAllNetworkTypes();
-    method @FlaggedApi("android.os.mainline_vcn_platform_api") @NonNull @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE) public java.util.Set<java.lang.String> getPackagesWithCarrierPrivileges();
+    method @FlaggedApi("android.os.mainline_vcn_platform_api") @NonNull @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE) public java.util.Set<String> getPackagesWithCarrierPrivileges();
   }
 
 }
@@ -663,8 +733,8 @@ package android.timezone {
     method @NonNull public java.util.List<android.timezone.CountryTimeZones.TimeZoneMapping> getEffectiveTimeZoneMappingsAt(long);
     method public boolean hasUtcZone(long);
     method public boolean isDefaultTimeZoneBoosted();
-    method @Nullable public android.timezone.CountryTimeZones.OffsetResult lookupByOffsetWithBias(long, @NonNull android.icu.util.TimeZone, int, boolean);
     method @Nullable public android.timezone.CountryTimeZones.OffsetResult lookupByOffsetWithBias(long, @NonNull android.icu.util.TimeZone, int);
+    method @Nullable public android.timezone.CountryTimeZones.OffsetResult lookupByOffsetWithBias(long, @NonNull android.icu.util.TimeZone, int, boolean);
   }
 
   @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public static final class CountryTimeZones.OffsetResult {
@@ -681,7 +751,7 @@ package android.timezone {
 
   @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public final class MobileCountries {
     method @NonNull public static android.timezone.MobileCountries createTestCell(@NonNull String);
-    method @NonNull public java.util.Set<java.lang.String> getCountryIsoCodes();
+    method @NonNull public java.util.Set<String> getCountryIsoCodes();
     method @NonNull public String getDefaultCountryIsoCode();
     method @NonNull public String getMcc();
     method @Nullable public String getMnc();
@@ -724,8 +794,8 @@ package android.util {
     method public static int w(@Nullable String, @NonNull String, @Nullable Throwable);
     method public static int w(@Nullable String, @Nullable Throwable);
     method public static int wtf(@Nullable String, @NonNull String);
-    method public static int wtf(@Nullable String, @Nullable Throwable);
     method public static int wtf(@Nullable String, @NonNull String, @Nullable Throwable);
+    method public static int wtf(@Nullable String, @Nullable Throwable);
     method public static void wtfQuiet(@Nullable String, @NonNull String);
     method public static int wtfStack(@Nullable String, @NonNull String);
   }

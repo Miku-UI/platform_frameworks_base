@@ -183,8 +183,8 @@ public class PackageInstaller {
      * of the primary profile.
      * For user-profiles that have items restricted on home screen, this broadcast is sent to
      * the default launcher of the primary profile, only if it has either
-     * {@link Manifest.permission.ACCESS_HIDDEN_PROFILES_FULL} or
-     * {@link Manifest.permission.ACCESS_HIDDEN_PROFILES} permission.
+     * {@link Manifest.permission#ACCESS_HIDDEN_PROFILES_FULL} or
+     * {@link Manifest.permission#ACCESS_HIDDEN_PROFILES} permission.
      * <p>
      * The associated session is defined in {@link #EXTRA_SESSION} and the user for which this
      * session was created in {@link Intent#EXTRA_USER}.
@@ -225,9 +225,11 @@ public class PackageInstaller {
      * Intent action to be sent to the implementer of
      * {@link android.content.pm.dependencyinstaller.DependencyInstallerService}.
      *
+     * @deprecated The automatic dependency installation feature is no longer supported.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER)
+    @FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION)
+    @Deprecated
     @SystemApi
     public static final String ACTION_INSTALL_DEPENDENCY =
             "android.content.pm.action.INSTALL_DEPENDENCY";
@@ -2395,7 +2397,7 @@ public class PackageInstaller {
          * @throws PackageManager.NameNotFoundException if the new owner could not be found.
          * @throws SecurityException if called after the session has been committed or abandoned.
          * @throws IllegalStateException if streams opened through
-         *                                  {@link #openWrite(String, long, long) are still open.
+         *                                  {@link #openWrite(String, long, long)} are still open.
          * @throws IllegalArgumentException if {@code packageName} is invalid.
          */
         public void transfer(@NonNull String packageName)
@@ -4037,8 +4039,11 @@ public class PackageInstaller {
          *                                      SDK or static shared library dependencies,
          *                                      {@code false} to disable and fail immediately if
          *                                      dependencies aren't already installed.
+         *
+         * @deprecated The automatic dependency installation feature is no longer supported.
          */
-        @FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER)
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION)
         public void setAutoInstallDependenciesEnabled(boolean enableAutoInstallDependencies) {
             isAutoInstallDependenciesEnabled = enableAutoInstallDependencies;
         }
@@ -5008,8 +5013,11 @@ public class PackageInstaller {
          * be automatically installed even if this method returns true.
          *
          * @return true if the dependencies will be auto-installed, false otherwise.
+         *
+         * @deprecated The automatic dependency installation feature is no longer supported.
          */
-        @FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER)
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION)
         public boolean isAutoInstallDependenciesEnabled() {
             return isAutoInstallingDependenciesEnabled;
         }

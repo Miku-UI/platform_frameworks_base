@@ -43,8 +43,8 @@ import java.util.Objects;
  *
  * <p>{@code debugInfo} contains debugging metadata associated with the suggestion. This is used to
  * record why the suggestion exists and how it was entered. This information exists only to aid in
- * debugging and therefore is used by {@link #toString()}, but it is not for use in detection
- * logic and is not considered in {@link #hashCode()} or {@link #equals(Object)}.
+ * debugging and therefore is used by {@link #toString()}, but it is not for use in detection logic
+ * and is not considered in {@link #hashCode()} or {@link #equals(Object)}.
  */
 public final class NetworkTimeSuggestion {
 
@@ -80,7 +80,8 @@ public final class NetworkTimeSuggestion {
     @NonNull
     public List<String> getDebugInfo() {
         return mDebugInfo == null
-                ? Collections.emptyList() : Collections.unmodifiableList(mDebugInfo);
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(mDebugInfo);
     }
 
     /**
@@ -116,9 +117,12 @@ public final class NetworkTimeSuggestion {
     @Override
     public String toString() {
         return "NetworkTimeSuggestion{"
-                + "mUnixEpochTime=" + mUnixEpochTime
-                + ", mUncertaintyMillis=" + mUncertaintyMillis
-                + ", mDebugInfo=" + mDebugInfo
+                + "mUnixEpochTime="
+                + mUnixEpochTime
+                + ", mUncertaintyMillis="
+                + mUncertaintyMillis
+                + ", mDebugInfo="
+                + mDebugInfo
                 + '}';
     }
 
@@ -131,22 +135,13 @@ public final class NetworkTimeSuggestion {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--reference_time":
-                case "--elapsed_realtime": {
-                    elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--unix_epoch_time": {
-                    unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--uncertainty_millis": {
-                    uncertaintyMillis = Integer.parseInt(cmd.getNextArgRequired());
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--reference_time", "--elapsed_realtime" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--unix_epoch_time" ->
+                        unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--uncertainty_millis" ->
+                        uncertaintyMillis = Integer.parseInt(cmd.getNextArgRequired());
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -170,11 +165,13 @@ public final class NetworkTimeSuggestion {
     /** Prints the command line args needed to create a {@link NetworkTimeSuggestion}. */
     public static void printCommandLineOpts(PrintWriter pw) {
         pw.printf("%s suggestion options:\n", "Network");
-        pw.println("  --elapsed_realtime <elapsed realtime millis> - the elapsed realtime millis"
-                + " when unix epoch time was read");
+        pw.println(
+                "  --elapsed_realtime <elapsed realtime millis> - the elapsed realtime millis"
+                        + " when unix epoch time was read");
         pw.println("  --unix_epoch_time <Unix epoch time millis>");
-        pw.println("  --uncertainty_millis <Uncertainty millis> - a positive error bound (+/-)"
-                + " estimate for unix epoch time");
+        pw.println(
+                "  --uncertainty_millis <Uncertainty millis> - a positive error bound (+/-)"
+                        + " estimate for unix epoch time");
         pw.println();
         pw.println("See " + NetworkTimeSuggestion.class.getName() + " for more information");
     }

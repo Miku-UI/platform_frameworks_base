@@ -43,13 +43,6 @@ public final class MemoryStatUtil {
 
     private static final String TAG = TAG_WITH_CLASS_NAME ? "MemoryStatUtil" : TAG_AM;
 
-    /** True if device has per-app memcg */
-    private static final boolean DEVICE_HAS_PER_APP_MEMCG =
-            SystemProperties.getBoolean("ro.config.per_app_memcg", false);
-
-    /** Path to memory stat file for logging app start memory state */
-    private static final String MEMORY_STAT_FILE_FMT = "/dev/memcg/apps/uid_%d/pid_%d/memory.stat";
-    /** Path to procfs stat file for logging app start memory state */
     private static final String PROC_STAT_FILE_FMT = "/proc/%d/stat";
 
     private static final Pattern PGFAULT = Pattern.compile("total_pgfault (\\d+)");
@@ -72,18 +65,7 @@ public final class MemoryStatUtil {
      */
     @Nullable
     public static MemoryStat readMemoryStatFromFilesystem(int uid, int pid) {
-        return hasMemcg() ? readMemoryStatFromMemcg(uid, pid) : readMemoryStatFromProcfs(pid);
-    }
-
-    /**
-     * Reads memory.stat of a process from memcg.
-     *
-     * Returns null if file is not found in memcg or if file has unrecognized contents.
-     */
-    @Nullable
-    static MemoryStat readMemoryStatFromMemcg(int uid, int pid) {
-        final String statPath = String.format(Locale.US, MEMORY_STAT_FILE_FMT, uid, pid);
-        return parseMemoryStatFromMemcg(readFileContents(statPath));
+        return readMemoryStatFromProcfs(pid);
     }
 
     /**
@@ -113,25 +95,6 @@ public final class MemoryStatUtil {
     }
 
     /**
-     * Parses relevant statistics out from the contents of a memory.stat file in memcg.
-     */
-    @VisibleForTesting
-    @Nullable
-    static MemoryStat parseMemoryStatFromMemcg(String memoryStatContents) {
-        if (memoryStatContents == null || memoryStatContents.isEmpty()) {
-            return null;
-        }
-
-        final MemoryStat memoryStat = new MemoryStat();
-        memoryStat.pgfault = tryParseLong(PGFAULT, memoryStatContents);
-        memoryStat.pgmajfault = tryParseLong(PGMAJFAULT, memoryStatContents);
-        memoryStat.rssInBytes = tryParseLong(RSS_IN_BYTES, memoryStatContents);
-        memoryStat.cacheInBytes = tryParseLong(CACHE_IN_BYTES, memoryStatContents);
-        memoryStat.swapInBytes = tryParseLong(SWAP_IN_BYTES, memoryStatContents);
-        return memoryStat;
-    }
-
-    /**
      * Parses relevant statistics out from the contents of the /proc/pid/stat file in procfs.
      */
     @VisibleForTesting
@@ -157,14 +120,7 @@ public final class MemoryStatUtil {
     }
 
     /**
-     * Returns whether per-app memcg is available on device.
-     */
-    static boolean hasMemcg() {
-        return DEVICE_HAS_PER_APP_MEMCG;
-    }
-
-    /**
-     * Parses a long from the input using the pattern. Returns 0 if the captured value is not
+     * Parses a long from the input using the pattern. Returns -1 if the captured value is not
      * parsable. The pattern must have a single capturing group.
      */
     private static long tryParseLong(Pattern pattern, String input) {
@@ -173,7 +129,7 @@ public final class MemoryStatUtil {
             return m.find() ? Long.parseLong(m.group(1)) : 0;
         } catch (NumberFormatException e) {
             Slog.e(TAG, "Failed to parse value", e);
-            return 0;
+            return -1;
         }
     }
 

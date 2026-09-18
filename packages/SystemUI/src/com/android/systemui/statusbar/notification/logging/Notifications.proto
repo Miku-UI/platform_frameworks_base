@@ -50,6 +50,8 @@ message Notification {
         SECTION_SOCIAL = 11;
         SECTION_RECS = 12;
         SECTION_PROMO = 13;
+        SECTION_HIGHLIGHTS = 14;
+        SECTION_DYNAMIC_BUNDLE = 15;
     }
     optional NotificationSection section = 6;
 }

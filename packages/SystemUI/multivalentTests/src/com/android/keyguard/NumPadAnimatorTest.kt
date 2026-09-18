@@ -37,12 +37,13 @@ import org.mockito.MockitoAnnotations
 class NumPadAnimatorTest : SysuiTestCase() {
     @Mock lateinit var background: GradientDrawable
     @Mock lateinit var buttonImage: Drawable
+    @Mock lateinit var animatable: NumPadAnimatable
     private lateinit var underTest: NumPadAnimator
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
-        underTest = NumPadAnimator(context, background, 0, buttonImage)
+        underTest = NumPadAnimator(context, background, 0, buttonImage, animatable)
     }
 
     @Test

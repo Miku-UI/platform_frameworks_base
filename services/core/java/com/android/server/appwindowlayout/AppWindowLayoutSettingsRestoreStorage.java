@@ -44,9 +44,6 @@ import java.time.InstantSource;
 public class AppWindowLayoutSettingsRestoreStorage {
     private static final String TAG = "AppWinLayoutSetStorage";
 
-    // TODO(b/414361710): Consider joining this class implementation with the Settings app
-    //  UserAspectRatioRestoreStorage, or removing the Settings class implementation if it is not
-    //  needed after restoreUserAspectRatioSettingsUsingService flag is launched.
     @VisibleForTesting
     static final String ASPECT_RATIO_STAGED_DATA_PREFS = "AspectRatioStagedDataPrefs.xml";
     // Storage for commit time, to be able to clean up after expiry date.

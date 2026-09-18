@@ -48,11 +48,9 @@ constructor(@VisualStabilityLog private val buffer: LogBuffer) {
                 str3 = async.toString()
             },
             {
-                "stability allowances changed:" +
-                    " pipelineRunAllowed $bool1->$bool2" +
-                    " reorderingAllowed $bool3->$bool4" +
-                    " when setting $str1=$str2"
-                " async=$str3"
+                "reorderAllowed $bool3->$bool4" +
+                    " from $str1=$str2" +
+                    " pipelineRunAllowed $bool1->$bool2 async=$str3"
             },
         )
     }

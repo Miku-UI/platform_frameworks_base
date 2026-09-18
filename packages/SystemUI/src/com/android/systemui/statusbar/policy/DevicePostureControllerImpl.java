@@ -100,25 +100,29 @@ public class DevicePostureControllerImpl implements DevicePostureController {
             }
 
             private void sendUpdatePosture() {
-                ListenersTracing.INSTANCE.forEachTraced(mListeners, "DevicePostureControllerImpl",
-                    l -> {
-                        l.onPostureChanged(getDevicePosture());
-                        return Unit.INSTANCE;
+                synchronized (mListeners) {
+                    ListenersTracing.INSTANCE.forEachTraced(mListeners,
+                            "DevicePostureControllerImpl", l -> {
+                                    l.onPostureChanged(getDevicePosture());
+                                    return Unit.INSTANCE;
                     });
+                }
             }
         });
     }
 
     @Override
     public void addCallback(@NonNull Callback listener) {
-        Assert.isMainThread();
-        mListeners.add(listener);
+        synchronized (mListeners) {
+            mListeners.add(listener);
+        }
     }
 
     @Override
     public void removeCallback(@NonNull Callback listener) {
-        Assert.isMainThread();
-        mListeners.remove(listener);
+        synchronized (mListeners) {
+            mListeners.remove(listener);
+        }
     }
 
     @Override

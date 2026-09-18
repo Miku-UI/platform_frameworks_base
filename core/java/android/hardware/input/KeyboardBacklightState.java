@@ -16,12 +16,15 @@
 
 package android.hardware.input;
 
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
 /**
  * The KeyboardBacklightState class is a representation of a keyboard backlight which is a
  * single-colored backlight that illuminates all the keys on the keyboard.
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public abstract class KeyboardBacklightState {
 
     /**

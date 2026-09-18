@@ -16,17 +16,23 @@
 package com.android.systemui.statusbar.notification.row
 
 import android.annotation.ColorInt
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Path
 import android.graphics.RectF
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
+import android.testing.ViewUtils
 import android.view.View
+import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.app.animation.Interpolators
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.common.shared.colors.SurfaceEffectColors
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.FakeShadowView
 import com.android.systemui.statusbar.notification.NotificationUtils
@@ -34,6 +40,7 @@ import com.android.systemui.statusbar.notification.SourceType
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.verify
@@ -43,47 +50,70 @@ import org.mockito.kotlin.argThat
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
 class ActivatableNotificationViewTest : SysuiTestCase() {
-    private val mContentView: View = mock()
-    private lateinit var mView: ActivatableNotificationView
+
+    private lateinit var mView: TestActivatableNotificationView
 
     @ColorInt private var mNormalColor = 0
+    @ColorInt private var mOpaqueColor = 0
+    @ColorInt private var mSurfaceEffectColor = 0
 
     private val finalWidth = 1000
     private val finalHeight = 200
 
+    class TestActivatableNotificationView(
+        context: Context,
+        useRealNotificationBackgroundView: Boolean = false,
+    ) : ActivatableNotificationView(context, null) {
+        val mContentView = FrameLayout(context)
+        val mNotificationBackgroundView =
+            if (useRealNotificationBackgroundView) {
+                NotificationBackgroundView(context, null)
+            } else {
+                mock<NotificationBackgroundView>()
+            }
+
+        init {
+            mContentView.addView(this)
+            onFinishInflate()
+        }
+
+        override fun getContentView(): View {
+            return mContentView
+        }
+
+        override fun <T : View> findViewTraversal(id: Int): T? =
+            when (id) {
+                R.id.backgroundNormal -> mNotificationBackgroundView
+                R.id.fake_shadow -> mock<FakeShadowView>()
+                else -> null
+            }
+                as T?
+
+        fun hasBlur(): Boolean = mBackgroundNormal.isBlurEnabled()
+    }
+
     @Before
     fun setUp() {
-        mView =
-            object : ActivatableNotificationView(mContext, null) {
+        allowTestableLooperAsMainThread()
 
-                init {
-                    onFinishInflate()
-                }
-
-                override fun getContentView(): View {
-                    return mContentView
-                }
-
-                override fun <T : View> findViewTraversal(id: Int): T? =
-                    when (id) {
-                        R.id.backgroundNormal -> mock<NotificationBackgroundView>()
-                        R.id.fake_shadow -> mock<FakeShadowView>()
-                        else -> null
-                    }
-                        as T?
-            }
+        mView = TestActivatableNotificationView(mContext)
 
         mNormalColor =
             mContext.getColor(com.android.internal.R.color.materialColorSurfaceContainerHigh)
+        mOpaqueColor = mContext.getColor(com.android.internal.R.color.materialColorSurfaceContainer)
+        mSurfaceEffectColor = SurfaceEffectColors.surfaceEffect1(mContext)
     }
 
     @Test
+    @DisableFlags(
+        Flags.FLAG_NOTIFICATION_ROW_TRANSPARENCY,
+        Flags.FLAG_LOCKSCREEN_BLUR_FOR_NOTIFICATIONS
+    )
     fun testBackgroundBehaviors() {
+        mView = TestActivatableNotificationView(mContext, useRealNotificationBackgroundView = true)
+
         // Color starts with the normal color
         mView.updateBackgroundColors()
-        if (Flags.notificationRowTransparency()) {
-            mNormalColor = mView.currentBackgroundTint
-        }
         assertThat(mView.currentBackgroundTint).isEqualTo(mNormalColor)
 
         // Setting a tint changes the background to that color specifically
@@ -98,6 +128,74 @@ class ActivatableNotificationViewTest : SysuiTestCase() {
         // Updating the background colors resets tints, as those won't match the latest theme
         mView.updateBackgroundColors()
         assertThat(mView.currentBackgroundTint).isEqualTo(mNormalColor)
+
+        // Verify that the blur background is not present.
+        mView.setIsBlurSupported(true)
+        mView.setOnKeyguard(true)
+        assertThat(mView.hasBlur()).isFalse()
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ROW_TRANSPARENCY)
+    @DisableFlags(Flags.FLAG_LOCKSCREEN_BLUR_FOR_NOTIFICATIONS)
+    fun testBackgroundBehaviorsWithTransparency() {
+        mView = TestActivatableNotificationView(mContext, useRealNotificationBackgroundView = true)
+
+        mView.setOnKeyguard(false)
+        // Color starts with the normal color
+        mView.updateBackgroundColors()
+
+        // Setting a tint changes the background to that color specifically
+        mView.setTintColor(Color.BLUE)
+        assertThat(mView.currentBackgroundTint).isEqualTo(Color.BLUE)
+
+        // Setting an override tint blends with the previous tint
+        mView.setOverrideTintColor(Color.RED, 0.5f)
+        assertThat(mView.currentBackgroundTint)
+            .isEqualTo(NotificationUtils.interpolateColors(Color.BLUE, Color.RED, 0.5f))
+
+        // Updating the background colors resets tints, as those won't match the latest theme
+        mView.updateBackgroundColors()
+        assertThat(mView.currentBackgroundTint).isEqualTo(mOpaqueColor)
+
+        // Verify that the blur background is not present.
+        mView.setIsBlurSupported(true)
+        mView.updateBackgroundColors()
+        assertThat(mView.currentBackgroundTint).isEqualTo(mSurfaceEffectColor)
+        assertThat(mView.hasBlur()).isFalse()
+
+        mView.setOnKeyguard(true)
+        assertThat(mView.hasBlur()).isFalse()
+    }
+
+    @Test
+    @Ignore("TODO(b/469142819) - Determine how to get robolectric looper work with this")
+    @EnableFlags(
+        Flags.FLAG_NOTIFICATION_ROW_TRANSPARENCY,
+        Flags.FLAG_LOCKSCREEN_BLUR_FOR_NOTIFICATIONS
+    )
+    fun testBackgroundBehaviorsWithBlur() {
+        mView = TestActivatableNotificationView(context, useRealNotificationBackgroundView = true)
+
+        mView.updateBackgroundColors()
+        assertThat(mView.currentBackgroundTint).isEqualTo(mOpaqueColor)
+
+        // Setting these to false should make sure blur is not enabled.
+        mView.setIsBlurSupported(false)
+        mView.setOnKeyguard(false)
+        assertThat(mView.hasBlur()).isFalse()
+
+        // Being on the keyguard is not enough to enable the blur itself.
+        mView.setOnKeyguard(true)
+        assertThat(mView.hasBlur()).isFalse()
+
+        // Verify this enables the blurred background color.
+        mView.setIsBlurSupported(true)
+        assertThat(mView.currentBackgroundTint).isEqualTo(mSurfaceEffectColor)
+
+        ViewUtils.attachView(mView.mContentView)
+        waitForIdleSync()
+        assertThat(mView.hasBlur()).isTrue()
     }
 
     @Test
@@ -120,7 +218,6 @@ class ActivatableNotificationViewTest : SysuiTestCase() {
 
         mView.clipBottomAmount = 10
         assertThat(mView.backgroundBottom).isEqualTo(90)
-
     }
 
     @Test

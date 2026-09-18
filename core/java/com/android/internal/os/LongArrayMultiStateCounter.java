@@ -24,6 +24,7 @@ import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodRedirect;
 import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.ravenwood.annotation.RavenwoodReplace;
+import android.ravenwood.annotation.RavenwoodThrow;
 
 import com.android.internal.util.Preconditions;
 
@@ -243,7 +244,7 @@ public final class LongArrayMultiStateCounter implements Parcelable {
     private static native long native_init(int stateCount, int arrayLength);
 
     @CriticalNative
-    @RavenwoodRedirect
+    @RavenwoodThrow // not needed
     private static native long native_getReleaseFunc();
 
     @CriticalNative

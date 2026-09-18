@@ -31,7 +31,7 @@ sealed interface DeviceSettingModel {
     /** Models a device setting which should be displayed as an action/switch preference. */
     data class ActionSwitchPreference(
         override val cachedDevice: CachedBluetoothDevice,
-        @DeviceSettingId override val id: Int,
+        @param:DeviceSettingId override val id: Int,
         val title: String,
         val summary: String? = null,
         val icon: DeviceSettingIcon? = null,
@@ -44,7 +44,7 @@ sealed interface DeviceSettingModel {
     /** Models a device setting which should be displayed as a multi-toggle preference. */
     data class MultiTogglePreference(
         override val cachedDevice: CachedBluetoothDevice,
-        @DeviceSettingId override val id: Int,
+        @param:DeviceSettingId override val id: Int,
         val title: String,
         val toggles: List<ToggleModel>,
         val isActive: Boolean,
@@ -56,21 +56,21 @@ sealed interface DeviceSettingModel {
     /** Models a footer preference. */
     data class FooterPreference(
         override val cachedDevice: CachedBluetoothDevice,
-        @DeviceSettingId override val id: Int,
+        @param:DeviceSettingId override val id: Int,
         val footerText: String,
     ) : DeviceSettingModel
 
     /** Models a help preference displayed on the top right corner of the fragment. */
     data class HelpPreference(
         override val cachedDevice: CachedBluetoothDevice,
-        @DeviceSettingId override val id: Int,
+        @param:DeviceSettingId override val id: Int,
         val intent: Intent,
     ) : DeviceSettingModel
 
     /** Models a device setting which should be displayed as a banner preference. */
     data class BannerPreference(
         override val cachedDevice: CachedBluetoothDevice,
-        @DeviceSettingId override val id: Int,
+        @param:DeviceSettingId override val id: Int,
         val title: String,
         val message: String,
         val icon: DeviceSettingIcon? = null,
@@ -81,7 +81,7 @@ sealed interface DeviceSettingModel {
     /** Models an unknown preference. */
     data class Unknown(
         override val cachedDevice: CachedBluetoothDevice,
-        @DeviceSettingId override val id: Int
+        @param:DeviceSettingId override val id: Int
     ) : DeviceSettingModel
 }
 
@@ -96,7 +96,7 @@ sealed interface DeviceSettingIcon {
 
     data class BitmapIcon(val bitmap: Bitmap) : DeviceSettingIcon
 
-    data class ResourceIcon(@DrawableRes val resId: Int) : DeviceSettingIcon
+    data class ResourceIcon(@param:DrawableRes val resId: Int) : DeviceSettingIcon
 }
 
 /** Models an action in device settings. */

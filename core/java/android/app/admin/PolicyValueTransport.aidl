@@ -16,13 +16,20 @@
 
 package android.app.admin;
 
+import android.app.admin.PackageIdentifierTransport;
+
 /**
  * Internal IPC to send a policy value over the wire.
  * Currently only supports a limited set of built-in types.
  *
- * {@hide}
+ * @hide
  */
 union PolicyValueTransport {
-    int integerField;
     boolean booleanField;
+    int integerField;
+    List<PackageIdentifierTransport> listOfPackageField;
+    List<String> listOfStringField;
+    long longField;
+    PackageIdentifierTransport packageField;
+    String stringField;
 }

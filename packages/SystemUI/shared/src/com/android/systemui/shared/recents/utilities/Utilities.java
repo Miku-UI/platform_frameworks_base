@@ -101,7 +101,7 @@ public class Utilities {
     }
 
     /**
-     * @return the clamped {@param value} between the provided {@param min} and {@param max}.
+     * @return the clamped {@code value} between the provided {@code min} and {@code max}.
      */
     public static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
@@ -110,17 +110,18 @@ public class Utilities {
     /**
      * Updates the navigation bar state flags with the given IME state.
      *
-     * @param oldFlags        current navigation bar state flags.
-     * @param backDisposition the IME back disposition mode. Only takes effect if
-     *                        {@code isImeVisible} is {@code true}.
-     * @param isImeVisible    whether the IME is currently visible.
-     * @param showImeSwitcher whether the IME Switcher button should be shown. Only takes effect if
-     *                        {@code isImeVisible} is {@code true}.
+     * @param oldFlags              current navigation bar state flags.
+     * @param backDisposition       the IME back disposition mode. Only takes effect if
+     *                              {@code isImeVisible} is {@code true}.
+     * @param isImeVisible          whether the IME is currently visible.
+     * @param showImeSwitcherButton whether the IME Switcher button should be shown when the IME
+     *                              is shown. Only takes effect if {@code isImeVisible}
+     *                              is {@code true}.
      */
     @NavbarFlags
     public static int updateNavbarFlagsFromIme(@NavbarFlags int oldFlags,
             @BackDispositionMode int backDisposition, boolean isImeVisible,
-            boolean showImeSwitcher) {
+            boolean showImeSwitcherButton) {
         int flags = oldFlags;
         switch (backDisposition) {
             case InputMethodService.BACK_DISPOSITION_DEFAULT:
@@ -141,7 +142,7 @@ public class Utilities {
         } else {
             flags &= ~NAVBAR_IME_VISIBLE;
         }
-        if (showImeSwitcher && isImeVisible) {
+        if (showImeSwitcherButton && isImeVisible) {
             flags |= NAVBAR_IME_SWITCHER_BUTTON_VISIBLE;
         } else {
             flags &= ~NAVBAR_IME_SWITCHER_BUTTON_VISIBLE;
@@ -150,13 +151,13 @@ public class Utilities {
         return flags;
     }
 
-    /** @return whether or not {@param context} represents that of a large screen device or not */
+    /** @return whether or not {@code context} represents that of a large screen device or not */
     @TargetApi(Build.VERSION_CODES.R)
     public static boolean isLargeScreen(Context context) {
         return isLargeScreen(WindowManagerUtils.getWindowManager(context), context.getResources());
     }
 
-    /** @return whether or not {@param context} represents that of a large screen device or not */
+    /** @return whether or not {@code context} represents that of a large screen device or not */
     public static boolean isLargeScreen(WindowManager windowManager, Resources resources) {
         final Rect bounds = windowManager.getMaximumWindowMetrics().getBounds();
 

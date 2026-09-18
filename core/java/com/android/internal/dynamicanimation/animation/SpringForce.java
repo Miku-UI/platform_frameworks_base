@@ -164,7 +164,7 @@ public final class SpringForce implements Force {
      *
      * @param dampingRatio damping ratio of the spring, it should be non-negative
      * @return the spring force that the given damping ratio is set on
-     * @throws IllegalArgumentException if the {@param dampingRatio} is negative.
+     * @throws IllegalArgumentException if the {@code dampingRatio} is negative.
      */
     public SpringForce setDampingRatio(@FloatRange(from = 0.0) float dampingRatio) {
         if (dampingRatio < 0) {

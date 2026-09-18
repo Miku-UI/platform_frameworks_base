@@ -21,22 +21,20 @@ import android.app.ActivityManagerInternal;
 
 import com.android.server.LocalServices;
 
-/**
- * An interface to access the current user identity in an easy to fake for tests way.
- */
+/** An interface to access the current user identity in an easy to fake for tests way. */
 public interface CurrentUserIdentityInjector {
 
     /** A singleton for the real implementation of {@link CurrentUserIdentityInjector}. */
     CurrentUserIdentityInjector REAL = new Real();
 
     /** A {@link ActivityManagerInternal#getCurrentUserId()} call. */
-    @UserIdInt int getCurrentUserId();
+    @UserIdInt
+    int getCurrentUserId();
 
     /** The real implementation of {@link CurrentUserIdentityInjector}. */
     class Real implements CurrentUserIdentityInjector {
 
-        protected Real() {
-        }
+        protected Real() {}
 
         @Override
         public int getCurrentUserId() {

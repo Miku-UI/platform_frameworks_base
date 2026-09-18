@@ -23,8 +23,8 @@ import android.view.SurfaceControl
 import android.view.WindowManager
 import android.window.TransitionInfo
 import androidx.test.filters.SmallTest
+import com.android.testing.wm.util.StubTransaction
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.util.StubTransaction
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

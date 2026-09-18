@@ -18,9 +18,9 @@ package com.android.wm.shell.flicker.bubble
 
 import android.os.SystemClock
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import androidx.test.uiautomator.By
@@ -57,9 +57,8 @@ class ChangeActiveActivityFromBubbleTest(flicker: FlickerTest) : BaseBubbleScree
                 val showBubble =
                     device.wait(
                         Until.findObject(By.res(SYSTEM_UI_PACKAGE, BUBBLE_RES_NAME)),
-                        FIND_OBJECT_TIMEOUT
-                    )
-                        ?: error("Show bubble not found")
+                        FIND_OBJECT_TIMEOUT,
+                    ) ?: error("Show bubble not found")
                 showBubble.click()
                 SystemClock.sleep(1000)
             }
@@ -67,9 +66,8 @@ class ChangeActiveActivityFromBubbleTest(flicker: FlickerTest) : BaseBubbleScree
                 val bubbles: List<UiObject2> =
                     device.wait(
                         Until.findObjects(By.res(SYSTEM_UI_PACKAGE, BUBBLE_RES_NAME)),
-                        FIND_OBJECT_TIMEOUT
-                    )
-                        ?: error("No bubbles found")
+                        FIND_OBJECT_TIMEOUT,
+                    ) ?: error("No bubbles found")
                 for (entry in bubbles) {
                     entry.click()
                     SystemClock.sleep(1000)

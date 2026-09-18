@@ -164,6 +164,7 @@ public final class AutoBrightnessFallbackStrategy implements DisplayBrightnessSt
     public void stop() {
         if (mScreenOffBrightnessSensorController != null) {
             mScreenOffBrightnessSensorController.stop();
+            mScreenOffBrightnessSensorController = null;
         }
     }
 

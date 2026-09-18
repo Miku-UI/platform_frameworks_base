@@ -69,6 +69,6 @@ class DomainVerificationJavaUtil {
 
     static List<DomainOwner> getOwnersForDomain(@NonNull DomainVerificationService service,
             @Nullable String domain, @UserIdInt int userId) {
-        return service.getOwnersForDomain(domain, userId);
+        return service.getOwnersForDomain(domain, userId, true /*= includeUnverifiedOwners */);
     }
 }

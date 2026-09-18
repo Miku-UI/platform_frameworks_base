@@ -32,7 +32,6 @@ import com.android.systemui.statusbar.notification.collection.coordinator.dagger
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifComparator;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifPromoter;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifSectioner;
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi;
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.PromotedNotificationsInteractor;
 import com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt;
 import com.android.systemui.util.kotlin.JavaAdapterKt;
@@ -68,16 +67,14 @@ public class ColorizedFgsCoordinator implements Coordinator {
 
     @Override
     public void attach(@NonNull NotifPipeline pipeline) {
-        if (PromotedNotificationUi.isEnabled()) {
-            pipeline.addPromoter(mPromotedOngoingPromoter);
+        pipeline.addPromoter(mPromotedOngoingPromoter);
 
-            JavaAdapterKt.collectFlow(mMainScope,
-                    mPromotedNotificationsInteractor.getOrderedChipNotificationKeys(),
-                    (List<String> keys) -> {
-                        mOrderedPromotedNotifKeys = keys;
-                        mNotifSectioner.invalidateList("updated mOrderedPromotedNotifKeys");
-                    });
-        }
+        JavaAdapterKt.collectFlow(mMainScope,
+                mPromotedNotificationsInteractor.getOrderedChipNotificationKeys(),
+                (List<String> keys) -> {
+                    mOrderedPromotedNotifKeys = keys;
+                    mNotifSectioner.invalidateList("updated mOrderedPromotedNotifKeys");
+                });
     }
 
     public NotifSectioner getSectioner() {
@@ -145,11 +142,7 @@ public class ColorizedFgsCoordinator implements Coordinator {
         @Nullable
         @Override
         public NotifComparator getComparator() {
-            if (PromotedNotificationUi.isEnabled()) {
-                return mOngoingComparator;
-            } else {
-                return null;
-            }
+            return mOngoingComparator;
         }
     };
 
@@ -166,7 +159,6 @@ public class ColorizedFgsCoordinator implements Coordinator {
     }
 
     private static boolean isPromotedOngoing(NotificationEntry entry) {
-        // NOTE: isPromotedOngoing already checks the android.app.ui_rich_ongoing flag.
         return entry != null && entry.getSbn().getNotification().isPromotedOngoing();
     }
 
@@ -177,8 +169,7 @@ public class ColorizedFgsCoordinator implements Coordinator {
     }
 
     private boolean isPromotedNotifChip(NotificationEntry entry) {
-        return PromotedNotificationUi.isEnabled()
-                && entry.getImportance() > IMPORTANCE_MIN
+        return entry.getImportance() > IMPORTANCE_MIN
                 && mOrderedPromotedNotifKeys.contains(entry.getKey());
     }
 }

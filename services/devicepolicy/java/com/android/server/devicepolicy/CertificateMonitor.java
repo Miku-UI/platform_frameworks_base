@@ -54,11 +54,11 @@ public class CertificateMonitor {
     protected static final int MONITORING_CERT_NOTIFICATION_ID = SystemMessage.NOTE_SSL_CERT_INFO;
 
     private final DevicePolicyManagerService mService;
-    private final DevicePolicyManagerService.Injector mInjector;
+    private final Injector mInjector;
     private final Handler mHandler;
 
     public CertificateMonitor(final DevicePolicyManagerService service,
-            final DevicePolicyManagerService.Injector injector, final Handler handler) {
+            final Injector injector, final Handler handler) {
         mService = service;
         mInjector = injector;
         mHandler = handler;

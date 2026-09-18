@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
-import android.app.Flags
 import android.content.Context
 import android.os.UserHandle
 import com.android.app.tracing.coroutines.flow.flowName
@@ -33,7 +32,6 @@ import com.android.systemui.qs.tiles.impl.modes.domain.model.ModesTileModel
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
-import com.android.systemui.statusbar.policy.domain.model.ActiveZenModes
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -75,29 +73,17 @@ constructor(
      * TODO(b/299909989): Remove after the transition.
      */
     fun tileData(): Flow<ModesTileModel> =
-        if (Flags.modesUiTileReactivatesLast()) {
-            combine(zenModeInteractor.modes, recentlyDeactivatedModeIds) {
-                    modes,
-                    recentlyDeactivatedModeIds ->
-                    buildTileData(modes, recentlyDeactivatedModeIds)
-                }
-                .flowName("tileData")
-                .flowOn(bgDispatcher)
-                .distinctUntilChanged()
-        } else {
-            zenModeInteractor.activeModes
-                .map { activeModes -> buildTileDataLegacy(activeModes) }
-                .flowName("tileData")
-                .flowOn(bgDispatcher)
-                .distinctUntilChanged()
-        }
+        combine(zenModeInteractor.modes, recentlyDeactivatedModeIds) {
+                modes,
+                recentlyDeactivatedModeIds ->
+                buildTileData(modes, recentlyDeactivatedModeIds)
+            }
+            .flowName("tileData")
+            .flowOn(bgDispatcher)
+            .distinctUntilChanged()
 
     suspend fun getCurrentTileModel(): ModesTileModel =
-        if (Flags.modesUiTileReactivatesLast()) {
-            buildTileData(zenModeInteractor.modes.value, recentlyDeactivatedModeIds.value)
-        } else {
-            buildTileDataLegacy(zenModeInteractor.getActiveModes())
-        }
+        buildTileData(zenModeInteractor.modes.value, recentlyDeactivatedModeIds.value)
 
     private suspend fun buildTileData(
         modes: List<ZenMode>,
@@ -151,10 +137,6 @@ constructor(
     }
 
     fun setQuickModeOverride(deactivatedModeIds: List<String>) {
-        if (!Flags.modesUiTileReactivatesLast()) {
-            return
-        }
-
         waitingToRemoveQuickModeOverride?.cancel()
         waitingToRemoveQuickModeOverride = null
 
@@ -177,15 +159,6 @@ constructor(
                     recentlyDeactivatedModeIds.value = listOf()
                 }
         }
-    }
-
-    private fun buildTileDataLegacy(activeModes: ActiveZenModes): ModesTileModel {
-        return ModesTileModel(
-            isActivated = activeModes.isAnyActive(),
-            activeModes = activeModes.names.map { ModesTileModel.ActiveMode(null, it) },
-            icon = if (activeModes.main != null) activeModes.main.icon else getDefaultTileIcon(),
-            quickMode = null,
-        )
     }
 
     private fun getDefaultTileIcon() =

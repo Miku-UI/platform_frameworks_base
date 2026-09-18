@@ -18,8 +18,6 @@ package com.android.systemui.common.data
 
 import com.android.systemui.common.data.datastore.DataStoreWrapperFactory
 import com.android.systemui.common.data.datastore.DataStoreWrapperFactoryImpl
-import com.android.systemui.common.data.repository.BatteryRepositoryDeprecated
-import com.android.systemui.common.data.repository.BatteryRepositoryDeprecatedImpl
 import com.android.systemui.common.data.repository.PackageChangeRepository
 import com.android.systemui.common.data.repository.PackageChangeRepositoryImpl
 import dagger.Binds
@@ -31,11 +29,6 @@ abstract class CommonDataLayerModule {
     abstract fun bindPackageChangeRepository(
         impl: PackageChangeRepositoryImpl
     ): PackageChangeRepository
-
-    @Binds
-    abstract fun bindBatteryRepository(
-        impl: BatteryRepositoryDeprecatedImpl
-    ): BatteryRepositoryDeprecated
 
     @Binds
     abstract fun bindDataStoreWrapperFactory(

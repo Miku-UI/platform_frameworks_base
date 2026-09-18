@@ -17,7 +17,6 @@
 package com.android.systemui.deviceentry.data.repository
 
 import android.app.StatusBarManager
-import android.content.Context
 import android.hardware.face.FaceManager
 import android.os.CancellationSignal
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -66,7 +65,6 @@ import com.android.systemui.user.data.model.SelectionStatus
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.google.errorprone.annotations.CompileTimeConstant
-import dagger.Lazy
 import java.io.PrintWriter
 import java.util.concurrent.Executor
 import javax.inject.Inject
@@ -97,7 +95,7 @@ import kotlinx.coroutines.withContext
  */
 interface DeviceEntryFaceAuthRepository {
     /** Provide the current face authentication state for device entry. */
-    val isAuthenticated: StateFlow<Boolean>
+    val isCurrentUserAuthenticated: StateFlow<Boolean>
 
     /** Whether face auth can run at this point. */
     val canRunFaceAuth: StateFlow<Boolean>
@@ -149,7 +147,6 @@ private data class AuthenticationRequest(
 class DeviceEntryFaceAuthRepositoryImpl
 @Inject
 constructor(
-    context: Context,
     private val faceManager: FaceManager? = null,
     private val userRepository: UserRepository,
     private val keyguardBypassController: KeyguardBypassController? = null,
@@ -211,8 +208,8 @@ constructor(
 
     private val canRunDetection: StateFlow<Boolean>
 
-    private val _isAuthenticated = MutableStateFlow(false)
-    override val isAuthenticated: StateFlow<Boolean> = _isAuthenticated
+    private val _isCurrentUserAuthenticated = MutableStateFlow(false)
+    override val isCurrentUserAuthenticated: StateFlow<Boolean> = _isCurrentUserAuthenticated
 
     private var cancellationInProgress = MutableStateFlow(false)
 
@@ -266,7 +263,7 @@ constructor(
                         biometricSettingsRepository.isFaceAuthCurrentlyAllowed,
                         "isFaceAuthCurrentlyAllowed",
                     ),
-                    Pair(isAuthenticated.isFalse(), "faceNotAuthenticated"),
+                    Pair(isCurrentUserAuthenticated.isFalse(), "faceNotAuthenticated"),
                 )
                 .andAllFlows("canFaceAuthRun", faceAuthLog)
                 .flowOn(backgroundDispatcher)
@@ -335,6 +332,10 @@ constructor(
         // or device starts going to sleep.
         merge(
                 powerInteractor.isAsleep,
+                keyguardTransitionInteractor.isFinishedIn(
+                    content = Scenes.Dream,
+                    stateWithoutSceneContainer = KeyguardState.DREAMING,
+                ),
                 combine(
                     keyguardTransitionInteractor.isFinishedIn(
                         content = Scenes.Gone,
@@ -358,7 +359,7 @@ constructor(
             .onEach { anyOfThemIsTrue ->
                 if (anyOfThemIsTrue) {
                     clearPendingAuthRequest("Resetting auth status")
-                    _isAuthenticated.value = false
+                    _isCurrentUserAuthenticated.value = false
                     retryCount = 0
                     halErrorRetryJob?.cancel()
                 }
@@ -396,7 +397,7 @@ constructor(
             Pair(
                 combine(
                     displayStateInteractor.isDefaultDisplayOff,
-                    keyguardTransitionInteractor.isFinishedInStateWhere(
+                    keyguardTransitionInteractor.isFinishedInStateWhereWithScene(
                         KeyguardState::deviceIsAwakeInState
                     ),
                 ) { defaultDisplayOff, finishedInAwakeState ->
@@ -412,7 +413,7 @@ constructor(
             ),
             Pair(
                 if (SceneContainerFlag.isEnabled) {
-                    sceneInteractor.get().transitionState.map {
+                    sceneInteractor.get().transitionStateFlow.map {
                         !it.isTransitioning(to = Scenes.Gone) && !it.isIdle(Scenes.Gone)
                     }
                 } else {
@@ -439,7 +440,7 @@ constructor(
                     keyguardInteractor.isSecureCameraActive,
                     alternateBouncerInteractor.isVisible,
                     if (SceneContainerFlag.isEnabled) {
-                        sceneInteractor.get().transitionState.map {
+                        sceneInteractor.get().transitionStateFlow.map {
                             it.isIdle(overlay = Overlays.Bouncer)
                         }
                     } else {
@@ -489,7 +490,7 @@ constructor(
     private val faceAuthCallback =
         object : FaceManager.AuthenticationCallback() {
             override fun onAuthenticationFailed() {
-                _isAuthenticated.value = false
+                _isCurrentUserAuthenticated.value = false
                 faceAuthLogger.authenticationFailed()
                 _authenticationStatus.value = FailedFaceAuthenticationStatus()
                 if (!_isLockedOut.value) {
@@ -509,7 +510,7 @@ constructor(
                 if (errorStatus.isLockoutError()) {
                     _isLockedOut.value = true
                 }
-                _isAuthenticated.value = false
+                _isCurrentUserAuthenticated.value = false
                 _authenticationStatus.value = errorStatus
                 if (errorStatus.isHardwareError()) {
                     faceAuthLogger.hardwareError(errorStatus)
@@ -530,16 +531,7 @@ constructor(
             }
 
             override fun onAuthenticationSucceeded(result: FaceManager.AuthenticationResult) {
-                // Update _isAuthenticated before _authenticationStatus is updated. There are
-                // consumers that receive the face authentication updates through a long chain of
-                // callbacks
-                // _authenticationStatus -> KeyguardUpdateMonitor -> KeyguardStateController ->
-                // onUnlockChanged
-                // These consumers then query the isAuthenticated boolean. This makes sure that the
-                // boolean is updated to new value before the event is propagated.
-                // TODO (b/310592822): once all consumers can use the new system directly, we don't
-                //  have to worry about this ordering.
-                _isAuthenticated.value = true
+                _isCurrentUserAuthenticated.value = result.userId == currentUserId
                 _authenticationStatus.value = SuccessFaceAuthenticationStatus(result)
                 faceAuthLogger.faceAuthSuccess(result)
                 onFaceAuthRequestCompleted()

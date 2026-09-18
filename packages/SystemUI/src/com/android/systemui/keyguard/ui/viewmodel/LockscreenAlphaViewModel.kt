@@ -55,15 +55,14 @@ constructor(
     private val dozingToLockscreenTransitionViewModel: DozingToLockscreenTransitionViewModel,
     private val dozingToOccludedTransitionViewModel: DozingToOccludedTransitionViewModel,
     private val lockscreenToAodTransitionViewModel: LockscreenToAodTransitionViewModel,
-    private val lockscreenToDozingTransitionViewModel: LockscreenToDozingTransitionViewModel,
-    private val lockscreenToOccludedTransitionViewModel: LockscreenToOccludedTransitionViewModel,
     private val occludedToAlternateBouncerTransitionViewModel:
         OccludedToAlternateBouncerTransitionViewModel,
     private val occludedToAodTransitionViewModel: OccludedToAodTransitionViewModel,
-    private val occludedToDozingTransitionViewModel: OccludedToDozingTransitionViewModel,
-    private val occludedToLockscreenTransitionViewModel: OccludedToLockscreenTransitionViewModel,
     private val offToLockscreenTransitionViewModel: OffToLockscreenTransitionViewModel,
+    private val toLockscreenEndStateTransitionViewModel: ToLockscreenEndStateTransitionViewModel,
+    private val toAodEndStateTransitionViewModel: ToAodEndStateTransitionViewModel,
     private val keyguardInteractor: KeyguardInteractor,
+    private val dozingTransitionFlows: DozingTransitionFlows,
     @Assisted private val viewStateAccessor: ViewStateAccessor,
 ) : HydratedActivatable() {
     /**
@@ -92,8 +91,7 @@ constructor(
         )
 
     /** Alpha value applied to all LockscreenElements. */
-    val alpha: Float by
-        alpha(viewState = viewStateAccessor).hydratedStateOf(traceName = "alpha", initialValue = 0f)
+    val alpha: Float by alpha(viewState = viewStateAccessor).hydratedStateOf(initialValue = 0f)
 
     /** An observable for the alpha level for the entire keyguard root view. */
     private fun alpha(viewState: ViewStateAccessor): Flow<Float> {
@@ -113,13 +111,12 @@ constructor(
                         dozingToOccludedTransitionViewModel.lockscreenAlpha(viewState),
                         lockscreenToAodTransitionViewModel.lockscreenAlpha(viewState),
                         lockscreenToAodTransitionViewModel.lockscreenAlphaOnFold,
-                        lockscreenToDozingTransitionViewModel.lockscreenAlpha,
-                        lockscreenToOccludedTransitionViewModel.lockscreenAlpha,
                         occludedToAlternateBouncerTransitionViewModel.lockscreenAlpha,
                         occludedToAodTransitionViewModel.lockscreenAlpha,
-                        occludedToDozingTransitionViewModel.lockscreenAlpha,
-                        occludedToLockscreenTransitionViewModel.lockscreenAlpha,
                         offToLockscreenTransitionViewModel.lockscreenAlpha,
+                        dozingTransitionFlows.lockscreenAlpha(null),
+                        toLockscreenEndStateTransitionViewModel.lockscreenAlpha,
+                        toAodEndStateTransitionViewModel.lockscreenAlpha,
                     )
                     .onStart { emit(0f) },
             ) { hideKeyguard, alpha ->
@@ -131,6 +128,11 @@ constructor(
             }
             .distinctUntilChanged()
     }
+
+    private val nonAuthUiFlows: Flow<Float> = dozingTransitionFlows.nonAuthUIAlpha
+
+    val nonAuthUIAlpha: Float by
+        nonAuthUiFlows.hydratedStateOf(traceName = "nonAuthUI", initialValue = 1f)
 
     @AssistedFactory
     interface Factory {

@@ -48,7 +48,6 @@ import static com.android.server.location.eventlog.LocationEventLog.EVENT_LOG;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
@@ -605,7 +604,7 @@ public class LocationProviderManager extends
         boolean onBypassLocationPermissionsChanged(boolean isInEmergency) {
             synchronized (mMultiplexerLock) {
                 boolean bypassPermitted =
-                        Flags.enableLocationBypass() && isInEmergency
+                        isInEmergency
                                 && mContext.checkPermission(
                                 LOCATION_BYPASS, mIdentity.getPid(), mIdentity.getUid())
                                 == PERMISSION_GRANTED;
@@ -1009,7 +1008,7 @@ public class LocationProviderManager extends
 
             // note app ops
             int op =
-                    Flags.enableLocationBypass() && isOnlyBypassPermitted()
+                    isOnlyBypassPermitted()
                             ? AppOpsManager.OP_EMERGENCY_LOCATION
                             : LocationPermissions.asAppOp(getPermissionLevel());
             if (!mAppOpsHelper.noteOpNoThrow(op, getIdentity())) {
@@ -1364,7 +1363,7 @@ public class LocationProviderManager extends
             // lastly - note app ops
             if (fineLocationResult != null) {
                 int op =
-                        Flags.enableLocationBypass() && isOnlyBypassPermitted()
+                        isOnlyBypassPermitted()
                                 ? AppOpsManager.OP_EMERGENCY_LOCATION
                                 : LocationPermissions.asAppOp(getPermissionLevel());
                 if (!mAppOpsHelper.noteOpNoThrow(op, getIdentity())) {
@@ -1690,12 +1689,7 @@ public class LocationProviderManager extends
     /**
      * Provides the optional {@link LocationFudgerCache} for coarsening based on population density.
      */
-    @FlaggedApi(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS)
     public void setLocationFudgerCache(LocationFudgerCache cache) {
-        if (!Flags.densityBasedCoarseLocations()) {
-            return;
-        }
-
         mLocationFudger.setLocationFudgerCache(cache);
     }
 
@@ -1848,16 +1842,32 @@ public class LocationProviderManager extends
 
         if (location != null) {
             // lastly - note app ops
-            int op =
-                    (Flags.enableLocationBypass()
-                            && !mLocationPermissionsHelper.hasLocationPermissions(
-                                    permissionLevel, identity)
-                            && mEmergencyHelper.isInEmergency(0)
-                            && mContext.checkPermission(
-                                    LOCATION_BYPASS, identity.getPid(), identity.getUid())
-                            == PERMISSION_GRANTED)
-                            ? AppOpsManager.OP_EMERGENCY_LOCATION
-                            : LocationPermissions.asAppOp(permissionLevel);
+            int op;
+            if (Flags.checkBypassPermissionBeforeEmergencyMode()) {
+                op =
+                        (!mLocationPermissionsHelper.hasLocationPermissions(
+                                                permissionLevel, identity)
+                                        && mContext.checkPermission(
+                                                        LOCATION_BYPASS,
+                                                        identity.getPid(),
+                                                        identity.getUid())
+                                                == PERMISSION_GRANTED
+                                        && mEmergencyHelper.isInEmergency(0))
+                                ? AppOpsManager.OP_EMERGENCY_LOCATION
+                                : LocationPermissions.asAppOp(permissionLevel);
+            } else {
+                op =
+                        (!mLocationPermissionsHelper.hasLocationPermissions(
+                                                permissionLevel, identity)
+                                        && mEmergencyHelper.isInEmergency(0)
+                                        && mContext.checkPermission(
+                                                        LOCATION_BYPASS,
+                                                        identity.getPid(),
+                                                        identity.getUid())
+                                                == PERMISSION_GRANTED)
+                                ? AppOpsManager.OP_EMERGENCY_LOCATION
+                                : LocationPermissions.asAppOp(permissionLevel);
+            }
             if (!mAppOpsHelper.noteOpNoThrow(op, identity)) {
                 return null;
             }
@@ -2159,9 +2169,7 @@ public class LocationProviderManager extends
         mAppForegroundHelper.addListener(mAppForegroundChangedListener);
         mLocationPowerSaveModeHelper.addListener(mLocationPowerSaveModeChangedListener);
         mScreenInteractiveHelper.addListener(mScreenInteractiveChangedListener);
-        if (Flags.enableLocationBypass()) {
-            mEmergencyHelper.addOnEmergencyStateChangedListener(mEmergencyStateChangedListener);
-        }
+        mEmergencyHelper.addOnEmergencyStateChangedListener(mEmergencyStateChangedListener);
         mPackageResetHelper.register(mPackageResetResponder);
     }
 
@@ -2181,9 +2189,7 @@ public class LocationProviderManager extends
         mAppForegroundHelper.removeListener(mAppForegroundChangedListener);
         mLocationPowerSaveModeHelper.removeListener(mLocationPowerSaveModeChangedListener);
         mScreenInteractiveHelper.removeListener(mScreenInteractiveChangedListener);
-        if (Flags.enableLocationBypass()) {
-            mEmergencyHelper.removeOnEmergencyStateChangedListener(mEmergencyStateChangedListener);
-        }
+        mEmergencyHelper.removeOnEmergencyStateChangedListener(mEmergencyStateChangedListener);
         mPackageResetHelper.unregister(mPackageResetResponder);
     }
 

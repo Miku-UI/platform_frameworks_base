@@ -21,11 +21,11 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="keyguard_enter_your_pin" msgid="5429932527814874032">"输入您的 PIN 码"</string>
-    <string name="keyguard_enter_pin" msgid="8114529922480276834">"输入 PIN 码"</string>
+    <string name="keyguard_enter_pin" msgid="8114529922480276834">"输入数字密码"</string>
     <string name="keyguard_enter_your_pattern" msgid="351503370332324745">"绘制解锁图案"</string>
     <string name="keyguard_enter_pattern" msgid="7616595160901084119">"绘制解锁图案"</string>
     <string name="keyguard_enter_your_password" msgid="7225626204122735501">"输入您的密码"</string>
-    <string name="keyguard_enter_password" msgid="6483623792371009758">"输入密码"</string>
+    <string name="keyguard_enter_password" msgid="6483623792371009758">"输入混合密码"</string>
     <string name="keyguard_sim_error_message_short" msgid="633630844240494070">"SIM 卡无效。"</string>
     <string name="keyguard_charged" msgid="5478247181205188995">"已充满电"</string>
     <string name="keyguard_plugged_in_wireless" msgid="2537874724955057383">"<xliff:g id="PERCENTAGE">%s</xliff:g> • 正在无线充电"</string>
@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"设备密码"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"SIM 卡 PIN 码区域"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"SIM 卡 PUK 码区域"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"长按即可全部删除"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"删除"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"停用 eSIM 卡"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"无法停用 eSIM 卡"</string>
@@ -57,13 +58,13 @@
     <string name="kg_wrong_pin" msgid="4160978845968732624">"PIN 码错误"</string>
     <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"PIN 码有误。请重试。"</string>
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"或使用指纹解锁"</string>
-    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"未能识别指纹"</string>
-    <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"无法识别人脸"</string>
+    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"无法识别指纹"</string>
+    <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"无法识别面孔"</string>
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"请重试或输入 PIN 码"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"请重试或输入密码"</string>
     <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"请重试或绘制解锁图案"</string>
-    <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"错误次数太多，必须输入 PIN 码才能解锁"</string>
-    <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"错误次数太多，必须输入密码才能解锁"</string>
+    <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"错误次数太多，必须输入数字密码才能解锁"</string>
+    <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"错误次数太多，必须输入混合密码"</string>
     <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"错误次数太多，必须绘制解锁图案才能解锁"</string>
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"使用 PIN 码或指纹解锁"</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"使用密码或指纹解锁"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"无法使用指纹解锁。尝试次数太多。"</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"可信代理已被停用"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"输错 PIN 码的尝试次数太多"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"已尝试过该密码。请换一个试试。"</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"已尝试过该解锁图案，请换一个试试。"</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"已尝试过该密码，请换一个试试。"</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"绘错解锁图案的尝试次数太多"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"输错密码的尝试次数太多"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"输错数字密码的次数太多\n如需了解详情，请访问 <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"绘错解锁图案的次数太多\n如需了解详情，请访问 <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"输错密码的次数太多\n如需了解详情，请访问 <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{请在 # 秒后重试。}other{请在 # 秒后重试。}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{请在 # 秒后重试}other{请在 # 秒后重试}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{请在 # 分钟后重试}other{请在 # 分钟后重试}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{请在 # 小时后重试}other{请在 # 小时后重试}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{请在 # 天后重试}other{请在 # 天后重试}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{请在 # 年后重试}other{请在 # 年后重试}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"请输入 SIM 卡 PIN 码。"</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"请输入“<xliff:g id="CARRIER">%1$s</xliff:g>”的 SIM 卡 PIN 码。"</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g>停用 eSIM 卡即可在没有移动服务的情况下使用设备。"</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"设备重启后，必须绘制解锁图案才能解锁"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"设备重启后，必须输入 PIN 码才能解锁"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"设备重启后，必须输入密码才能解锁"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"必须绘制解锁图案才能登录"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"必须输入数字密码才能登录"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"必须输入密码才能登录"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"为增强安全性，请改用解锁图案"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"为增强安全性，请改用 PIN 码"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"为增强安全性，请改用密码"</string>
@@ -121,7 +136,7 @@
     <string name="kg_prompt_reason_device_admin" msgid="6961159596224055685">"管理员已锁定设备"</string>
     <string name="kg_prompt_reason_user_request" msgid="6015774877733717904">"此设备已手动锁定"</string>
     <string name="kg_face_not_recognized" msgid="7903950626744419160">"无法识别"</string>
-    <string name="kg_face_sensor_privacy_enabled" msgid="939511161763558512">"如需使用人脸解锁功能，请在“设置”中开启相机权限"</string>
+    <string name="kg_face_sensor_privacy_enabled" msgid="939511161763558512">"如需使用人脸解锁功能，请在“设置”中开启摄像头权限"</string>
     <string name="kg_password_default_pin_message" msgid="1434544655827987873">"{count,plural, =1{请输入 SIM 卡 PIN 码。您还可以尝试 # 次，如果仍不正确，则必须联系运营商帮您解锁设备。}other{请输入 SIM 卡 PIN 码。您还可以尝试 # 次。}}"</string>
     <string name="kg_password_default_puk_message" msgid="1025139786449741950">"{count,plural, =1{SIM 卡现已停用，请输入 PUK 码继续使用。您还可以尝试 # 次，如果仍不正确，SIM 卡将永远无法使用。有关详情，请联系运营商。}other{SIM 卡现已停用，请输入 PUK 码继续使用。您还可以尝试 # 次，如果仍不正确，SIM 卡将永远无法使用。有关详情，请联系运营商。}}"</string>
     <string name="clock_title_default" msgid="6342735240617459864">"默认"</string>

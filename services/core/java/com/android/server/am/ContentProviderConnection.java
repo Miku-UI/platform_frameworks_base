@@ -19,8 +19,9 @@ package com.android.server.am;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_PROVIDER;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 
+import android.annotation.NonNull;
 import android.annotation.UserIdInt;
-import android.os.Binder;
+import android.app.ActivityManager.ProcessState;
 import android.os.SystemClock;
 import android.util.Slog;
 import android.util.TimeUtils;
@@ -33,10 +34,9 @@ import com.android.server.am.psc.ContentProviderConnectionInternal;
 /**
  * Represents a link between a content provider and client.
  */
-public final class ContentProviderConnection extends Binder implements
-        ContentProviderConnectionInternal {
+public final class ContentProviderConnection extends ContentProviderConnectionInternal {
     public final ContentProviderRecord provider;
-    public final ProcessRecord client;
+    public final @NonNull ProcessRecord client;
     public final String clientPackage;
     public AssociationState.SourceState association;
     public final long createTime;
@@ -59,14 +59,15 @@ public final class ContentProviderConnection extends Binder implements
     // The original user id when this connection was requested, it could be different from
     // the client's user id because the client could request to access a content provider
     // living in a different user if it has the permission.
-    @UserIdInt final int mExpectedUserId;
+    @UserIdInt
+    final int mExpectedUserId;
 
     // For debugging.
     private int mNumStableIncs;
     private int mNumUnstableIncs;
 
-    public ContentProviderConnection(ContentProviderRecord _provider, ProcessRecord _client,
-            String _clientPackage, @UserIdInt int _expectedUserId) {
+    public ContentProviderConnection(ContentProviderRecord _provider,
+            @NonNull ProcessRecord _client, String _clientPackage, @UserIdInt int _expectedUserId) {
         provider = _provider;
         client = _client;
         clientPackage = _clientPackage;
@@ -78,19 +79,19 @@ public final class ContentProviderConnection extends Binder implements
         // If we don't already have an active association, create one...  but only if this
         // is an association between two different processes.
         if (ActivityManagerService.TRACK_PROCSTATS_ASSOCIATIONS
-                && association == null && provider.proc != null
-                && (provider.appInfo.uid != client.uid
-                        || !provider.info.processName.equals(client.processName))) {
-            ProcessStats.ProcessStateHolder holder = provider.proc.getPkgList().get(
+                && association == null && provider.mProc != null
+                && (provider.mAppInfo.uid != client.uid
+                || !provider.mProviderInfo.processName.equals(client.processName))) {
+            ProcessStats.ProcessStateHolder holder = provider.mProc.getPkgList().get(
                     provider.name.getPackageName());
             if (holder == null) {
                 Slog.wtf(TAG_AM, "No package in referenced provider "
-                        + provider.name.toShortString() + ": proc=" + provider.proc);
+                        + provider.name.toShortString() + ": proc=" + provider.mProc);
             } else if (holder.pkg == null) {
                 Slog.wtf(TAG_AM, "Inactive holder in referenced provider "
-                        + provider.name.toShortString() + ": proc=" + provider.proc);
+                        + provider.name.toShortString() + ": proc=" + provider.mProc);
             } else {
-                mProcStatsLock = provider.proc.mService.mProcessStats.mLock;
+                mProcStatsLock = provider.mProc.mService.mProcessStats.mLock;
                 synchronized (mProcStatsLock) {
                     association = holder.pkg.getAssociationStateLocked(holder.state,
                             provider.name.getClassName()).startSource(client.uid,
@@ -104,7 +105,7 @@ public final class ContentProviderConnection extends Binder implements
      * Track the given proc state change.
      */
     @Override
-    public void trackProcState(int procState, int seq) {
+    public void trackProcState(@ProcessState int procState, int seq) {
         if (association == null) {
             return; // early exit to optimize on oomadj cycles
         }
@@ -121,7 +122,7 @@ public final class ContentProviderConnection extends Binder implements
     }
 
     @Override
-    public ProcessRecord getClient() {
+    public @NonNull ProcessRecord getClient() {
         return client;
     }
 
@@ -183,7 +184,7 @@ public final class ContentProviderConnection extends Binder implements
         }
         long nowReal = SystemClock.elapsedRealtime();
         sb.append(" ");
-        TimeUtils.formatDuration(nowReal-createTime, sb);
+        TimeUtils.formatDuration(nowReal - createTime, sb);
     }
 
     /**
@@ -215,10 +216,11 @@ public final class ContentProviderConnection extends Binder implements
             if (DEBUG_PROVIDER) {
                 final ContentProviderRecord cpr = provider;
                 Slog.v(TAG_AM,
-                       "Adding provider requested by "
-                       + client.processName + " from process "
-                       + cpr.info.processName + ": " + cpr.name.flattenToShortString()
-                       + " scnt=" + mStableCount + " uscnt=" + mUnstableCount);
+                        "Adding provider requested by "
+                                + client.processName + " from process "
+                                + cpr.mProviderInfo.processName + ": "
+                                + cpr.name.flattenToShortString()
+                                + " scnt=" + mStableCount + " uscnt=" + mUnstableCount);
             }
             if (stable) {
                 mStableCount++;
@@ -240,10 +242,11 @@ public final class ContentProviderConnection extends Binder implements
             if (DEBUG_PROVIDER) {
                 final ContentProviderRecord cpr = provider;
                 Slog.v(TAG_AM,
-                       "Removing provider requested by "
-                       + client.processName + " from process "
-                       + cpr.info.processName + ": " + cpr.name.flattenToShortString()
-                       + " scnt=" + mStableCount + " uscnt=" + mUnstableCount);
+                        "Removing provider requested by "
+                                + client.processName + " from process "
+                                + cpr.mProviderInfo.processName + ": "
+                                + cpr.name.flattenToShortString()
+                                + " scnt=" + mStableCount + " uscnt=" + mUnstableCount);
             }
             if (stable) {
                 mStableCount--;
@@ -258,7 +261,7 @@ public final class ContentProviderConnection extends Binder implements
      * Adjusts the reference counts up or down (the inputs may be positive,
      * zero, or negative.  This method does not return a total count because
      * a return is not needed for the current use case.
-    */
+     */
     public void adjustCounts(int stableIncrement, int unstableIncrement) {
         synchronized (mLock) {
             if (stableIncrement > 0) {
@@ -277,7 +280,7 @@ public final class ContentProviderConnection extends Binder implements
             }
             if ((stable + unstable) <= 0) {
                 throw new IllegalStateException("ref counts can't go to zero here: stable="
-                                                + stable + " unstable=" + unstable);
+                        + stable + " unstable=" + unstable);
             }
             mStableCount = stable;
             mUnstableCount = unstable;

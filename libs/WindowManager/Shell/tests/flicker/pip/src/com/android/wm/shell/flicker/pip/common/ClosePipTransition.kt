@@ -79,14 +79,12 @@ abstract class ClosePipTransition(flicker: FlickerTest) : PipTransition(flicker)
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen
-         * orientation and navigation modes.
+         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen orientation
+         * and navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

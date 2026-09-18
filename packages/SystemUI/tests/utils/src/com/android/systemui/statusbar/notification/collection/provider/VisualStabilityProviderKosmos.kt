@@ -17,5 +17,7 @@
 package com.android.systemui.statusbar.notification.collection.provider
 
 import com.android.systemui.kosmos.Kosmos
+import org.mockito.kotlin.mock
 
-val Kosmos.visualStabilityProvider by Kosmos.Fixture { VisualStabilityProvider() }
+var Kosmos.visualStabilityProvider by Kosmos.Fixture { VisualStabilityProvider() }
+val Kosmos.mockVisualStabilityProvider by Kosmos.Fixture { mock<VisualStabilityProvider>() }

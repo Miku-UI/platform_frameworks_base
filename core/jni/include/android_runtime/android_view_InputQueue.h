@@ -18,11 +18,12 @@
 #define _ANDROID_VIEW_INPUTQUEUE_H
 
 #include <input/Input.h>
+#include <nativehelper/JNIHelp.h>
 #include <utils/Looper.h>
 #include <utils/TypeHelpers.h>
 #include <utils/Vector.h>
 
-#include <nativehelper/JNIHelp.h>
+#include <mutex>
 
 /*
  * Declare a concrete type for the NDK's AInputQueue forward declaration
@@ -75,7 +76,7 @@ private:
     sp<WeakMessageHandler> mHandler;
     PooledInputEventFactory mPooledInputEventFactory;
     // Guards the pending and finished event vectors
-    mutable Mutex mLock;
+    mutable std::mutex mLock;
     Vector<InputEvent*> mPendingEvents;
     Vector<key_value_pair_t<InputEvent*, bool> > mFinishedEvents;
 };

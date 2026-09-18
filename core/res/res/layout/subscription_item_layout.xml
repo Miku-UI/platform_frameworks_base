@@ -63,7 +63,6 @@
             android:layout_alignStart="@+id/sub_name"
             android:singleLine="true"
             android:ellipsize="none"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:textColor="?android:attr/textColorSecondary"/>
+            android:textAppearance="?android:attr/textAppearanceSmall"/>
     </RelativeLayout>
 </LinearLayout>

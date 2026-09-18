@@ -17,11 +17,8 @@
 package com.android.systemui.qs.panels.data.repository
 
 import android.content.res.mainResources
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.server.display.feature.flags.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.res.R
@@ -37,7 +34,6 @@ class StockTilesRepositoryTest : SysuiTestCase() {
         testKosmos().apply { mainResources = mContext.orCreateTestableResources.resources }
 
     @Test
-    @EnableFlags(Flags.FLAG_EVEN_DIMMER)
     fun stockTilesMatchesResources_evenDimmerFlagOn_configOn() {
         // Enable the EvenDimmer config
         mContext
@@ -55,25 +51,11 @@ class StockTilesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EVEN_DIMMER)
     fun stockTilesMatchesResources_evenDimmerFlagOn_configOff() {
         // Disable the EvenDimmer config
         mContext
             .getOrCreateTestableResources()
             .addOverride(com.android.internal.R.bool.config_evenDimmerEnabled, false)
-        val underTest = StockTilesRepository(kosmos.mainResources)
-
-        val expected =
-            kosmos.mainResources
-                .getString(R.string.quick_settings_tiles_stock)
-                .split(",")
-                .map(TileSpec::create)
-        assertThat(underTest.stockTiles).isEqualTo(expected)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_EVEN_DIMMER)
-    fun stockTilesMatchesResources_evenDimmerFlagOff() {
         val underTest = StockTilesRepository(kosmos.mainResources)
 
         val expected =

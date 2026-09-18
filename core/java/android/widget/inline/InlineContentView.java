@@ -180,7 +180,7 @@ public class InlineContentView extends ViewGroup {
     private SurfacePackageUpdater mSurfacePackageUpdater;
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      * @hide
      */
     public InlineContentView(@NonNull Context context) {
@@ -188,7 +188,7 @@ public class InlineContentView extends ViewGroup {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      * @hide
      */
     public InlineContentView(@NonNull Context context, @Nullable AttributeSet attrs) {
@@ -196,7 +196,7 @@ public class InlineContentView extends ViewGroup {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      * @hide
      */
     public InlineContentView(@NonNull Context context, @Nullable AttributeSet attrs,
@@ -223,7 +223,7 @@ public class InlineContentView extends ViewGroup {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      * @hide
      */
     public InlineContentView(@NonNull Context context, @Nullable AttributeSet attrs,

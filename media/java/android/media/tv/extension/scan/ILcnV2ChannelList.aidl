@@ -17,19 +17,34 @@
 package android.media.tv.extension.scan;
 
 import android.media.tv.extension.scan.ILcnV2ChannelListListener;
+
 import android.os.Bundle;
 
 /**
- * Country: (NorDig etc.)
- * Broadcast Type: BROADCAST_TYPE_DVB_T, BROADCAST_TYPE_DVB_C
- *
  * @hide
  */
 interface ILcnV2ChannelList {
-    // Get the LCN V2 channel list information. If there are no conflicts, the array of Bundle is empty.
+    /**
+     * Get the LCN V2 channel list information.
+     * If there are no conflicts, the array of Bundle is empty.
+     *
+     * @return an array of bundle of LCN V2 channel list information, each bundle must at least
+     *         contain keys defined in @ScanConstants.LcnV2ChannelListInfoBundleKey.
+     */
     Bundle[] getLcnV2ChannelLists();
-    // Select and set one of two or more LCN V2 channel list detected by the service scan.
+    /**
+     * Select and set one of two or more LCN V2 channel list detected by the service scan.
+     *
+     * @param lcnV2ChannelListSettings Bundle, each bundle must at least
+     *         contain keys defined in @ScanConstants.LcnV2ChannelListInfoBundleKey.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setLcnV2ChannelList(in Bundle lcnV2ChannelListSettings);
-    // Set the listener to be invoked when two or more LCN V2 channel list are detected.
+    /**
+     * Set the listener to be invoked when two or more LCN V2 channel list are detected.
+     *
+     * @param listener ILcnV2ChannelListListener.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setListener(in ILcnV2ChannelListListener listener);
 }

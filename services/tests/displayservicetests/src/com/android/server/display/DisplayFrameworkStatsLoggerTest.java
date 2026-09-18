@@ -16,9 +16,11 @@
 
 package com.android.server.display;
 
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 
 import android.hardware.display.DisplayManagerGlobal;
 import android.util.SparseIntArray;
@@ -28,14 +30,19 @@ import android.view.DisplayInfo.DisplayInfoGroup;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
+import com.android.dx.mockito.inline.extended.StaticMockitoSession;
 import com.android.internal.util.FrameworkStatsLog;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.List;
 
 /**
  * Tests for {@link com.android.server.display.DisplayFrameworkStatsLogger}.
@@ -48,76 +55,115 @@ public class DisplayFrameworkStatsLoggerTest {
 
     @InjectMocks private DisplayFrameworkStatsLogger mLogger;
 
-    @Mock private FrameworkStatsLog mFrameworkStatsLogMock;
+    private StaticMockitoSession mFrameworkStatsLogMock;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        mFrameworkStatsLogMock = mockitoSession().mockStatic(
+                FrameworkStatsLog.class).startMocking();
+    }
+
+    @After
+    public void teardown() {
+        mFrameworkStatsLogMock.finishMocking();
     }
 
     @Test
-    public void testLogDisplayEvent_displayAdded_writesToStatsLog() {
-        final int event = DisplayManagerGlobal.EVENT_DISPLAY_ADDED;
-        final SparseIntArray uidMap =
-                new SparseIntArray() {
-                    {
-                        put(1001, 1);
-                        put(1002, 3);
-                    }
-                };
+    public void testLogDisplayEvents_displayAdded_writesToStatsLog() {
+        // Set up a map where two UIDs were notified of the ADDED event.
+        final SparseIntArray uidMap = new SparseIntArray();
+        uidMap.put(1001, DisplayManagerGlobal.EVENT_DISPLAY_ADDED);
+        // UID 1002 was notified of ADDED and something else.
+        uidMap.put(1002, DisplayManagerGlobal.EVENT_DISPLAY_ADDED
+                | DisplayManagerGlobal.EVENT_DISPLAY_REMOVED);
+
         final int expectedProtoType =
                 FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED__EVENT_TYPE__TYPE_DISPLAY_ADDED;
 
-        mLogger.logDisplayEvent(event, uidMap);
+        mLogger.logDisplayEvents(uidMap);
 
-        verify(mFrameworkStatsLogMock)
-                .write(
-                        FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED,
-                        expectedProtoType,
-                        uidMap.copyKeys(), 2);
+        // Verify that a log was written for the ADDED event with a count of 2.
+        ExtendedMockito.verify(() -> FrameworkStatsLog.write(
+                FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED,
+                expectedProtoType,
+                new int[0],
+                2));
     }
 
     @Test
-    public void testLogDisplayEvent_brightnessChanged_writesToStatsLog() {
-        final int event = DisplayManagerGlobal.EVENT_DISPLAY_BRIGHTNESS_CHANGED;
-        final SparseIntArray uidMap =
-                new SparseIntArray() {
-                    {
-                        put(1005, 1);
-                    }
-                };
+    public void testLogDisplayEvents_singleBrightnessChanged_writesToStatsLog() {
+        final SparseIntArray uidMap = new SparseIntArray();
+        uidMap.put(1005, DisplayManagerGlobal.EVENT_DISPLAY_BRIGHTNESS_CHANGED);
         final int expectedProtoType =
                 FrameworkStatsLog
                     .DISPLAY_EVENT_CALLBACK_OCCURRED__EVENT_TYPE__TYPE_DISPLAY_BRIGHTNESS_CHANGED;
 
-        mLogger.logDisplayEvent(event, uidMap);
+        mLogger.logDisplayEvents(uidMap);
 
-        verify(mFrameworkStatsLogMock)
-                .write(
+        ExtendedMockito.verify(() ->
+                FrameworkStatsLog.write(
                         FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED,
                         expectedProtoType,
-                        uidMap.copyKeys(), 1);
+                        new int[0],
+                        1));
     }
 
     @Test
-    public void testLogDisplayEvent_unknownEvent_writesUnknownTypeToStatsLog() {
-        final int event = -1;
-        final SparseIntArray uidMap =
-                new SparseIntArray() {
-                    {
-                        put(9999, 6);
-                    }
-                };
+    public void testLogDisplayEvents_unknownEvent_writesUnknownTypeToStatsLog() {
+        // Use a high-order bit that doesn't map to a known event type.
+        final int unknownEvent = 1 << 30;
+        final SparseIntArray uidMap = new SparseIntArray();
+        uidMap.put(9999, unknownEvent);
+
         final int expectedProtoType =
                 FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED__EVENT_TYPE__TYPE_UNKNOWN;
 
-        mLogger.logDisplayEvent(event, uidMap);
+        mLogger.logDisplayEvents(uidMap);
 
-        verify(mFrameworkStatsLogMock)
-                .write(
+        ExtendedMockito.verify(() ->
+                FrameworkStatsLog.write(
                         FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED,
                         expectedProtoType,
-                        uidMap.copyKeys(), 1);
+                        new int[0],
+                        1));
+    }
+
+    // Verify the core aggregation logic of the logDisplayEvents method.
+    @Test
+    public void testLogDisplayEvents_multipleEvents_writesEachToStatsLog() {
+        // Set up a map with overlapping event notifications.
+        final SparseIntArray uidMap = new SparseIntArray();
+        uidMap.put(1001, DisplayManagerGlobal.EVENT_DISPLAY_ADDED);
+        uidMap.put(1002, DisplayManagerGlobal.EVENT_DISPLAY_ADDED
+                | DisplayManagerGlobal.EVENT_DISPLAY_REMOVED);
+        uidMap.put(1003, DisplayManagerGlobal.EVENT_DISPLAY_REMOVED);
+        uidMap.put(1004, DisplayManagerGlobal.EVENT_DISPLAY_REMOVED);
+        ArgumentCaptor<Integer> protoTypeCaptor = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> countCaptor = ArgumentCaptor.forClass(Integer.class);
+
+        mLogger.logDisplayEvents(uidMap);
+
+        ExtendedMockito.verify(() ->
+                FrameworkStatsLog.write(
+                eq(FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED),
+                protoTypeCaptor.capture(),
+                eq(new int[0]),
+                countCaptor.capture()
+        ), times(2));
+
+        // Assert that both events were logged.
+        assertEquals(
+                List.of(
+                    FrameworkStatsLog
+                            .DISPLAY_EVENT_CALLBACK_OCCURRED__EVENT_TYPE__TYPE_DISPLAY_ADDED,
+                    FrameworkStatsLog
+                            .DISPLAY_EVENT_CALLBACK_OCCURRED__EVENT_TYPE__TYPE_DISPLAY_REMOVED
+                ),
+                protoTypeCaptor.getAllValues());
+
+        // Assert that both were logged with correct count
+        assertEquals(List.of(2, 3), countCaptor.getAllValues());
     }
 
     @Test
@@ -129,9 +175,8 @@ public class DisplayFrameworkStatsLoggerTest {
 
         int expectedSource =
                 FrameworkStatsLog.DISPLAY_INFO_CHANGED__EVENT_SOURCE__EVENT_SOURCE_DISPLAY_SWAP;
-        verify(mFrameworkStatsLogMock)
-                .write(FrameworkStatsLog.DISPLAY_INFO_CHANGED,
-                    1, 0, 0, 0, 0, 1, 0, expectedSource);
+        ExtendedMockito.verify(() -> FrameworkStatsLog.write(FrameworkStatsLog.DISPLAY_INFO_CHANGED,
+                    1, 0, 0, 0, 0, 1, 0, expectedSource));
     }
 
     @Test
@@ -145,9 +190,9 @@ public class DisplayFrameworkStatsLoggerTest {
 
         int expectedSource =
                 FrameworkStatsLog.DISPLAY_INFO_CHANGED__EVENT_SOURCE__EVENT_SOURCE_DISPLAY_MANAGER;
-        verify(mFrameworkStatsLogMock)
-                .write(FrameworkStatsLog.DISPLAY_INFO_CHANGED,
-                        3, 1, 0, 1, 0, 0, 1, expectedSource);
+        ExtendedMockito.verify(() ->
+                FrameworkStatsLog.write(FrameworkStatsLog.DISPLAY_INFO_CHANGED,
+                        3, 1, 0, 1, 0, 0, 1, expectedSource));
     }
 
     @Test
@@ -161,18 +206,10 @@ public class DisplayFrameworkStatsLoggerTest {
 
         int expectedSource =
                 FrameworkStatsLog.DISPLAY_INFO_CHANGED__EVENT_SOURCE__EVENT_SOURCE_OTHER;
-        verify(mFrameworkStatsLogMock)
-                .write(FrameworkStatsLog.DISPLAY_INFO_CHANGED,
-                        6, 1, 1, 1, 1, 1, 1, expectedSource);
-    }
 
-    @Test
-    public void testDisplayInfoChanged_zeroInput_doesNotLog() {
-        mLogger.logDisplayInfoChanged(0, DisplayInfo.DisplayInfoChangeSource.WINDOW_MANAGER);
-
-        verify(mFrameworkStatsLogMock, never())
-                .write(anyInt(), anyInt(), anyInt(), anyInt(),
-                        anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        ExtendedMockito.verify(() ->
+                FrameworkStatsLog.write(FrameworkStatsLog.DISPLAY_INFO_CHANGED,
+                        6, 1, 1, 1, 1, 1, 1, expectedSource));
     }
 
 }

@@ -41,7 +41,7 @@ static struct {
     jmethodID release;
 } gSurfaceControl;
 
-std::shared_ptr<InputChannel> createInputChannel(
+std::unique_ptr<InputChannel> createInputChannel(
         const sp<IBinder>& clientToken, const InputTransferToken& hostInputTransferToken,
         const SurfaceControl& surfaceControl, const InputTransferToken& clientInputTransferToken) {
     JNIEnv* env = AndroidRuntime::getJNIEnv();
@@ -68,12 +68,11 @@ std::shared_ptr<InputChannel> createInputChannel(
                                                         clientInputTransferTokenObj.get()));
 
     env->CallVoidMethod(surfaceControlObj.get(), gSurfaceControl.release);
-    return android_view_InputChannel_getInputChannel(env, inputChannelObj.get());
+    return android_view_InputChannel_extractInputChannel(env, inputChannelObj.get());
 }
 
 void removeInputChannel(const sp<IBinder>& clientToken) {
     JNIEnv* env = AndroidRuntime::getJNIEnv();
-
     ScopedLocalRef<jobject> clientTokenObj(env, javaObjectForIBinder(env, clientToken));
     env->CallStaticVoidMethod(gWindowManagerGlobal.clazz, gWindowManagerGlobal.removeInputChannel,
                               clientTokenObj.get());

@@ -19,14 +19,14 @@ package com.android.wm.shell.flicker.maximize
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
-import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.Utils
+import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appLayerHasMaxDisplayHeightAtEnd
 import com.android.wm.shell.flicker.utils.appLayerHasMaxDisplayWidthAtEnd
 import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
@@ -47,11 +47,12 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class MaximizeAppDoubleTapAppHeaderFlickerTest(flicker: FlickerTest) :
-        DesktopModeBaseTest(flicker) {
-    inner class MaximizeAppDoubleTapAppHeaderZoneScenario : MaximizeAppWindow(
-        rotation = flicker.scenario.startRotation,
-        trigger = DesktopModeAppHelper.MaximizeDesktopAppTrigger.DOUBLE_TAP_APP_HEADER
-    )
+    DesktopModeBaseTest(flicker) {
+    inner class MaximizeAppDoubleTapAppHeaderZoneScenario :
+        MaximizeAppWindow(
+            rotation = flicker.scenario.startRotation,
+            trigger = DesktopModeAppHelper.MaximizeDesktopAppTrigger.DOUBLE_TAP_APP_HEADER,
+        )
 
     @Rule
     @JvmField
@@ -61,25 +62,16 @@ class MaximizeAppDoubleTapAppHeaderFlickerTest(flicker: FlickerTest) :
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.maximizeAppWindow()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.maximizeAppWindow() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appLayerHasMaxDisplayHeightAtEnd() = flicker.appLayerHasMaxDisplayHeightAtEnd(testApp)
+    @Test fun appLayerHasMaxDisplayHeightAtEnd() = flicker.appLayerHasMaxDisplayHeightAtEnd(testApp)
 
-    @Test
-    fun appLayerHasMaxDisplayWidthAtEnd() = flicker.appLayerHasMaxDisplayWidthAtEnd(testApp)
+    @Test fun appLayerHasMaxDisplayWidthAtEnd() = flicker.appLayerHasMaxDisplayWidthAtEnd(testApp)
 
-    @Test
-    fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
+    @Test fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

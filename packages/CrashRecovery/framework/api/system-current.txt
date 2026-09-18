@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.service.watchdog {
 
   public abstract class ExplicitHealthCheckService extends android.app.Service {
@@ -6,7 +7,7 @@ package android.service.watchdog {
     method public final void notifyHealthCheckPassed(@NonNull String);
     method @NonNull public final android.os.IBinder onBind(@NonNull android.content.Intent);
     method public abstract void onCancelHealthCheck(@NonNull String);
-    method @NonNull public abstract java.util.List<java.lang.String> onGetRequestedPackages();
+    method @NonNull public abstract java.util.List<String> onGetRequestedPackages();
     method @NonNull public abstract java.util.List<android.service.watchdog.ExplicitHealthCheckService.PackageConfig> onGetSupportedPackages();
     method public abstract void onRequestHealthCheck(@NonNull String);
     method @FlaggedApi("android.crashrecovery.flags.enable_crashrecovery") public final void setHealthCheckPassedCallback(@Nullable java.util.concurrent.Executor, @Nullable java.util.function.Consumer<android.os.Bundle>);

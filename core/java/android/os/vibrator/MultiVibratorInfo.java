@@ -40,6 +40,7 @@ import java.util.function.Function;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class MultiVibratorInfo extends VibratorInfo {
     private static final String TAG = "MultiVibratorInfo";
 
@@ -60,12 +61,9 @@ public final class MultiVibratorInfo extends VibratorInfo {
                         Flags.normalizedPwleEffects() ? mergedProfile.isEmpty()
                                 : mergedLegacyProfile.isEmpty()),
                 supportedEffectsIntersection(vibrators),
-                supportedBrakingIntersection(vibrators),
                 supportedPrimitivesAndDurationsIntersection(vibrators),
                 integerLimitIntersection(vibrators, VibratorInfo::getPrimitiveDelayMax),
                 integerLimitIntersection(vibrators, VibratorInfo::getCompositionSizeMax),
-                integerLimitIntersection(vibrators, VibratorInfo::getPwlePrimitiveDurationMax),
-                integerLimitIntersection(vibrators, VibratorInfo::getPwleSizeMax),
                 floatPropertyIntersection(vibrators, VibratorInfo::getQFactor),
                 mergedLegacyProfile,
                 mergedProfile,
@@ -87,39 +85,6 @@ public final class MultiVibratorInfo extends VibratorInfo {
             // Revoke frequency control if the merged frequency profile ended up empty.
             intersection &= ~IVibrator.CAP_FREQUENCY_CONTROL;
         }
-        return intersection;
-    }
-
-    @Nullable
-    private static SparseBooleanArray supportedBrakingIntersection(VibratorInfo[] infos) {
-        for (VibratorInfo info : infos) {
-            if (!info.isBrakingSupportKnown()) {
-                // If one vibrator support is unknown, then the intersection is also unknown.
-                return null;
-            }
-        }
-
-        SparseBooleanArray intersection = new SparseBooleanArray();
-        SparseBooleanArray firstVibratorBraking = infos[0].getSupportedBraking();
-
-        brakingIdLoop:
-        for (int i = 0; i < firstVibratorBraking.size(); i++) {
-            int brakingId = firstVibratorBraking.keyAt(i);
-            if (!firstVibratorBraking.valueAt(i)) {
-                // The first vibrator already doesn't support this braking, so skip it.
-                continue brakingIdLoop;
-            }
-
-            for (int j = 1; j < infos.length; j++) {
-                if (!infos[j].hasBrakingSupport(brakingId)) {
-                    // One vibrator doesn't support this braking, so the intersection doesn't.
-                    continue brakingIdLoop;
-                }
-            }
-
-            intersection.put(brakingId, true);
-        }
-
         return intersection;
     }
 

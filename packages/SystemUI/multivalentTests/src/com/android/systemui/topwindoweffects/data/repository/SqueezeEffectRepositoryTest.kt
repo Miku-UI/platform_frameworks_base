@@ -16,11 +16,11 @@
 
 package com.android.systemui.topwindoweffects.data.repository
 
+import android.app.ActivityManager
+import android.app.activityManager
 import android.hardware.input.InputManager
 import android.hardware.input.KeyGestureEvent
 import android.os.Bundle
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -30,7 +30,7 @@ import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
-import com.android.systemui.shared.Flags
+import com.android.systemui.shared.system.TaskStackChangeListeners
 import com.android.systemui.testKosmos
 import com.android.systemui.topwindoweffects.data.repository.InvocationEffectPreferencesImpl.Companion.DEFAULT_INVOCATION_EFFECT_ENABLED_BY_ASSISTANT_PREFERENCE
 import com.android.systemui.topwindoweffects.data.repository.InvocationEffectPreferencesImpl.Companion.DEFAULT_INWARD_EFFECT_PADDING_DURATION_MS
@@ -48,9 +48,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
+import org.mockito.Mockito
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -59,8 +64,9 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val globalSettings = FakeGlobalSettings(StandardTestDispatcher())
     private val mainExecutor = Executor(Runnable::run)
-
+    private val am = kosmos.activityManager
     @Mock private lateinit var inputManager: InputManager
+    @Mock private lateinit var taskStackChangeListenersMock: TaskStackChangeListeners
 
     private val keyGestureEventListenerCaptor =
         ArgumentCaptor.forClass(InputManager.KeyGestureEventListener::class.java)
@@ -74,6 +80,8 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
                 coroutineContext = testScope.testScheduler,
                 executor = mainExecutor,
                 preferences = fakeInvocationEffectPreferences,
+                taskStackChangeListeners = taskStackChangeListenersMock,
+                activityManager = am,
             )
         }
 
@@ -85,20 +93,11 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
             activeAssistant = "a"
             activeUserId = 0
         }
+        doNothing().`when`(taskStackChangeListenersMock).registerTaskStackListener(any())
+        doNothing().`when`(taskStackChangeListenersMock).unregisterTaskStackListener(any())
+        whenever(am.lockTaskModeState) doReturn ActivityManager.LOCK_TASK_MODE_NONE
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
-    @Test
-    fun testSqueezeEffectDisabled_FlagDisabled() =
-        kosmos.runTest {
-            fakeInvocationEffectPreferences.setInvocationEffectEnabledByAssistant(false)
-
-            val isEffectEnabled by collectLastValue(underTest.isEffectEnabled)
-
-            assertThat(isEffectEnabled).isFalse()
-        }
-
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSqueezeEffectEnabled_DisabledFromPhoneWindowManager() =
         kosmos.runTest {
@@ -114,7 +113,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
             assertThat(isPowerButtonPressedAsSingleGesture).isFalse()
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSqueezeEffectDisabled_AssistantSettingDisabled() =
         kosmos.runTest {
@@ -140,7 +138,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
             assertThat(isPowerButtonPressedAsSingleGesture).isTrue()
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSqueezeEffectEnabled_AllSettingsEnabled() =
         kosmos.runTest {
@@ -166,7 +163,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
             assertThat(isPowerButtonPressedAsSingleGesture).isTrue()
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testInvocationEffectInwardsAnimationDelay() =
         kosmos.runTest {
@@ -179,10 +175,9 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
                 true,
             )
 
-            assertThat(underTest.getInvocationEffectInAnimationDurationMillis()).isEqualTo(800)
+            assertThat(underTest.getLppInvocationEffectInAnimationDurationMillis()).isEqualTo(800)
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testInvocationEffectOutwardsAnimationDelay() =
         kosmos.runTest {
@@ -198,7 +193,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
             assertThat(underTest.getInvocationEffectOutAnimationDurationMillis()).isEqualTo(400)
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSetUiHints_whenSuppliedAllConfigs_allUpdatedInPreferences() =
         kosmos.runTest {
@@ -226,7 +220,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
                 .isTrue()
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSetUiHints_whenSuppliedPartialConfig() =
         kosmos.runTest {
@@ -265,7 +258,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
                 .isTrue()
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSetUiHints_whenSuppliedNoConfig_shouldSetDefaults() =
         kosmos.runTest {
@@ -287,7 +279,6 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
                 .isTrue()
         }
 
-    @EnableFlags(Flags.FLAG_ENABLE_LPP_ASSIST_INVOCATION_EFFECT)
     @Test
     fun testSetUiHints_whenSuppliedWrongConfigType_setsDefault() =
         kosmos.runTest {
@@ -321,6 +312,130 @@ class SqueezeEffectRepositoryTest : SysuiTestCase() {
                 .isEqualTo(DEFAULT_INWARD_EFFECT_PADDING_DURATION_MS)
             assertThat(fakeInvocationEffectPreferences.getOutwardAnimationDurationMillis())
                 .isEqualTo(DEFAULT_OUTWARD_EFFECT_DURATION_MS)
+        }
+
+    @Test
+    fun testGestureEffectEnabled_preferenceEnabled() =
+        kosmos.runTest {
+            fakeInvocationEffectPreferences.setInvocationEffectEnabledByAssistant(true)
+            assertThat(underTest.isGestureEffectEnabled()).isTrue()
+        }
+
+    @Test
+    fun testGestureEffectEnabled_preferenceDisabled() =
+        kosmos.runTest {
+            fakeInvocationEffectPreferences.setInvocationEffectEnabledByAssistant(false)
+            assertThat(underTest.isGestureEffectEnabled()).isFalse()
+        }
+
+    @Test
+    fun onGestureProgress_updatesGestureProgressStateFlow() =
+        kosmos.runTest {
+            val gestureProgress by collectLastValue(underTest.gestureProgress)
+            fakeInvocationEffectPreferences.setInvocationEffectEnabledByAssistant(true)
+
+            underTest.onGestureProgress(0.5f)
+
+            assertThat(gestureProgress?.status)
+                .isEqualTo(SqueezeEffectRepository.GestureStatus.PARTIAL)
+            assertThat(gestureProgress?.progress).isEqualTo(0.5f)
+        }
+
+    @Test
+    fun onGestureCompletion_updatesGestureProgressStateFlow() =
+        kosmos.runTest {
+            val gestureProgress by collectLastValue(underTest.gestureProgress)
+            fakeInvocationEffectPreferences.setInvocationEffectEnabledByAssistant(true)
+
+            underTest.onGestureCompletion()
+
+            assertThat(gestureProgress?.status)
+                .isEqualTo(SqueezeEffectRepository.GestureStatus.COMPLETED)
+        }
+
+    @Test
+    fun hideGestureEffect_updatesGestureProgressStateFlow() =
+        kosmos.runTest {
+            val gestureProgress by collectLastValue(underTest.gestureProgress)
+            fakeInvocationEffectPreferences.setInvocationEffectEnabledByAssistant(true)
+
+            underTest.hideGestureEffect()
+
+            assertThat(gestureProgress?.status)
+                .isEqualTo(SqueezeEffectRepository.GestureStatus.HIDDEN)
+        }
+
+    @Test
+    fun testGetGestureInvocationEffectInAnimationDurationMillis() =
+        kosmos.runTest {
+            fakeInvocationEffectPreferences.setInvocationEffectConfig(
+                InvocationEffectPreferences.Config(
+                    isEnabled = true,
+                    inwardsEffectDurationPadding = 450,
+                    outwardsEffectDuration = 400,
+                ),
+                true,
+            )
+
+            assertThat(underTest.getGestureInvocationEffectInAnimationDurationMillis())
+                .isEqualTo(450)
+        }
+
+    @Test
+    fun testSqueezeEffectEnabledWhenLockTaskModeNone() =
+        kosmos.runTest {
+            fakeInvocationEffectPreferences.setInvocationEffectConfig(
+                InvocationEffectPreferences.Config(
+                    isEnabled = true,
+                    inwardsEffectDurationPadding = 450,
+                    outwardsEffectDuration = 400,
+                ),
+                true,
+            )
+
+            val isEffectEnabled by collectLastValue(underTest.isEffectEnabled)
+
+            assertThat(isEffectEnabled).isTrue()
+        }
+
+    @Test
+    fun testSqueezeEffectDisabledWhenLockTaskModeLocked() =
+        kosmos.runTest {
+            fakeInvocationEffectPreferences.setInvocationEffectConfig(
+                InvocationEffectPreferences.Config(
+                    isEnabled = true,
+                    inwardsEffectDurationPadding = 450,
+                    outwardsEffectDuration = 400,
+                ),
+                true,
+            )
+
+            Mockito.reset(am)
+            whenever(am.lockTaskModeState) doReturn ActivityManager.LOCK_TASK_MODE_LOCKED
+
+            val isEffectEnabled by collectLastValue(underTest.isEffectEnabled)
+
+            assertThat(isEffectEnabled).isFalse()
+        }
+
+    @Test
+    fun testSqueezeEffectDisabledWhenLockTaskModePinned() =
+        kosmos.runTest {
+            fakeInvocationEffectPreferences.setInvocationEffectConfig(
+                InvocationEffectPreferences.Config(
+                    isEnabled = true,
+                    inwardsEffectDurationPadding = 450,
+                    outwardsEffectDuration = 400,
+                ),
+                true,
+            )
+
+            Mockito.reset(am)
+            whenever(am.lockTaskModeState) doReturn ActivityManager.LOCK_TASK_MODE_PINNED
+
+            val isEffectEnabled by collectLastValue(underTest.isEffectEnabled)
+
+            assertThat(isEffectEnabled).isFalse()
         }
 
     private fun createAssistantSettingBundle(

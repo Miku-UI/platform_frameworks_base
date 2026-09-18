@@ -139,8 +139,8 @@ class RecentsAnimation {
             // traversal in non-stopped state (ViewRootImpl.mStopped) that would initialize more
             // things (e.g. the measure can be done earlier). The actual stop will be performed when
             // it reports idle.
-            targetActivity.addToStopping(true /* scheduleIdle */, true /* idleDelayed */,
-                    "preloadRecents");
+            targetActivity.addToStopping(false /* scheduleIdle */, "preloadRecents");
+            mTaskSupervisor.scheduleIdleTimeout(targetActivity);
         }
     }
 
@@ -162,7 +162,7 @@ class RecentsAnimation {
     }
 
     /**
-     * @return the top activity in the {@param targetRootTask} matching the {@param component},
+     * @return the top activity in the {@code targetRootTask} matching the {@code component},
      * or just the top activity of the top task if no task matches the component.
      */
     private ActivityRecord getTargetActivity(Task targetRootTask) {

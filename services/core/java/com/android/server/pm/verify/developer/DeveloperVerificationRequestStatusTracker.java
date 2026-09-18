@@ -23,6 +23,7 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.pm.PackageInstallerSession;
 
 /**
  * This class keeps record of the current timeout status of a verification request.
@@ -34,6 +35,8 @@ public final class DeveloperVerificationRequestStatusTracker {
     @NonNull
     private final DeveloperVerifierController.Injector mInjector;
     private final @UserIdInt int mUserId;
+    @NonNull
+    private final PackageInstallerSession.DeveloperVerifierCallback mCallback;
 
     /**
      * By default, the timeout time is the default timeout duration plus the current time (when
@@ -44,12 +47,18 @@ public final class DeveloperVerificationRequestStatusTracker {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
     public DeveloperVerificationRequestStatusTracker(@DurationMillisLong long defaultTimeoutMillis,
             @DurationMillisLong long maxExtendedTimeoutMillis,
-            @NonNull DeveloperVerifierController.Injector injector, @UserIdInt int userId) {
+            @NonNull DeveloperVerifierController.Injector injector, @UserIdInt int userId,
+            @NonNull PackageInstallerSession.DeveloperVerifierCallback callback) {
         mStartTime = injector.getCurrentTimeMillis();
         mTimeoutTime = mStartTime + defaultTimeoutMillis;
         mMaxTimeoutTime = mStartTime + maxExtendedTimeoutMillis;
         mInjector = injector;
         mUserId = userId;
+        mCallback = callback;
+    }
+
+    public @NonNull PackageInstallerSession.DeveloperVerifierCallback getCallback() {
+        return mCallback;
     }
 
     /**

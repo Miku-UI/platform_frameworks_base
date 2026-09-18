@@ -36,10 +36,11 @@ import com.android.server.backup.BackupAgentTimeoutParameters;
 import com.android.server.backup.BackupRestoreTask;
 import com.android.server.backup.BackupRestoreTask.CancellationReason;
 import com.android.server.backup.DataChangedJournal;
+import com.android.server.backup.DelayedRestoreCleanupTask;
 import com.android.server.backup.OperationStorage;
 import com.android.server.backup.TransportManager;
 import com.android.server.backup.UserBackupManagerService;
-import com.android.server.backup.fullbackup.PerformAdbBackupTask;
+import com.android.server.backup.adb.PerformAdbBackupTask;
 import com.android.server.backup.keyvalue.BackupRequest;
 import com.android.server.backup.keyvalue.KeyValueBackupTask;
 import com.android.server.backup.params.AdbBackupParams;
@@ -48,9 +49,11 @@ import com.android.server.backup.params.AdbRestoreParams;
 import com.android.server.backup.params.BackupParams;
 import com.android.server.backup.params.ClearParams;
 import com.android.server.backup.params.ClearRetryParams;
+import com.android.server.backup.params.DelayedRestoreParams;
 import com.android.server.backup.params.RestoreGetSetsParams;
 import com.android.server.backup.params.RestoreParams;
-import com.android.server.backup.restore.PerformAdbRestoreTask;
+import com.android.server.backup.adb.PerformAdbRestoreTask;
+import com.android.server.backup.restore.DelayedRestoreTask;
 import com.android.server.backup.restore.PerformUnifiedRestoreTask;
 import com.android.server.backup.transport.BackupTransportClient;
 import com.android.server.backup.transport.TransportConnection;
@@ -84,6 +87,8 @@ public class BackupHandler extends Handler {
     // Release the wakelock. This is used to ensure we don't hold it after
     // a user is removed. This will also terminate the looper thread.
     public static final int MSG_STOP = 22;
+    public static final int MSG_RUN_DELAYED_RESTORE = 23;
+    public static final int MSG_RUN_DELAYED_RESTORE_CLEANUP = 24;
 
     private final UserBackupManagerService backupManagerService;
     private final OperationStorage mOperationStorage;
@@ -492,6 +497,57 @@ public class BackupHandler extends Handler {
                     Slog.d(TAG, "MSG_SCHEDULE_BACKUP_PACKAGE " + pkgName);
                 }
                 backupManagerService.dataChangedImpl(pkgName);
+                break;
+            }
+
+            case MSG_RUN_DELAYED_RESTORE: {
+                DelayedRestoreParams params = (DelayedRestoreParams) msg.obj;
+                if (DEBUG) {
+                        Slog.d(
+                                TAG,
+                                "MSG_RUN_DELAYED_RESTORE packageName="
+                                        + params.request.getPackageName());
+                }
+                DelayedRestoreTask task = new DelayedRestoreTask(
+                        params.request,
+                        backupManagerService,
+                        params.requesterPackageNames,
+                        mOperationStorage);
+
+                synchronized (backupManagerService.getPendingRestores()) {
+                    if (backupManagerService.isRestoreInProgress()) {
+                        Slog.d(TAG, "Restore in progress, queueing delayed restore task.");
+                        backupManagerService.getPendingRestores().add(task);
+                    } else {
+                        Slog.d(TAG, "Starting delayed restore.");
+                        backupManagerService.setRestoreInProgress(true);
+                        Message restoreMsg = obtainMessage(MSG_BACKUP_RESTORE_STEP, task);
+                        sendMessage(restoreMsg);
+                    }
+                }
+                break;
+            }
+
+            case MSG_RUN_DELAYED_RESTORE_CLEANUP: {
+                String packageName = (String) msg.obj;
+                if (DEBUG) {
+                    Slog.d(TAG, "MSG_RUN_DELAYED_RESTORE_CLEANUP packageName=" + packageName);
+                }
+                DelayedRestoreCleanupTask task =
+                        new DelayedRestoreCleanupTask(
+                                backupManagerService, packageName, mOperationStorage);
+
+                synchronized (backupManagerService.getPendingRestores()) {
+                    if (backupManagerService.isRestoreInProgress()) {
+                        Slog.d(TAG, "Restore in progress, queueing delayed restore cleanup task.");
+                        backupManagerService.getPendingRestores().add(task);
+                    } else {
+                        Slog.d(TAG, "Starting delayed restore cleanup.");
+                        backupManagerService.setRestoreInProgress(true);
+                        Message restoreMsg = obtainMessage(MSG_BACKUP_RESTORE_STEP, task);
+                        sendMessage(restoreMsg);
+                    }
+                }
                 break;
             }
         }

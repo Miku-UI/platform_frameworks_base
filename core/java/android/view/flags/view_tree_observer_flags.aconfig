@@ -6,4 +6,5 @@ flag {
     namespace: "toolkit"
     description: "Feature flag for enabling the dispatchOnScrollChanged method in ViewTreeObserver."
     bug: "238109286"
+    is_exported: true
 }

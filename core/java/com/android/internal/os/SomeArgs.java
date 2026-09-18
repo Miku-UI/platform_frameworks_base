@@ -25,6 +25,7 @@ import android.os.Build;
  * arguments. This class maintains a pool of instances and
  * it is responsibility of the client to recycle and instance
  * once it is no longer used.
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class SomeArgs {

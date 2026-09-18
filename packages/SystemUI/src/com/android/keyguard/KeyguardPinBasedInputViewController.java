@@ -26,6 +26,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.hardware.input.InputManager;
+import android.uilatencystats.UiLatencyStatsManager;
 import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -35,7 +36,6 @@ import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
 
 import com.android.internal.util.LatencyTracker;
-import com.android.internal.widget.LockPatternChecker;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
 import com.android.keyguard.domain.interactor.KeyguardKeyboardInteractor;
@@ -45,6 +45,8 @@ import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
+
+import java.util.Optional;
 
 public abstract class KeyguardPinBasedInputViewController<T extends KeyguardPinBasedInputView>
         extends KeyguardAbsKeyInputViewController<T> implements InputManager.InputDeviceListener {
@@ -70,7 +72,7 @@ public abstract class KeyguardPinBasedInputViewController<T extends KeyguardPinB
             if (mFalsingCollector != null) {
                 mFalsingCollector.avoidGesture();
             }
-            mView.doHapticKeyClick();
+            mBouncerHapticPlayer.playDeleteKeyPressFeedback();
         }
         return false;
     };
@@ -90,11 +92,13 @@ public abstract class KeyguardPinBasedInputViewController<T extends KeyguardPinB
             BouncerHapticPlayer bouncerHapticPlayer,
             UserActivityNotifier userActivityNotifier,
             InputManager inputManager,
-            LockPatternCheckerWrapper lockPatternCheckerWrapper) {
+            LockPatternCheckerWrapper lockPatternCheckerWrapper,
+            Optional<UiLatencyStatsManager> uiLatencyStatsManager) {
         super(view, keyguardUpdateMonitor, securityMode, lockPatternUtils, keyguardSecurityCallback,
                 messageAreaControllerFactory, latencyTracker, falsingCollector,
                 emergencyButtonController, featureFlags, selectedUserInteractor,
-                bouncerHapticPlayer, userActivityNotifier, lockPatternCheckerWrapper);
+                bouncerHapticPlayer, userActivityNotifier, lockPatternCheckerWrapper,
+                uiLatencyStatsManager);
         mFalsingCollector = falsingCollector;
         mKeyguardKeyboardInteractor = keyguardKeyboardInteractor;
         mPasswordEntry = mView.findViewById(mView.getPasswordTextViewId());
@@ -174,17 +178,8 @@ public abstract class KeyguardPinBasedInputViewController<T extends KeyguardPinB
         mPasswordEntry.setUserActivityListener(this::onUserInput);
 
         View deleteButton = mView.findViewById(R.id.delete_button);
-        if (mBouncerHapticPlayer.isEnabled()) {
-            deleteButton.setOnTouchListener((View view, MotionEvent event) -> {
-                if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                    mFalsingCollector.avoidGesture();
-                    mBouncerHapticPlayer.playDeleteKeyPressFeedback();
-                }
-                return false;
-            });
-        } else {
-            deleteButton.setOnTouchListener(mActionButtonTouchListener);
-        }
+        deleteButton.setOnTouchListener(mActionButtonTouchListener);
+
         deleteButton.setOnClickListener(v -> {
             // check for time-based lockouts
             if (mPasswordEntry.isEnabled()) {
@@ -196,19 +191,12 @@ public abstract class KeyguardPinBasedInputViewController<T extends KeyguardPinB
             if (mPasswordEntry.isEnabled()) {
                 mView.resetPasswordText(true /* animate */, true /* announce */);
             }
-            if (mBouncerHapticPlayer.isEnabled()) {
-                mBouncerHapticPlayer.playDeleteKeyLongPressedFeedback();
-            } else {
-                mView.doHapticKeyClick();
-            }
+            mBouncerHapticPlayer.playDeleteKeyLongPressedFeedback();
             return true;
         });
 
         View okButton = mView.findViewById(R.id.key_enter);
         if (okButton != null) {
-            if (!mBouncerHapticPlayer.isEnabled()) {
-                okButton.setOnTouchListener(mActionButtonTouchListener);
-            }
             okButton.setOnClickListener(v -> {
                 if (mPasswordEntry.isEnabled()) {
                     verifyPasswordAndUnlock();

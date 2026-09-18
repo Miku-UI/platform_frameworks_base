@@ -30,7 +30,14 @@ class FakeMediaControllerFactory(context: Context) : MediaControllerFactory(cont
 
     override fun create(token: Token): MediaController {
         if (token !in mediaControllersForToken) {
-            super.create(token)
+            return super.create(token)
+        }
+        return mediaControllersForToken[token]!!
+    }
+
+    override fun create(context: Context, token: Token): MediaController {
+        if (token !in mediaControllersForToken) {
+            return super.create(context, token)
         }
         return mediaControllersForToken[token]!!
     }
@@ -45,5 +52,9 @@ class FakeMediaControllerFactory(context: Context) : MediaControllerFactory(cont
 
     fun setMedia3Controller(mediaController: Media3Controller) {
         media3Controller = mediaController
+    }
+
+    fun reset() {
+        mediaControllersForToken.clear()
     }
 }

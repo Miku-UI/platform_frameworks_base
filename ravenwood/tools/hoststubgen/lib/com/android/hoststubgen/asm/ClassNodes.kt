@@ -18,7 +18,7 @@ package com.android.hoststubgen.asm
 import com.android.hoststubgen.ClassParseException
 import com.android.hoststubgen.InvalidJarFileException
 import com.android.hoststubgen.log
-import com.android.hoststubgen.utils.ConcurrentZipFile
+import com.android.hoststubgen.utils.ConcurrentZipProcessor
 import java.io.PrintWriter
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicReference
@@ -184,7 +184,7 @@ class ClassNodes {
          * Load all the classes, without code.
          */
         fun loadClassStructures(
-            inJar: ConcurrentZipFile,
+            inJars: ConcurrentZipProcessor,
             classFilter: (String) -> Boolean = { true },
             timeCollector: ((Double) -> Unit)? = null,
         ): ClassNodes {
@@ -197,7 +197,7 @@ class ClassNodes {
             val time = log.nTime {
                 log.withIndent {
                     // Load classes in parallel.
-                    inJar.parallelForEach { entry ->
+                    inJars.parallelForEach { entry ->
                         val className = zipEntryNameToClassName(entry.name)
                         if (className != null && classFilter(className)) {
                             try {
@@ -221,7 +221,7 @@ class ClassNodes {
                             // Seems like it's an ART jar file. We can't process it.
                             // It's a fatal error.
                             throw InvalidJarFileException(
-                                "${inJar.fileName} is not a desktop jar file."
+                                "${entry.container} is not a desktop jar file."
                                         + " It contains a *.dex file."
                             )
                         } else {
@@ -236,9 +236,9 @@ class ClassNodes {
                 }
 
                 if (allClasses.size == 0) {
-                    log.w("${inJar.fileName} contains no *.class files.")
+                    log.w("${inJars.sourceFiles} contains no *.class files.")
                 } else {
-                    log.i("Loaded ${allClasses.size} classes from ${inJar.fileName}.")
+                    log.i("Loaded ${allClasses.size} classes from ${inJars.sourceFiles}.")
                 }
             }
             timeCollector?.invoke(time)

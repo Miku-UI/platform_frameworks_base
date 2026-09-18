@@ -175,6 +175,24 @@ public final class AccessibilityTargetHelper {
         return targets;
     }
 
+    private static Boolean sSupportOneHandedModeForTesting = null;
+
+    /**
+     * Sets whether One-Handed mode is supported for testing.
+     *
+     * @param enabled {@code true} if supported.
+     */
+    @VisibleForTesting
+    public static void setSupportOneHandedModeForTesting(Boolean enabled) {
+        sSupportOneHandedModeForTesting = enabled;
+    }
+
+    private static boolean isOneHandedModeSupported() {
+        return sSupportOneHandedModeForTesting != null
+                ? sSupportOneHandedModeForTesting
+                : SUPPORT_ONE_HANDED_MODE;
+    }
+
     private static List<AccessibilityTarget> getAllowListingFeatureTargets(Context context,
             @UserShortcutType int shortcutType) {
         final List<AccessibilityTarget> targets = new ArrayList<>();
@@ -240,7 +258,7 @@ public final class AccessibilityTargetHelper {
                         Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_ENABLED);
         targets.add(mouseKeys);
 
-        if (SUPPORT_ONE_HANDED_MODE) {
+        if (isOneHandedModeSupported()) {
             final ToggleAllowListingFeatureTarget oneHandedMode =
                     new ToggleAllowListingFeatureTarget(context,
                             shortcutType,
@@ -297,19 +315,20 @@ public final class AccessibilityTargetHelper {
     }
 
     /**
-     * Determines if the{@link AccessibilityTarget} is allowed.
+     * Determines if the {@link AccessibilityServiceInfo} is allowed.
      */
-    public static boolean isAccessibilityTargetAllowed(Context context, String packageName,
-            int uid) {
+    public static boolean isAccessibilityServiceTargetAllowed(Context context,
+            AccessibilityServiceInfo info) {
         final AccessibilityManager am = context.getSystemService(AccessibilityManager.class);
-        return am.isAccessibilityTargetAllowed(packageName, uid, UserHandle.myUserId());
+        return am.isAccessibilityServiceTargetAllowed(info, UserHandle.myUserId());
     }
 
     /**
-     * Sends restricted dialog intent if the accessibility target is disallowed.
+     * Sends restricted dialog intent if the {@link AccessibilityServiceInfo} is disallowed.
      */
-    public static boolean sendRestrictedDialogIntent(Context context, String packageName, int uid) {
+    public static boolean sendRestrictedDialogIntent(Context context,
+            AccessibilityServiceInfo info) {
         final AccessibilityManager am = context.getSystemService(AccessibilityManager.class);
-        return am.sendRestrictedDialogIntent(packageName, uid, UserHandle.myUserId());
+        return am.sendRestrictedDialogIntent(info, UserHandle.myUserId());
     }
 }

@@ -101,7 +101,7 @@ public class AuthenticatorDescription implements Parcelable {
         this.customTokens = source.readByte() == 1;
     }
 
-    /** @inheritDoc */
+    /** {@inheritDoc} */
     public int describeContents() {
         return 0;
     }
@@ -123,7 +123,7 @@ public class AuthenticatorDescription implements Parcelable {
         return "AuthenticatorDescription {type=" + type + "}";
     }
 
-    /** @inheritDoc */
+    /** {@inheritDoc} */
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(type);
         dest.writeString(packageName);
@@ -137,12 +137,12 @@ public class AuthenticatorDescription implements Parcelable {
     /** Used to create the object from a parcel. */
     public static final @android.annotation.NonNull Creator<AuthenticatorDescription> CREATOR =
             new Creator<AuthenticatorDescription>() {
-        /** @inheritDoc */
+        /** {@inheritDoc} */
         public AuthenticatorDescription createFromParcel(Parcel source) {
             return new AuthenticatorDescription(source);
         }
 
-        /** @inheritDoc */
+        /** {@inheritDoc} */
         public AuthenticatorDescription[] newArray(int size) {
             return new AuthenticatorDescription[size];
         }

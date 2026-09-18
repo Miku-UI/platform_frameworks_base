@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
 import android.app.AppProtoEnums;
+import android.app.HandoffActivityParams;
 import android.app.IActivityManager;
 import android.app.IAppTask;
 import android.app.IApplicationThread;
@@ -168,6 +169,20 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
     public abstract List<ActivityAssistInfo> getTopVisibleActivities(int displayId);
 
     /**
+     * Returns a set of package names that currently have a visible App Lock overlay for the
+     * specified user.
+     *
+     * <p>This is used in multi-window scenarios to identify all apps that are pending
+     * authentication. When a user authenticates one app, this list can be used to simultaneously
+     * authenticate all other visible locked apps, reducing user friction.
+     *
+     * @param userId The user ID for whom to find packages with visible App Lock overlay.
+     * @return A set of package names corresponding to the visible App Lock overlay.
+     */
+    @NonNull
+    public abstract Set<String> getPackagesWithVisibleAppLockOverlay(int userId);
+
+    /**
      * Returns whether {@code uid} has any resumed activity.
      */
     public abstract boolean hasResumedActivity(int uid);
@@ -181,8 +196,8 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
      *
      * @return error codes used by {@link IActivityManager#startActivity} and its siblings.
      */
-    public abstract int startActivitiesAsPackage(String packageName, String featureId,
-            int userId, Intent[] intents, Bundle bOptions);
+    public abstract int startActivitiesAsPackage(@Nullable IBinder callingActivityToken,
+            String packageName, String featureId, int userId, Intent[] intents, Bundle bOptions);
 
     /**
      * Start intents as a package.
@@ -270,9 +285,16 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
             @Nullable IBinder resultTo, @Nullable Bundle options, int userId);
 
     /**
+     * Start activity {@code intent} with updating the given configuration to global configuration.
+     */
+    public abstract int startActivityWithConfig(@NonNull String callingPackage,
+            @NonNull String callingFeatureId, @NonNull Intent intent,
+            @NonNull Configuration config, int userId);
+
+    /**
      * Called after virtual display Id is updated by
      * {@link com.android.server.vr.Vr2dDisplay} with a specific
-     * {@param vr2dDisplayId}.
+     * {@code vr2dDisplayId}.
      */
     public abstract void setVr2dDisplayId(int vr2dDisplayId);
 
@@ -290,11 +312,6 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
      * Returns is the caller has the same uid as the Recents component
      */
     public abstract boolean isCallerRecents(int callingUid);
-
-    /**
-     * Returns whether the recents component is the home activity for the given user.
-     */
-    public abstract boolean isRecentsComponentHomeActivity(int userId);
 
     /**
      * Returns true if the app can close system dialogs. Otherwise it either throws a {@link
@@ -442,6 +459,10 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
     @Nullable
     public abstract ComponentName getActivityName(IBinder activityToken);
 
+    /** Returns the assist token for the given activity token, or null if not found in root task. */
+    @Nullable
+    public abstract IBinder getAssistTokenForActivityToken(@NonNull IBinder activityToken);
+
     /**
      * Returns non-finishing Activity that have a process attached for the given task and the token
      * with the activity token and the IApplicationThread or null if there is no Activity with a
@@ -492,6 +513,15 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
     /** Called whenever AM force stops a package. */
     public abstract boolean onForceStopPackage(String packageName, boolean doit,
             boolean evenPersistent, int userId);
+
+    /**
+     * Stop and kill the given app's process for update. This guarantees that the app's eligible
+     * activities will be stopped before app process is killed. The stop part of this will
+     * synchronous whereas thekill part will happen async when all activities that are meant to be
+     * stopped are stopped.
+     */
+    public abstract void stopAndKillAppForUpdate(String packageName, int userId, int appId);
+
     /**
      * Resumes all top activities in the system if they aren't resumed already.
      * @param scheduleIdle If the idle message should be schedule after the top activities are
@@ -836,6 +866,9 @@ public abstract class ActivityTaskManagerInternal implements ActiveUids.Observer
 
     /** Returns whether handoff is enabled for the given task. */
     public abstract boolean isHandoffEnabledForTask(int taskId);
+
+    /** Returns the handoff activity configuration params for the given task. */
+    public abstract HandoffActivityParams getHandoffActivityParamsForTask(int taskId);
 
     /** Registers a listener for handoff enablement changes. */
     public abstract void registerHandoffEnablementListener(

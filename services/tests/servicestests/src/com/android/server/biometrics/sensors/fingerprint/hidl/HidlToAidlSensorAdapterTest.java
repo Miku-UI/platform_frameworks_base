@@ -31,7 +31,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.AlarmManager;
-import android.hardware.biometrics.IBiometricService;
 import android.hardware.biometrics.fingerprint.V2_1.IBiometricsFingerprint;
 import android.hardware.fingerprint.Fingerprint;
 import android.hardware.fingerprint.FingerprintEnrollOptions;
@@ -39,8 +38,11 @@ import android.hardware.fingerprint.HidlFingerprintSensorConfig;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.testing.TestableContext;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -50,6 +52,7 @@ import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.log.BiometricLogger;
 import com.android.server.biometrics.sensors.AuthSessionCoordinator;
 import com.android.server.biometrics.sensors.AuthenticationStateListeners;
+import com.android.server.biometrics.sensors.BiometricScheduler;
 import com.android.server.biometrics.sensors.BiometricUtils;
 import com.android.server.biometrics.sensors.LockoutResetDispatcher;
 import com.android.server.biometrics.sensors.LockoutTracker;
@@ -78,8 +81,9 @@ public class HidlToAidlSensorAdapterTest {
     @Rule
     public final MockitoRule mMockito = MockitoJUnit.rule();
 
-    @Mock
-    private IBiometricService mBiometricService;
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     @Mock
     private LockoutResetDispatcher mLockoutResetDispatcherForSensor;
     @Mock
@@ -108,6 +112,8 @@ public class HidlToAidlSensorAdapterTest {
     private AuthenticationStateListeners mAuthenticationStateListeners;
     @Mock
     private HandlerThread mThread;
+    @Mock
+    private BiometricScheduler mBiometricScheduler;
 
     private final TestLooper mLooper = new TestLooper();
     private HidlToAidlSensorAdapter mHidlToAidlSensorAdapter;
@@ -223,6 +229,16 @@ public class HidlToAidlSensorAdapterTest {
         mLooper.dispatchAll();
 
         verify(mAidlResponseHandlerCallback).onEnrollSuccess();
+    }
+
+    @Test
+    public void serviceDiedTest() {
+        mHidlToAidlSensorAdapter.setScheduler(mBiometricScheduler);
+        mHidlToAidlSensorAdapter.serviceDied(0 /* cookie */);
+
+        assertThat(mHidlToAidlSensorAdapter.getLazySession().get().getUserId()).isEqualTo(
+                UserHandle.USER_NULL);
+        verify(mBiometricScheduler).reset();
     }
 
     private void setLockoutPermanent() {

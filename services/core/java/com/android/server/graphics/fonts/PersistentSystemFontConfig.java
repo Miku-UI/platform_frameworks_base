@@ -43,12 +43,20 @@ import java.util.Set;
     private static final String TAG_LAST_MODIFIED_DATE = "lastModifiedDate";
     private static final String TAG_UPDATED_FONT_DIR = "updatedFontDir";
     private static final String TAG_FAMILY = "family";
+    private static final String TAG_FALLBACK_CHAIN = "fallback-chain";
     private static final String ATTR_VALUE = "value";
+    private static final String ATTR_PRIORITY = "priority";
+
+        /* package */ static class PrioritizedFamily {
+        public int priority;
+        public FontUpdateRequest.Family family;
+    }
 
     /* package */ static class Config {
         public long lastModifiedMillis;
         public final Set<String> updatedFontDirs = new ArraySet<>();
         public final List<FontUpdateRequest.Family> fontFamilies = new ArrayList<>();
+        public final List<PrioritizedFamily> prioritizedFamilyList = new ArrayList<>();
     }
 
     /**
@@ -83,6 +91,20 @@ import java.util.Set;
                         // empty fontDir, and resolve font paths later.
                         out.fontFamilies.add(FontUpdateRequest.Family.readFromXml(parser));
                         break;
+                    case TAG_FALLBACK_CHAIN:
+                        PrioritizedFamily prioritizedFamily = new PrioritizedFamily();
+                        prioritizedFamily.priority = parseIntAttribute(parser, ATTR_PRIORITY, 0);
+                        if (parser.next() != XmlPullParser.END_TAG
+                                && parser.getEventType() == XmlPullParser.START_TAG
+                                && parser.getName().equals(TAG_FAMILY)) {
+                            prioritizedFamily.family =
+                                    FontUpdateRequest.Family.readFromXml(parser);
+                        } else {
+                            Slog.w(TAG, "Unexpected document while parsing fallback-chain.");
+                            return;
+                        }
+                        out.prioritizedFamilyList.add(prioritizedFamily);
+                        break;
                     default:
                         Slog.w(TAG, "Skipping unknown tag: " + tag);
                 }
@@ -115,6 +137,15 @@ import java.util.Set;
             FontUpdateRequest.Family.writeFamilyToXml(out, fontFamily);
             out.endTag(null, TAG_FAMILY);
         }
+        for (PrioritizedFamily prioritizedFamily : config.prioritizedFamilyList) {
+            out.startTag(null, TAG_FALLBACK_CHAIN);
+            out.attribute(null, ATTR_PRIORITY, Integer.toString(prioritizedFamily.priority));
+            FontUpdateRequest.Family fontFamily = prioritizedFamily.family;
+            out.startTag(null, TAG_FAMILY);
+            FontUpdateRequest.Family.writeFamilyToXml(out, fontFamily);
+            out.endTag(null, TAG_FAMILY);
+            out.endTag(null, TAG_FALLBACK_CHAIN);
+        }
         out.endTag(null, TAG_ROOT);
 
         out.endDocument();
@@ -127,6 +158,18 @@ import java.util.Set;
         }
         try {
             return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return defValue;
+        }
+    }
+
+    private static int parseIntAttribute(TypedXmlPullParser parser, String attr, int defValue) {
+        final String value = parser.getAttributeValue(null /* namespace */, attr);
+        if (TextUtils.isEmpty(value)) {
+            return defValue;
+        }
+        try {
+            return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return defValue;
         }

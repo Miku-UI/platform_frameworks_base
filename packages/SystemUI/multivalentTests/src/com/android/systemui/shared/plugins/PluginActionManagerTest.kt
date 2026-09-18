@@ -25,13 +25,12 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import androidx.test.runner.AndroidJUnit4
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.SysuiTestableContext
 import com.android.systemui.plugins.Plugin
 import com.android.systemui.plugins.PluginListener
-import com.android.systemui.plugins.PluginManager
 import com.android.systemui.plugins.annotations.Requires
 import com.android.systemui.shared.plugins.PluginEnabler.DisableReason
 import com.android.systemui.util.concurrency.FakeExecutor
@@ -39,17 +38,17 @@ import com.android.systemui.util.time.FakeSystemClock
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mock
-import org.mockito.Mockito.never
-import org.mockito.MockitoAnnotations
 import org.mockito.invocation.InvocationOnMock
+import org.mockito.junit.MockitoJUnit
+import org.mockito.junit.MockitoRule
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -58,6 +57,8 @@ import org.mockito.stubbing.Answer
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class PluginActionManagerTest : SysuiTestCase() {
+    @JvmField @Rule val mockitoRule: MockitoRule = MockitoJUnit.rule()
+
     @Mock private lateinit var mMockPlugin: TestPlugin
     @Mock private lateinit var mMockPm: PackageManager
     @Mock private lateinit var mMockListener: PluginListener<TestPlugin>
@@ -68,14 +69,16 @@ class PluginActionManagerTest : SysuiTestCase() {
     private val mFakeExecutor = FakeExecutor(FakeSystemClock())
     @Mock private lateinit var mNotificationManager: NotificationManager
     @Mock private lateinit var mPluginInstance: PluginInstance<TestPlugin>
+    @Mock lateinit var mMockPluginPrefs: PluginPrefs
     private val mPluginInstanceFactory: PluginInstance.Factory =
         object :
             PluginInstance.Factory(
-                VersionCheckerImpl(),
+                VersionChecker.Impl(),
                 this::class.java.classLoader!!,
-                PluginManager.Config(),
-                BuildInfo(BuildVariant.User, isDebuggable = false),
+                PackageConfig(),
+                PluginEnvironment(BuildVariant.User, isDebuggable = false),
             ) {
+            @Suppress("UNCHECKED_CAST")
             override fun <T : Plugin> create(
                 hostContext: Context,
                 pluginAppInfo: ApplicationInfo,
@@ -93,7 +96,6 @@ class PluginActionManagerTest : SysuiTestCase() {
     @Throws(Exception::class)
     fun setup() {
         mContext = MyContextWrapper(mContext)
-        MockitoAnnotations.openMocks(this)
         whenever(mPluginInstance.componentName).thenReturn(mTestPluginComponentName)
         whenever(mPluginInstance.packageName).thenReturn(mTestPluginComponentName.packageName)
         mActionManagerFactory =
@@ -104,8 +106,10 @@ class PluginActionManagerTest : SysuiTestCase() {
                 mFakeExecutor,
                 mNotificationManager,
                 mMockEnabler,
-                PluginManager.Config(),
+                PackageConfig(),
                 mPluginInstanceFactory,
+                mMockPluginPrefs,
+                PluginEnvironment(),
             )
 
         mPluginActionManager =
@@ -120,7 +124,7 @@ class PluginActionManagerTest : SysuiTestCase() {
 
     @Test
     fun testNoPlugins() {
-        whenever(mMockPm.queryIntentServices(any(), anyInt())).thenReturn(emptyList())
+        whenever(mMockPm.queryIntentServices(any(), any<Int>())).thenReturn(emptyList())
         mPluginActionManager.loadAll()
 
         mFakeExecutor.runAllReady()
@@ -198,8 +202,10 @@ class PluginActionManagerTest : SysuiTestCase() {
                 mFakeExecutor,
                 mNotificationManager,
                 mMockEnabler,
-                PluginManager.Config(listOf(PRIVILEGED_PACKAGE)),
+                PackageConfig(PRIVILEGED_PACKAGE),
                 mPluginInstanceFactory,
+                mMockPluginPrefs,
+                PluginEnvironment(),
             )
         mPluginActionManager =
             factory.create("myAction", mMockListener, TestPlugin::class.java, allowMultiple = true)
@@ -252,8 +258,10 @@ class PluginActionManagerTest : SysuiTestCase() {
                 mFakeExecutor,
                 mNotificationManager,
                 mMockEnabler,
-                PluginManager.Config(listOf(PRIVILEGED_PACKAGE)),
+                PackageConfig(PRIVILEGED_PACKAGE),
                 mPluginInstanceFactory,
+                mMockPluginPrefs,
+                PluginEnvironment(),
             )
         mPluginActionManager =
             factory.create("myAction", mMockListener, TestPlugin::class.java, allowMultiple = true)
@@ -279,13 +287,13 @@ class PluginActionManagerTest : SysuiTestCase() {
         info.serviceInfo.name = mTestPluginComponentName.className
         whenever(info.serviceInfo.loadLabel(any())).thenReturn("Test Plugin")
         list.add(info)
-        whenever(mMockPm.queryIntentServices(any(), anyInt())).thenReturn(list)
-        whenever(mMockPm.getServiceInfo(any(), anyInt())).thenReturn(info.serviceInfo)
+        whenever(mMockPm.queryIntentServices(any(), any<Int>())).thenReturn(list)
+        whenever(mMockPm.getServiceInfo(any(), any<Int>())).thenReturn(info.serviceInfo)
 
-        whenever(mMockPm.checkPermission(anyString(), anyString()))
+        whenever(mMockPm.checkPermission(any(), any()))
             .thenReturn(PackageManager.PERMISSION_GRANTED)
 
-        whenever(mMockPm.getApplicationInfo(anyString(), anyInt()))
+        whenever(mMockPm.getApplicationInfo(any<String>(), any<Int>()))
             .thenAnswer(
                 Answer { invocation: InvocationOnMock ->
                     val appInfo = context.applicationInfo
@@ -323,11 +331,9 @@ class PluginActionManagerTest : SysuiTestCase() {
     // the mock version info is called.
     @Requires(target = PluginManagerTest::class, version = 1)
     class TestPlugin : Plugin {
-        override fun getVersion(): Int {
-            return 1
-        }
+        override val version: Int = 1
 
-        override fun onCreate(sysuiContext: Context, pluginContext: Context) {}
+        override fun onCreate(hostContext: Context, pluginContext: Context) {}
 
         override fun onDestroy() {}
     }

@@ -34,6 +34,7 @@ data class TableChange(
     private var bool: Boolean = false,
     private var int: Int? = null,
     private var str: String? = null,
+    private var float: Float = 0f,
 ) {
     init {
         // Truncate any strings that were passed into the constructor. [reset] and [set] will take
@@ -53,6 +54,7 @@ data class TableChange(
         this.bool = false
         this.int = 0
         this.str = null
+        this.float = 0f
     }
 
     /** Sets this to store a string change. */
@@ -73,6 +75,12 @@ data class TableChange(
         int = value
     }
 
+    /** Sets this to store a float change. */
+    fun set(value: Float) {
+        type = DataType.FLOAT
+        float = value
+    }
+
     /** Updates this to store the same value as [change]. */
     fun updateTo(change: TableChange) {
         reset(change.timestamp, change.columnPrefix, change.columnName, change.isInitial)
@@ -80,6 +88,7 @@ data class TableChange(
             DataType.STRING -> set(change.str)
             DataType.INT -> set(change.int)
             DataType.BOOLEAN -> set(change.bool)
+            DataType.FLOAT -> set(change.float)
             DataType.EMPTY -> {}
         }
     }
@@ -106,6 +115,7 @@ data class TableChange(
                 DataType.STRING -> str
                 DataType.INT -> int
                 DataType.BOOLEAN -> bool
+                DataType.FLOAT -> float
             }.toString()
         return "${if (isInitial) IS_INITIAL_PREFIX else ""}$value"
     }
@@ -114,6 +124,7 @@ data class TableChange(
         STRING,
         BOOLEAN,
         INT,
+        FLOAT,
         EMPTY,
     }
 

@@ -27,10 +27,11 @@ import androidx.compose.ui.Modifier
 fun TestContentScope(
     modifier: Modifier = Modifier,
     currentScene: SceneKey = remember { SceneKey("current") },
+    debugName: String = "TestContentScope",
     content: @Composable ContentScope.() -> Unit,
 ) {
     val state = rememberMutableSceneTransitionLayoutState(currentScene)
-    SceneTransitionLayout(state, modifier, implicitTestTags = true) {
+    SceneTransitionLayout(state, modifier, implicitTestTags = true, debugName = debugName) {
         scene(currentScene, content = content)
     }
 }

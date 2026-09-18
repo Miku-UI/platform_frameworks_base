@@ -19,11 +19,34 @@ package android.media.tv.extension.servicedb;
 import android.os.ParcelFileDescriptor;
 
 /**
+ * Interface for transferring channel lists via XML files.
+ * <p>
+ * This interface allows for the bulk import and export of channel data
+ * using a standardized XML format.
  * @hide
  */
 interface IChannelListTransfer {
-    // Parse XML file and import Channels information.
+    /**
+     * Parses an XML file from the provided file descriptor and imports the channel information
+     * into the system database.
+     * <p>
+     * <b>Note:</b> This operation blocks until the parsing and insertion are complete.
+     * The file descriptor is automatically closed after usage.
+     *
+     * @param pfd A {@link ParcelFileDescriptor} pointing to a readable XML file.
+     * Must be opened with {@link android.os.ParcelFileDescriptor#MODE_READ_ONLY}.
+     */
     void importChannelList(in ParcelFileDescriptor pfd);
-    // Get Channels information for export and create XML file.
+    /**
+     * Retrieves the current channel information from the database and writes it
+     * as an XML file to the provided file descriptor.
+     * <p>
+     * <b>Note:</b> This operation blocks until the XML generation and writing are complete.
+     * The file descriptor is automatically closed after usage.
+     *
+     * @param pfd A {@link ParcelFileDescriptor} pointing to a writable file location.
+     * Must be opened with {@link android.os.ParcelFileDescriptor#MODE_WRITE_ONLY}
+     * or {@code MODE_READ_WRITE}.
+     */
     void exportChannelList(in ParcelFileDescriptor pfd);
 }

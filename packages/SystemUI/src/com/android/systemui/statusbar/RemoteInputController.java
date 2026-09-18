@@ -276,7 +276,7 @@ public class RemoteInputController {
      * @param remove if non-null, removes this entry from the active remote inputs
      * @param removeToken if non-null, only removes an entry if this matches the token when the
      *                    entry was added.
-     * @return true if {@param contains} is in the set of active remote inputs
+     * @return true if {@code contains} is in the set of active remote inputs
      */
     private boolean pruneWeakThenRemoveAndContains(
             RemoteInputEntryAdapter contains, RemoteInputEntryAdapter remove, Object removeToken) {
@@ -306,7 +306,7 @@ public class RemoteInputController {
      * @param remove if non-null, removes this entry from the active remote inputs
      * @param removeToken if non-null, only removes an entry if this matches the token when the
      *                    entry was added.
-     * @return true if {@param contains} is in the set of active remote inputs
+     * @return true if {@code contains} is in the set of active remote inputs
      */
     private boolean pruneWeakThenRemoveAndContains(
             NotificationEntry contains, NotificationEntry remove, Object removeToken) {
@@ -432,7 +432,7 @@ public class RemoteInputController {
 
         /**
          * Request that the view is made visible by scrolling to it, and keep the scroll locked until
-         * the user scrolls, or {@param entry} loses focus or is detached.
+         * the user scrolls, or {@code entry} loses focus or is detached.
          */
         void lockScrollTo(ExpandableNotificationRow row);
     }

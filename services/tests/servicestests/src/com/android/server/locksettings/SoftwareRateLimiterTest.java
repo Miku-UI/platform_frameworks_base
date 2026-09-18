@@ -29,7 +29,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -480,7 +479,6 @@ public class SoftwareRateLimiterTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testReportFailureWithHwTimeout_updatesLockoutEndTime() {
         final LskfIdentifier id = new LskfIdentifier(10, 1000);
         final LockscreenCredential guess = newPassword("password");
@@ -495,22 +493,6 @@ public class SoftwareRateLimiterTest {
     }
 
     @Test
-    @DisableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
-    public void testReportFailureWithHwTimeout_doesNotUpdateLockoutEndTimeWhenNotManagingEndTime() {
-        final LskfIdentifier id = new LskfIdentifier(10, 1000);
-        final LockscreenCredential guess = newPassword("password");
-        final Duration hwTimeout = Duration.ofSeconds(60);
-        final Duration timeSinceBoot = Duration.ofSeconds(10);
-        mInjector.setTime(timeSinceBoot);
-
-        verifyUniqueWrongGuess(id, guess, hwTimeout, Duration.ZERO);
-
-        final Duration lockoutEndTime = mRateLimiter.getLockoutEndTime(id);
-        assertThat(lockoutEndTime).isEqualTo(Duration.ZERO);
-    }
-
-    @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testReportFailureWithHwTimeout_shorterHwTimeoutNotUsed() {
         final Duration[] timeoutTable = mRateLimiter.getTimeoutTable();
         final int timeoutThreshold = findIndexOfFirstNonZeroTimeout(timeoutTable);
@@ -534,7 +516,6 @@ public class SoftwareRateLimiterTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testReportFailureWithHwTimeout_longerHwTimeoutIsUsed() {
         final Duration[] timeoutTable = mRateLimiter.getTimeoutTable();
         final int timeoutThreshold = findIndexOfFirstNonZeroTimeout(timeoutTable);
@@ -564,7 +545,6 @@ public class SoftwareRateLimiterTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testLockoutEndTime_clearAfterExpiration() {
         final LskfIdentifier id = new LskfIdentifier(10, 1000);
         final LockscreenCredential guess = newPassword("password");
@@ -580,6 +560,60 @@ public class SoftwareRateLimiterTest {
         mInjector.advanceTime(Duration.ofMinutes(2));
         assertThat(mRateLimiter.getLockoutEndTime(id)).isEqualTo(Duration.ZERO);
         verify(mInvalidateLockoutEndTimeCacheMock, times(2)).run();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_ENABLE_WEAVER_GET_TIMEOUT)
+    public void testLockoutEndTimeAfterInstantiation_reflectsGreaterOfSwAndHwTimeouts() {
+        final LskfIdentifier id = new LskfIdentifier(10, 1000);
+        final Duration timeSinceBoot = Duration.ZERO;
+        mInjector.setTime(timeSinceBoot);
+
+        // Case 1: Zero SW timeout, nonzero HW timeout. Expect HW timeout.
+        assertLockoutEndTimeAfterInstantiation(
+                id,
+                timeSinceBoot,
+                /* hwTimeout= */ Duration.ofMinutes(5),
+                /* expectedTimeout= */ Duration.ofMinutes(5));
+
+        // Make guesses until a nonzero SW timeout is reached, and set swTimeout to that timeout.
+        mInjector.setHardwareRateLimiterTimeout(Duration.ZERO);
+        mRateLimiter = new SoftwareRateLimiter(mInjector);
+        makeGuessesUntilRateLimited(id);
+        final Duration[] timeoutTable = mRateLimiter.getTimeoutTable();
+        final Duration swTimeout = timeoutTable[findIndexOfFirstNonZeroTimeout(timeoutTable)];
+
+        // Case 2: Nonzero SW timeout, zero HW timeout. Expect SW timeout.
+        assertLockoutEndTimeAfterInstantiation(
+                id,
+                timeSinceBoot,
+                /* hwTimeout= */ Duration.ZERO,
+                /* expectedTimeout= */ swTimeout);
+
+        // Case 3: Nonzero SW timeout longer than nonzero HW timeout. Expect SW timeout.
+        assertLockoutEndTimeAfterInstantiation(
+                id,
+                timeSinceBoot,
+                /* hwTimeout= */ swTimeout.minusSeconds(1),
+                /* expectedTimeout= */ swTimeout);
+
+        // Case 4: Nonzero SW timeout shorter than nonzero HW timeout. Expect HW timeout.
+        assertLockoutEndTimeAfterInstantiation(
+                id,
+                timeSinceBoot,
+                /* hwTimeout= */ swTimeout.plusMinutes(1),
+                /* expectedTimeout= */ swTimeout.plusMinutes(1));
+    }
+
+    private void assertLockoutEndTimeAfterInstantiation(
+            LskfIdentifier id,
+            Duration timeSinceBoot,
+            Duration hwTimeout,
+            Duration expectedTimeout) {
+        mInjector.setHardwareRateLimiterTimeout(hwTimeout);
+        mRateLimiter = new SoftwareRateLimiter(mInjector);
+        assertThat(mRateLimiter.getLockoutEndTime(id))
+                .isEqualTo(timeSinceBoot.plus(expectedTimeout));
     }
 
     private void makeGuessesUntilRateLimited(LskfIdentifier id) {
@@ -673,6 +707,7 @@ public class SoftwareRateLimiterTest {
         private final Map<LskfIdentifier, Integer> mFailureCounters = new HashMap<>();
         private final List<WorkItem> mWorkList = new ArrayList<>();
         private Duration mTimeSinceBoot = Duration.ZERO;
+        private Duration mHardwareRateLimiterTimeout = Duration.ZERO;
         private final Runnable mInvalidateLockoutEndTimeCacheRunnable;
 
         TestInjector(Runnable invalidateLockoutEndTimeCacheRunnable) {
@@ -689,6 +724,10 @@ public class SoftwareRateLimiterTest {
 
         void setTime(Duration timeSinceBoot) {
             mTimeSinceBoot = timeSinceBoot;
+        }
+
+        void setHardwareRateLimiterTimeout(Duration timeout) {
+            mHardwareRateLimiterTimeout = timeout;
         }
 
         @Override
@@ -719,6 +758,11 @@ public class SoftwareRateLimiterTest {
         @Override
         public int getHardwareRateLimiter(LskfIdentifier id) {
             return FrameworkStatsLog.LSKF_AUTHENTICATION_ATTEMPTED__HARDWARE_RATE_LIMITER__WEAVER;
+        }
+
+        @Override
+        public Duration getHardwareRateLimiterTimeout(LskfIdentifier id) {
+            return mHardwareRateLimiterTimeout;
         }
 
         @Override

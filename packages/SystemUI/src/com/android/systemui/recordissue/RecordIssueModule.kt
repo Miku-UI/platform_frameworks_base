@@ -16,7 +16,6 @@
 
 package com.android.systemui.recordissue
 
-import com.android.systemui.Flags
 import com.android.systemui.qs.QsEventLogger
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.shared.model.TileCategory
@@ -26,7 +25,6 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModel
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModelFactory
-import com.android.systemui.qs.tiles.base.ui.viewmodel.StubQSTileViewModel
 import com.android.systemui.qs.tiles.impl.irecording.data.model.IssueRecordingModel
 import com.android.systemui.qs.tiles.impl.irecording.domain.interactor.IssueRecordingDataInteractor
 import com.android.systemui.qs.tiles.impl.irecording.domain.interactor.IssueRecordingUserActionInteractor
@@ -75,13 +73,11 @@ interface RecordIssueModule {
             stateInteractor: IssueRecordingDataInteractor,
             userActionInteractor: IssueRecordingUserActionInteractor,
         ): QSTileViewModel =
-            if (Flags.qsNewTilesFuture())
-                factory.create(
-                    TileSpec.create(TILE_SPEC),
-                    userActionInteractor,
-                    stateInteractor,
-                    mapper,
-                )
-            else StubQSTileViewModel
+            factory.create(
+                TileSpec.create(TILE_SPEC),
+                userActionInteractor,
+                stateInteractor,
+                mapper,
+            )
     }
 }

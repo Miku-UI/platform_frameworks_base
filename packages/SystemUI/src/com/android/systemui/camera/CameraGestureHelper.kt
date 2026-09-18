@@ -29,9 +29,11 @@ import android.os.RemoteException
 import android.util.Log
 import android.view.WindowManager
 import com.android.systemui.ActivityIntentHelper
+import com.android.systemui.camera.domain.interactor.CameraNotifyWarmUpInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.plugins.ActivityStarter
+import com.android.systemui.settings.DisplayTracker
 import com.android.systemui.shared.system.ActivityManagerKt.isInForeground
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.StatusBarState
@@ -58,11 +60,13 @@ constructor(
     private val activityIntentHelper: ActivityIntentHelper,
     private val activityTaskManager: IActivityTaskManager,
     private val cameraIntents: CameraIntentsWrapper,
+    private val cameraNotifyWarmUpInteractor: CameraNotifyWarmUpInteractor,
     private val contentResolver: ContentResolver,
     @Main private val uiExecutor: Executor,
     private val selectedUserInteractor: SelectedUserInteractor,
     private val devicePolicyManager: DevicePolicyManager,
     private val lockscreenUserManager: NotificationLockscreenUserManager,
+    private val displayTracker: DisplayTracker,
 ) {
 
     private val TAG = "CameraGestureHelper"
@@ -103,6 +107,10 @@ constructor(
                 intent,
                 selectedUserInteractor.getSelectedUserId(),
             )
+
+        if (com.android.internal.camera.flags.Flags.cameraWarmUp()) {
+            cameraNotifyWarmUpInteractor.notifyCameraWarmUp()
+        }
         if (CameraIntents.isSecureCameraIntent(intent) && !wouldLaunchResolverActivity) {
             uiExecutor.execute {
                 // Normally an activity will set its requested rotation animation on its window.
@@ -113,6 +121,7 @@ constructor(
                 // orientation change happens to occur during the launch.
                 val activityOptions = ActivityOptions.makeBasic()
                 activityOptions.setDisallowEnterPictureInPictureWhileLaunching(true)
+                activityOptions.setLaunchDisplayId(displayTracker.defaultDisplayId)
                 activityOptions.rotationAnimationHint =
                     WindowManager.LayoutParams.ROTATION_ANIMATION_SEAMLESS
                 intent.collectExtraIntentKeys()

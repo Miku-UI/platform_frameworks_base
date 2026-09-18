@@ -20,10 +20,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.InstanceId
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dump.DumpManager
+import com.android.systemui.dump.realDumpManager
 import com.android.systemui.log.LogBuffer
-import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.log.LogcatEchoTracker
+import com.android.systemui.log.impl.LogBufferFactoryImpl
+import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -36,13 +37,14 @@ import org.mockito.Mockito.mock
 @RunWith(AndroidJUnit4::class)
 class MediaTttSenderLoggerTest : SysuiTestCase() {
 
+    private val kosmos = testKosmosNew()
     private lateinit var buffer: LogBuffer
     private lateinit var logger: MediaTttSenderLogger
 
     @Before
     fun setUp() {
         buffer =
-            LogBufferFactory(DumpManager(), mock(LogcatEchoTracker::class.java))
+            LogBufferFactoryImpl(kosmos.realDumpManager, mock(LogcatEchoTracker::class.java))
                 .create("buffer", 10)
         logger = MediaTttSenderLogger(buffer)
     }
@@ -98,12 +100,12 @@ class MediaTttSenderLoggerTest : SysuiTestCase() {
                 "123" to
                     Pair(
                         InstanceId.fakeInstanceId(100),
-                        ChipStateSender.ALMOST_CLOSE_TO_START_CAST
+                        ChipStateSender.ALMOST_CLOSE_TO_START_CAST,
                     ),
                 "456" to
                     Pair(
                         InstanceId.fakeInstanceId(200),
-                        ChipStateSender.TRANSFER_TO_THIS_DEVICE_TRIGGERED
+                        ChipStateSender.TRANSFER_TO_THIS_DEVICE_TRIGGERED,
                     ),
             )
 

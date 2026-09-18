@@ -94,7 +94,8 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
             CompatibilityInfo.applyOverrideIfNeeded(mConfig, mDisplayId);
         }
         mActivityClientRecord = client.prepareRelaunchActivity(getActivityToken(), mPendingResults,
-                mPendingNewIntents, mConfigChanges, mConfig, mPreserveWindow, mActivityWindowInfo);
+                mPendingNewIntents, mConfigChanges, mConfig, mPreserveWindow, mActivityWindowInfo,
+                mDisplayId);
     }
 
     @Override

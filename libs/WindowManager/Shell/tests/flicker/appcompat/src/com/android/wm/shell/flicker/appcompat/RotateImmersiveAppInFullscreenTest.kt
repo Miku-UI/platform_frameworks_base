@@ -22,11 +22,11 @@ import android.platform.test.annotations.Postsubmit
 import android.system.helpers.CommandsHelper
 import android.tools.NavBar
 import android.tools.Rotation
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.FIND_TIMEOUT
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.parsers.toFlickerComponent
@@ -71,7 +71,7 @@ class RotateImmersiveAppInFullscreenTest(flicker: FlickerTest) : BaseAppCompat(f
         LetterboxAppHelper(
             instrumentation,
             launcherName = ActivityOptions.PortraitImmersiveActivity.LABEL,
-            component = ActivityOptions.PortraitImmersiveActivity.COMPONENT.toFlickerComponent()
+            component = ActivityOptions.PortraitImmersiveActivity.COMPONENT.toFlickerComponent(),
         )
 
     private val cmdHelper: CommandsHelper = CommandsHelper.getInstance(instrumentation)
@@ -185,7 +185,7 @@ class RotateImmersiveAppInFullscreenTest(flicker: FlickerTest) : BaseAppCompat(f
                 supportedRotations = listOf(Rotation.ROTATION_90),
                 // TODO(b/292403378): 3 button mode not added as rotation button is hidden in
                 // taskbar
-                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
+                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL),
             )
         }
     }

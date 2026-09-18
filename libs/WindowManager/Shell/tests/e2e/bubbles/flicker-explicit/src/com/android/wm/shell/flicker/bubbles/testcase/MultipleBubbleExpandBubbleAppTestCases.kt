@@ -22,8 +22,8 @@ package com.android.wm.shell.flicker.bubbles.testcase
  * - [BubbleAppBecomesExpandedTestCases]
  * - [LauncherAlwaysVisibleTestCases]
  *
- * The expanding bubble scenario could be launching a new bubble app or expanding an existing
- * bubble app.
+ * The expanding bubble scenario could be launching a new bubble app or expanding an existing bubble
+ * app.
  */
-interface MultipleBubbleExpandBubbleAppTestCases : BubbleAlwaysVisibleTestCases,
-    BubbleAppBecomesExpandedTestCases, LauncherAlwaysVisibleTestCases
+interface MultipleBubbleExpandBubbleAppTestCases :
+    BubbleAlwaysVisibleTestCases, BubbleAppBecomesExpandedTestCases, LauncherAlwaysVisibleTestCases

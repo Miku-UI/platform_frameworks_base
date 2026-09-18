@@ -16,7 +16,7 @@
 
 package com.android.settingslib.dream;
 
-import static android.service.dreams.Flags.allowDreamWhenPostured;
+import static android.service.dreams.Flags.dreamsSwitcher;
 
 import android.annotation.IntDef;
 import android.content.ComponentName;
@@ -54,6 +54,7 @@ public class DreamBackend {
     private static final boolean DEBUG = false;
 
     public static class DreamInfo {
+        public static final int ORDER_UNSELECTED = -1;
         public CharSequence caption;
         public Drawable icon;
         public boolean isActive;
@@ -63,6 +64,8 @@ public class DreamBackend {
         public Drawable previewImage;
         public boolean supportsComplications = false;
         public int dreamCategory;
+        public boolean userSelectable = true;
+        public int order = ORDER_UNSELECTED; // Start at 0 for active dreams.
 
         @Override
         public String toString() {
@@ -206,7 +209,7 @@ public class DreamBackend {
 
     public List<DreamInfo> getDreamInfos() {
         logd("getDreamInfos()");
-        ComponentName activeDream = getActiveDream();
+        final List<ComponentName> activeDreams = getActiveDreams();
         PackageManager pm = mContext.getPackageManager();
         Intent dreamIntent = new Intent(DreamService.SERVICE_INTERFACE);
         List<ResolveInfo> resolveInfos = pm.queryIntentServices(dreamIntent,
@@ -218,21 +221,30 @@ public class DreamBackend {
                 continue;
             }
 
-            DreamInfo dreamInfo = new DreamInfo();
-            dreamInfo.caption = resolveInfo.loadLabel(pm);
-            dreamInfo.icon = resolveInfo.loadIcon(pm);
-            dreamInfo.description = getDescription(resolveInfo, pm);
-            dreamInfo.componentName = componentName;
-            dreamInfo.isActive = dreamInfo.componentName.equals(activeDream);
-
             final DreamService.DreamMetadata dreamMetadata = DreamService.getDreamMetadata(
-                    mContext.getPackageManager(), resolveInfo.serviceInfo);
+                    pm, resolveInfo.serviceInfo);
+            if (dreamMetadata != null && !dreamMetadata.userSelectable) {
+                continue;
+            }
+
+            DreamInfo dreamInfo = new DreamInfo();
             if (dreamMetadata != null) {
                 dreamInfo.settingsComponentName = dreamMetadata.settingsActivity;
                 dreamInfo.previewImage = dreamMetadata.previewImage;
                 dreamInfo.supportsComplications = dreamMetadata.showComplications;
                 dreamInfo.dreamCategory = dreamMetadata.dreamCategory;
+                dreamInfo.userSelectable = dreamMetadata.userSelectable;
             }
+            dreamInfo.caption = resolveInfo.loadLabel(pm);
+            dreamInfo.icon = resolveInfo.loadIcon(pm);
+            dreamInfo.description = getDescription(resolveInfo, pm);
+            dreamInfo.componentName = componentName;
+            final int dreamIdx = activeDreams.indexOf(dreamInfo.componentName);
+            dreamInfo.isActive = dreamIdx > -1;
+            if (dreamInfo.isActive) {
+                dreamInfo.order = dreamIdx;
+            }
+
             dreamInfos.add(dreamInfo);
         }
         dreamInfos.sort(mComparator);
@@ -439,12 +451,12 @@ public class DreamBackend {
     }
 
     /** Gets all complications which have been enabled by the user. */
-    public Set<Integer> getEnabledComplications() {
+    public Set<Integer> getEnabledComplications(UserHandle user) {
         final Set<Integer> enabledComplications =
-                getComplicationsEnabled()
+                getComplicationsEnabled(user)
                         ? new ArraySet<>(mSupportedComplications) : new ArraySet<>();
 
-        if (!getHomeControlsEnabled()) {
+        if (!getHomeControlsEnabled(user)) {
             enabledComplications.remove(COMPLICATION_TYPE_HOME_CONTROLS);
         } else if (mSupportedComplications.contains(COMPLICATION_TYPE_HOME_CONTROLS)) {
             // Add home control type to list of enabled complications, even if other complications
@@ -469,24 +481,27 @@ public class DreamBackend {
     }
 
     /** Gets whether home controls button is enabled on the dream */
-    private boolean getHomeControlsEnabled() {
-        return Settings.Secure.getInt(
+    private boolean getHomeControlsEnabled(UserHandle user) {
+        final int userId = user.getIdentifier();
+        return Settings.Secure.getIntForUser(
                 mContext.getContentResolver(),
                 Settings.Secure.LOCKSCREEN_SHOW_CONTROLS,
-                LOCKSCREEN_SHOW_CONTROLS_DEFAULT) == 1
-                && Settings.Secure.getInt(
+                LOCKSCREEN_SHOW_CONTROLS_DEFAULT,
+                userId) == 1
+                && Settings.Secure.getIntForUser(
                         mContext.getContentResolver(),
                         Settings.Secure.SCREENSAVER_HOME_CONTROLS_ENABLED,
-                        SCREENSAVER_HOME_CONTROLS_ENABLED_DEFAULT) == 1;
+                        SCREENSAVER_HOME_CONTROLS_ENABLED_DEFAULT,
+                        userId) == 1;
     }
 
     /**
      * Gets whether complications are enabled on this device
      */
-    public boolean getComplicationsEnabled() {
-        return Settings.Secure.getInt(
+    public boolean getComplicationsEnabled(UserHandle user) {
+        return Settings.Secure.getIntForUser(
                 mContext.getContentResolver(),
-                Settings.Secure.SCREENSAVER_COMPLICATIONS_ENABLED, 1) == 1;
+                Settings.Secure.SCREENSAVER_COMPLICATIONS_ENABLED, 1, user.getIdentifier()) == 1;
     }
 
     /** Set whether to restrict showing dreams to only when charging wirelessly. */
@@ -520,6 +535,13 @@ public class DreamBackend {
         return getBoolean(Settings.Secure.SCREENSAVER_ENABLED, mDreamsEnabledByDefault);
     }
 
+    /** Returns whether the dream switcher is supported and enabled. */
+    public boolean isDreamSwitcherEnabled() {
+        return mContext.getResources()
+                        .getBoolean(com.android.internal.R.bool.config_dreamSwitcherEnabled)
+                && dreamsSwitcher();
+    }
+
     public void setEnabled(boolean value) {
         logd("setEnabled(%s)", value);
         setBoolean(Settings.Secure.SCREENSAVER_ENABLED, value);
@@ -547,19 +569,17 @@ public class DreamBackend {
     }
 
     public boolean isActivatedOnPostured() {
-        return allowDreamWhenPostured()
-                && getBoolean(Settings.Secure.SCREENSAVER_ACTIVATE_ON_POSTURED,
-                        mDreamsActivatedOnPosturedByDefault);
+        return getBoolean(
+                Settings.Secure.SCREENSAVER_ACTIVATE_ON_POSTURED,
+                mDreamsActivatedOnPosturedByDefault);
     }
 
     /**
      * Sets whether dreams should be activated when the device is postured (stationary and upright)
      */
     public void setActivatedOnPostured(boolean value) {
-        if (allowDreamWhenPostured()) {
-            logd("setActivatedOnPostured(%s)", value);
-            setBoolean(Settings.Secure.SCREENSAVER_ACTIVATE_ON_POSTURED, value);
-        }
+        logd("setActivatedOnPostured(%s)", value);
+        setBoolean(Settings.Secure.SCREENSAVER_ACTIVATE_ON_POSTURED, value);
     }
 
     private boolean getBoolean(String key, boolean def) {
@@ -584,6 +604,26 @@ public class DreamBackend {
         }
     }
 
+    /**
+     * Sets the active dreams.
+     */
+    public void setActiveDreams(ComponentName[] dreams) {
+        logd("setActiveDreams(%s)", Arrays.toString(dreams));
+        if (mDreamManager == null) {
+            return;
+        }
+        try {
+            mDreamManager.setDreamComponents(dreams);
+            logDreamSettingChangeToStatsd(DS_TYPE_DREAM_COMPONENT);
+        } catch (RemoteException e) {
+            Log.w(TAG, "Failed to set active dreams to " + Arrays.toString(dreams), e);
+        }
+    }
+
+    /**
+     * @deprecated Multiple dreams are now supported. Use {@link #getActiveDreams()} instead.
+     */
+    @Deprecated
     public ComponentName getActiveDream() {
         if (mDreamManager == null) {
             return null;
@@ -594,6 +634,30 @@ public class DreamBackend {
         } catch (RemoteException e) {
             Log.w(TAG, "Failed to get active dream", e);
             return null;
+        }
+    }
+
+    /**
+     * Returns an empty list if no dreams are active or an error occurs. If {@code dreamsSwitcher}
+     * is false, this list will contain at most one element.
+     *
+     * @return the list of active dreams.
+     */
+    public List<ComponentName> getActiveDreams() {
+        if (mDreamManager == null) {
+            return new ArrayList<>();
+        }
+        try {
+            final ComponentName[] dreams = mDreamManager.getDreamComponents();
+            if (dreams == null || dreams.length == 0) {
+                return new ArrayList<>();
+            }
+
+            // If dreamsSwitcher is false, only the first dream is considered active.
+            return isDreamSwitcherEnabled() ? Arrays.asList(dreams) : Arrays.asList(dreams[0]);
+        } catch (RemoteException e) {
+            Log.w(TAG, "Failed to get active dreams", e);
+            return new ArrayList<>();
         }
     }
 
@@ -656,8 +720,8 @@ public class DreamBackend {
                 isEnabled(), /*enabled*/
                 getActiveDreamComponentForStatsd(), /*dream_component*/
                 getWhenToDreamForStatsd(), /*when_to_dream*/
-                getComplicationsEnabled(), /*show_additional_info*/
-                getHomeControlsEnabled(), /*show_home_controls*/
+                getComplicationsEnabled(UserHandle.CURRENT), /*show_additional_info*/
+                getHomeControlsEnabled(UserHandle.CURRENT), /*show_home_controls*/
                 dreamSettingType /*dream_setting_type*/
         );
     }

@@ -62,10 +62,10 @@ import com.android.systemui.statusbar.policy.UserSwitcherController
 import com.android.systemui.supervision.data.repository.SupervisionRepository
 import com.android.systemui.supervision.data.repository.SupervisionRepositoryImpl
 import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.UserIconProvider
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.user.data.repository.UserSwitcherRepository
 import com.android.systemui.user.data.repository.UserSwitcherRepositoryImpl
-import com.android.systemui.user.domain.interactor.HeadlessSystemUserMode
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.user.domain.interactor.UserSwitcherInteractor
 import com.android.systemui.util.settings.FakeGlobalSettings
@@ -104,7 +104,6 @@ class FooterActionsTestUtils(
         globalActionsDialogLite: GlobalActionsDialogLite = mock(),
         showPowerButton: Boolean = true,
         selectedUserInteractor: SelectedUserInteractor = mock(),
-        hsum: HeadlessSystemUserMode = mock(),
     ): FooterActionsViewModel {
         return createFooterActionsViewModel(
             context,
@@ -115,7 +114,6 @@ class FooterActionsTestUtils(
             mockActivityStarter,
             showPowerButton,
             selectedUserInteractor,
-            hsum,
         )
     }
 
@@ -175,7 +173,8 @@ class FooterActionsTestUtils(
         bgHandler: Handler = Handler(testableLooper.looper),
         bgDispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler),
         userManager: UserManager = mock(),
-        userRepository: UserRepository = FakeUserRepository(),
+        userRepository: UserRepository =
+            FakeUserRepository(UserIconProvider(context, userManager, bgDispatcher)),
         userSwitcherController: UserSwitcherController = mock(),
         userInfoController: UserInfoController = FakeUserInfoController(),
         settings: GlobalSettings = FakeGlobalSettings(),
@@ -197,7 +196,14 @@ class FooterActionsTestUtils(
         roleManager: RoleManager = mock(),
         supervisionManager: SupervisionManager = mock(),
         devicePolicyManager: DevicePolicyManager = mock(),
-        userRepository: UserRepository = FakeUserRepository(),
+        userRepository: UserRepository =
+            FakeUserRepository(
+                UserIconProvider(
+                    this.context.applicationContext,
+                    userManager = mock(),
+                    StandardTestDispatcher(scheduler),
+                )
+            ),
         @Application context: Context = this.context.applicationContext,
         bgDispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler),
     ): SupervisionRepository =

@@ -405,7 +405,7 @@ class PackageInstallerSessionTest {
 
         val installSource = InstallSource.create(
             "testInstallInitiator",
-            "testInstallOriginator", installerPackageName, -1, "testUpdateOwner",
+            "testInstallOriginator", installerPackageName, -1, -1, "testUpdateOwner",
             "testAttributionTag", PackageInstaller.PACKAGE_SOURCE_UNSPECIFIED
         )
 

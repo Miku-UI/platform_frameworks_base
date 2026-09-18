@@ -74,10 +74,12 @@ import android.test.mock.MockContentResolver;
 import android.util.ArrayMap;
 import android.util.Pair;
 import android.view.IWindowManager;
+import android.view.accessibility.IAccessibilityManager;
 
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.role.RoleManagerLocal;
+import com.android.server.AccessibilityManagerInternal;
 import com.android.server.AlarmManagerInternal;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.LocalServices;
@@ -109,6 +111,8 @@ public class MockSystemServices {
     public final UserManager userManager;
     public final UserManagerInternal userManagerInternal;
     public final UsageStatsManagerInternal usageStatsManagerInternal;
+    public final AccessibilityManagerInternal accessibilityManagerInternal;
+    public final IAccessibilityManager accessibilityManager;
     public final NetworkPolicyManagerInternal networkPolicyManagerInternal;
     public final PackageManagerInternal packageManagerInternal;
     public final PackageManagerLocal packageManagerLocal;
@@ -170,6 +174,8 @@ public class MockSystemServices {
         executor = mock(Executor.class);
         userManager = mock(UserManager.class);
         userManagerInternal = mock(UserManagerInternal.class);
+        accessibilityManagerInternal = spy(AccessibilityManagerInternal.class);
+        accessibilityManager = mock(IAccessibilityManager.class);
         usageStatsManagerInternal = mock(UsageStatsManagerInternal.class);
         networkPolicyManagerInternal = mock(NetworkPolicyManagerInternal.class);
 

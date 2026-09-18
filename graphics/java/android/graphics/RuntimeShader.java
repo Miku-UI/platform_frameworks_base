@@ -604,7 +604,7 @@ public class RuntimeShader extends Shader {
         }
         mXfermodeUniforms.put(xfermodeName, xfermode);
         nativeUpdateChild(mNativeInstanceRuntimeShaderBuilder, xfermodeName,
-                xfermode.createNativeInstance());
+                xfermode.getNativeInstance());
         discardNativeInstance();
     }
 

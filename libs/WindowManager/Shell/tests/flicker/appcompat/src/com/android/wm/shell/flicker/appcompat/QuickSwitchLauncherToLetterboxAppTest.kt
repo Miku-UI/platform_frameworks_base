@@ -18,14 +18,14 @@ package com.android.wm.shell.flicker.appcompat
 
 import android.graphics.Rect
 import android.platform.test.annotations.Postsubmit
-import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
+import androidx.test.filters.RequiresDevice
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,12 +53,12 @@ class QuickSwitchLauncherToLetterboxAppTest(flicker: FlickerTest) : BaseAppCompa
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
 
             tapl.setExpectedRotation(flicker.scenario.startRotation.value)
 
             letterboxApp.launchViaIntent(wmHelper)
-            tapl.goHome()
+            device.pressHome()
             wmHelper
                 .StateSyncBuilder()
                 .withHomeActivityVisible()

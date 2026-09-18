@@ -32,7 +32,6 @@ import android.util.Slog;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.display.ExternalDisplayStatsService;
-import com.android.server.display.feature.DisplayManagerFlags;
 
 /**
  * Manages notifications for {@link com.android.server.display.DisplayManagerService}.
@@ -61,15 +60,14 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
 
     private final Injector mInjector;
     private final Context mContext;
-    private final boolean mConnectedDisplayErrorHandlingEnabled;
     private NotificationManager mNotificationManager;
     private ConnectedDisplayUsbErrorsDetector mConnectedDisplayUsbErrorsDetector;
 
     private final ExternalDisplayStatsService mExternalDisplayStatsService;
 
-    public DisplayNotificationManager(final DisplayManagerFlags flags, final Context context,
+    public DisplayNotificationManager(final Context context,
             final ExternalDisplayStatsService statsService) {
-        this(flags, context, new Injector() {
+        this(context, new Injector() {
             @Nullable
             @Override
             public NotificationManager getNotificationManager() {
@@ -79,7 +77,7 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
             @Nullable
             @Override
             public ConnectedDisplayUsbErrorsDetector getUsbErrorsDetector() {
-                return new ConnectedDisplayUsbErrorsDetector(flags, context);
+                return new ConnectedDisplayUsbErrorsDetector(context);
             }
 
             @Nullable
@@ -91,9 +89,8 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
     }
 
     @VisibleForTesting
-    DisplayNotificationManager(final DisplayManagerFlags flags, final Context context,
+    DisplayNotificationManager(final Context context,
             final Injector injector) {
-        mConnectedDisplayErrorHandlingEnabled = flags.isConnectedDisplayErrorHandlingEnabled();
         mContext = context;
         mInjector = injector;
         mExternalDisplayStatsService = injector.getExternalDisplayStatsService();
@@ -121,12 +118,6 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
      */
     @Override
     public void onDisplayPortLinkTrainingFailure() {
-        if (!mConnectedDisplayErrorHandlingEnabled) {
-            Slog.d(TAG, "onDisplayPortLinkTrainingFailure:"
-                                + " mConnectedDisplayErrorHandlingEnabled is false");
-            return;
-        }
-
         mExternalDisplayStatsService.onDisplayPortLinkTrainingFailure();
 
         sendErrorNotification(createErrorNotification(
@@ -141,12 +132,6 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
      */
     @Override
     public void onCableNotCapableDisplayPort() {
-        if (!mConnectedDisplayErrorHandlingEnabled) {
-            Slog.d(TAG, "onCableNotCapableDisplayPort:"
-                                + " mConnectedDisplayErrorHandlingEnabled is false");
-            return;
-        }
-
         mExternalDisplayStatsService.onCableNotCapableDisplayPort();
 
         sendErrorNotification(createErrorNotification(
@@ -159,12 +144,6 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
      * Send notification about hotplug connection error.
      */
     public void onHotplugConnectionError() {
-        if (!mConnectedDisplayErrorHandlingEnabled) {
-            Slog.d(TAG, "onHotplugConnectionError:"
-                                + " mConnectedDisplayErrorHandlingEnabled is false");
-            return;
-        }
-
         mExternalDisplayStatsService.onHotplugConnectionError();
 
         sendErrorNotification(createErrorNotification(
@@ -177,12 +156,6 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
      * Send notification about high temperature preventing usage of the external display.
      */
     public void onHighTemperatureExternalDisplayNotAllowed() {
-        if (!mConnectedDisplayErrorHandlingEnabled) {
-            Slog.d(TAG, "onHighTemperatureExternalDisplayNotAllowed:"
-                                + " mConnectedDisplayErrorHandlingEnabled is false");
-            return;
-        }
-
         sendErrorNotification(createErrorNotification(
                 R.string.connected_display_unavailable_notification_title,
                 R.string.connected_display_thermally_unavailable_notification_content,
@@ -206,9 +179,13 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
      * Send generic error notification.
      */
     @SuppressLint("AndroidFrameworkRequiresPermission")
-    private void sendErrorNotification(final Notification notification) {
+    private void sendErrorNotification(@Nullable final Notification notification) {
         if (mNotificationManager == null) {
             Slog.e(TAG, "Can't sendErrorNotification: NotificationManager is null");
+            return;
+        }
+        if (notification == null) {
+            Slog.w(TAG, "Can't sendErrorNotification: Notification is null");
             return;
         }
 
@@ -219,8 +196,14 @@ public class DisplayNotificationManager implements ConnectedDisplayUsbErrorsDete
     /**
      * @return a newly built notification about an issue with connected display.
      */
+    @Nullable
     private Notification createErrorNotification(final int titleId, final int messageId,
             final int icon) {
+        if (mNotificationManager == null) {
+            Slog.w(TAG, "createErrorNotification: NotificationManager is null");
+            return null;
+        }
+
         final Resources resources = mContext.getResources();
         final CharSequence title = resources.getText(titleId);
         final CharSequence message = resources.getText(messageId);

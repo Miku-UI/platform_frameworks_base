@@ -16,8 +16,13 @@
 
 package android.media.metrics;
 
+import static android.media.metrics.Flags.FLAG_ENABLE_EXTENDED_BUNDLE_METRICS;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.media.MediaMetrics;
+import android.os.PersistableBundle;
+import android.annotation.FlaggedApi;
 
 import com.android.internal.util.AnnotationValidations;
 
@@ -26,39 +31,16 @@ import java.util.Objects;
 /**
  * An instances of this class represents a session of media Transcoding.
  */
-public final class TranscodingSession implements AutoCloseable {
-    private final @NonNull String mId;
-    private final @NonNull MediaMetricsManager mManager;
-    private final @NonNull LogSessionId mLogSessionId;
+public final class TranscodingSession extends BaseSession {
 
     /** @hide */
     public TranscodingSession(@NonNull String id, @NonNull MediaMetricsManager manager) {
-        mId = id;
-        mManager = manager;
-        AnnotationValidations.validate(NonNull.class, null, mId);
-        AnnotationValidations.validate(NonNull.class, null, mManager);
-        mLogSessionId = new LogSessionId(mId);
+        super(id, manager);
     }
 
-    public @NonNull LogSessionId getSessionId() {
-        return mLogSessionId;
-    }
-
+    @FlaggedApi(FLAG_ENABLE_EXTENDED_BUNDLE_METRICS)
     @Override
-    public boolean equals(@Nullable Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        TranscodingSession that = (TranscodingSession) o;
-        return Objects.equals(mId, that.mId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(mId);
-    }
-
-    @Override
-    public void close() {
-        mManager.releaseSessionId(mLogSessionId.getStringId());
+    public void reportBundleMetrics(@NonNull PersistableBundle metrics) {
+        super.reportBundleMetrics(metrics);
     }
 }

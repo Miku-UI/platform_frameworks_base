@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.layout.ui.viewmodel
 import android.view.View
 import androidx.compose.ui.platform.ComposeView
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.statusbar.policy.Clock
 import org.mockito.kotlin.mock
 
@@ -43,7 +42,6 @@ val Kosmos.statusBarBoundsViewModelFactory: StatusBarBoundsViewModel.Factory by
                 clockView: Clock,
             ): StatusBarBoundsViewModel {
                 return StatusBarBoundsViewModel(
-                    backgroundScope = backgroundScope,
                     startSideContainerView = startSideContainerView,
                     clockView = clockView,
                 )

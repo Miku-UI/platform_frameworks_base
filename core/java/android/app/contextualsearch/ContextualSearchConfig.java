@@ -16,11 +16,11 @@
 
 package android.app.contextualsearch;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
-import android.app.contextualsearch.flags.Flags;
+import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -35,13 +35,21 @@ import java.util.Objects;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_CONFIG_PARAMETERS)
 @SystemApi
 public final class ContextualSearchConfig implements Parcelable {
 
     private final int mDisplayId;
     @Nullable private final Rect mSourceBounds;
     @NonNull private final Bundle mIntentExtras;
+    @Intent.Flags private final int mLaunchFlags;
+
+    /**
+     * Default configuration for Contextual Search.
+     *
+     * @hide
+     */
+    @NonNull
+    public static final ContextualSearchConfig DEFAULT_CONFIG = new Builder().build();
 
     public static final @NonNull Creator<ContextualSearchConfig> CREATOR =
             new Creator<>() {
@@ -61,6 +69,7 @@ public final class ContextualSearchConfig implements Parcelable {
         mSourceBounds = in.readTypedObject(Rect.CREATOR);
         mIntentExtras = Objects.requireNonNull(
                 in.readBundle(ContextualSearchConfig.class.getClassLoader()));
+        mLaunchFlags = in.readInt();
     }
 
     @Override
@@ -68,6 +77,7 @@ public final class ContextualSearchConfig implements Parcelable {
         dest.writeInt(mDisplayId);
         dest.writeTypedObject(mSourceBounds, flags);
         dest.writeBundle(mIntentExtras);
+        dest.writeInt(mLaunchFlags);
     }
 
     @Override
@@ -79,14 +89,13 @@ public final class ContextualSearchConfig implements Parcelable {
         mDisplayId = builder.mDisplayId;
         mSourceBounds = builder.mSourceBounds;
         mIntentExtras = builder.mIntentExtras;
+        mLaunchFlags = builder.mLaunchFlags;
     }
 
     /**
      * @return The ID of the display where the search was triggered. This determines where the
      *         screenshot is taken and displayed for user interaction. If the display ID is invalid,
-     *         the invocation will fail silently. If not specified, the system will use
-     *         {@link Display#DEFAULT_DISPLAY}, or the Activity's display if launched from an
-     *         Activity.
+     *         the invocation will fail silently.
      */
     public int getDisplayId() {
         return mDisplayId;
@@ -110,12 +119,26 @@ public final class ContextualSearchConfig implements Parcelable {
         return new Bundle(mIntentExtras);
     }
 
+    /**
+     * Returns the launch flags for the Intent that launches Contextual Search.
+     *
+     * <p>Note: {@link Intent#FLAG_ACTIVITY_NEW_TASK} is always applied by the system.
+     *
+     * @return The launch flags if set, or the default flags if not set.
+     */
+    @Intent.Flags
+    @SuppressLint("UnflaggedApi")
+    public int getLaunchFlags() {
+        return mLaunchFlags;
+    }
+
     @Override
     public String toString() {
         return "ContextualSearchConfig{"
             + "mDisplayId=" + mDisplayId + ", "
             + "mSourceBounds=" + mSourceBounds + ", "
-            + "mIntentExtras=" + mIntentExtras
+            + "mIntentExtras=" + mIntentExtras + ", "
+            + "mLaunchFlags=" + mLaunchFlags
             + '}';
     }
 
@@ -127,6 +150,7 @@ public final class ContextualSearchConfig implements Parcelable {
         private int mDisplayId;
         @Nullable private Rect mSourceBounds;
         @NonNull private final Bundle mIntentExtras;
+        @Intent.Flags private int mLaunchFlags;
 
         /**
          * Creates a new Builder with default values.
@@ -135,6 +159,8 @@ public final class ContextualSearchConfig implements Parcelable {
             mDisplayId = Display.INVALID_DISPLAY;
             mSourceBounds = null;
             mIntentExtras = new Bundle();
+            mLaunchFlags = Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION
+                    | Intent.FLAG_ACTIVITY_NO_USER_ACTION | Intent.FLAG_ACTIVITY_CLEAR_TASK;
         }
 
         /**
@@ -147,10 +173,13 @@ public final class ContextualSearchConfig implements Parcelable {
             mDisplayId = config.getDisplayId();
             mSourceBounds = config.getSourceBounds();
             mIntentExtras = config.getIntentExtras();
+            mLaunchFlags = config.getLaunchFlags();
         }
 
         /**
          * Sets the display ID for the contextual search invocation.
+         *
+         * <p>Defaults to {@link Display#INVALID_DISPLAY}.
          *
          * @param displayId The ID of the display where the search was triggered. This determines
          *                  where the screenshot is taken and displayed for user interaction. If the
@@ -168,6 +197,8 @@ public final class ContextualSearchConfig implements Parcelable {
         /**
          * Sets the source bounds for the contextual search invocation.
          *
+         * <p>Defaults to {@code null}.
+         *
          * @param sourceBounds The bounds of the source element that triggered the search, in screen
          *                     coordinates. Can be null if not available.
          * @return This Builder object to allow for chaining of calls.
@@ -180,6 +211,8 @@ public final class ContextualSearchConfig implements Parcelable {
 
         /**
          * Sets any additional extras to be added to the intent sent to the Contextual Search app.
+         *
+         * <p>Defaults to an empty {@link Bundle}.
          *
          * @param intentExtras This will be merged with any other extras added to the intent by
          *                     ContextualSearchManagerService. To avoid having your extras
@@ -196,12 +229,32 @@ public final class ContextualSearchConfig implements Parcelable {
         }
 
         /**
+         * Sets the launch flags for the contextual search invocation. These flags will replace the
+         * default launch flags, which are:
+         * {@link Intent#FLAG_ACTIVITY_NEW_TASK}, {@link Intent#FLAG_ACTIVITY_NO_ANIMATION},
+         * {@link Intent#FLAG_ACTIVITY_NO_USER_ACTION}, and {@link Intent#FLAG_ACTIVITY_CLEAR_TASK}.
+         *
+         * <p>Note: {@link Intent#FLAG_ACTIVITY_NEW_TASK} is always added by the system.
+         *
+         * @param launchFlags The flags to replace the default flags on the Intent used to launch
+         *                    Contextual Search.
+         * @return This Builder object to allow for chaining of calls.
+         */
+        @NonNull
+        @SuppressLint("UnflaggedApi")
+        public Builder setLaunchFlags(@Intent.Flags int launchFlags) {
+            mLaunchFlags = launchFlags;
+            return this;
+        }
+
+        /**
          * Builds the {@link ContextualSearchConfig} instance.
          *
          * @return The built {@link ContextualSearchConfig} object.
          */
         @NonNull
         public ContextualSearchConfig build() {
+            mLaunchFlags |= Intent.FLAG_ACTIVITY_NEW_TASK;
             return new ContextualSearchConfig(this);
         }
     }

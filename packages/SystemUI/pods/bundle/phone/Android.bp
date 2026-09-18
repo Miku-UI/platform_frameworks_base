@@ -1,0 +1,86 @@
+//
+// Copyright (C) 2026 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+java_library {
+    name: "com.android.systemui.bundle.phone_dagger",
+    defaults: ["sysui_dagger"],
+
+    static_libs: [
+        // go/keep-sorted start
+        "com.android.systemui.brightness_dagger",
+        "com.android.systemui.dump_dagger",
+        "com.android.systemui.graphics_dagger",
+        "com.android.systemui.headline.ui_dagger",
+        "com.android.systemui.notifications.content.ui_dagger",
+        "com.android.systemui.notifications.intelligence.rules.ui_dagger",
+        "com.android.systemui.notifications.intelligence.rules_dagger",
+        "com.android.systemui.qs.panels.ui_dagger",
+        "com.android.systemui.retail-impl",
+        "com.android.systemui.statusbar.pipeline.airplane.data-impl",
+        "com.android.systemui.statusbar.pipeline.airplane.shared-impl",
+        "com.android.systemui.util.policy-impl",
+        "com.android.systemui.util.settings_dagger",
+        // go/keep-sorted end
+    ],
+
+    visibility: [
+        "//visibility:public",
+    ],
+}
+
+java_library {
+    name: "com.android.systemui.bundle.phone_api",
+
+    // Only place APIs here if they need to be accessed by the monolith
+    static_libs: [
+        // go/keep-sorted start
+        "com.android.systemui-api",
+        "com.android.systemui.brightness_api",
+        "com.android.systemui.common.shared.colors_api",
+        "com.android.systemui.common.shared.model_api",
+        "com.android.systemui.common.ui.compose.windowinsets_api",
+        "com.android.systemui.common.ui.compose_api",
+        "com.android.systemui.common.ui.icons_api",
+        "com.android.systemui.dump_api",
+        "com.android.systemui.flags_api",
+        "com.android.systemui.graphics_api",
+        "com.android.systemui.headline.ui_api",
+        "com.android.systemui.lifecycle_api",
+        "com.android.systemui.log-api",
+        "com.android.systemui.log.table-api",
+        "com.android.systemui.notifications.content.icon_api",
+        "com.android.systemui.notifications.content.ui_api",
+        "com.android.systemui.notifications.content_api",
+        "com.android.systemui.notifications.intelligence.rules.ui_api",
+        "com.android.systemui.notifications.intelligence.rules_api",
+        "com.android.systemui.qs.panels.ui_api",
+        "com.android.systemui.retail.data-api",
+        "com.android.systemui.retail.domain-api",
+        "com.android.systemui.scene.ui_api",
+        "com.android.systemui.scene_api",
+        "com.android.systemui.shade_api",
+        "com.android.systemui.statusbar.chips.ui_api",
+        "com.android.systemui.statusbar.pipeline.airplane.data-api",
+        "com.android.systemui.statusbar.pipeline.airplane.shared-api",
+        "com.android.systemui.user.data-api",
+        "com.android.systemui.util.kotlin",
+        "com.android.systemui.util.policy-api",
+        "com.android.systemui.util.settings_api",
+        "com.android.systemui.util.time_api",
+        // go/keep-sorted end
+    ],
+    visibility: ["//frameworks/base/packages/SystemUI:__pkg__"],
+}

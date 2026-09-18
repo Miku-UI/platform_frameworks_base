@@ -17,6 +17,8 @@ package android.app;
 
 import static android.app.ActivityManager.AppTask.WINDOWING_LAYER_NORMAL_APP;
 import static android.app.ActivityManager.AppTask.WINDOWING_LAYER_PINNED;
+import static android.app.ActivityManager.AppTask.WINDOWING_LAYER_REQUEST_GRANTED;
+import static android.app.ActivityManager.AppTask.WINDOWING_LAYER_REQUEST_REJECTED;
 import static android.app.TaskWindowingLayerRequestHandler.REMOTE_CALLBACK_RESULT_KEY;
 import static android.app.TaskWindowingLayerRequestHandler.RESULT_APPROVED;
 import static android.app.TaskWindowingLayerRequestHandler.RESULT_FAILED_BAD_STATE;
@@ -60,7 +62,7 @@ public class TaskWindowingLayerRequestHandlerTest {
 
     private static final Executor SAME_THREAD_EXECUTOR = Runnable::run;
     private IAppTask mAppTask;
-    private OutcomeReceiver<Void, Exception> mCallback;
+    private OutcomeReceiver<Integer, Exception> mCallback;
     private ArgumentCaptor<IRemoteCallback> mRemoteCallbackCaptor;
     private ArgumentCaptor<Exception> mExceptionCaptor;
 
@@ -86,7 +88,7 @@ public class TaskWindowingLayerRequestHandlerTest {
                 mRemoteCallbackCaptor.capture());
         mRemoteCallbackCaptor.getValue().sendResult(actualResult);
 
-        verifyCallbackReceivedSuccessResultOnce();
+        verifyCallbackReceivedSuccessResultOnce(WINDOWING_LAYER_REQUEST_GRANTED);
     }
 
     @Test
@@ -103,8 +105,7 @@ public class TaskWindowingLayerRequestHandlerTest {
                 mRemoteCallbackCaptor.capture());
         mRemoteCallbackCaptor.getValue().sendResult(actualResult);
 
-        verifyCallbackReceivedErrorOnce(IllegalStateException.class,
-                "The current system windowing state is not appropriate to fulfill the request.");
+        verifyCallbackReceivedSuccessResultOnce(WINDOWING_LAYER_REQUEST_REJECTED);
     }
 
     @Test
@@ -137,8 +138,9 @@ public class TaskWindowingLayerRequestHandlerTest {
         );
     }
 
-    private void verifyCallbackReceivedSuccessResultOnce() {
-        verify(mCallback).onResult(any());
+    private void verifyCallbackReceivedSuccessResultOnce(
+            @ActivityManager.AppTask.WindowingLayerResult int expectedResult) {
+        verify(mCallback).onResult(eq(expectedResult));
         verify(mCallback, never()).onError(any());
     }
 

@@ -16,19 +16,20 @@
 
 #define LOG_TAG "SharedMemory"
 
-#include "core_jni_helpers.h"
-
 #include <cutils/ashmem.h>
-#include <utils/Log.h>
-
-#include <nativehelper/jni_macros.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/ashmem.h>
 #include <nativehelper/JNIPlatformHelp.h>
 #include <nativehelper/ScopedLocalRef.h>
+#include <nativehelper/jni_macros.h>
+#include <unistd.h>
+#include <utils/Log.h>
 
 #include <algorithm>
-#include <errno.h>
 #include <limits>
-#include <unistd.h>
+
+#include "core_jni_helpers.h"
 
 namespace {
 
@@ -79,11 +80,10 @@ jint SharedMemory_nSetProt(JNIEnv* env, jobject, jobject fileDescriptor, jint pr
     return err;
 }
 
-const JNINativeMethod methods[] = {
-  NATIVE_METHOD(SharedMemory, nCreate, "(Ljava/lang/String;I)Ljava/io/FileDescriptor;"),
-  NATIVE_METHOD(SharedMemory, nGetSize, "(Ljava/io/FileDescriptor;)I"),
-  NATIVE_METHOD(SharedMemory, nSetProt, "(Ljava/io/FileDescriptor;I)I")
-};
+const JNINativeMethod methods[] =
+        {NATIVE_METHOD(SharedMemory, nCreate, "(Ljava/lang/String;I)Ljava/io/FileDescriptor;"),
+         NATIVE_METHOD(SharedMemory, nGetSize, "(Ljava/io/FileDescriptor;)I"),
+         NATIVE_METHOD(SharedMemory, nSetProt, "(Ljava/io/FileDescriptor;I)I")};
 
 } // anonymous namespace
 

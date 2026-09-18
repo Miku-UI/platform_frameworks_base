@@ -99,6 +99,12 @@ public class Environment {
      */
     public static final String DIR_USER_DE = "user_de";
 
+    /**
+     * The suffix to attach to the PCC specific storage of an application
+     * @hide
+     */
+    public static final String PCC_DATA_DIRECTORY_SUFFIX = "-pcc";
+
     /** @hide */
     @Deprecated
     public static final String DIRECTORY_ANDROID = DIR_ANDROID;
@@ -664,6 +670,31 @@ public class Environment {
             @NonNull String packageName) {
         // TODO: keep consistent with installd
         return newFilePrep(getDataUserDeDirectory(volumeUuid, userId), packageName);
+    }
+
+    /**
+     * Retrieve the device encrypted data directory for a specific PCC package of a specific user.
+     *
+     * @hide */
+    @NonNull
+    public static File getPccDataUserDePackageDirectory(@Nullable String volumeUuid, int userId,
+            @NonNull String packageName) {
+        // TODO: keep consistent with installd
+        String pccPackageName = packageName + PCC_DATA_DIRECTORY_SUFFIX;
+        return newFilePrep(getDataUserDeDirectory(volumeUuid, userId), pccPackageName);
+    }
+
+    /**
+     * Retrieve the credential encrypted data directory for a specific PCC package of a specific
+     * user.
+     *
+     * @hide */
+    @NonNull
+    public static File getPccDataUserCePackageDirectory(@Nullable String volumeUuid, int userId,
+            @NonNull String packageName) {
+        // TODO: keep consistent with installd
+        String pccPackageName = packageName + PCC_DATA_DIRECTORY_SUFFIX;
+        return newFilePrep(getDataUserCeDirectory(volumeUuid, userId), pccPackageName);
     }
 
     /**

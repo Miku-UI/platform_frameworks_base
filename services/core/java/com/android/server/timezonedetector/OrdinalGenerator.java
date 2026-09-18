@@ -23,12 +23,12 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * A helper class that turns a set of objects into ordinal values, i.e. each object is offered
- * up via {@link #ordinal(Object)} or similar method, and a number will be returned. If the
- * object has been seen before by the instance then the same number will be returned. Intended
- * for situations where it is useful to know if values from some finite set are the same or
- * different, but the value is either large or may reveal PII. This class relies on {@link
- * Object#equals(Object)} and {@link Object#hashCode()}.
+ * A helper class that turns a set of objects into ordinal values, i.e. each object is offered up
+ * via {@link #ordinal(Object)} or similar method, and a number will be returned. If the object has
+ * been seen before by the instance then the same number will be returned. Intended for situations
+ * where it is useful to know if values from some finite set are the same or different, but the
+ * value is either large or may reveal PII. This class relies on {@link Object#equals(Object)} and
+ * {@link Object#hashCode()}.
  */
 class OrdinalGenerator<T> {
     private final ArraySet<T> mKnownIds = new ArraySet<>();

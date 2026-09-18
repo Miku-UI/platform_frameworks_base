@@ -19,6 +19,7 @@ package com.android.systemui.biometrics.domain.interactor
 import android.graphics.Rect
 import android.hardware.biometrics.SensorLocationInternal
 import android.hardware.display.DisplayManagerGlobal
+import android.platform.test.annotations.EnableFlags
 import android.view.Display
 import android.view.DisplayInfo
 import android.view.WindowInsets
@@ -26,10 +27,12 @@ import android.view.WindowManager
 import android.view.WindowMetrics
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_STANDALONE_FINGERPRINT_LOCK_SCREEN_UX_FIX
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.FingerprintInteractiveToAuthProvider
-import com.android.systemui.biometrics.data.repository.FakeFingerprintPropertyRepository
+import com.android.systemui.biometrics.data.repository.fakeFingerprintPropertyRepository
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
+import com.android.systemui.biometrics.shared.model.PeripheralFingerprintSensorLocation
 import com.android.systemui.biometrics.shared.model.SensorStrength
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.display.domain.interactor.DisplayStateInteractor
@@ -77,7 +80,7 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
     @JvmField @Rule var mockitoRule = MockitoJUnit.rule()
     private val testScope = kosmos.testScope
 
-    private val fingerprintRepository = FakeFingerprintPropertyRepository()
+    private val fingerprintRepository = kosmos.fakeFingerprintPropertyRepository
 
     private lateinit var underTest: SideFpsSensorInteractor
 
@@ -109,7 +112,7 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
         underTest =
             SideFpsSensorInteractor(
                 mContext,
-                fingerprintRepository,
+                kosmos.fingerprintPropertyInteractor,
                 windowManager,
                 displayStateInteractor,
                 Optional.of(fingerprintInteractiveToAuthProvider),
@@ -140,6 +143,24 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
             assertThat(isAvailable).isFalse()
 
             setupFingerprint(FingerprintSensorType.UNKNOWN)
+            assertThat(isAvailable).isFalse()
+        }
+
+    @Test
+    @EnableFlags(FLAG_STANDALONE_FINGERPRINT_LOCK_SCREEN_UX_FIX)
+    fun testSfpsSensorAvailable_knownPeripheralLocation_false() =
+        testScope.runTest {
+            val isAvailable by collectLastValue(underTest.isAvailable)
+
+            fingerprintRepository.setProperties(
+                sensorId = 1,
+                strength = SensorStrength.STRONG,
+                sensorType = FingerprintSensorType.POWER_BUTTON,
+                sensorLocations = emptyMap(),
+                peripheralSensorLocation =
+                    PeripheralFingerprintSensorLocation.POWER_BUTTON_TOP_RIGHT_KEY,
+            )
+            runCurrent()
             assertThat(isAvailable).isFalse()
         }
 

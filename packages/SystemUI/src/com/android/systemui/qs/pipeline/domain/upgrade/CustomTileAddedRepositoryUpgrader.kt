@@ -21,8 +21,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.pipeline.data.repository.CustomTileAddedRepository
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
-import com.android.systemui.util.kotlin.getOrNull
-import java.util.Optional
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -44,11 +42,11 @@ class CustomTileAddedRepositoryUpgrader
 @Inject
 constructor(
     private val customTileAddedRepository: CustomTileAddedRepository,
-    allUpgrades: Set<@JvmSuppressWildcards Optional<CustomTileAddedUpgrade>>,
+    allUpgrades: Set<@JvmSuppressWildcards CustomTileAddedUpgrade>,
     @Background private val backgroundScope: CoroutineScope,
     private val qsPipelineLogger: QSPipelineLogger,
 ) {
-    private val sortedUpgrades = allUpgrades.mapNotNull { it.getOrNull() }.sortedBy { it.version }
+    private val sortedUpgrades = allUpgrades.sortedBy { it.version }
 
     init {
         if (sortedUpgrades.isNotEmpty()) {

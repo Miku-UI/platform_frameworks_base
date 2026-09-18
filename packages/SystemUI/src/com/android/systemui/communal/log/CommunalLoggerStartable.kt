@@ -19,12 +19,17 @@ package com.android.systemui.communal.log
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.CoreStartable
+import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.shared.log.CommunalUiEvent
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
+import com.android.systemui.log.dagger.CommunalTableLog
+import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.util.kotlin.pairwise
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -41,14 +46,17 @@ import kotlinx.coroutines.flow.onEach
 class CommunalLoggerStartable
 @Inject
 constructor(
+    @Application private val applicationScope: CoroutineScope,
     @Background private val backgroundScope: CoroutineScope,
     private val communalSceneInteractor: CommunalSceneInteractor,
     private val keyguardInteractor: KeyguardInteractor,
     private val uiEventLogger: UiEventLogger,
+    private val communalInteractor: CommunalInteractor,
+    @CommunalTableLog private val tableLogBuffer: TableLogBuffer,
 ) : CoreStartable {
 
     override fun start() {
-        communalSceneInteractor.transitionState
+        communalSceneInteractor.transitionStateFlow
             .map { state ->
                 when {
                     state.isOnCommunal() -> CommunalUiEvent.COMMUNAL_HUB_SHOWN
@@ -63,7 +71,7 @@ constructor(
             .onEach { uiEvent -> uiEventLogger.log(uiEvent) }
             .launchIn(backgroundScope)
 
-        communalSceneInteractor.transitionState
+        communalSceneInteractor.transitionStateFlow
             .pairwise()
             .combine(keyguardInteractor.isDreamingWithOverlay) { (old, new), isDreaming ->
                 when {
@@ -110,6 +118,16 @@ constructor(
             .distinctUntilChanged()
             .onEach { uiEvent -> uiEventLogger.log(uiEvent) }
             .launchIn(backgroundScope)
+
+        // Log communal blur state, and also ensure the flow is collected once SystemUI boots so
+        // that its state value is readily available to the rest of the system.
+        communalInteractor.isCommunalBlurring
+            .logDiffsForTable(
+                tableLogBuffer = tableLogBuffer,
+                columnName = "isCommunalBlurring",
+                initialValue = false,
+            )
+            .launchIn(applicationScope)
     }
 }
 

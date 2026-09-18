@@ -267,6 +267,10 @@ public class RestrictedSwitchPreference extends SwitchPreferenceCompat implement
         }
     }
 
+    /**
+     * @deprecated Use {@link #setDisabledByAdmin(EnforcingAdmin)} instead.
+     */
+    @Deprecated
     public void setDisabledByAdmin(EnforcedAdmin admin) {
         if (mHelper.setDisabledByAdmin(admin)) {
             notifyChanged();

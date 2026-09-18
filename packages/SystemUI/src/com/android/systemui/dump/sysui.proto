@@ -17,11 +17,13 @@ syntax = "proto3";
 
 package com.android.systemui.dump;
 
-import "frameworks/base/packages/SystemUI/src/com/android/systemui/qs/proto/tiles.proto";
+import "src/com/android/systemui/qs/proto/tiles.proto";
+import "src/com/android/systemui/motioncues/proto/motion_cues.proto";
 
 option java_multiple_files = true;
 
 message SystemUIProtoDump {
   repeated com.android.systemui.qs.QsTileState tiles = 1;
+  com.android.systemui.motioncues.MotionCueState motion_cue_state = 2;
 }
 

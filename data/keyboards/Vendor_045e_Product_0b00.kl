@@ -1,0 +1,54 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# XBox One Elite Series 2 controller (USB)
+#
+
+# Buttons
+key 0x130   BUTTON_A
+key 0x131   BUTTON_B
+key 0x133   BUTTON_X
+key 0x134   BUTTON_Y
+key 0x136   BUTTON_L1
+key 0x137   BUTTON_R1
+key 0x13a   BUTTON_SELECT   # Back/View button
+key 0x13b   BUTTON_START    # Menu button
+key 0x13c   BUTTON_MODE     # Xbox button
+key 0x13d   BUTTON_THUMBL
+key 0x13e   BUTTON_THUMBR
+
+# Left Stick
+axis 0x00 X flat 4095
+axis 0x01 Y flat 4095
+
+# Right Stick
+axis 0x03 Z flat 4095
+axis 0x04 RZ flat 4095
+
+# D-Pad
+axis 0x10 HAT_X
+axis 0x11 HAT_Y
+
+# Triggers
+axis 0x02 LTRIGGER  # ABS_BRAKE
+axis 0x05 RTRIGGER  # ABS_GAS
+
+# Mapping these Rear Paddles to generic BUTTON_1 through BUTTON_4 as their
+# reported values are "KEYCODE_UNKNOWN". These are configurable buttons on the
+# controller and we are mapping them to a consistent default output.
+key 0x2c4   BUTTON_1  # P1 - BTN_TRIGGER_HAPPY5
+key 0x2c5   BUTTON_2  # P2 - BTN_TRIGGER_HAPPY6
+key 0x2c6   BUTTON_3  # P3 - BTN_TRIGGER_HAPPY7
+key 0x2c7   BUTTON_4  # P4 - BTN_TRIGGER_HAPPY8

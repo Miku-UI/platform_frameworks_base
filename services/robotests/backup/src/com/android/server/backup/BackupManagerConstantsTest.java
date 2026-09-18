@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.shadows.ShadowLooper;
 
 @RunWith(RobolectricTestRunner.class)
 @Presubmit
@@ -225,5 +226,6 @@ public class BackupManagerConstantsTest {
         mContentResolver.notifyChange(
                 Settings.Secure.getUriFor(Settings.Secure.BACKUP_MANAGER_CONSTANTS),
                 /*observer*/ null);
+        ShadowLooper.idleMainLooper();
     }
 }

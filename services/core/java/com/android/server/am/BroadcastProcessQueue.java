@@ -17,8 +17,12 @@
 package com.android.server.am;
 
 import static com.android.internal.util.Preconditions.checkState;
+import static com.android.server.am.BroadcastRecord.UNSPECIFIED_QUEUE_INDEX;
 import static com.android.server.am.BroadcastRecord.deliveryStateToString;
 import static com.android.server.am.BroadcastRecord.isReceiverEquals;
+import static com.android.server.am.psc.Constants.SCHED_GROUP_BACKGROUND;
+import static com.android.server.am.psc.Constants.SCHED_GROUP_DEFAULT;
+import static com.android.server.am.psc.Constants.SCHED_GROUP_UNDEFINED;
 
 import android.annotation.CheckResult;
 import android.annotation.IntDef;
@@ -38,6 +42,7 @@ import android.util.TimeUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.SomeArgs;
+import com.android.server.am.psc.Constants.SchedGroup;
 
 import dalvik.annotation.optimization.NeverCompile;
 
@@ -96,6 +101,12 @@ class BroadcastProcessQueue {
     @Nullable String runningTraceTrackName;
 
     /**
+     * Index into the set of currently running broadcast dispatch slots that this
+     * queue occupies.
+     */
+    int runningIndex = UNSPECIFIED_QUEUE_INDEX;
+
+    /**
      * Flag indicating if this process should be OOM adjusted, defined as part
      * of upgrading into a running slot.
      */
@@ -107,7 +118,7 @@ class BroadcastProcessQueue {
     private boolean mTimeoutScheduled;
 
      /**
-     * Snapshotted value of {@link ProcessRecord#getCurProcState()} before
+     * Snapshotted value of {@link ProcessRecord#getProcState()} before
      * dispatching the current broadcast to the receiver in this process.
      */
     int lastProcessState;
@@ -600,18 +611,18 @@ class BroadcastProcessQueue {
         return (app != null) && (app.getOnewayThread() != null) && !app.isKilled();
     }
 
-    public int getPreferredSchedulingGroupLocked() {
+    public @SchedGroup int getPreferredSchedulingGroupLocked() {
         if (!isActive()) {
-            return ProcessList.SCHED_GROUP_UNDEFINED;
+            return SCHED_GROUP_UNDEFINED;
         } else if (mCountForeground > mCountForegroundDeferred) {
             // We have a foreground broadcast somewhere down the queue, so
             // boost priority until we drain them all
-            return ProcessList.SCHED_GROUP_DEFAULT;
+            return SCHED_GROUP_DEFAULT;
         } else if ((mActive != null) && mActive.isForeground()) {
             // We have a foreground broadcast right now, so boost priority
-            return ProcessList.SCHED_GROUP_DEFAULT;
+            return SCHED_GROUP_DEFAULT;
         } else {
-            return ProcessList.SCHED_GROUP_BACKGROUND;
+            return SCHED_GROUP_BACKGROUND;
         }
     }
 
@@ -771,6 +782,7 @@ class BroadcastProcessQueue {
             mCountManifest++;
         }
         invalidateRunnableAt();
+        tracePendingBroadcastsCount();
     }
 
     /**
@@ -812,6 +824,12 @@ class BroadcastProcessQueue {
             mCountManifest--;
         }
         invalidateRunnableAt();
+        tracePendingBroadcastsCount();
+    }
+
+    private void tracePendingBroadcastsCount() {
+        Trace.instantForTrack(Trace.TRACE_TAG_ACTIVITY_MANAGER, "Broadcasts pending per receiver",
+                processName + "/" + uid + ":" + mCountEnqueued);
     }
 
     public void traceProcessStartingBegin() {
@@ -832,6 +850,10 @@ class BroadcastProcessQueue {
     public void traceActiveBegin() {
         Trace.asyncTraceForTrackBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                 runningTraceTrackName, mActive.toShortString() + " scheduled", hashCode());
+        if (mActive.options != null && mActive.options.getDebugReason() != null) {
+            Trace.instantForTrack(Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                    runningTraceTrackName, "reason: " + mActive.options.getDebugReason());
+        }
     }
 
     public void traceActiveEnd() {
@@ -1594,6 +1616,9 @@ class BroadcastProcessQueue {
         if (mProcessStartInitiatedTimestampMillis > 0) {
             pw.print("processStartInitiatedTimestamp:"); pw.println(
                     TimeUtils.formatUptime(mProcessStartInitiatedTimestampMillis));
+        }
+        if (runningIndex != UNSPECIFIED_QUEUE_INDEX) {
+            pw.print("runningIndex:"); pw.println(runningIndex);
         }
     }
 

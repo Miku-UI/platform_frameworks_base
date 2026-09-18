@@ -18,10 +18,13 @@ package com.android.systemui.statusbar.notification.promoted.domain.interactor
 
 import android.app.Notification
 import android.content.applicationContext
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_ADAPTIVE_LOW_FREQ_MODE_ON_AOD
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.coroutines.collectLastValue as collectCoroutineLastValue
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
@@ -31,19 +34,22 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildPromotedOngoingEntry
 import com.android.systemui.statusbar.notification.domain.interactor.renderNotificationListInteractor
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
+import com.android.systemui.statusbar.notification.promoted.aodLowFrequencyModeDelayMs
 import com.android.systemui.statusbar.notification.promoted.fake
 import com.android.systemui.statusbar.notification.promoted.showPromotedNotificationsOnAOD
-import com.android.systemui.statusbar.phone.ongoingcall.EnableChipsModernization
 import com.android.systemui.statusbar.policy.domain.interactor.sensitiveNotificationProtectionInteractor
 import com.android.systemui.statusbar.policy.mockSensitiveNotificationProtectionController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -52,10 +58,10 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(PromotedNotificationUi.FLAG_NAME)
-@EnableChipsModernization
 class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
+
+    private val testScope = kosmos.testScope
 
     private val Kosmos.underTest by Fixture {
         AODPromotedNotificationInteractor(
@@ -65,6 +71,7 @@ class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
             dumpManager = dumpManager,
             biometricUnlockInteractor = biometricUnlockInteractor,
             showPromotedNotificationsOnAOD = showPromotedNotificationsOnAOD,
+            aodLowFrequencyModeDelayMs = aodLowFrequencyModeDelayMs,
         )
     }
 
@@ -160,9 +167,7 @@ class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
 
             setKeyguardLocked(true)
             setScreenSharingProtectionActive(false)
-            kosmos.fakeKeyguardRepository.setBiometricUnlockState(
-                BiometricUnlockMode.UNLOCK_COLLAPSING
-            )
+            kosmos.fakeKeyguardRepository.setBiometricUnlockState(BiometricUnlockMode.DISMISS)
 
             renderNotificationListInteractor.setRenderedList(listOf(ronEntry))
 
@@ -170,6 +175,41 @@ class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
             val content by collectLastValue(underTest.content)
             assertThat(content).isNotNull()
             assertThat(content!!.title).isEqualTo("REDACTED")
+        }
+
+    @Test
+    @DisableFlags(FLAG_ADAPTIVE_LOW_FREQ_MODE_ON_AOD)
+    fun useLowFrequencyMode_flagOff() =
+        testScope.runTest {
+            kosmos.fakeKeyguardRepository.setIsDozing(true)
+            val useLowFrequencyMode =
+                collectCoroutineLastValue(kosmos.underTest.useLowFrequencyMode)
+            testScope.runCurrent()
+            assertThat(useLowFrequencyMode()).isTrue()
+        }
+
+    @Test
+    @EnableFlags(FLAG_ADAPTIVE_LOW_FREQ_MODE_ON_AOD)
+    fun useLowFrequencyMode_flagOn() =
+        testScope.runTest {
+            kosmos.aodLowFrequencyModeDelayMs.fake.value = 300L
+            kosmos.fakeKeyguardRepository.setIsDozing(true)
+            val useLowFrequencyMode =
+                collectCoroutineLastValue(kosmos.underTest.useLowFrequencyMode)
+            testScope.runCurrent()
+
+            // Initial state should be false
+            assertThat(useLowFrequencyMode()).isFalse()
+
+            // Advance time, but not enough to trigger the mode
+            testScope.advanceTimeBy(299L)
+            testScope.runCurrent()
+            assertThat(useLowFrequencyMode()).isFalse()
+
+            // Advance time just enough to trigger the mode
+            testScope.advanceTimeBy(1L)
+            testScope.runCurrent()
+            assertThat(useLowFrequencyMode()).isTrue()
         }
 
     private fun Kosmos.setKeyguardLocked(locked: Boolean) {

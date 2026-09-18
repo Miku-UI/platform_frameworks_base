@@ -22,7 +22,8 @@
     <FrameLayout
         android:id="@+id/divider_bar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_gravity="center">
 
         <com.android.wm.shell.common.split.DividerTooltip
             android:id="@+id/docked_divider_tooltip"

@@ -33,7 +33,7 @@ interface ISplitSelectListener {
      * @param startRecents whether Launcher should start recents prior to entering split select
      * @param withRecentsWct the wct to include with the recents start, if appplicable
      */
-    boolean onRequestSplitSelect(in RunningTaskInfo taskInfo,
+    oneway void onRequestSplitSelect(in RunningTaskInfo taskInfo,
         int splitPosition, in Rect taskBounds, boolean startRecents,
         in @nullable WindowContainerTransaction withRecentsWct);
 }

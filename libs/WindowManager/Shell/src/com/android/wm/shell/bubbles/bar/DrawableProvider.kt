@@ -30,7 +30,6 @@ fun interface DrawableProvider {
         @SuppressLint("UseCompatLoadingForDrawables")
         fun forResource(resId: Int) = DrawableProvider { it.getDrawable(resId)!! }
 
-        @JvmStatic
-        fun forInfo(info: BitmapInfo) = DrawableProvider { info.newIcon(it) }
+        @JvmStatic fun forInfo(info: BitmapInfo) = DrawableProvider { info.newIcon(it) }
     }
 }

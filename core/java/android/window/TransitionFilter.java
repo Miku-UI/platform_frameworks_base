@@ -72,6 +72,24 @@ public final class TransitionFilter implements Parcelable {
     public TransitionFilter() {
     }
 
+    /**
+     * Copy constructor for TransitionFilter. Performs a deep copy of the filter and its
+     * requirements.
+     */
+    public TransitionFilter(@NonNull TransitionFilter other) {
+        if (other.mTypeSet != null) {
+            mTypeSet = other.mTypeSet.clone();
+        }
+        mFlags = other.mFlags;
+        mNotFlags = other.mNotFlags;
+        if (other.mRequirements != null) {
+            mRequirements = new Requirement[other.mRequirements.length];
+            for (int i = 0; i < other.mRequirements.length; ++i) {
+                mRequirements[i] = new Requirement(other.mRequirements[i]);
+            }
+        }
+    }
+
     private TransitionFilter(Parcel in) {
         mTypeSet = in.createIntArray();
         mFlags = in.readInt();
@@ -110,8 +128,8 @@ public final class TransitionFilter implements Parcelable {
         return true;
     }
 
-    @Override
     /** @hide */
+    @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeIntArray(mTypeSet);
         dest.writeInt(mFlags);
@@ -133,8 +151,8 @@ public final class TransitionFilter implements Parcelable {
                 }
             };
 
-    @Override
     /** @hide */
+    @Override
     public int describeContents() {
         return 0;
     }
@@ -149,7 +167,7 @@ public final class TransitionFilter implements Parcelable {
             }
         }
         sb.append("] flags=0x" + Integer.toHexString(mFlags));
-        sb.append("] notFlags=0x" + Integer.toHexString(mNotFlags));
+        sb.append(" notFlags=0x" + Integer.toHexString(mNotFlags));
         sb.append(" checks=[");
         if (mRequirements != null) {
             for (int i = 0; i < mRequirements.length; ++i) {
@@ -194,6 +212,29 @@ public final class TransitionFilter implements Parcelable {
         public boolean mIsCrossDisplayMove = false;
 
         public Requirement() {
+        }
+
+        /**
+         * Copy constructor for Requirement. Performs a deep copy of the requirement's fields.
+         */
+        public Requirement(@NonNull Requirement other) {
+            mActivityType = other.mActivityType;
+            mMustBeIndependent = other.mMustBeIndependent;
+            mNot = other.mNot;
+            if (other.mModes != null) {
+                mModes = other.mModes.clone();
+            }
+            mFlags = other.mFlags;
+            mMustBeTask = other.mMustBeTask;
+            mOrder = other.mOrder;
+            // ComponentName and Boolean are immutable.
+            // IBinder is a reference, so shallow copy is fine.
+            mTopActivity = other.mTopActivity;
+            mLaunchCookie = other.mLaunchCookie;
+            mCustomAnimation = other.mCustomAnimation;
+            mTaskFragmentToken = other.mTaskFragmentToken;
+            mWindowingMode = other.mWindowingMode;
+            mIsCrossDisplayMove = other.mIsCrossDisplayMove;
         }
 
         private Requirement(Parcel in) {
@@ -281,8 +322,7 @@ public final class TransitionFilter implements Parcelable {
                     }
                 }
                 if (mIsCrossDisplayMove) {
-                    if (change.getTaskInfo() == null
-                            || change.getStartDisplayId() == change.getEndDisplayId()) {
+                    if (change.getTaskInfo() == null || !change.isCrossDisplay()) {
                         continue;
                     }
                 }
@@ -323,8 +363,8 @@ public final class TransitionFilter implements Parcelable {
                     && matchesCookie(request.getTriggerTask());
         }
 
-        @Override
         /** @hide */
+        @Override
         public void writeToParcel(@NonNull Parcel dest, int flags) {
             dest.writeInt(mActivityType);
             dest.writeBoolean(mMustBeIndependent);
@@ -356,8 +396,8 @@ public final class TransitionFilter implements Parcelable {
                     }
                 };
 
-        @Override
         /** @hide */
+        @Override
         public int describeContents() {
             return 0;
         }

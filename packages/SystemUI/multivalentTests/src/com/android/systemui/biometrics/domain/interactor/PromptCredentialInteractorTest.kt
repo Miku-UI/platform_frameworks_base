@@ -376,6 +376,7 @@ private fun pinRequest(): BiometricPromptRequest.Credential.Pin =
         promptInfo(),
         BiometricUserInfo(USER_ID),
         BiometricOperationInfo(OPERATION_ID),
+        OP_PACKAGE_NAME,
     )
 
 private fun verified(hat: ByteArray) = CredentialStatus.Success.Verified(hat)

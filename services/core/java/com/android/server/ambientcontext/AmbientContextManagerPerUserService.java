@@ -47,6 +47,7 @@ import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.ambientcontext.Flags;
 import com.android.server.infra.AbstractPerUserSystemService;
 
 import java.io.PrintWriter;
@@ -451,6 +452,11 @@ abstract class AmbientContextManagerPerUserService extends
     @GuardedBy("mLock")
     @VisibleForTesting
     private boolean setUpServiceIfNeeded() {
+        if (Flags.ambientContextCheckRemoteService() && getRemoteService() != null) {
+            // Remote service is already set up.
+            return true;
+        }
+
         if (getComponentName() == null) {
             ComponentName[] componentNames = updateServiceInfoListLocked();
             if (componentNames == null || componentNames.length != 2) {
@@ -473,6 +479,12 @@ abstract class AmbientContextManagerPerUserService extends
 
         if (getComponentName() == null) {
             return false;
+        }
+
+        if (Flags.ambientContextFixSetupChecking()) {
+            // updateServiceInfoListLocked() above calls getServiceComponent() which returns valid
+            // component names only when serviceInfo is not null.
+            return true;
         }
 
         ServiceInfo serviceInfo;

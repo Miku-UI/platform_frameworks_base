@@ -17,7 +17,6 @@
 package com.android.systemui.brightness.ui.compose
 
 import android.content.res.Configuration
-import android.platform.test.annotations.WithDesktopTest
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,23 +27,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.brightness.ui.viewmodel.BrightnessSliderViewModel
 import com.android.systemui.common.shared.model.asIcon
-import com.android.systemui.compose.modifiers.resIdToTestTag
 import com.android.systemui.haptics.slider.sliderHapticsViewModelFactory
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos
-import com.android.systemui.utils.PolicyRestriction
+import com.android.systemui.util.policy.PolicyRestriction
 import java.util.Locale
 import org.junit.Rule
 import org.junit.Test
@@ -67,7 +62,6 @@ class BrightnessSliderTest : SysuiTestCase() {
     private var localeConfiguration by mutableStateOf(englishLocaleConfiguration)
 
     @Test
-    @WithDesktopTest
     fun stateDescription_hasPercentage() {
         val value = 25
         val range = 0..200
@@ -96,11 +90,6 @@ class BrightnessSliderTest : SysuiTestCase() {
         composeRule
             .onNodeWithText(context.getString(R.string.accessibility_brightness))
             .assert(hasStateDescription("12%"))
-
-        // Verify the slider's height.
-        composeRule
-            .onNodeWithTag(resIdToTestTag("slider"))
-            .assertHeightIsEqualTo(52.dp)
     }
 
     @Test

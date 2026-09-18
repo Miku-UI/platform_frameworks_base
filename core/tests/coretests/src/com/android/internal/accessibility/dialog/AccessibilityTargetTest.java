@@ -18,6 +18,7 @@ package com.android.internal.accessibility.dialog;
 
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.GESTURE;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.HARDWARE;
+import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.QUICK_ACCESS;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.SOFTWARE;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -31,25 +32,23 @@ import java.util.stream.IntStream;
 
 @RunWith(AndroidJUnit4.class)
 public class AccessibilityTargetTest {
-    private static final int[] EXPECTED_TYPES_GESTURE = { HARDWARE, SOFTWARE, GESTURE };
+    private static final int[] EXPECTED_TYPES = {HARDWARE, SOFTWARE, GESTURE, QUICK_ACCESS};
 
     @Test
-    public void isRecognizedShortcutType_expectedType_gestureIncluded_isTrue() {
-        for (int type : EXPECTED_TYPES_GESTURE) {
+    public void isRecognizedShortcutType_expectedType_isTrue() {
+        for (int type : EXPECTED_TYPES) {
             if (!AccessibilityTarget.isRecognizedShortcutType(type)) {
-                throw new AssertionError(
-                        "Shortcut type " + type + " should be recognized");
+                throw new AssertionError("Shortcut type " + type + " should be recognized");
             }
         }
     }
 
     @Test
-    public void isRecognizedShortcutType_notExpectedType_gestureIncluded_isFalse() {
-        for (int type: ShortcutConstants.USER_SHORTCUT_TYPES) {
-            if (IntStream.of(EXPECTED_TYPES_GESTURE).noneMatch(x -> x == type)) {
+    public void isRecognizedShortcutType_notExpectedType_isFalse() {
+        for (int type : ShortcutConstants.USER_SHORTCUT_TYPES) {
+            if (IntStream.of(EXPECTED_TYPES).noneMatch(x -> x == type)) {
                 if (AccessibilityTarget.isRecognizedShortcutType(type)) {
-                    throw new AssertionError(
-                            "Shortcut type " + type + " should not be recognized");
+                    throw new AssertionError("Shortcut type " + type + " should not be recognized");
                 }
             }
         }

@@ -36,6 +36,7 @@ import android.view.InsetsState;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.SurfaceControl.Transaction;
+import android.view.WindowInputChannelParams;
 import android.view.WindowRelayoutResult;
 import android.window.ClientWindowFrames;
 import android.window.InputTransferToken;
@@ -56,8 +57,6 @@ interface IWindowSession {
     int addToDisplayAsUser(IWindow window, in WindowManager.LayoutParams attrs,
             in int viewVisibility, in int layerStackId, in int userId, int requestedVisibleTypes,
             out InputChannel outInputChannel, out WindowRelayoutResult result);
-    int addToDisplayWithoutInputChannel(IWindow window, in WindowManager.LayoutParams attrs,
-            in int viewVisibility, in int layerStackId, out WindowRelayoutResult result);
 
     /**
      * Removes a clientToken from WMS, which includes unlinking the input channel.
@@ -91,6 +90,11 @@ interface IWindowSession {
             int requestedHeight, int viewVisibility, int flags, int seq, int lastSyncSeqId,
             out @nullable WindowRelayoutResult outRelayoutResult, out SurfaceControl outSurface);
 
+    // TODO(b/308662081): Remove "2" methods and switch original methods to the new implemetantion.
+    int relayout2(IWindow window, in WindowManager.LayoutParams attrs, int requestedWidth,
+            int requestedHeight, int viewVisibility, int flags, int seq, int lastSyncSeqId,
+            in SurfaceControl surface, out @nullable WindowRelayoutResult outRelayoutResult);
+
     /**
      * Similar to {@link #relayout} but this is an oneway method which doesn't return anything.
      *
@@ -106,6 +110,10 @@ interface IWindowSession {
     oneway void relayoutAsync(IWindow window, in WindowManager.LayoutParams attrs,
             int requestedWidth, int requestedHeight, int viewVisibility, int flags, int seq,
             int lastSyncSeqId);
+
+    oneway void relayoutAsync2(IWindow window, in WindowManager.LayoutParams attrs,
+            int requestedWidth, int requestedHeight, int viewVisibility, int flags, int seq,
+            int lastSyncSeqId, in SurfaceControl surface);
 
     /**
      * Called by a client to report that it ran out of graphics memory.
@@ -295,18 +303,12 @@ interface IWindowSession {
     * be used as unique identifier.
     */
     @nullable
-    InputChannel grantInputChannel(int displayId, in SurfaceControl surface, in IBinder clientToken,
-            in @nullable InputTransferToken hostInputTransferToken, int flags, int privateFlags,
-            int inputFeatures, int type, in IBinder windowToken,
-            in InputTransferToken embeddedInputTransferToken, String inputHandleName);
+    InputChannel grantInputChannel(in WindowInputChannelParams params);
 
     /**
      * Update the flags on an input channel associated with a particular surface.
      */
-    oneway void updateInputChannel(in IBinder channelToken,
-            in @nullable InputTransferToken hostInputTransferToken,
-            int displayId, in SurfaceControl surface, int flags, int privateFlags, int inputFeatures,
-            in Region region);
+    oneway void updateInputChannel(in WindowInputChannelParams params);
 
     /**
      * Transfer window focus to an embedded window if the calling window has focus.
@@ -344,6 +346,16 @@ interface IWindowSession {
      */
     oneway void setOnBackInvokedCallbackInfo(
             IWindow window, in OnBackInvokedCallbackInfo callbackInfo);
+
+    /**
+     * Sets the {@link OnBackInvokedCallbackInfo} containing the callback to be invoked for
+     * a embedded window when back is triggered.
+     *
+     * @param inputToken - token identifying the embedded window set the callback to.
+     * @param callbackInfo The {@link OnBackInvokedCallbackInfo} to set.
+     */
+    oneway void setOnBackInvokedCallbackInfoToEmbedded(
+            in InputTransferToken inputToken, in OnBackInvokedCallbackInfo callbackInfo);
 
     /**
      * Clears a touchable region set by {@link #setInsets}.

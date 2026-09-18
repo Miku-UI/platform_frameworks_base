@@ -21,43 +21,39 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.swipeRight
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.brightness.ui.compose.BrightnessSliderMotionTestKeys.ActiveIconAlpha
+import com.android.systemui.brightness.ui.compose.BrightnessSliderMotionTestKeys.InactiveIconAlpha
 import com.android.systemui.brightness.ui.viewmodel.BrightnessSliderViewModel
 import com.android.systemui.common.shared.model.asIcon
 import com.android.systemui.haptics.slider.sliderHapticsViewModelFactory
+import com.android.systemui.integration.SystemUiIntegrationTest
 import com.android.systemui.motion.createSysUiComposeMotionTestRule
 import com.android.systemui.testKosmos
-import com.android.systemui.utils.PolicyRestriction
+import com.android.systemui.util.policy.PolicyRestriction
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
 import org.junit.Rule
 import org.junit.runner.RunWith
 import platform.test.motion.compose.ComposeRecordingSpec
 import platform.test.motion.compose.MotionControl
-import platform.test.motion.compose.MotionControlScope
 import platform.test.motion.compose.feature
-import platform.test.motion.compose.motionTestValueOfNode
 import platform.test.motion.compose.recordMotion
 import platform.test.motion.compose.runTest
-import platform.test.motion.compose.values.MotionTestValueKey
-import platform.test.motion.golden.FeatureCapture
-import platform.test.motion.golden.TimeSeriesCaptureScope
-import platform.test.motion.golden.asDataPoint
+import platform.test.motion.golden.dataPointType
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.Displays.Phone
 
 @RunWith(AndroidJUnit4::class)
 @LargeTest
 @MotionTest
+@SystemUiIntegrationTest
 class BrightnessSliderMotionTest : SysuiTestCase() {
 
     private val deviceSpec = DeviceEmulationSpec(Phone)
@@ -91,50 +87,23 @@ class BrightnessSliderMotionTest : SysuiTestCase() {
                 recordMotion(
                     content = { BrightnessSliderUnderTest(0) },
                     ComposeRecordingSpec(
-                        MotionControl(delayReadyToPlay = { awaitCondition { !isAnimating } }) {
+                        MotionControl(delayReadyToPlay = { awaitIdle() }) {
                             coroutineScope {
-                                val gesture = async {
-                                    performTouchInputAsync(
-                                        onNode(hasTestTag("com.android.systemui:id/slider"))
-                                    ) {
-                                        swipeRight(
-                                            startX = left,
-                                            endX = right,
-                                            durationMillis = 500,
-                                        )
-                                    }
+                                performTouchInputAsync(
+                                    onNode(hasTestTag("com.android.systemui:id/slider"))
+                                ) {
+                                    swipeRight(startX = left, endX = right, durationMillis = 500)
                                 }
-                                val animationEnd = async {
-                                    awaitCondition { isAnimating }
-                                    awaitCondition { !isAnimating }
-                                }
-                                joinAll(gesture, animationEnd)
+
+                                awaitIdle()
                             }
                         }
                     ) {
-                        featureFloat(BrightnessSliderMotionTestKeys.ActiveIconAlpha)
-                        featureFloat(BrightnessSliderMotionTestKeys.InactiveIconAlpha)
+                        feature(ActiveIconAlpha, Float.dataPointType)
+                        feature(InactiveIconAlpha, Float.dataPointType)
                     },
                 )
             assertThat(motion).timeSeriesMatchesGolden("brightnessSlider_iconAlphaChanges")
-        }
-    }
-
-    private companion object {
-
-        val MotionControlScope.isAnimating: Boolean
-            get() = motionTestValueOfNode(BrightnessSliderMotionTestKeys.AnimatingIcon)
-
-        fun TimeSeriesCaptureScope<SemanticsNodeInteractionsProvider>.featureFloat(
-            motionTestValueKey: MotionTestValueKey<Float>
-        ) {
-            feature(
-                motionTestValueKey = motionTestValueKey,
-                capture =
-                    FeatureCapture(motionTestValueKey.semanticsPropertyKey.name) {
-                        it.asDataPoint()
-                    },
-            )
         }
     }
 }

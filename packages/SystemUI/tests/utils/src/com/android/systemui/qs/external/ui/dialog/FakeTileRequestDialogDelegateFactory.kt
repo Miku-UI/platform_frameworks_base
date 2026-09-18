@@ -23,11 +23,11 @@ import org.mockito.kotlin.mock
 
 class FakeTileRequestDialogDelegateFactory : TileRequestDialogDelegate.Factory {
     lateinit var tileData: TileData
-    lateinit var clickListener: DialogInterface.OnClickListener
+    lateinit var clickListener: DialogInterface.OnMultiChoiceClickListener
 
     override fun create(
         tileData: TileData,
-        dialogListener: DialogInterface.OnClickListener,
+        dialogListener: DialogInterface.OnMultiChoiceClickListener,
     ): TileRequestDialogDelegate {
         this.tileData = tileData
         this.clickListener = dialogListener

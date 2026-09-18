@@ -201,11 +201,11 @@ public abstract class DocumentsProvider extends ContentProvider {
         mMatcher.addURI(mAuthority, "root/*", MATCH_ROOT);
         mMatcher.addURI(mAuthority, "root/*/recent", MATCH_RECENT);
         mMatcher.addURI(mAuthority, "root/*/search", MATCH_SEARCH);
+        mMatcher.addURI(mAuthority, "root/*/trash", MATCH_TRASH);
         mMatcher.addURI(mAuthority, "document/*", MATCH_DOCUMENT);
         mMatcher.addURI(mAuthority, "document/*/children", MATCH_CHILDREN);
         mMatcher.addURI(mAuthority, "tree/*/document/*", MATCH_DOCUMENT_TREE);
         mMatcher.addURI(mAuthority, "tree/*/document/*/children", MATCH_CHILDREN_TREE);
-        mMatcher.addURI(mAuthority, "trash", MATCH_TRASH);
     }
 
     /**
@@ -336,19 +336,25 @@ public abstract class DocumentsProvider extends ContentProvider {
     }
 
     /**
-     * @return a cursor of trashed documents. This will be called for each
-     * provider (for local just externalstorage provider) and combine the results.
-     * @param projection list of {@link Document} columns to put into the
-     *            cursor. If {@code null} all supported columns should be
-     *            included.
-     * @throws AuthenticationRequiredException If authentication is required from
-     *            the user (such as login credentials), but it is not guaranteed
-     *            that the client will handle this properly.
+     * @return a cursor of trashed documents. This will be called for each provider (for local just
+     *     externalstorage provider) and combine the results.
+     * @param rootId the root to return trash items for.
+     * @param projection list of {@link Document} columns to put into the cursor. If {@code null}
+     *     all supported columns should be included.
+     * @param queryArgs the extra query arguments.
+     * @param signal used by the caller to signal if the request should be cancelled. May be null.
+     * @throws AuthenticationRequiredException If authentication is required from the user (such as
+     *     login credentials), but it is not guaranteed that the client will handle this properly.
      */
     @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
     @Nullable
     @SuppressLint("OnNameExpected")
-    public Cursor queryTrashDocuments(@Nullable String[] projection) throws FileNotFoundException {
+    public Cursor queryTrashDocuments(
+            @NonNull String rootId,
+            @Nullable String[] projection,
+            @Nullable Bundle queryArgs,
+            @Nullable CancellationSignal signal)
+            throws FileNotFoundException {
         throw new UnsupportedOperationException("Query Trash not supported");
     }
 
@@ -949,11 +955,11 @@ public abstract class DocumentsProvider extends ContentProvider {
      * WARNING: Sub-classes should not override this method. This method is non-final
      * solely for the purposes of backwards compatibility.
      *
-     * @see #queryChildDocuments(String, String[], Bundle),
-     *      {@link #queryDocument(String, String[])},
-     *      {@link #queryRecentDocuments(String, String[])},
-     *      {@link #queryRoots(String[])}, and
-     *      {@link #querySearchDocuments(String, String[], Bundle)}.
+     * @see #queryChildDocuments(String, String[], Bundle)
+     * @see #queryDocument(String, String[])
+     * @see #queryRecentDocuments(String, String[])
+     * @see #queryRoots(String[])
+     * @see #querySearchDocuments(String, String[], Bundle)
      */
     @Override
     public Cursor query(Uri uri, String[] projection, String selection,
@@ -984,7 +990,8 @@ public abstract class DocumentsProvider extends ContentProvider {
                             getRootId(uri), projection, queryArgs, cancellationSignal);
                 case MATCH_TRASH:
                     if (Flags.enableDocumentsTrashApi()) {
-                        return queryTrashDocuments(projection);
+                        return queryTrashDocuments(
+                                getRootId(uri), projection, queryArgs, cancellationSignal);
                     }
                 case MATCH_SEARCH:
                     return querySearchDocuments(getRootId(uri), projection, queryArgs);

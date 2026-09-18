@@ -18,6 +18,7 @@ package com.android.keyguard;
 
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
+import static android.security.Flags.lockscreenTimeoutDeactivatePinPad;
 
 import static com.android.internal.jank.InteractionJankMonitor.CUJ_LOCKSCREEN_PIN_APPEAR;
 import static com.android.internal.jank.InteractionJankMonitor.CUJ_LOCKSCREEN_PIN_DISAPPEAR;
@@ -270,8 +271,10 @@ public class KeyguardPINView extends KeyguardPinBasedInputView {
     }
 
     @Override
-    public int getWrongPasswordStringId() {
-        return R.string.kg_wrong_pin;
+    public int getWrongPasswordStringId(boolean isDuplicate) {
+        return isDuplicate
+                ? R.string.kg_primary_auth_duplicate_guess_pin
+                : R.string.kg_wrong_pin;
     }
 
     @Override
@@ -335,7 +338,10 @@ public class KeyguardPINView extends KeyguardPinBasedInputView {
                         0f,
                         1f
                 ));
-                view.setAlpha(scaledProgress);
+                if (!lockscreenTimeoutDeactivatePinPad()
+                        || !(view instanceof NumPadAnimationListener)) {
+                    view.setAlpha(scaledProgress);
+                }
                 int yDistance = mYTrans + mYTransOffset * i;
                 view.setTranslationY(
                         yDistance - (yDistance * standardProgress));

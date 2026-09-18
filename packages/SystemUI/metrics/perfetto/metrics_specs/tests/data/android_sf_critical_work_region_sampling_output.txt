@@ -1,4 +1,5 @@
 metric_bundles {
+  bundle_id: "android_sf_critical_work_region_sampling_cuj"
   row {
     values {
       double_value: 22000000.0

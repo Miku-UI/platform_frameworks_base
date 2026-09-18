@@ -16,24 +16,27 @@
 package com.android.keyguard
 
 import android.hardware.display.DisplayManagerGlobal
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Display
 import android.view.DisplayAdjustments
 import android.view.DisplayInfo
+import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.keyguard.KeyguardDisplayManager.DeviceStateHelper
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.display.data.repository.displayRepository
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.navigationbar.NavigationBarController
+import com.android.systemui.navigationbar.views.NavigationBarView
 import com.android.systemui.settings.FakeDisplayTracker
 import com.android.systemui.shade.data.repository.FakeShadeDisplayRepository
 import com.android.systemui.statusbar.policy.KeyguardStateController
+import com.android.systemui.testKosmosNew
+import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.Executor
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,21 +49,24 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.reset
+import org.mockito.kotlin.times
 import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
 class KeyguardDisplayManagerTest : SysuiTestCase() {
+    private val kosmos = testKosmosNew()
     @Mock private val navigationBarController = mock(NavigationBarController::class.java)
     @Mock
     private val presentationFactory = mock(ConnectedDisplayKeyguardPresentationFactory::class.java)
     @Mock
     private val connectedDisplayKeyguardPresentation =
-        mock(ConnectedDisplayKeyguardPresentation::class.java)
+        mock(ConnectedDisplayConstraintLayoutKeyguardPresentation::class.java)
     @Mock private val deviceStateHelper = mock(DeviceStateHelper::class.java)
     @Mock private val keyguardStateController = mock(KeyguardStateController::class.java)
     private val shadePositionRepository = FakeShadeDisplayRepository()
+    private val displayRepository = kosmos.displayRepository
 
     private val mainExecutor = Executor { it.run() }
     private val backgroundExecutor = Executor { it.run() }
@@ -70,7 +76,7 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
     private lateinit var defaultDisplay: Display
     private lateinit var secondaryDisplay: Display
 
-    private val testScope = TestScope(UnconfinedTestDispatcher())
+    private val testScope = kosmos.testScope
 
     // This display is in a different group from the default and secondary displays.
     private lateinit var alwaysUnlockedDisplay: Display
@@ -91,6 +97,7 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
                 { shadePositionRepository },
                 testScope.backgroundScope,
                 /* isCentralizedWallpaperPresentationEnabled= */ false,
+                displayRepository,
             )
         whenever(presentationFactory.create(any())).doReturn(connectedDisplayKeyguardPresentation)
 
@@ -181,11 +188,10 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun show_shadeMovesDisplay_newPresentationCreated() {
         displayTracker.allDisplays = arrayOf(defaultDisplay, secondaryDisplay)
         // Shade in the default display, we expect the presentation to be in the secondary only
-        shadePositionRepository.setDisplayId(defaultDisplay.displayId)
+        shadePositionRepository.setPendingDisplayId(defaultDisplay.displayId)
 
         manager.show()
 
@@ -196,7 +202,7 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
 
         // Let's move it to the secondary display. We expect it will be added in the default
         // one.
-        shadePositionRepository.setDisplayId(secondaryDisplay.displayId)
+        shadePositionRepository.setPendingDisplayId(secondaryDisplay.displayId)
         testScope.advanceUntilIdle()
 
         verify(presentationFactory).create(eq(defaultDisplay))
@@ -204,17 +210,16 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
         whenever(presentationFactory.create(any())).thenReturn(connectedDisplayKeyguardPresentation)
 
         // Let's move it back! it should be re-created (it means it was removed before)
-        shadePositionRepository.setDisplayId(defaultDisplay.displayId)
+        shadePositionRepository.setPendingDisplayId(defaultDisplay.displayId)
         testScope.advanceUntilIdle()
 
         verify(presentationFactory).create(eq(secondaryDisplay))
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun show_shadeInSecondaryDisplay_defaultOneHasPresentation() {
         displayTracker.allDisplays = arrayOf(defaultDisplay, secondaryDisplay)
-        shadePositionRepository.setDisplayId(secondaryDisplay.displayId)
+        shadePositionRepository.setPendingDisplayId(secondaryDisplay.displayId)
 
         manager.show()
 
@@ -222,13 +227,50 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun show_shadeInDefaultDisplay_secondaryOneHasPresentation() {
         displayTracker.allDisplays = arrayOf(defaultDisplay, secondaryDisplay)
-        shadePositionRepository.setDisplayId(defaultDisplay.displayId)
+        shadePositionRepository.setPendingDisplayId(defaultDisplay.displayId)
 
         manager.show()
 
         verify(presentationFactory).create(eq(secondaryDisplay))
     }
+
+    @Test
+    fun hide_centralizedWallpaperPresentationEnabled_updateNavigationBarVisibility() =
+        testScope.runTest {
+            val mockNavigationBarView = mock(NavigationBarView::class.java)
+            val rootView = View(context)
+            whenever(mockNavigationBarView.rootView).thenReturn(rootView)
+            whenever(navigationBarController.getNavigationBarView(eq(secondaryDisplay.displayId)))
+                .thenReturn(mockNavigationBarView)
+            displayRepository.addDisplay(defaultDisplay)
+            displayRepository.addDisplay(secondaryDisplay)
+            val keyguardDisplayManager =
+                KeyguardDisplayManager(
+                    mContext,
+                    { navigationBarController },
+                    displayTracker,
+                    mainExecutor,
+                    backgroundExecutor,
+                    deviceStateHelper,
+                    keyguardStateController,
+                    presentationFactory,
+                    { shadePositionRepository },
+                    testScope.backgroundScope,
+                    /* isCentralizedWallpaperPresentationEnabled= */ true,
+                    displayRepository,
+                )
+            // The navigation bar's visibility will only be updated after the keyguard has been
+            // shown.
+            keyguardDisplayManager.show()
+
+            keyguardDisplayManager.hide()
+
+            verify(navigationBarController).getNavigationBarView(eq(secondaryDisplay.displayId))
+            // Default display navigation bar is handled by StatusBarKeyguardViewManager
+            verify(navigationBarController, times(0))
+                .getNavigationBarView(eq(defaultDisplay.displayId))
+            assertThat(rootView.visibility).isEqualTo(View.VISIBLE)
+        }
 }

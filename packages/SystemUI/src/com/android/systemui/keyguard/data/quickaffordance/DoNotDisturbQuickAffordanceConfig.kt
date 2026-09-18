@@ -31,6 +31,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.shared.quickaffordance.ActivationState
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
@@ -104,7 +105,11 @@ class DoNotDisturbQuickAffordanceConfig(
             } else if (dndMode?.isActive == true) {
                 KeyguardQuickAffordanceConfig.LockScreenState.Visible(
                     Icon.Resource(
-                        R.drawable.qs_dnd_icon_on,
+                        if (SceneContainerFlag.isEnabled) {
+                            R.drawable.avd_dnd_to_on
+                        } else {
+                            R.drawable.qs_dnd_icon_on
+                        },
                         ContentDescription.Resource(R.string.dnd_is_on),
                     ),
                     ActivationState.Active,
@@ -112,7 +117,11 @@ class DoNotDisturbQuickAffordanceConfig(
             } else {
                 KeyguardQuickAffordanceConfig.LockScreenState.Visible(
                     Icon.Resource(
-                        R.drawable.qs_dnd_icon_off,
+                        if (SceneContainerFlag.isEnabled) {
+                            R.drawable.avd_dnd_to_off
+                        } else {
+                            R.drawable.qs_dnd_icon_off
+                        },
                         ContentDescription.Resource(R.string.dnd_is_off),
                     ),
                     ActivationState.Inactive,

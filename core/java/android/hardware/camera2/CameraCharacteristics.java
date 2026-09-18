@@ -755,7 +755,6 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * @hide
      */
     @SystemApi
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_CAMERA_METADATA)
     public static final class Builder {
         private final CameraMetadataNative mNativeMetadata;
 
@@ -2364,11 +2363,13 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * <ul>
      * <li>Processed (but stalling): any non-RAW format with a stallDurations &gt; 0.
      *   Typically {@link android.graphics.ImageFormat#JPEG JPEG format}.</li>
-     * <li>Raw formats: {@link android.graphics.ImageFormat#RAW_SENSOR RAW_SENSOR}, {@link android.graphics.ImageFormat#RAW10 RAW10}, or
-     *   {@link android.graphics.ImageFormat#RAW12 RAW12}.</li>
+     * <li>Raw formats: {@link android.graphics.ImageFormat#RAW_SENSOR RAW_SENSOR},
+     *   {@link android.graphics.ImageFormat#RAW10 RAW10},
+     *   {@link android.graphics.ImageFormat#RAW12 RAW12}, or
+     *   {@link android.graphics.ImageFormat#RAW14 RAW14}</li>
      * <li>Processed (but not-stalling): any non-RAW format without a stall duration.  Typically
      *   {@link android.graphics.ImageFormat#YUV_420_888 YUV_420_888},
-     *   {@link android.graphics.ImageFormat#NV21 NV21}, {@link android.graphics.ImageFormat#YV12 YV12}, or {@link android.graphics.ImageFormat#Y8 Y8} .</li>
+     *   or {@link android.graphics.ImageFormat#Y8 Y8} .</li>
      * </ul>
      * <p><b>Range of valid values:</b><br></p>
      * <p>For processed (and stalling) format streams, &gt;= 1.</p>
@@ -2399,6 +2400,7 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * <li>{@link android.graphics.ImageFormat#RAW_SENSOR RAW_SENSOR}</li>
      * <li>{@link android.graphics.ImageFormat#RAW10 RAW10}</li>
      * <li>{@link android.graphics.ImageFormat#RAW12 RAW12}</li>
+     * <li>{@link android.graphics.ImageFormat#RAW14 RAW14}</li>
      * </ul>
      * <p>LEGACY mode devices ({@link CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL android.info.supportedHardwareLevel} <code>==</code> LEGACY)
      * never support raw streams.</p>
@@ -2429,8 +2431,6 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * Typically:</p>
      * <ul>
      * <li>{@link android.graphics.ImageFormat#YUV_420_888 YUV_420_888}</li>
-     * <li>{@link android.graphics.ImageFormat#NV21 NV21}</li>
-     * <li>{@link android.graphics.ImageFormat#YV12 YV12}</li>
      * <li>Implementation-defined formats, i.e. {@link android.hardware.camera2.params.StreamConfigurationMap#isOutputSupportedFor(Class) }</li>
      * <li>{@link android.graphics.ImageFormat#Y8 Y8}</li>
      * </ul>
@@ -3357,6 +3357,7 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * <li>{@link android.graphics.ImageFormat#YUV_420_888 }</li>
      * <li>{@link android.graphics.ImageFormat#RAW10 }</li>
      * <li>{@link android.graphics.ImageFormat#RAW12 }</li>
+     * <li>{@link android.graphics.ImageFormat#RAW14 }</li>
      * <li>{@link android.graphics.ImageFormat#Y8 }</li>
      * </ul>
      * <p>All other formats may or may not have an allowed stall duration on
@@ -4107,6 +4108,16 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
             new Key<android.hardware.camera2.params.MandatoryStreamCombination[]>("android.scaler.mandatoryUseCaseStreamCombinations", android.hardware.camera2.params.MandatoryStreamCombination[].class);
 
     /**
+     * <p>The MultiResolutionImageReader formats supporting concurrent readers.</p>
+     * <p>Among all of the MultiResolutionImageReader formats this camera device supports,
+     * this list contains the formats that support concurrent reader outputs.</p>
+     * <p><b>Optional</b> - The value for this key may be {@code null} on some devices.</p>
+     * @hide
+     */
+    public static final Key<int[]> SCALER_CONCURRENT_MULTI_RESOLUTION_FORMATS =
+            new Key<int[]>("android.scaler.concurrentMultiResolutionFormats", int[].class);
+
+    /**
      * <p>The area of the image sensor which corresponds to active pixels after any geometric
      * distortion correction has been applied.</p>
      * <p>This is the rectangle representing the size of the active region of the sensor (i.e.
@@ -4129,8 +4140,8 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * by lens geometric distortion correction.</p>
      * <p>In general, application should always refer to active array size for controls like
      * metering regions or crop region. Two exceptions are when the application is dealing with
-     * RAW image buffers (RAW_SENSOR, RAW10, RAW12 etc), or when application explicitly set
-     * {@link CaptureRequest#DISTORTION_CORRECTION_MODE android.distortionCorrection.mode} to OFF. In these cases, application should refer
+     * RAW image buffers (RAW_SENSOR, RAW10, RAW12, RAW14 etc), or when application explicitly
+     * set {@link CaptureRequest#DISTORTION_CORRECTION_MODE android.distortionCorrection.mode} to OFF. In these cases, application should refer
      * to {@link CameraCharacteristics#SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE android.sensor.info.preCorrectionActiveArraySize}.</p>
      * <p><b>Units</b>: Pixel coordinates on the image sensor</p>
      * <p>This key is available on all devices.</p>
@@ -5460,6 +5471,50 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
             new Key<Integer>("android.info.deviceId", int.class);
 
     /**
+     * <p>A classification of the underlying hardware and source of image data for this
+     * camera device, or for a specific camera output frame.</p>
+     * <p>Historically, camera devices listed by the camera2 API could be assumed to be built-in
+     * cameras on the Android device, or in the case of the <code>EXTERNAL</code>
+     * <code>{@link CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL android.info.supportedHardwareLevel}</code>, USB webcams.</p>
+     * <p>However, it is increasingly possible for camera devices to not be restricted to
+     * device-internal sensors and processing pipelines. Such devices can provide a wide range
+     * of useful capabilities to applications, but may also not be suitable for all camera use
+     * cases.</p>
+     * <p>This key provides a basic classification of the type of camera this camera ID
+     * represents, so that applications may decide on the appropriate level of trust to extend
+     * to the image data produced by it.</p>
+     * <p>Note that in some cases, it is possible for the user to swap the definition of a camera
+     * ID to a different one, such as when connecting a remote camera to act as the front
+     * camera of the device. This is normally transparent to the camera-using application to
+     * minimize user friction, but applications that care about this possibility should always
+     * verify the value of this key in the
+     * {@link android.hardware.camera2.CameraCharacteristics CameraCharacteristics} before opening
+     * a camera, instead of caching it, and should also watch the value of this key in
+     * {@link android.hardware.camera2.CaptureResult CaptureResults} as well, since it may
+     * change mid-session.</p>
+     * <p><b>Possible values:</b></p>
+     * <ul>
+     *   <li>{@link #INFO_DEVICE_TYPE_BUILT_IN BUILT_IN}</li>
+     *   <li>{@link #INFO_DEVICE_TYPE_EXTERNAL EXTERNAL}</li>
+     *   <li>{@link #INFO_DEVICE_TYPE_VIRTUAL VIRTUAL}</li>
+     *   <li>{@link #INFO_DEVICE_TYPE_UNKNOWN UNKNOWN}</li>
+     * </ul>
+     *
+     * <p>This key is available on all devices.</p>
+     *
+     * @see CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL
+     * @see #INFO_DEVICE_TYPE_BUILT_IN
+     * @see #INFO_DEVICE_TYPE_EXTERNAL
+     * @see #INFO_DEVICE_TYPE_VIRTUAL
+     * @see #INFO_DEVICE_TYPE_UNKNOWN
+     */
+    @PublicKey
+    @NonNull
+    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_TYPE_API)
+    public static final Key<Integer> INFO_DEVICE_TYPE =
+            new Key<Integer>("android.info.deviceType", int.class);
+
+    /**
      * <p>The maximum number of frames that can occur after a request
      * (different than the previous) has been submitted, and before the
      * result's state becomes synchronized.</p>
@@ -6346,7 +6401,6 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * @see #SHARED_SESSION_COLOR_SPACE_BT2020_HLG
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final Key<Integer> SHARED_SESSION_COLOR_SPACE =
             new Key<Integer>("android.sharedSession.colorSpace", int.class);
 
@@ -6369,7 +6423,6 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      * <p><b>Optional</b> - The value for this key may be {@code null} on some devices.</p>
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final Key<long[]> SHARED_SESSION_OUTPUT_CONFIGURATIONS =
             new Key<long[]>("android.sharedSession.outputConfigurations", long[].class);
 
@@ -6383,7 +6436,6 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
     @SystemApi
     @NonNull
     @SyntheticKey
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final Key<android.hardware.camera2.params.SharedSessionConfiguration> SHARED_SESSION_CONFIGURATION =
             new Key<android.hardware.camera2.params.SharedSessionConfiguration>("android.sharedSession.configuration", android.hardware.camera2.params.SharedSessionConfiguration.class);
 

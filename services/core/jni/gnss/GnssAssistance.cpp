@@ -63,9 +63,12 @@ jmethodID method_gnssAssistanceGetGlonassAssistance;
 jmethodID method_gnssAssistanceGetGalileoAssistance;
 jmethodID method_gnssAssistanceGetBeidouAssistance;
 jmethodID method_gnssAssistanceGetQzssAssistance;
+jmethodID method_gnssAssistanceGetIonexAssistance;
 
 jmethodID method_listSize;
 jmethodID method_listGet;
+
+jmethodID method_floatValue;
 
 jmethodID method_gnssAlmanacGetIssueDateMillis;
 jmethodID method_gnssAlmanacGetIoda;
@@ -311,6 +314,22 @@ jmethodID method_qzssSatelliteEphemerisGetSatelliteClockModel;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteOrbitModel;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteHealth;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteEphemerisTime;
+
+jmethodID method_ionexAssistanceGetHeader;
+jmethodID method_ionexAssistanceGetTecMapSnapshot;
+jmethodID method_ionexAssistanceAxesGetLatitudeAxis;
+jmethodID method_ionexAssistanceAxesGetLongitudeAxis;
+jmethodID method_ionexAssistanceAxisGetDeltaDeg;
+jmethodID method_ionexAssistanceAxisGetStartDeg;
+jmethodID method_ionexAssistanceAxisGetNumPoints;
+jmethodID method_ionexAssistanceHeaderGetAxesInfo;
+jmethodID method_ionexAssistanceHeaderGetBaseRadiusKm;
+jmethodID method_ionexAssistanceHeaderGetHeightKm;
+jmethodID method_ionexAssistanceHeaderGetMappingFunction;
+jmethodID method_ionexAssistanceTecMapSnapshotGetEpochTimeSeconds;
+jmethodID method_ionexAssistanceTecMapSnapshotGetRmsMap;
+jmethodID method_ionexAssistanceTecMapSnapshotGetTecMap;
+
 } // namespace
 
 constexpr double GLONASS_CLOCK_MODEL_GROUP_DELAY_DIFF_SECONDS_UNAVAILABLE = 0.999999999999E+09;
@@ -337,13 +356,11 @@ void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
 
     // Get the methods of List class.
     jclass listClass = env->FindClass("java/util/List");
-
     method_listSize = env->GetMethodID(listClass, "size", "()I");
     method_listGet = env->GetMethodID(listClass, "get", "(I)Ljava/lang/Object;");
 
     // Get the methods of GnssAlmanac class.
     jclass gnssAlmanacClass = env->FindClass("android/location/GnssAlmanac");
-
     method_gnssAlmanacGetIssueDateMillis =
             env->GetMethodID(gnssAlmanacClass, "getIssueDateMillis", "()J");
     method_gnssAlmanacGetIoda = env->GetMethodID(gnssAlmanacClass, "getIoda", "()I");
@@ -987,6 +1004,67 @@ void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
     method_qzssSatelliteEphemerisGetSatelliteOrbitModel =
             env->GetMethodID(qzssSatelliteEphemerisClass, "getSatelliteOrbitModel",
                              "()Landroid/location/KeplerianOrbitModel;");
+
+    if (location_flags::support_ionex_assistance()) {
+        // Get the methods of GnssAssistance class.
+        method_gnssAssistanceGetIonexAssistance =
+                env->GetMethodID(gnssAssistanceClass, "getIonexAssistance",
+                                 "()Landroid/location/IonexAssistance;");
+
+        // Get the methods of Float class
+        jclass floatClass = env->FindClass("java/lang/Float");
+        method_floatValue = env->GetMethodID(floatClass, "floatValue", "()F");
+
+        // Get the methods of IonexAssistance class.
+        jclass ionexAssistanceClass = env->FindClass("android/location/IonexAssistance");
+        method_ionexAssistanceGetHeader =
+                env->GetMethodID(ionexAssistanceClass, "getHeader",
+                                 "()Landroid/location/IonexAssistance$Header;");
+        method_ionexAssistanceGetTecMapSnapshot =
+                env->GetMethodID(ionexAssistanceClass, "getTecMapSnapshot",
+                                 "()Landroid/location/IonexAssistance$TecMapSnapshot;");
+
+        // Get the methods of Axes class.
+        jclass ionexAssistanceAxesClass = env->FindClass("android/location/IonexAssistance$Axes");
+        method_ionexAssistanceAxesGetLatitudeAxis =
+                env->GetMethodID(ionexAssistanceAxesClass, "getLatitudeAxis",
+                                 "()Landroid/location/IonexAssistance$Axis;");
+        method_ionexAssistanceAxesGetLongitudeAxis =
+                env->GetMethodID(ionexAssistanceAxesClass, "getLongitudeAxis",
+                                 "()Landroid/location/IonexAssistance$Axis;");
+
+        // Get the methods of Axis class.
+        jclass ionexAssistanceAxisClass = env->FindClass("android/location/IonexAssistance$Axis");
+        method_ionexAssistanceAxisGetDeltaDeg =
+                env->GetMethodID(ionexAssistanceAxisClass, "getDeltaDeg", "()D");
+        method_ionexAssistanceAxisGetStartDeg =
+                env->GetMethodID(ionexAssistanceAxisClass, "getStartDeg", "()D");
+        method_ionexAssistanceAxisGetNumPoints =
+                env->GetMethodID(ionexAssistanceAxisClass, "getNumPoints", "()I");
+
+        // Get the methods of Header class.
+        jclass ionexAssistanceHeaderClass =
+                env->FindClass("android/location/IonexAssistance$Header");
+        method_ionexAssistanceHeaderGetAxesInfo =
+                env->GetMethodID(ionexAssistanceHeaderClass, "getAxesInfo",
+                                 "()Landroid/location/IonexAssistance$Axes;");
+        method_ionexAssistanceHeaderGetBaseRadiusKm =
+                env->GetMethodID(ionexAssistanceHeaderClass, "getBaseRadiusKm", "()F");
+        method_ionexAssistanceHeaderGetHeightKm =
+                env->GetMethodID(ionexAssistanceHeaderClass, "getHeightKm", "()F");
+        method_ionexAssistanceHeaderGetMappingFunction =
+                env->GetMethodID(ionexAssistanceHeaderClass, "getMappingFunction", "()I");
+
+        // Get the methods of TecMapSnapshot class.
+        jclass ionexAssistanceTecMapSnapshotClass =
+                env->FindClass("android/location/IonexAssistance$TecMapSnapshot");
+        method_ionexAssistanceTecMapSnapshotGetEpochTimeSeconds =
+                env->GetMethodID(ionexAssistanceTecMapSnapshotClass, "getEpochTimeSeconds", "()J");
+        method_ionexAssistanceTecMapSnapshotGetTecMap =
+                env->GetMethodID(ionexAssistanceTecMapSnapshotClass, "getTecMap", "()[S");
+        method_ionexAssistanceTecMapSnapshotGetRmsMap =
+                env->GetMethodID(ionexAssistanceTecMapSnapshotClass, "getRmsMap", "()[S");
+    }
 }
 
 GnssAssistanceInterface::GnssAssistanceInterface(
@@ -1028,11 +1106,102 @@ void GnssAssistanceUtil::setGnssAssistance(JNIEnv* env, jobject gnssAssistanceOb
                                              gnssAssistance.galileoAssistance);
     GnssAssistanceUtil::setBeidouAssistance(env, beidouAssistanceObj,
                                             gnssAssistance.beidouAssistance);
+
     env->DeleteLocalRef(gpsAssistanceObj);
     env->DeleteLocalRef(glonassAssistanceObj);
     env->DeleteLocalRef(qzssAssistanceObj);
     env->DeleteLocalRef(galileoAssistanceObj);
     env->DeleteLocalRef(beidouAssistanceObj);
+
+    if (location_flags::support_ionex_assistance()) {
+        jobject ionexAssistanceObj =
+                env->CallObjectMethod(gnssAssistanceObj, method_gnssAssistanceGetIonexAssistance);
+        GnssAssistanceUtil::setIonexAssistance(env, ionexAssistanceObj,
+                                               gnssAssistance.ionexAssistance);
+        env->DeleteLocalRef(ionexAssistanceObj);
+    }
+}
+
+void GnssAssistanceUtil::setIonexAssistance(JNIEnv* env, jobject ionexAssistanceObj,
+                                            std::optional<IonexAssistance>& ionexAssistanceOpt) {
+    if (ionexAssistanceObj == nullptr) return;
+    IonexAssistance ionexAssistance;
+    jobject headerObj = env->CallObjectMethod(ionexAssistanceObj, method_ionexAssistanceGetHeader);
+    jfloat baseRadiusKm =
+            env->CallFloatMethod(headerObj, method_ionexAssistanceHeaderGetBaseRadiusKm);
+    ionexAssistance.header.baseRadiusKm = baseRadiusKm;
+    jfloat heightKm = env->CallFloatMethod(headerObj, method_ionexAssistanceHeaderGetHeightKm);
+    ionexAssistance.header.heightKm = heightKm;
+    jint mappingFunction =
+            env->CallIntMethod(headerObj, method_ionexAssistanceHeaderGetMappingFunction);
+    ionexAssistance.header.mappingFunction =
+            static_cast<IonexAssistance::Header::MappingFunction>(mappingFunction);
+    jobject axesObj = env->CallObjectMethod(headerObj, method_ionexAssistanceHeaderGetAxesInfo);
+    jobject latitudeAxisObj =
+            env->CallObjectMethod(axesObj, method_ionexAssistanceAxesGetLatitudeAxis);
+    jobject longitudeAxisObj =
+            env->CallObjectMethod(axesObj, method_ionexAssistanceAxesGetLongitudeAxis);
+    jdouble latitudeAxisDeltaDeg =
+            env->CallDoubleMethod(latitudeAxisObj, method_ionexAssistanceAxisGetDeltaDeg);
+    ionexAssistance.header.axesInfo.latitudeAxis.deltaDeg = latitudeAxisDeltaDeg;
+    jdouble latitudeAxisStartDeg =
+            env->CallDoubleMethod(latitudeAxisObj, method_ionexAssistanceAxisGetStartDeg);
+    ionexAssistance.header.axesInfo.latitudeAxis.startDeg = latitudeAxisStartDeg;
+    jint latitudeAxisNumPoints =
+            env->CallIntMethod(latitudeAxisObj, method_ionexAssistanceAxisGetNumPoints);
+    ionexAssistance.header.axesInfo.latitudeAxis.numPoints = latitudeAxisNumPoints;
+    jdouble longitudeAxisDeltaDeg =
+            env->CallDoubleMethod(longitudeAxisObj, method_ionexAssistanceAxisGetDeltaDeg);
+    ionexAssistance.header.axesInfo.longitudeAxis.deltaDeg = longitudeAxisDeltaDeg;
+    jdouble longitudeAxisStartDeg =
+            env->CallDoubleMethod(longitudeAxisObj, method_ionexAssistanceAxisGetStartDeg);
+    ionexAssistance.header.axesInfo.longitudeAxis.startDeg = longitudeAxisStartDeg;
+    jint longitudeAxisNumPoints =
+            env->CallIntMethod(longitudeAxisObj, method_ionexAssistanceAxisGetNumPoints);
+    ionexAssistance.header.axesInfo.longitudeAxis.numPoints = longitudeAxisNumPoints;
+    env->DeleteLocalRef(axesObj);
+    env->DeleteLocalRef(latitudeAxisObj);
+    env->DeleteLocalRef(longitudeAxisObj);
+    env->DeleteLocalRef(headerObj);
+
+    jobject tecMapSnapshotObj =
+            env->CallObjectMethod(ionexAssistanceObj, method_ionexAssistanceGetTecMapSnapshot);
+    jlong epochTimeSeconds =
+            env->CallLongMethod(tecMapSnapshotObj,
+                                method_ionexAssistanceTecMapSnapshotGetEpochTimeSeconds);
+    ionexAssistance.tecMapSnapshot.epochTimeSeconds = epochTimeSeconds;
+
+    jshortArray tecMapArray =
+            (jshortArray)env->CallObjectMethod(tecMapSnapshotObj,
+                                               method_ionexAssistanceTecMapSnapshotGetTecMap);
+    if (tecMapArray != nullptr) {
+        jsize len = env->GetArrayLength(tecMapArray);
+        ionexAssistance.tecMapSnapshot.tecMap.resize(len);
+        // jshort is int16_t, and tecMap is a vector of char16_t. reinterpret_cast is safe
+        // as both are 16-bit wide.
+        env->GetShortArrayRegion(tecMapArray, 0, len,
+                                 reinterpret_cast<jshort*>(
+                                         ionexAssistance.tecMapSnapshot.tecMap.data()));
+        env->DeleteLocalRef(tecMapArray);
+    }
+
+    jshortArray rmsMapArray =
+            (jshortArray)env->CallObjectMethod(tecMapSnapshotObj,
+                                               method_ionexAssistanceTecMapSnapshotGetRmsMap);
+    // Per IonexAssistance.Builder, rmsMapArray is never null, but can be of length 0.
+    if (rmsMapArray != nullptr) {
+        jsize len = env->GetArrayLength(rmsMapArray);
+        ionexAssistance.tecMapSnapshot.rmsMap.resize(len);
+        // jshort is int16_t, and rmsMap is a vector of char16_t. reinterpret_cast is safe
+        // as both are 16-bit wide.
+        env->GetShortArrayRegion(rmsMapArray, 0, len,
+                                 reinterpret_cast<jshort*>(
+                                         ionexAssistance.tecMapSnapshot.rmsMap.data()));
+        env->DeleteLocalRef(rmsMapArray);
+    }
+
+    ionexAssistanceOpt = ionexAssistance;
+    env->DeleteLocalRef(tecMapSnapshotObj);
 }
 
 void GnssAssistanceUtil::setQzssAssistance(JNIEnv* env, jobject qzssAssistanceObj,

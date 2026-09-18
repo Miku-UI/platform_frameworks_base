@@ -31,4 +31,12 @@ class FakeCustomTileStatePersister : CustomTileStatePersister {
     override fun removeState(key: TileServiceKey) {
         tiles.remove(key)
     }
+
+    override fun removeStateForPackageAndUser(packageName: String, user: Int) {
+        tiles.keys.toList().forEach {
+            if (it.componentName.packageName == packageName && it.user == user) {
+                tiles.remove(it)
+            }
+        }
+    }
 }

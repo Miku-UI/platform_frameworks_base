@@ -16,6 +16,7 @@
 
 package com.android.server.pm;
 
+import android.annotation.ArrayRes;
 import android.annotation.ColorRes;
 import android.annotation.DrawableRes;
 import android.annotation.NonNull;
@@ -30,6 +31,8 @@ import android.os.UserManager;
 
 import com.android.internal.util.Preconditions;
 import com.android.server.BundleUtils;
+import com.android.server.pm.GenericAllowlist.AllowlistMode;
+import com.android.server.pm.UserActivitiesAllowlist;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -166,6 +169,19 @@ public final class UserTypeDetails {
      */
     private final @NonNull UserProperties mDefaultUserProperties;
 
+    /**
+     * The Resource ID of the that will be used create the {@link UserActivitiesAllowlist}
+     * associated with the user type (or {@link Resources#ID_NULL} when the type doesn't define such
+     * allowlist).
+     */
+    private final @ArrayRes int mActivitiesAllowlist;
+
+    /**
+     * The mode of the {@link UserActivitiesAllowlist} associated with the user type (or
+     * {@link UserActivitiesAllowlist#MODE_NONE} when the type doesn't define such allowlist).
+     */
+    private final @AllowlistMode int mActivitiesAllowlistMode;
+
     private UserTypeDetails(@NonNull String name, boolean enabled, int maxAllowed,
             @UserInfoFlag int baseType, @UserInfoFlag int defaultUserInfoPropertyFlags,
             @Nullable int[] labels, int maxAllowedPerParent, boolean profileParentRequired,
@@ -178,7 +194,9 @@ public final class UserTypeDetails {
             @Nullable Bundle defaultSecureSettings,
             @Nullable List<DefaultCrossProfileIntentFilter> defaultCrossProfileIntentFilters,
             @StringRes int accessibilityString,
-            @NonNull UserProperties defaultUserProperties) {
+            @NonNull UserProperties defaultUserProperties,
+            @ArrayRes int activitiesAllowlists,
+            @AllowlistMode int activitiesAllowlistMode) {
         this.mName = name;
         this.mEnabled = enabled;
         this.mMaxAllowed = maxAllowed;
@@ -200,6 +218,8 @@ public final class UserTypeDetails {
         this.mDarkThemeBadgeColors = darkThemeBadgeColors;
         this.mAccessibilityString = accessibilityString;
         this.mDefaultUserProperties = defaultUserProperties;
+        this.mActivitiesAllowlist = activitiesAllowlists;
+        this.mActivitiesAllowlistMode = activitiesAllowlistMode;
     }
 
     /**
@@ -379,13 +399,12 @@ public final class UserTypeDetails {
                 : Collections.emptyList();
     }
 
-    /** Value that indicates that there is no limit to the number of users allowed. */
-    public static int getLegacyUnlimitedNumberOfUsersValue() {
-        if (android.multiuser.Flags.decoupleMaxUsersFromProfiles()) {
-            throw new UnsupportedOperationException("No such thing as unlimited users anymore.");
-        }
-        // Making this a function rather than constant just to make it easier to flag-and-remove.
-        return -1;
+    @ArrayRes int getActivitiesAllowlist() {
+        return mActivitiesAllowlist;
+    }
+
+    @AllowlistMode int getActivitiesAllowlistMode() {
+        return mActivitiesAllowlistMode;
     }
 
     /** Dumps details of the UserTypeDetails. Do not parse this. */
@@ -416,6 +435,11 @@ public final class UserTypeDetails {
         pw.println(mDarkThemeBadgeColors != null ? mDarkThemeBadgeColors.length : "0(null)");
         pw.print(prefix); pw.print("mLabels.length: ");
         pw.println(mLabels != null ? mLabels.length : "0(null)");
+        pw.print(prefix); pw.print("mActivitiesAllowlist: ");
+        pw.println(mActivitiesAllowlist);
+        pw.print(prefix); pw.print("mActivitiesAllowlistMode: ");
+        pw.print(mActivitiesAllowlistMode); pw.print(" (");
+        pw.println(UserActivitiesAllowlist.allowlistModeToString(mActivitiesAllowlistMode) + ")");
     }
 
     /** Builder for a {@link UserTypeDetails}; see that class for documentation. */
@@ -423,8 +447,7 @@ public final class UserTypeDetails {
         // UserTypeDetails properties and their default values.
         private String mName; // This MUST be explicitly set.
         private int mBaseType; // This MUST be explicitly set.
-        private int mMaxAllowed = android.multiuser.Flags.decoupleMaxUsersFromProfiles() ?
-                0 : getLegacyUnlimitedNumberOfUsersValue();
+        private int mMaxAllowed = 0; // This must be overridden in order to actually enable.
         private int mMaxAllowedPerParent = 0;
         private int mDefaultUserInfoPropertyFlags = 0;
         private @Nullable Bundle mDefaultRestrictions = null;
@@ -446,6 +469,9 @@ public final class UserTypeDetails {
         // Default UserProperties cannot be null but for efficiency we don't initialize it now.
         // If it isn't set explicitly, {@link UserProperties.Builder#build()} will be used.
         private @Nullable UserProperties mDefaultUserProperties = null;
+        private @ArrayRes int mActivitiesAllowlist = Resources.ID_NULL;
+        private @AllowlistMode int mActivitiesAllowlistMode =
+                UserActivitiesAllowlist.ALLOWLIST_MODE_DISABLED;
 
         public Builder setName(String name) {
             mName = name;
@@ -560,6 +586,27 @@ public final class UserTypeDetails {
             return this;
         }
 
+        /**
+         * Sets the allowlist of activities associated with the user type.
+         *
+         * <p>If the resource is {@link Resources#ID_NULL}, allowlisting is disabled (and all
+         * activities are allowed).
+         */
+        public Builder setActivitiesAllowlist(@ArrayRes int activitiesAllowlist) {
+            this.mActivitiesAllowlist = activitiesAllowlist;
+            return this;
+        }
+
+        /**
+         * Sets the mode of the allowlist of activities associated with the user type.
+         *
+         * <p>If not set, the mode will be {@link UserActivitiesAllowlist#ALLOWLIST_MODE_DISABLED}.
+         */
+        public Builder setActivitiesAllowlistMode(@AllowlistMode int activitiesAllowlistMode) {
+            this.mActivitiesAllowlistMode = activitiesAllowlistMode;
+            return this;
+        }
+
         public @NonNull UserProperties getDefaultUserProperties() {
             if (mDefaultUserProperties == null) {
                 mDefaultUserProperties = new UserProperties.Builder().build();
@@ -579,11 +626,10 @@ public final class UserTypeDetails {
             Preconditions.checkArgument(hasValidPropertyFlags(),
                     "UserTypeDetails %s has invalid flags: %s", mName,
                             Integer.toHexString(mDefaultUserInfoPropertyFlags));
-            Preconditions.checkArgument(!android.multiuser.Flags.decoupleMaxUsersFromProfiles()
-                            || mMaxAllowed >= 0,
+            Preconditions.checkArgument(mMaxAllowed >= 0,
                     "UserTypeDetails %s has negative maxAllowed: %d", mName, mMaxAllowed);
             checkSystemAndMainUserPreconditions();
-            if (android.multiuser.Flags.decoupleMaxUsersFromProfiles() && isProfile()) {
+            if (isProfile()) {
                 Preconditions.checkArgument(mMaxAllowedPerParent >= 0,
                         "UserTypeDetails %s has negative mMaxAllowedPerParent: %d",
                         mName, mMaxAllowedPerParent);
@@ -623,7 +669,9 @@ public final class UserTypeDetails {
                     mDefaultSecureSettings,
                     mDefaultCrossProfileIntentFilters,
                     mAccessibilityString,
-                    getDefaultUserProperties());
+                    getDefaultUserProperties(),
+                    mActivitiesAllowlist,
+                    mActivitiesAllowlistMode);
         }
 
         private boolean hasBadge() {
@@ -659,6 +707,10 @@ public final class UserTypeDetails {
                     ((mBaseType & UserInfo.FLAG_SYSTEM) != 0) ==
                             ((mDefaultUserInfoPropertyFlags & UserInfo.FLAG_PRIMARY) != 0),
                     "UserTypeDetails %s cannot be SYSTEM xor PRIMARY.", mName);
+            // You certainly cannot have more than 1 of the same type of system user.
+            Preconditions.checkArgument(
+                    ((mBaseType & UserInfo.FLAG_SYSTEM) == 0) || mMaxAllowed <= 1,
+                    "UserTypeDetails %s cannot have a SYSTEM user with mMaxAllowed > 1.", mName);
             // At most one MainUser is ever allowed at a time.
             Preconditions.checkArgument(
                     ((mDefaultUserInfoPropertyFlags & UserInfo.FLAG_MAIN) == 0) || mMaxAllowed == 1,

@@ -44,7 +44,7 @@ import android.compat.annotation.UnsupportedAppUsage;
  * android.renderscript.Allocation} objects that are intended for use with a
  * {@link android.renderscript.Sampler} should use bitmap-derived Elements such
  * as {@link android.renderscript.Element#RGBA_8888} or {@link
- * android.renderscript#Element.A_8}.</p>
+ * android.renderscript.Element#A_8}.</p>
  *
  * <div class="special reference">
  * <h3>Developer Guides</h3>
@@ -1403,4 +1403,3 @@ public class Element extends BaseObj {
         }
     }
 }
-

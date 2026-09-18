@@ -29,6 +29,7 @@ import android.graphics.Insets;
 import android.graphics.ParcelableColorSpace;
 import android.graphics.Rect;
 import android.hardware.HardwareBuffer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -55,11 +56,12 @@ public class ScreenshotRequest implements Parcelable {
     private final Rect mBoundsInScreen;
     private final Insets mInsets;
     private final int mDisplayId;
+    private final Uri mCustomSaveUri;
 
     private ScreenshotRequest(
             @WindowManager.ScreenshotType int type, @WindowManager.ScreenshotSource int source,
             ComponentName topComponent, int taskId, int userId,
-            Bitmap bitmap, Rect boundsInScreen, Insets insets, int displayId) {
+            Bitmap bitmap, Rect boundsInScreen, Insets insets, int displayId, Uri customSaveUri) {
         mType = type;
         mSource = source;
         mTopComponent = topComponent;
@@ -69,6 +71,7 @@ public class ScreenshotRequest implements Parcelable {
         mBoundsInScreen = boundsInScreen;
         mInsets = insets;
         mDisplayId = displayId;
+        mCustomSaveUri = customSaveUri;
     }
 
     ScreenshotRequest(Parcel in) {
@@ -81,6 +84,7 @@ public class ScreenshotRequest implements Parcelable {
         mBoundsInScreen = in.readTypedObject(Rect.CREATOR);
         mInsets = in.readTypedObject(Insets.CREATOR);
         mDisplayId = in.readInt();
+        mCustomSaveUri = in.readTypedObject(Uri.CREATOR);
     }
 
     @WindowManager.ScreenshotType
@@ -121,6 +125,10 @@ public class ScreenshotRequest implements Parcelable {
         return mDisplayId;
     }
 
+    public Uri getCustomSaveUri() {
+        return mCustomSaveUri;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -137,6 +145,7 @@ public class ScreenshotRequest implements Parcelable {
         dest.writeTypedObject(mBoundsInScreen, 0);
         dest.writeTypedObject(mInsets, 0);
         dest.writeInt(mDisplayId);
+        dest.writeTypedObject(mCustomSaveUri, 0);
     }
 
     @NonNull
@@ -171,6 +180,7 @@ public class ScreenshotRequest implements Parcelable {
         private int mUserId = USER_NULL;
         private ComponentName mTopComponent;
         private int mDisplayId = Display.INVALID_DISPLAY;
+        private Uri mCustomSaveUri;
 
         /**
          * Begin building a ScreenshotRequest.
@@ -203,7 +213,7 @@ public class ScreenshotRequest implements Parcelable {
             }
 
             return new ScreenshotRequest(mType, mSource, mTopComponent, mTaskId, mUserId, mBitmap,
-                    mBoundsInScreen, mInsets, mDisplayId);
+                    mBoundsInScreen, mInsets, mDisplayId, mCustomSaveUri);
         }
 
         /**
@@ -273,6 +283,17 @@ public class ScreenshotRequest implements Parcelable {
          */
         public Builder setDisplayId(int displayId) {
             mDisplayId = displayId;
+            return this;
+        }
+
+        /**
+         * Set a custom URI for where to save this request.
+         * The URI must be from DocumentsContract
+         *
+         * @param saveUri The destination DocumentsContract Uri for the image
+         */
+        public Builder setCustomSaveUri(Uri saveUri) {
+            mCustomSaveUri = saveUri;
             return this;
         }
     }

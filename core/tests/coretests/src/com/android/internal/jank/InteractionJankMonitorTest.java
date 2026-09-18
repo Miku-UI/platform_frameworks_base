@@ -46,10 +46,8 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.jank.FrameTracker.ChoreographerWrapper;
-import com.android.internal.jank.FrameTracker.FrameMetricsWrapper;
 import com.android.internal.jank.FrameTracker.StatsLogWrapper;
 import com.android.internal.jank.FrameTracker.SurfaceControlWrapper;
-import com.android.internal.jank.FrameTracker.ThreadedRendererWrapper;
 import com.android.internal.jank.FrameTracker.ViewRootWrapper;
 import com.android.internal.jank.InteractionJankMonitor.Configuration;
 
@@ -102,6 +100,21 @@ public class InteractionJankMonitorTest {
 
         // Simulate a trace session and see if begin / end are invoked.
         assertThat(monitor.begin(mView, Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE)).isTrue();
+        verify(tracker).begin();
+        assertThat(monitor.end(Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE)).isTrue();
+        verify(tracker).end(REASON_END_NORMAL);
+    }
+
+    @Test
+    public void testBeginEnd_inputView_withTag() {
+        InteractionJankMonitor monitor = createMockedInteractionJankMonitor();
+        FrameTracker tracker = createMockedFrameTracker();
+        doReturn(tracker).when(monitor).createFrameTracker(any());
+        doNothing().when(tracker).begin();
+        doReturn(true).when(tracker).end(anyInt());
+
+        // Simulate a trace session and see if begin / end are invoked.
+        assertThat(monitor.begin(mView, Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE, "t")).isTrue();
         verify(tracker).begin();
         assertThat(monitor.end(Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE)).isTrue();
         verify(tracker).end(REASON_END_NORMAL);
@@ -196,10 +209,6 @@ public class InteractionJankMonitorTest {
     }
 
     private FrameTracker createMockedFrameTracker() {
-        ThreadedRendererWrapper threadedRenderer = mock(ThreadedRendererWrapper.class);
-        doNothing().when(threadedRenderer).addObserver(any());
-        doNothing().when(threadedRenderer).removeObserver(any());
-
         ViewRootWrapper viewRoot = spy(new ViewRootWrapper(mView.getViewRootImpl()));
         doNothing().when(viewRoot).addSurfaceChangedCallback(any());
         doNothing().when(viewRoot).removeSurfaceChangedCallback(any());
@@ -217,10 +226,8 @@ public class InteractionJankMonitorTest {
         when(configuration.getHandler()).thenReturn(mHandler);
 
         FrameTracker tracker = spy(new FrameTracker(configuration,
-                threadedRenderer, viewRoot, surfaceControl, choreographer,
-                new FrameMetricsWrapper(), new StatsLogWrapper(null),
-                /* traceThresholdMissedFrames= */ 1,
-                /* traceThresholdFrameTimeMillis= */ -1,
+                viewRoot, surfaceControl, choreographer, new StatsLogWrapper(null),
+                /* traceThresholdMissedFrames= */ 1, /* traceThresholdFrameTimeMillis= */ -1,
                 /* listener */ null));
 
         doNothing().when(tracker).postTraceStartMarker(any());

@@ -8,17 +8,28 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runCurrent
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.qs.flags.QsSplitInternetTile
 import com.android.systemui.qs.pipeline.data.model.RestoreData
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.TilesUpgradePath
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
+import com.android.systemui.statusbar.pipeline.shared.connectivityConstants
+import com.android.systemui.statusbar.pipeline.shared.fake
+import com.android.systemui.testKosmos
+import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.userRepository
 import com.android.systemui.user.domain.interactor.HeadlessSystemUserModeFake
 import com.android.systemui.util.settings.FakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -34,6 +45,8 @@ import platform.test.runner.parameterized.Parameters
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase() {
+    private val kosmos =
+        testKosmos().apply { connectivityConstants.fake.hasDataCapabilities = true }
     private val secureSettings = FakeSettings()
     private val hsum = HeadlessSystemUserModeFake()
     private val defaultTilesRepository =
@@ -41,8 +54,8 @@ class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase()
 
     @Mock private lateinit var logger: QSPipelineLogger
 
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
+    private val testDispatcher = kosmos.testDispatcher
+    private val testScope = kosmos.testScope
 
     private lateinit var underTest: UserTileSpecRepository
 
@@ -61,6 +74,7 @@ class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase()
                 secureSettings,
                 hsum,
                 logger,
+                kosmos.userRepository,
                 testScope.backgroundScope,
                 testDispatcher,
             )
@@ -87,6 +101,7 @@ class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase()
                     secureSettings,
                     hsum,
                     logger,
+                    kosmos.userRepository,
                     testScope.backgroundScope,
                     testDispatcher,
                 )
@@ -108,6 +123,7 @@ class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase()
                     secureSettings,
                     hsum,
                     logger,
+                    kosmos.userRepository,
                     testScope.backgroundScope,
                     testDispatcher,
                 )
@@ -469,13 +485,80 @@ class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase()
                 .isEqualTo(TilesUpgradePath.RestoreFromBackup(expected.toTilesSet()))
         }
 
+    @Test
+    @EnableFlags(QsSplitInternetTile.FLAG_NAME)
+    @DisableFlags(QsSplitInternetTile.SUPPRESSION_FLAG_NAME)
+    fun flagEnabled_readFromSettings_internetTileBecomesWifi() =
+        testScope.runTest {
+            val storedInSettings = "a,b,internet,c"
+            storeTiles(storedInSettings)
+
+            val tiles by collectLastValue(underTest.tiles())
+
+            assertThat(tiles!!)
+                .containsExactly(
+                    TileSpec.create("a"),
+                    TileSpec.create("b"),
+                    TileSpec.create("wifi"),
+                    TileSpec.create("c"),
+                )
+                .inOrder()
+        }
+
+    @Test
+    @EnableFlags(QsSplitInternetTile.FLAG_NAME)
+    @DisableFlags(QsSplitInternetTile.SUPPRESSION_FLAG_NAME)
+    fun flagEnabled_readFromSettings_thenRestoredInternetAccidentally_internetTileBecomesWifi() =
+        testScope.runTest {
+            val storedInSettings = "a,wifi,b,c"
+            storeTiles(storedInSettings)
+
+            val tiles by collectLastValue(underTest.tiles())
+
+            underTest.reconcileRestore(
+                RestoreData(
+                    restoredTiles = "a,internet".toTileSpecs(),
+                    restoredAutoAddedTiles = emptySet(),
+                    userId = USER,
+                ),
+                currentAutoAdded = emptySet(),
+            )
+
+            assertThat(tiles!!)
+                .containsExactly(TileSpec.create("a"), TileSpec.create("wifi"))
+                .inOrder()
+        }
+
+    @Test
+    @DisableFlags(QsSplitInternetTile.FLAG_NAME)
+    fun flagDisabled_readFromSettings_wifiTileBecomesInternet() =
+        testScope.runTest {
+            val storedInSettings = "a,b,wifi,c"
+            storeTiles(storedInSettings)
+
+            val tiles by collectLastValue(underTest.tiles())
+
+            assertThat(tiles!!)
+                .containsExactly(
+                    TileSpec.create("a"),
+                    TileSpec.create("b"),
+                    TileSpec.create("internet"),
+                    TileSpec.create("c"),
+                )
+                .inOrder()
+        }
+
     private fun getDefaultTileSpecs(isHeadlessSystemUser: Boolean): List<TileSpec> {
         return defaultTilesRepository.getDefaultTiles(isHeadlessSystemUser)
     }
 
-    private fun TestScope.storeTiles(specs: String) {
-        secureSettings.putStringForUser(SETTING, specs, USER)
+    private fun TestScope.storeTiles(specs: String, user: Int = USER) {
+        secureSettings.putStringForUser(SETTING, specs, user)
         runCurrent()
+    }
+
+    private fun Kosmos.storeTiles(specs: String, user: Int = USER) {
+        testScope.storeTiles(specs, user)
     }
 
     private fun loadTiles(): String? {
@@ -483,7 +566,7 @@ class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase()
     }
 
     companion object {
-        private const val USER = 10
+        private const val USER = FakeUserRepository.MAIN_USER_ID
         private const val DEFAULT_TILES = "a,b,c"
         private const val DEFAULT_HSU_TILES = "a,c"
         private const val SETTING = Settings.Secure.QS_TILES

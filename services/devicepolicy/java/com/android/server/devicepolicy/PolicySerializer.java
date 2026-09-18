@@ -24,7 +24,7 @@ import com.android.modules.utils.TypedXmlSerializer;
 
 import java.io.IOException;
 
-abstract class PolicySerializer<V> {
+public abstract class PolicySerializer<V> {
     abstract void saveToXml(TypedXmlSerializer serializer, @NonNull V value) throws IOException;
     abstract PolicyValue<V> readFromXml(TypedXmlPullParser parser);
 }

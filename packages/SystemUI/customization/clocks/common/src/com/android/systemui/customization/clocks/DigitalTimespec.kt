@@ -20,6 +20,7 @@ import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 
 enum class DigitalTimespec(private val hourViewId: Int, private val minuteViewId: Int) {
     TIME_FULL_FORMAT(ClockViewIds.TIME_FULL_FORMAT, ClockViewIds.TIME_FULL_FORMAT),
+    DATE_FORMAT(ClockViewIds.DATE_FORMAT, ClockViewIds.DATE_FORMAT),
     DIGIT_PAIR(ClockViewIds.HOUR_DIGIT_PAIR, ClockViewIds.MINUTE_DIGIT_PAIR),
     FIRST_DIGIT(ClockViewIds.HOUR_FIRST_DIGIT, ClockViewIds.MINUTE_FIRST_DIGIT),
     SECOND_DIGIT(ClockViewIds.HOUR_SECOND_DIGIT, ClockViewIds.MINUTE_SECOND_DIGIT);

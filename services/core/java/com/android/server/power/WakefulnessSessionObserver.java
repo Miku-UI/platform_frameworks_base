@@ -352,10 +352,11 @@ public class WakefulnessSessionObserver {
 
     private int getPhysicalDisplayPortId(int displayId) {
         if (mDisplayManagerInternal == null) {
-            return -1;
+            return DisplayAddress.INVALID_PORT;
         }
         DisplayInfo display = mDisplayManagerInternal.getDisplayInfo(displayId);
-        return ((DisplayAddress.Physical) display.address).getPort();
+
+        return display.address.getPort();
     }
 
     private int getScreenOffTimeout() {

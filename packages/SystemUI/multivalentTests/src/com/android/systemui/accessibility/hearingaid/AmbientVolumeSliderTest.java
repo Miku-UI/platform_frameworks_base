@@ -16,15 +16,23 @@
 
 package com.android.systemui.accessibility.hearingaid;
 
+import static android.bluetooth.AudioInputControl.MUTE_DISABLED;
+import static android.bluetooth.AudioInputControl.MUTE_MUTED;
+import static android.bluetooth.AudioInputControl.MUTE_NOT_MUTED;
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
+import android.view.ViewGroup;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.res.R;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,10 +42,15 @@ import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+
 /** Tests for {@link AmbientVolumeLayout}. */
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class AmbientVolumeSliderTest extends SysuiTestCase {
+
+    private static final int TEST_MIN = 0;
+    private static final int TEST_MAX = 100;
+    private static final int TEST_VALUE = 30;
 
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -49,6 +62,9 @@ public class AmbientVolumeSliderTest extends SysuiTestCase {
     @Before
     public void setUp() {
         mSlider = new AmbientVolumeSlider(mContext);
+        mSlider.setMin(TEST_MIN);
+        mSlider.setMax(TEST_MAX);
+        mSlider.setValue(TEST_VALUE);
     }
 
     @Test
@@ -61,7 +77,7 @@ public class AmbientVolumeSliderTest extends SysuiTestCase {
 
     @Test
     public void getVolumeLevel_valueMin_volumeLevelIsZero() {
-        prepareSlider(/* min= */ 0, /* max= */ 100, /* value= */ 0);
+        mSlider.setValue(TEST_MIN);
 
         // The volume level is divided into 5 levels:
         // Level 0 corresponds to the minimum volume value. The range between the minimum and
@@ -71,21 +87,48 @@ public class AmbientVolumeSliderTest extends SysuiTestCase {
 
     @Test
     public void getVolumeLevel_valueMax_volumeLevelIsFour() {
-        prepareSlider(/* min= */ 0, /* max= */ 100, /* value= */ 100);
+        mSlider.setValue(TEST_MAX);
 
         assertThat(mSlider.getVolumeLevel()).isEqualTo(4);
     }
 
     @Test
     public void getVolumeLevel_volumeLevelIsCorrect() {
-        prepareSlider(/* min= */ 0, /* max= */ 100, /* value= */ 73);
+        mSlider.setValue(70);
 
         assertThat(mSlider.getVolumeLevel()).isEqualTo(3);
     }
 
-    private void prepareSlider(float min, float max, float value) {
-        mSlider.setMin(min);
-        mSlider.setMax(max);
-        mSlider.setValue(value);
+    @Test
+    public void setEnabled_disabled_valueIsMin() {
+        mSlider.setEnabled(false);
+
+        assertThat(mSlider.getValue()).isEqualTo(TEST_MIN);
+    }
+
+    @Test
+    public void setMuteState_disabled_muteIconNotVisible() {
+        mSlider.setMuteState(MUTE_DISABLED);
+
+        assertThat(getMuteIconFrame().getVisibility()).isEqualTo(GONE);
+    }
+
+    @Test
+    public void setMuteState_muted_muteIconVisibleAndValueIsMin() {
+        mSlider.setMuteState(MUTE_MUTED);
+
+        assertThat(getMuteIconFrame().getVisibility()).isEqualTo(VISIBLE);
+        assertThat(mSlider.getValue()).isEqualTo(TEST_MIN);
+    }
+
+    @Test
+    public void setMuteState_notMuted_muteIconVisible() {
+        mSlider.setMuteState(MUTE_NOT_MUTED);
+
+        assertThat(getMuteIconFrame().getVisibility()).isEqualTo(VISIBLE);
+    }
+
+    private ViewGroup getMuteIconFrame() {
+        return mSlider.requireViewById(R.id.mute_icon_frame);
     }
 }

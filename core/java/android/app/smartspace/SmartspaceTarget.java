@@ -751,7 +751,7 @@ public final class SmartspaceTarget implements Parcelable {
          * <p><b>NOTE: </b> If {@link mWidget} is set, all other @Nullable params should be
          * ignored.
          *
-         * @throws An {@link IllegalStateException} is thrown if {@link mRemoteViews} is set.
+         * @throws IllegalStateException if {@link mRemoteViews} is set.
          */
         @NonNull
         public Builder setWidget(@NonNull AppWidgetProviderInfo widget) {
@@ -779,7 +779,7 @@ public final class SmartspaceTarget implements Parcelable {
          * <p><b>NOTE: </b> If {@link RemoteViews} is set, all other @Nullable params should be
          * ignored.
          *
-         * @throws An {@link IllegalStateException} is thrown if {@link mWidget} is set.
+         * @throws IllegalStateException if {@link mWidget} is set.
          */
         @FlaggedApi(Flags.FLAG_REMOTE_VIEWS)
         @NonNull

@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyboard.docking.ui.viewmodel
 
+import android.R
 import android.content.Context
 import android.view.Surface
 import android.view.WindowManager
@@ -26,7 +27,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyboard.docking.domain.interactor.KeyboardDockingIndicationInteractor
-import com.android.systemui.surfaceeffects.glowboxeffect.GlowBoxConfig
+import com.android.systemui.surfaceeffects.core.glowboxeffect.GlowBoxConfig
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -125,11 +126,11 @@ constructor(
             endCenterY = endCenterY,
             width = boxWidth,
             height = boxHeight,
-            color = Utils.getColorAttr(context, android.R.attr.colorAccent).defaultColor,
+            color = Utils.getColorAttr(context, R.attr.colorAccent).defaultColor,
             blurAmount = BLUR_AMOUNT,
             duration = DURATION,
-            easeInDuration = EASE_DURATION,
-            easeOutDuration = EASE_DURATION,
+            fadeInDuration = EASE_DURATION,
+            fadeOutDuration = EASE_DURATION,
         )
     }
 

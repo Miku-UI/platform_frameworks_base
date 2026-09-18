@@ -17,12 +17,15 @@
 package android.content.pm;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -30,6 +33,13 @@ import java.util.Arrays;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class PackageManagerTest {
+    private PackageManager mPackageManager;
+
+    @Before
+    public void setUp() {
+        mPackageManager = Mockito.mock(PackageManager.class, Mockito.CALLS_REAL_METHODS);
+    }
+
     @Test
     public void testPackageInfoFlags() throws Exception {
         assertThat(PackageManager.PackageInfoFlags.of(42L).getValue()).isEqualTo(42L);
@@ -48,6 +58,33 @@ public class PackageManagerTest {
     @Test
     public void testResolveInfoFlags() throws Exception {
         assertThat(PackageManager.ResolveInfoFlags.of(42L).getValue()).isEqualTo(42L);
+    }
+
+    @Test
+    public void getEnableAppLockIntentForPackage_defaultImplementation_throwsException() {
+        // Verifies that the default implementation of getEnableAppLockIntentForPackage
+        // throws an UnsupportedOperationException, as subclasses are expected to override it.
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> mPackageManager.getEnableAppLockIntentForPackage("com.example.app", true));
+    }
+
+    @Test
+    public void setPackageAppLockEnabled_defaultImplementation_throwsException() {
+        // Verifies that the default implementation of setPackageAppLockEnabled
+        // throws an UnsupportedOperationException, as subclasses are expected to override it.
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> mPackageManager.setPackageAppLockEnabled("com.example.app", true));
+    }
+
+    @Test
+    public void isPackageAppLockEnabled_defaultImplementation_throwsException() {
+        // Verifies that the default implementation of isPackageAppLockEnabled
+        // throws an UnsupportedOperationException, as subclasses are expected to override it.
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> mPackageManager.isPackageAppLockEnabled("com.example.app"));
     }
 
     @Test

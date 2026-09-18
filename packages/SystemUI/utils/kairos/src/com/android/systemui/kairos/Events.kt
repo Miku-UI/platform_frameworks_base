@@ -32,6 +32,7 @@ import com.android.systemui.kairos.internal.neverImpl
 import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.util.Maybe
 import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.NameTag
 import com.android.systemui.kairos.util.NameTaggingDisabled
 import com.android.systemui.kairos.util.forceInit
 import com.android.systemui.kairos.util.nameTag
@@ -55,7 +56,6 @@ import kotlinx.coroutines.launch
  * 3. [Events] emissions are *ephemeral* and do not last beyond the transaction they are emitted,
  *    unless explicitly [observed][BuildScope.observe] or [held][StateScope.holdState] as a [State].
  */
-@ExperimentalKairosApi
 sealed class Events<out A> {
     companion object {
         /** An [Events] with no values. */
@@ -64,7 +64,7 @@ sealed class Events<out A> {
 }
 
 /** An [Events] with no values. */
-@ExperimentalKairosApi val emptyEvents: Events<Nothing> = Events.empty
+val emptyEvents: Events<Nothing> = Events.empty
 
 /**
  * A forward-reference to an [Events]. Useful for recursive definitions.
@@ -74,7 +74,6 @@ sealed class Events<out A> {
  *
  * @sample com.android.systemui.kairos.KairosSamples.eventsLoop
  */
-@ExperimentalKairosApi
 class EventsLoop<A> : Events<A>() {
 
     private val nameData: NameData = NameTaggingDisabled
@@ -82,7 +81,7 @@ class EventsLoop<A> : Events<A>() {
     private val deferred = CompletableLazy<Events<A>>()
 
     internal val init: Init<EventsImpl<A>> =
-        init(nameData) { deferred.value.init.connect(evalScope = this) }
+        init(nameData) { deferred.value.init.connect(initScope = this) }
 
     /**
      * The [Events] this reference is referring to. Must be set before this [EventsLoop] is
@@ -120,7 +119,7 @@ class EventsLoop<A> : Events<A>() {
  *
  * @see deferredEvents
  */
-@ExperimentalKairosApi fun <A> Lazy<Events<A>>.defer(): Events<A> = deferInline { value }
+fun <A> Lazy<Events<A>>.defer(): Events<A> = deferInline { value }
 
 /**
  * Returns an [Events] that acts as a deferred-reference to the [Events] produced by this
@@ -137,7 +136,6 @@ class EventsLoop<A> : Events<A>() {
  *
  * @see deferredEvents
  */
-@ExperimentalKairosApi
 fun <A> DeferredValue<Events<A>>.defer(): Events<A> = deferInline { unwrapped.value }
 
 /**
@@ -148,7 +146,6 @@ fun <A> DeferredValue<Events<A>>.defer(): Events<A> = deferInline { unwrapped.va
  *
  * Useful for recursive definitions.
  */
-@ExperimentalKairosApi
 fun <A> deferredEvents(block: KairosScope.() -> Events<A>): Events<A> = deferInline {
     NoScope.block()
 }
@@ -161,7 +158,6 @@ fun <A> deferredEvents(block: KairosScope.() -> Events<A>): Events<A> = deferInl
  * @sample com.android.systemui.kairos.KairosSamples.mapMaybe
  * @see mapNotNull
  */
-@ExperimentalKairosApi
 fun <A, B> Events<A>.mapMaybe(transform: TransactionScope.(A) -> Maybe<B>): Events<B> =
     mapMaybe(nameTag("Events.mapMaybe").toNameData("Events.mapMaybe"), transform)
 
@@ -181,7 +177,6 @@ internal fun <A, B> Events<A>.mapMaybe(
  *
  * @see mapMaybe
  */
-@ExperimentalKairosApi
 fun <A, B> Events<A>.mapNotNull(transform: TransactionScope.(A) -> B?): Events<B> =
     mapNotNull(nameTag("Events.mapNotNull").toNameData("Events.mapNotNull"), transform)
 
@@ -196,7 +191,6 @@ internal fun <A, B> Events<A>.mapNotNull(
  *
  * @sample com.android.systemui.kairos.KairosSamples.mapEvents
  */
-@ExperimentalKairosApi
 fun <A, B> Events<A>.map(transform: TransactionScope.(A) -> B): Events<B> {
     return map(nameTag("Events.map").toNameData("Events.map"), transform)
 }
@@ -206,7 +200,7 @@ internal fun <A, B> Events<A>.map(
     transform: TransactionScope.(A) -> B,
 ): Events<B> {
     val mapped: EventsImpl<B> =
-        mapImpl({ init.connect(evalScope = this) }, nameData) { a, _ -> transform(a) }
+        mapImpl({ init.connect(initScope = this) }, nameData) { a, _ -> transform(a) }
     return EventsInit(constInit(nameData, mapped.cached(nameData + "cached")))
 }
 
@@ -217,7 +211,6 @@ internal fun <A, B> Events<A>.map(
  * @sample com.android.systemui.kairos.KairosSamples.mapCheap
  * @see map
  */
-@ExperimentalKairosApi
 fun <A, B> Events<A>.mapCheap(transform: TransactionScope.(A) -> B): Events<B> =
     mapCheap(nameTag("Events.mapCheap").toNameData("Events.mapCheap"), transform)
 
@@ -228,7 +221,7 @@ internal fun <A, B> Events<A>.mapCheap(
     EventsInit(
         constInit(
             nameData,
-            mapImpl({ init.connect(evalScope = this) }, nameData) { a, _ -> transform(a) },
+            mapImpl({ init.connect(initScope = this) }, nameData) { a, _ -> transform(a) },
         )
     )
 
@@ -246,7 +239,6 @@ internal fun <A, B> Events<A>.mapCheap(
  * in response to an [Events], use the output combinators available in [BuildScope], such as
  * [BuildScope.toSharedFlow] or [BuildScope.observe].
  */
-@ExperimentalKairosApi
 fun <A> Events<A>.onEach(action: TransactionScope.(A) -> Unit): Events<A> =
     onEach(nameTag("Events.onEach").toNameData("Events.onEach"), action)
 
@@ -267,7 +259,6 @@ internal fun <A> Events<A>.onEach(
  *   }
  * ```
  */
-@ExperimentalKairosApi
 fun <A, B> Events<Pair<A, B>>.unzip(): Pair<Events<A>, Events<B>> =
     unzip(nameTag("Events.unzip").toNameData("Events.unzip"))
 
@@ -283,14 +274,13 @@ internal fun <A, B> Events<Pair<A, B>>.unzip(nameData: NameData): Pair<Events<A>
  *
  * @see KairosNetwork.coalescingMutableEvents
  */
-@ExperimentalKairosApi
 class CoalescingMutableEvents<in In, Out>
-internal constructor(
+private constructor(
     internal val nameData: NameData,
     internal val coalesce: (old: Lazy<Out>, new: In) -> Out,
-    internal val network: Network,
     private val getInitialValue: () -> Out,
-    internal val impl: InputNode<Out> = InputNode(nameData),
+    internal val networkRef: AtomicReference<Network?>,
+    internal val impl: InputNode<Out>,
 ) : Events<Out>() {
 
     init {
@@ -298,6 +288,44 @@ internal constructor(
     }
 
     private val storage = AtomicReference(false to lazy { getInitialValue() })
+
+    private constructor(
+        nameData: NameData,
+        coalesce: (old: Lazy<Out>, new: In) -> Out,
+        getInitialValue: () -> Out,
+        networkRef: AtomicReference<Network?>,
+    ) : this(
+        nameData,
+        coalesce,
+        getInitialValue,
+        networkRef,
+        InputNode(
+            nameData,
+            activate = { check(networkRef.compareAndSet(null, network)) { "Network mismatch" } },
+            deactivate = { check(networkRef.compareAndSet(network, null)) { "Network mismatch" } },
+        ),
+    )
+
+    internal constructor(
+        nameData: NameData,
+        coalesce: (old: Lazy<Out>, new: In) -> Out,
+        getInitialValue: () -> Out,
+        network: Network,
+    ) : this(nameData, coalesce, network, getInitialValue, InputNode(nameData))
+
+    internal constructor(
+        nameData: NameData,
+        coalesce: (old: Lazy<Out>, new: In) -> Out,
+        getInitialValue: () -> Out,
+    ) : this(nameData, coalesce, getInitialValue, AtomicReference(null))
+
+    internal constructor(
+        nameData: NameData,
+        coalesce: (old: Lazy<Out>, new: In) -> Out,
+        network: Network,
+        getInitialValue: () -> Out,
+        inputNode: InputNode<Out>,
+    ) : this(nameData, coalesce, getInitialValue, AtomicReference(network), inputNode)
 
     override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 
@@ -310,6 +338,7 @@ internal constructor(
      * that is then processed when the network is ready.
      */
     fun emit(value: In) {
+        val network = networkRef.get() ?: return
         val (scheduled, _) =
             storage.getAndUpdate { (_, batch) -> true to lazyOf(coalesce(batch, value)) }
         if (!scheduled) {
@@ -328,12 +357,11 @@ internal constructor(
  *
  * @see KairosNetwork.coalescingMutableEvents
  */
-@ExperimentalKairosApi
 class MutableEvents<T>
-internal constructor(
-    internal val network: Network,
+private constructor(
     internal val nameData: NameData,
-    internal val impl: InputNode<T> = InputNode(nameData),
+    private val networkRef: AtomicReference<Network?>,
+    internal val impl: InputNode<T>,
 ) : Events<T>() {
 
     init {
@@ -342,6 +370,27 @@ internal constructor(
 
     private val storage = AtomicReference<Job?>(null)
 
+    private constructor(
+        nameData: NameData,
+        networkRef: AtomicReference<Network?>,
+    ) : this(
+        nameData,
+        networkRef,
+        InputNode(
+            nameData,
+            activate = { check(networkRef.compareAndSet(null, network)) { "Network mismatch" } },
+            deactivate = { check(networkRef.compareAndSet(network, null)) { "Network mismatch" } },
+        ),
+    )
+
+    internal constructor(nameData: NameData) : this(nameData, AtomicReference(null))
+
+    internal constructor(
+        nameData: NameData,
+        network: Network,
+        inputNode: InputNode<T>,
+    ) : this(nameData, AtomicReference(network), inputNode)
+
     override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 
     /**
@@ -349,6 +398,7 @@ internal constructor(
      * containing the emission has completed.
      */
     suspend fun emit(value: T) {
+        val network = networkRef.get() ?: return
         coroutineScope {
             var jobOrNull: Job? = null
             val newEmit =
@@ -359,10 +409,46 @@ internal constructor(
                 }
             jobOrNull = storage.getAndSet(newEmit)
             newEmit.join()
-            storage.compareAndExchange(newEmit, null)
+            storage.compareAndSet(newEmit, null)
         }
     }
 }
+
+/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
+fun <T> ConflatedMutableEvents(name: NameTag? = null): CoalescingMutableEvents<T, T> =
+    CoalescingMutableEvents(
+        name.toNameData("CoalescingMutableEvents"),
+        coalesce = { _, new -> new },
+        { error("WTF: init value accessed for conflatedMutableEvents") },
+    )
+
+/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
+fun <In, Out> CoalescingMutableEvents(
+    initialValue: Out,
+    name: NameTag? = null,
+    coalesce: KairosScope.(old: Out, new: In) -> Out,
+): CoalescingMutableEvents<In, Out> =
+    CoalescingMutableEvents(
+        name.toNameData("CoalescingMutableEvents"),
+        coalesce = { old, new -> NoScope.coalesce(old.value, new) },
+        { initialValue },
+    )
+
+/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
+fun <In, Out> CoalescingMutableEvents(
+    getInitialValue: KairosScope.() -> Out,
+    name: NameTag? = null,
+    coalesce: KairosScope.(old: Out, new: In) -> Out,
+): CoalescingMutableEvents<In, Out> =
+    CoalescingMutableEvents(
+        name.toNameData("CoalescingMutableEvents"),
+        coalesce = { old, new -> NoScope.coalesce(old.value, new) },
+        { NoScope.getInitialValue() },
+    )
+
+/** Returns a [MutableEvents] that can emit values into this [KairosNetwork]. */
+fun <T> MutableEvents(name: NameTag? = null): MutableEvents<T> =
+    MutableEvents(name.toNameData("MutableEvents"))
 
 private data object EmptyEvents : Events<Nothing>()
 
@@ -381,4 +467,4 @@ internal val <A> Events<A>.init: Init<EventsImpl<A>>
         }
 
 private inline fun <A> deferInline(crossinline block: InitScope.() -> Events<A>): Events<A> =
-    EventsInit(init(NameTaggingDisabled) { block().init.connect(evalScope = this) })
+    EventsInit(init(NameTaggingDisabled) { block().init.connect(initScope = this) })

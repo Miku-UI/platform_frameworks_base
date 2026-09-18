@@ -175,7 +175,7 @@ void ProfileData::reset() {
 void ProfileData::reportFrame(int64_t duration) {
     mTotalFrameCount++;
     uint32_t framebucket = frameCountIndexForFrameTime(duration);
-    if (framebucket <= mFrameCounts.size()) {
+    if (framebucket < mFrameCounts.size()) {
         mFrameCounts[framebucket]++;
     } else {
         framebucket = (ns2ms(duration) - kSlowFrameBucketStartMs) / kSlowFrameBucketIntervalMs;

@@ -29,8 +29,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.hardware.biometrics.BiometricFingerprintConstants
 import android.hardware.biometrics.BiometricPrompt
 import android.hardware.biometrics.FallbackOption
-import android.hardware.biometrics.Flags.FLAG_BP_FALLBACK_OPTIONS
-import android.hardware.biometrics.Flags.bpFallbackOptions
 import android.hardware.biometrics.PromptContentItemBulletedText
 import android.hardware.biometrics.PromptContentView
 import android.hardware.biometrics.PromptContentViewWithMoreOptionsButton
@@ -129,7 +127,8 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
     @Mock private lateinit var activityInfo: ActivityInfo
     @Mock private lateinit var runningTaskInfo: RunningTaskInfo
 
-    private val defaultLogoIconFromAppInfo = context.getDrawable(R.drawable.ic_android)
+    private val defaultLogoIcon = context.getDrawable(R.drawable.ic_android)
+    private val defaultLogoIconFromAppInfo = context.getDrawable(R.drawable.ic_gift)
     private val defaultLogoIconFromActivityInfo = context.getDrawable(R.drawable.ic_add)
     private val defaultLogoIconWithBadge = context.getDrawable(R.drawable.ic_alarm)
     private val logoResFromApp = R.drawable.ic_cake
@@ -154,10 +153,6 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
     private val udfpsHorizontalShorterGuidelinePadding =
         context.resources.getDimensionPixelSize(
             R.dimen.biometric_prompt_two_pane_udfps_shorter_horizontal_guideline_padding
-        )
-    private val mediumTopGuidelinePadding =
-        context.resources.getDimensionPixelSize(
-            R.dimen.biometric_prompt_one_pane_medium_top_guideline_padding
         )
     private val mediumHorizontalGuidelinePadding =
         context.resources.getDimensionPixelSize(
@@ -301,7 +296,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
             )
             .thenReturn(applicationInfoNoIconOrDescription)
         whenever(kosmos.packageManager.getApplicationIcon(applicationInfoNoIconOrDescription))
-            .thenReturn(null)
+            .thenReturn(defaultLogoIcon)
         whenever(kosmos.packageManager.getApplicationLabel(applicationInfoNoIconOrDescription))
             .thenReturn("")
 
@@ -391,11 +386,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
             assertThat(authenticating).isTrue()
             assertThat(authenticated?.isNotAuthenticated).isTrue()
             assertThat(size).isEqualTo(expectedPromptSize)
-            if (bpFallbackOptions()) {
-                assertButtonsVisible(cancel = expectedPromptSize != PromptSize.SMALL)
-            } else {
-                assertButtonsVisible(negative = expectedPromptSize != PromptSize.SMALL)
-            }
+            assertButtonsVisible(cancel = expectedPromptSize != PromptSize.SMALL)
         }
 
     @Test
@@ -958,11 +949,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         assertThat(authenticating).isTrue()
         assertThat(authenticated?.isNotAuthenticated).isTrue()
         assertThat(size).isEqualTo(if (authWithSmallPrompt) PromptSize.SMALL else PromptSize.MEDIUM)
-        if (bpFallbackOptions()) {
-            assertButtonsVisible(cancel = !authWithSmallPrompt)
-        } else {
-            assertButtonsVisible(negative = !authWithSmallPrompt)
-        }
+        assertButtonsVisible(cancel = !authWithSmallPrompt)
 
         kosmos.promptViewModel.showAuthenticated(authenticatedModality, DELAY)
 
@@ -983,13 +970,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
 
     @Test
     fun shows_temporary_errors() = runGenericTest {
-        val checkAtEnd = suspend {
-            if (bpFallbackOptions()) {
-                assertButtonsVisible(cancel = true)
-            } else {
-                assertButtonsVisible(negative = true)
-            }
-        }
+        val checkAtEnd = suspend { assertButtonsVisible(cancel = true) }
 
         showTemporaryErrors(restart = false) { checkAtEnd() }
         showTemporaryErrors(restart = false, helpAfterError = "foo") { checkAtEnd() }
@@ -1486,11 +1467,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         assertThat(message).isEqualTo(PromptMessage.Error(errorMessage))
         assertThat(messageVisible).isTrue()
         assertThat(canTryAgain).isEqualTo(testCase.authenticatedByFace)
-        if (bpFallbackOptions()) {
-            assertButtonsVisible(cancel = true, tryAgain = expectTryAgainButton)
-        } else {
-            assertButtonsVisible(negative = true, tryAgain = expectTryAgainButton)
-        }
+        assertButtonsVisible(cancel = true, tryAgain = expectTryAgainButton)
 
         errorJob.join()
 
@@ -1499,11 +1476,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         assertThat(message).isEqualTo(PromptMessage.Help(helpMessage))
         assertThat(messageVisible).isTrue()
         assertThat(canTryAgain).isEqualTo(testCase.authenticatedByFace)
-        if (bpFallbackOptions()) {
-            assertButtonsVisible(cancel = true, tryAgain = expectTryAgainButton)
-        } else {
-            assertButtonsVisible(negative = true, tryAgain = expectTryAgainButton)
-        }
+        assertButtonsVisible(cancel = true, tryAgain = expectTryAgainButton)
 
         val helpMessage2 = "foo"
         kosmos.promptViewModel.showAuthenticating(helpMessage2, isRetry = true)
@@ -1511,11 +1484,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         assertThat(authenticated?.isAuthenticated).isFalse()
         assertThat(message).isEqualTo(PromptMessage.Help(helpMessage2))
         assertThat(messageVisible).isTrue()
-        if (bpFallbackOptions()) {
-            assertButtonsVisible(cancel = true)
-        } else {
-            assertButtonsVisible(negative = true)
-        }
+        assertButtonsVisible(cancel = true)
     }
 
     @Test
@@ -1525,7 +1494,11 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         // TODO(b/251476085): remove Spaghetti, migrate logic, and update this test
         kosmos.promptViewModel.onSwitchToCredential()
 
-        assertThat(size).isEqualTo(PromptSize.LARGE)
+        if (Flags.largeScreenBp()) {
+            assertThat(size).isEqualTo(PromptSize.MEDIUM)
+        } else {
+            assertThat(size).isEqualTo(PromptSize.LARGE)
+        }
     }
 
     @Test
@@ -1571,11 +1544,11 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         }
 
     @Test
-    fun logo_defaultIsNull() =
+    fun logo_defaultIsDefault() =
         runGenericTest(packageName = OP_PACKAGE_NAME_NO_LOGO_INFO) {
             val logoInfo by collectLastValue(kosmos.promptViewModel.logoInfo)
             assertThat(logoInfo).isNotNull()
-            assertThat(logoInfo!!.first).isNull()
+            assertThat(logoInfo!!.first).isEqualTo(defaultLogoIcon)
             assertThat(logoInfo!!.second).isEqualTo("")
         }
 
@@ -1647,6 +1620,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
     } // TODO(b/335278136): Add test for no sensor landscape
 
     @Test
+    @DisableFlags(Flags.FLAG_LARGE_SCREEN_BP)
     fun position_bottom_forceLarge() = runGenericTest {
         kosmos.displayStateRepository.setCurrentRotation(DisplayRotation.ROTATION_270)
         kosmos.promptViewModel.onSwitchToCredential()
@@ -1660,6 +1634,19 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         kosmos.displayStateRepository.setIsLargeScreen(true)
         val position by collectLastValue(kosmos.promptViewModel.position)
         assertThat(position).isEqualTo(PromptPosition.Bottom)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun position_center_extraLargeScreen() = runGenericTest {
+        kosmos.displayStateRepository.setCurrentRotation(DisplayRotation.ROTATION_0)
+        kosmos.displayStateRepository.setIsExtraLargeScreen(true)
+        val position by collectLastValue(kosmos.promptViewModel.position)
+        if (testCase.modalities.hasUdfps) {
+            assertThat(position).isEqualTo(PromptPosition.Bottom)
+        } else {
+            assertThat(position).isEqualTo(PromptPosition.Center)
+        }
     }
 
     @Test
@@ -1691,7 +1678,7 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
     fun guideline_bottom() = runGenericTest {
         kosmos.displayStateRepository.setCurrentRotation(DisplayRotation.ROTATION_0)
         val guidelineBounds by collectLastValue(kosmos.promptViewModel.guidelineBounds)
-        assertThat(guidelineBounds).isEqualTo(Rect(0, mediumTopGuidelinePadding, 0, 0))
+        assertThat(guidelineBounds).isEqualTo(Rect(0, 0, 0, 0))
     } // TODO(b/335278136): Add test for no sensor landscape
 
     @Test
@@ -1775,7 +1762,6 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
     }
 
     @Test
-    @EnableFlags(FLAG_BP_FALLBACK_OPTIONS)
     fun show_single_fallback_button() =
         runGenericTest(fallbackOptions = listOf(FallbackOption("Fallback", 0))) {
             if (!testCase.shouldStartAsImplicitFlow) {
@@ -1786,7 +1772,6 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         }
 
     @Test
-    @EnableFlags(FLAG_BP_FALLBACK_OPTIONS)
     fun show_fallback_options_button() =
         runGenericTest(
             fallbackOptions = listOf(FallbackOption("Fallback1", 0), FallbackOption("Fallback2", 0))
@@ -1809,36 +1794,27 @@ internal class PromptViewModelTest(private val testCase: TestCase) : SysuiTestCa
         fallbackOptions: Boolean = false,
     ) {
         runCurrent()
-        if (bpFallbackOptions()) {
-            val expectedPositiveState =
-                when {
-                    tryAgain -> PositiveButtonState.TryAgain::class
-                    confirm -> PositiveButtonState.Confirm::class
-                    else -> PositiveButtonState.Gone::class
-                }
+        val expectedPositiveState =
+            when {
+                tryAgain -> PositiveButtonState.TryAgain::class
+                confirm -> PositiveButtonState.Confirm::class
+                else -> PositiveButtonState.Gone::class
+            }
 
-            val expectedNegativeState =
-                when {
-                    cancel -> NegativeButtonState.Cancel::class
-                    negative -> NegativeButtonState.SetNegative::class
-                    credential -> NegativeButtonState.UseCredential::class
-                    fallbackOptions -> NegativeButtonState.FallbackOptions::class
-                    singleFallback -> NegativeButtonState.SingleFallback::class
-                    else -> NegativeButtonState.Gone::class
-                }
+        val expectedNegativeState =
+            when {
+                cancel -> NegativeButtonState.Cancel::class
+                negative -> NegativeButtonState.SetNegative::class
+                credential -> NegativeButtonState.UseCredential::class
+                fallbackOptions -> NegativeButtonState.FallbackOptions::class
+                singleFallback -> NegativeButtonState.SingleFallback::class
+                else -> NegativeButtonState.Gone::class
+            }
 
-            assertThat(kosmos.promptViewModel.positiveButtonState.first())
-                .isInstanceOf(expectedPositiveState.java)
-            assertThat(kosmos.promptViewModel.negativeButtonState.first())
-                .isInstanceOf(expectedNegativeState.java)
-        } else {
-            assertThat(kosmos.promptViewModel.isTryAgainButtonVisible.first()).isEqualTo(tryAgain)
-            assertThat(kosmos.promptViewModel.isConfirmButtonVisible.first()).isEqualTo(confirm)
-            assertThat(kosmos.promptViewModel.isCancelButtonVisible.first()).isEqualTo(cancel)
-            assertThat(kosmos.promptViewModel.isNegativeButtonVisible.first()).isEqualTo(negative)
-            assertThat(kosmos.promptViewModel.isCredentialButtonVisible.first())
-                .isEqualTo(credential)
-        }
+        assertThat(kosmos.promptViewModel.positiveButtonState.first())
+            .isInstanceOf(expectedPositiveState.java)
+        assertThat(kosmos.promptViewModel.negativeButtonState.first())
+            .isInstanceOf(expectedNegativeState.java)
     }
 
     private fun runGenericTest(

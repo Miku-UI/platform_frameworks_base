@@ -33,6 +33,7 @@ import android.hardware.input.KeyboardLayoutSelectionResult.LAYOUT_SELECTION_CRI
 import android.icu.util.ULocale
 import android.os.Bundle
 import android.os.test.TestLooper
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.Presubmit
 import android.util.proto.ProtoOutputStream
 import android.view.InputDevice
@@ -87,6 +88,7 @@ fun createKeyboard(
  * Build/Install/Run: atest InputTests:KeyboardLayoutManagerTests
  */
 @Presubmit
+@DisabledOnRavenwood(reason = "Static mocking in bivalent tests is tricky", bug = 310268946)
 class KeyboardLayoutManagerTests {
     companion object {
         const val DEVICE_ID = 1

@@ -22,7 +22,7 @@
     <string name="next_button_content_description" msgid="6810058269847364406">"Ir a la siguiente pantalla"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"El menú de accesibilidad es un menú de gran tamaño que se muestra en pantalla para controlar tu dispositivo. Puedes bloquear el dispositivo, controlar el volumen y el brillo, hacer capturas de pantalla y más."</string>
     <string name="accessibility_menu_summary" msgid="4051992323622465342">"Controla el volumen, el brillo y más opciones con un menú de gran tamaño"</string>
-    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Ajustes del menú de accesibilidad"</string>
+    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Ajustes menú accesibilidad"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Botones grandes"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Aumenta el tamaño de los botones del menú de accesibilidad"</string>
     <string name="pref_help_title" msgid="6871558837025010641">"Ayuda"</string>

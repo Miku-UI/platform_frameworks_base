@@ -105,6 +105,10 @@ public class ITvInteractiveAppSessionWrapper
     private static final int DO_SEND_SELECTED_TRACK_INFO = 48;
     private static final int DO_NOTIFY_VIDEO_FREEZE_UPDATED = 49;
     private static final int DO_SEND_CERTIFICATE = 50;
+    private static final int DO_START_INTERACTIVE_APP_WITH_HANDLE = 51;
+    private static final int DO_UPDATE_WEB_SERVICE_CLIENT_STATE = 52;
+    private static final int DO_REMOVE_WEB_SERVICE_CLIENT = 53;
+    private static final int DO_REQUEST_WEB_SERVICE_CLIENTS = 54;
 
     private final HandlerCaller mCaller;
     private Session mSessionImpl;
@@ -152,6 +156,10 @@ public class ITvInteractiveAppSessionWrapper
             }
             case DO_RESET_INTERACTIVE_APP: {
                 mSessionImpl.resetInteractiveApp();
+                break;
+            }
+            case DO_START_INTERACTIVE_APP_WITH_HANDLE: {
+                mSessionImpl.startInteractiveApp((Integer) msg.obj);
                 break;
             }
             case DO_CREATE_BI_INTERACTIVE_APP: {
@@ -379,6 +387,19 @@ public class ITvInteractiveAppSessionWrapper
                 args.recycle();
                 break;
             }
+            case DO_UPDATE_WEB_SERVICE_CLIENT_STATE: {
+                Log.d(TAG, msg.toString());
+                mSessionImpl.updateWebServiceClientState((Integer) msg.arg1, (Integer) msg.arg2);
+                break;
+            }
+            case DO_REMOVE_WEB_SERVICE_CLIENT: {
+                mSessionImpl.removeWebServiceClient((Integer) msg.arg1);
+                break;
+            }
+            case DO_REQUEST_WEB_SERVICE_CLIENTS: {
+                mSessionImpl.requestWebServiceClients();
+                break;
+            }
             default: {
                 Log.w(TAG, "Unhandled message code: " + msg.what);
                 break;
@@ -407,6 +428,12 @@ public class ITvInteractiveAppSessionWrapper
     @Override
     public void resetInteractiveApp() {
         mCaller.executeOrSendMessage(mCaller.obtainMessage(DO_RESET_INTERACTIVE_APP));
+    }
+
+    @Override
+    public void startInteractiveAppWithHandle(int handle) {
+        mCaller.executeOrSendMessage(
+                mCaller.obtainMessageO(DO_START_INTERACTIVE_APP_WITH_HANDLE, handle));
     }
 
     @Override
@@ -676,6 +703,22 @@ public class ITvInteractiveAppSessionWrapper
     @Override
     public void removeMediaView() {
         mCaller.executeOrSendMessage(mCaller.obtainMessage(DO_REMOVE_MEDIA_VIEW));
+    }
+
+    @Override
+    public void requestWebServiceClients() {
+        mCaller.executeOrSendMessage(mCaller.obtainMessage(DO_REQUEST_WEB_SERVICE_CLIENTS));
+    }
+
+    @Override
+    public void updateWebServiceClientState(int handle, int state) {
+        mCaller.executeOrSendMessage(
+                mCaller.obtainMessageII(DO_UPDATE_WEB_SERVICE_CLIENT_STATE, handle, state));
+    }
+
+    @Override
+    public void removeWebServiceClient(int handle) {
+        mCaller.executeOrSendMessage(mCaller.obtainMessageI(DO_REMOVE_WEB_SERVICE_CLIENT, handle));
     }
 
     private final class TvInteractiveAppEventReceiver extends InputEventReceiver {

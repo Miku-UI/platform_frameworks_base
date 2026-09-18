@@ -308,9 +308,10 @@ key APOSTROPHE {
 }
 
 key POUND {
-    label:                              '\u00b0'
-    base:                               '\u00b0'
+    label:                              '\\'
+    base:                               '\\'
     shift:                              '|'
+    ralt:                               '\u030a'
 }
 
 ### ROW 4

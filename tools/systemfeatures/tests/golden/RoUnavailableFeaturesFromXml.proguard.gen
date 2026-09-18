@@ -1,0 +1,6 @@
+-assumevalues class android.content.pm.PackageManager {
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_PC) return false;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_PC, int) return false;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_WATCH) return false;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_WATCH, int) return false;
+}

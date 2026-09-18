@@ -158,7 +158,7 @@ public class TestSystemImpl implements SystemInterface {
     }
 
     /**
-     * Removes the package {@param packageName} for the primary user.
+     * Removes the package {@code packageName} for the primary user.
      */
     public void removePackageInfo(String packageName) {
         mPackages.get(packageName).remove(PRIMARY_USER_ID);

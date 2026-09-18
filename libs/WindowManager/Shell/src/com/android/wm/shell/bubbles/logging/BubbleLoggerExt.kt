@@ -18,19 +18,19 @@
 
 package com.android.wm.shell.bubbles.logging
 
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_DRAG
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_HOTSEAT_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_LAUNCHER_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_NOTIF
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_NOTIF_BUBBLE_BUTTON
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_DRAG
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_CREATED_FROM_ALL_APPS_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_CREATED_FROM_HOTSEAT_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_CREATED_FROM_LAUNCHER_ICON_MENU
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_CREATED_FROM_NOTIF
-import com.android.wm.shell.bubbles.BubbleLogger.Event.BUBBLE_CREATED_FROM_NOTIF_BUBBLE_BUTTON
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_DRAG
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_HOTSEAT_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_LAUNCHER_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_NOTIF
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_NOTIF_BUBBLE_BUTTON
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_DRAG
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_CREATED_FROM_ALL_APPS_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_CREATED_FROM_HOTSEAT_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_CREATED_FROM_LAUNCHER_ICON_MENU
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_CREATED_FROM_NOTIF
+import com.android.wm.shell.bubbles.logging.BubbleLogger.Event.BUBBLE_CREATED_FROM_NOTIF_BUBBLE_BUTTON
 import com.android.wm.shell.shared.bubbles.logging.EntryPoint
 import com.android.wm.shell.shared.bubbles.logging.EntryPoint.ALL_APPS_ICON_DRAG
 import com.android.wm.shell.shared.bubbles.logging.EntryPoint.ALL_APPS_ICON_MENU
@@ -42,26 +42,28 @@ import com.android.wm.shell.shared.bubbles.logging.EntryPoint.TASKBAR_ICON_DRAG
 import com.android.wm.shell.shared.bubbles.logging.EntryPoint.TASKBAR_ICON_MENU
 
 /** Converts the [EntryPoint] to a bubble bar UiEvent. */
-fun EntryPoint.toBubbleBarUiEvent() = when (this) {
-    TASKBAR_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_MENU
-    LAUNCHER_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_LAUNCHER_ICON_MENU
-    ALL_APPS_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_MENU
-    HOTSEAT_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_HOTSEAT_ICON_MENU
-    TASKBAR_ICON_DRAG -> BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_DRAG
-    ALL_APPS_ICON_DRAG -> BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_DRAG
-    NOTIFICATION -> BUBBLE_BAR_CREATED_FROM_NOTIF
-    NOTIFICATION_BUBBLE_BUTTON -> BUBBLE_BAR_CREATED_FROM_NOTIF_BUBBLE_BUTTON
-}
+fun EntryPoint.toBubbleBarUiEvent() =
+    when (this) {
+        TASKBAR_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_MENU
+        LAUNCHER_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_LAUNCHER_ICON_MENU
+        ALL_APPS_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_MENU
+        HOTSEAT_ICON_MENU -> BUBBLE_BAR_CREATED_FROM_HOTSEAT_ICON_MENU
+        TASKBAR_ICON_DRAG -> BUBBLE_BAR_CREATED_FROM_TASKBAR_ICON_DRAG
+        ALL_APPS_ICON_DRAG -> BUBBLE_BAR_CREATED_FROM_ALL_APPS_ICON_DRAG
+        NOTIFICATION -> BUBBLE_BAR_CREATED_FROM_NOTIF
+        NOTIFICATION_BUBBLE_BUTTON -> BUBBLE_BAR_CREATED_FROM_NOTIF_BUBBLE_BUTTON
+    }
 
 /** Converts the [EntryPoint] to a floating bubbles UiEvent. */
-fun EntryPoint.toFloatingBubblesUiEvent() = when (this) {
-    LAUNCHER_ICON_MENU -> BUBBLE_CREATED_FROM_LAUNCHER_ICON_MENU
-    ALL_APPS_ICON_MENU -> BUBBLE_CREATED_FROM_ALL_APPS_ICON_MENU
-    HOTSEAT_ICON_MENU -> BUBBLE_CREATED_FROM_HOTSEAT_ICON_MENU
-    NOTIFICATION -> BUBBLE_CREATED_FROM_NOTIF
-    NOTIFICATION_BUBBLE_BUTTON -> BUBBLE_CREATED_FROM_NOTIF_BUBBLE_BUTTON
-    // the events below are only applicable to bubble bar
-    ALL_APPS_ICON_DRAG,
-    TASKBAR_ICON_DRAG,
-    TASKBAR_ICON_MENU -> null
-}
+fun EntryPoint.toFloatingBubblesUiEvent() =
+    when (this) {
+        LAUNCHER_ICON_MENU -> BUBBLE_CREATED_FROM_LAUNCHER_ICON_MENU
+        ALL_APPS_ICON_MENU -> BUBBLE_CREATED_FROM_ALL_APPS_ICON_MENU
+        HOTSEAT_ICON_MENU -> BUBBLE_CREATED_FROM_HOTSEAT_ICON_MENU
+        NOTIFICATION -> BUBBLE_CREATED_FROM_NOTIF
+        NOTIFICATION_BUBBLE_BUTTON -> BUBBLE_CREATED_FROM_NOTIF_BUBBLE_BUTTON
+        // the events below are only applicable to bubble bar
+        ALL_APPS_ICON_DRAG,
+        TASKBAR_ICON_DRAG,
+        TASKBAR_ICON_MENU -> null
+    }

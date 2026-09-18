@@ -42,7 +42,6 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
 import android.view.flags.Flags;
-
 import dalvik.system.CloseGuard;
 import dalvik.system.VMRuntime;
 
@@ -103,6 +102,11 @@ public class Surface implements Parcelable {
 
     private static native int nativeSetFrameRate(
             long nativeObject, float frameRate, int compatibility, int changeFrameRateStrategy);
+
+    private static native int nativeSetProducerThrottlingEnabled(
+            long nativeObject, boolean enabled);
+    private static native int nativeIsProducerThrottlingEnabled(long nativeObject);
+
     private static native void nativeDestroy(long nativeObject);
 
     // 5KB is a balanced guess, since these are still pretty heavyweight objects, but if we make
@@ -242,7 +246,6 @@ public class Surface implements Parcelable {
      * For video, use {@link FRAME_RATE_COMPATIBILITY_FIXED_SOURCE} instead. For game content, use
      * {@link FRAME_RATE_COMPATIBILITY_DEFAULT}.
      */
-    @FlaggedApi(com.android.graphics.surfaceflinger.flags.Flags.FLAG_ARR_SETFRAMERATE_GTE_ENUM)
     public static final int FRAME_RATE_COMPATIBILITY_AT_LEAST = 2;
 
     /**
@@ -1052,6 +1055,7 @@ public class Surface implements Parcelable {
          * rate is acceptable.
          */
         @FlaggedApi(com.android.graphics.surfaceflinger.flags.Flags.FLAG_ARR_SETFRAMERATE_API)
+        @NonNull
         public static final FrameRateParams IGNORE =
                 new FrameRateParams.Builder().setDesiredRateRange(0f, Float.MAX_VALUE).build();
 
@@ -1079,7 +1083,7 @@ public class Surface implements Parcelable {
              * The values should be greater than or equal to 0.
              *
              * If the surface has no preference and any frame rate is acceptable, use the constant
-             * {@link FrameRateParams.IGNORE} in {@link #setFrameRate(FrameRateParams)} instead of
+             * {@link FrameRateParams#IGNORE} in {@link #setFrameRate(FrameRateParams)} instead of
              * building {@link FrameRateParams.Builder}.
              *
              * @see FrameRateParams#getDesiredMinRate()
@@ -1241,6 +1245,66 @@ public class Surface implements Parcelable {
                 Log.e(TAG, "Failed to set frame rate on Surface. Native error: " + error);
             }
         }
+    }
+
+    /**
+     * Control CPU throttling for Vulkan/EGL producers.
+     *
+     * <p>By default Vulkan and EGL producers are CPU throttled when they queue a buffer and the
+     * consumer is still processing the previous buffer. In practice, it means that eglSwapBuffers()
+     * or vkPresentKHR() calls will stall the CPU until the GPU is done processing the previous
+     * frame. This API allows to disable this throttling while queueing a buffer.</p>
+     *
+     * <p>While the default it to have throttling enabled, the more correct and efficient behavior
+     * is to have it disabled. Unfortunately, some Vulkan applications may inadvertently rely
+     * on this stall which effectively behaves as consumer/producer synchronization, albeit,
+     * inefficiently. It is therefore recommended to always disable throttling and perform
+     * proper synchronization in Vulkan.</p>
+     *
+     * <p>If the CPU produces frames faster than the GPU, natural throttling will happen when a
+     * buffer is dequeued, based on the size of the queue. This typically happen during the
+     * first drawing in OpenGL ES and in vkAcquireNextImageKHR() in Vulkan.</p>
+     *
+     * <p>This API has no effect in asynchronous mode, where throttling is always enabled.</p>
+     *
+     * @param enabled true to enable back-pressure, false to disable it.
+     * @throws IllegalArgumentException If the native window is invalid.
+     * @see #isProducerThrottlingEnabled
+     */
+    @FlaggedApi(com.android.graphics.libgui.flags.Flags.FLAG_BQ_PRODUCER_BACKPRESSURE_CONTROL)
+    public void setProducerThrottlingEnabled(boolean enabled) {
+        int error = nativeSetProducerThrottlingEnabled(mNativeObject, enabled);
+        if (error < 0) {
+            if (error == -EINVAL) {
+                throw new IllegalArgumentException(
+                        "Invalid native surface when calling "
+                                + "Surface.setProducerThrottlingEnabled()");
+            }
+            throw new RuntimeException("Surface.setProducerThrottlingEnabled() failed. "
+                    + "Native error: " + error);
+        }
+    }
+
+    /**
+     * Check if CPU throttling is enabled.
+     *
+     * @throws IllegalArgumentException If the native window is invalid.
+     * @return  true if back-pressure is enabled, false otherwise.
+     * @see #setProducerThrottlingEnabled
+     */
+    @FlaggedApi(com.android.graphics.libgui.flags.Flags.FLAG_BQ_PRODUCER_BACKPRESSURE_CONTROL)
+    public boolean isProducerThrottlingEnabled() {
+        int error = nativeIsProducerThrottlingEnabled(mNativeObject);
+        if (error < 0) {
+            if (error == -EINVAL) {
+                throw new IllegalArgumentException(
+                        "Invalid native surface when calling "
+                                + "Surface.isProducerThrottlingEnabled()");
+            }
+            throw new RuntimeException("Surface.isProducerThrottlingEnabled() failed. "
+                    + "Native error: " + error);
+        }
+        return error != 0;
     }
 
     /**
@@ -1481,14 +1545,10 @@ public class Surface implements Parcelable {
     }
 
     private static void registerNativeMemoryUsage() {
-        if (Flags.enableSurfaceNativeAllocRegistrationRo()) {
-            VMRuntime.getRuntime().registerNativeAllocation(SURFACE_NATIVE_ALLOCATION_SIZE_BYTES);
-        }
+        VMRuntime.getRuntime().registerNativeAllocation(SURFACE_NATIVE_ALLOCATION_SIZE_BYTES);
     }
 
     private static void freeNativeMemoryUsage() {
-        if (Flags.enableSurfaceNativeAllocRegistrationRo()) {
-            VMRuntime.getRuntime().registerNativeFree(SURFACE_NATIVE_ALLOCATION_SIZE_BYTES);
-        }
+        VMRuntime.getRuntime().registerNativeFree(SURFACE_NATIVE_ALLOCATION_SIZE_BYTES);
     }
 }

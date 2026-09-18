@@ -18,8 +18,6 @@ package com.android.wm.shell.compatui;
 
 import static android.window.TaskConstants.TASK_CHILD_LAYER_COMPAT_UI;
 
-import static com.android.window.flags.Flags.enableCompatuiSysuiLauncherFix;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppCompatTaskInfo;
@@ -142,28 +140,23 @@ class UserAspectRatioSettingsWindowManager extends CompatUIWindowManagerAbstract
 
         updateVisibilityOfViews();
 
-        if (enableCompatuiSysuiLauncherFix()) {
-            // Don't let the fullscreen parent view steal input events by adding only the button
-            // bounds to the touchable region.
-            mLayoutParent.getViewTreeObserver().addOnComputeInternalInsetsListener(info -> {
-                if (mLayout == null || mLayout.getVisibility() != View.VISIBLE) {
-                    info.touchableRegion.setEmpty();
-                } else {
-                    final Region touchableRegion = new Region();
-                    final Rect layoutBounds = new Rect(mLayout.getLeft(), mLayout.getTop(),
-                            mLayout.getRight(), mLayout.getBottom());
-                    touchableRegion.op(layoutBounds, Region.Op.UNION);
-                    info.touchableRegion.set(touchableRegion);
-                }
-                info.setTouchableInsets(
-                        ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
-            });
+        // Don't let the fullscreen parent view steal input events by adding only the button
+        // bounds to the touchable region.
+        mLayoutParent.getViewTreeObserver().addOnComputeInternalInsetsListener(info -> {
+            if (mLayout == null || mLayout.getVisibility() != View.VISIBLE) {
+                info.touchableRegion.setEmpty();
+            } else {
+                final Region touchableRegion = new Region();
+                final Rect layoutBounds = new Rect(mLayout.getLeft(), mLayout.getTop(),
+                        mLayout.getRight(), mLayout.getBottom());
+                touchableRegion.op(layoutBounds, Region.Op.UNION);
+                info.touchableRegion.set(touchableRegion);
+            }
+            info.setTouchableInsets(
+                    ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
+        });
 
-            return mLayoutParent;
-        } else {
-            mLayoutParent.removeView(mLayout);
-            return mLayout;
-        }
+        return mLayoutParent;
     }
 
     @VisibleForTesting
@@ -236,9 +229,6 @@ class UserAspectRatioSettingsWindowManager extends CompatUIWindowManagerAbstract
 
     @Override
     protected WindowManager.LayoutParams getWindowLayoutParams() {
-        if (!enableCompatuiSysuiLauncherFix()) {
-            return super.getWindowLayoutParams();
-        }
         final Rect taskBounds = getTaskBounds();
         return getWindowLayoutParams(taskBounds.width(), taskBounds.height());
     }
@@ -281,24 +271,13 @@ class UserAspectRatioSettingsWindowManager extends CompatUIWindowManagerAbstract
         // Position of the button in the container coordinate.
         final Rect taskBounds = getTaskBounds();
         final Rect taskStableBounds = getTaskStableBounds();
-        if (enableCompatuiSysuiLauncherFix()) {
-            mLayoutBounds.set(taskBounds);
-            ViewGroup.LayoutParams params = mLayout.getLayoutParams();
-            if (params instanceof ViewGroup.MarginLayoutParams) {
-                ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) params;
-                marginParams.setMargins(0, 0, 0, taskBounds.bottom - taskStableBounds.bottom);
-                mLayout.setLayoutParams(marginParams);
-            }
-            return;
+        mLayoutBounds.set(taskBounds);
+        ViewGroup.LayoutParams params = mLayout.getLayoutParams();
+        if (params instanceof ViewGroup.MarginLayoutParams) {
+            ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) params;
+            marginParams.setMargins(0, 0, 0, taskBounds.bottom - taskStableBounds.bottom);
+            mLayout.setLayoutParams(marginParams);
         }
-
-        final int layoutWidth = mLayout.getMeasuredWidth();
-        final int layoutHeight = mLayout.getMeasuredHeight();
-        final int positionX = getLayoutDirection() == View.LAYOUT_DIRECTION_RTL
-                ? taskStableBounds.left - taskBounds.left
-                : taskStableBounds.right - taskBounds.left - layoutWidth;
-        final int positionY = taskStableBounds.bottom - taskBounds.top - layoutHeight;
-        mLayoutBounds.set(positionX, positionY, positionX + layoutWidth, positionY + layoutHeight);
     }
 
     private void showUserAspectRatioButton() {

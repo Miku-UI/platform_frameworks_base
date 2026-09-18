@@ -16,14 +16,25 @@
 
 package com.android.systemui.inputmethod
 
+import com.android.systemui.inputmethod.data.repository.ImeSwitcherMenuRepositoryModule
 import com.android.systemui.inputmethod.data.repository.InputMethodRepositoryModule
+import com.android.systemui.inputmethod.ui.binder.ImeSwitcherMenuBinderModule
 import dagger.Module
 
-/** Module for providing objects exposed by the input method package. */
+/**
+ * Main dagger module for the input method package.
+ *
+ * Includes [ImeSwitcherMenuRepositoryModule] and [ImeSwitcherMenuBinderModule] to enforce that all
+ * SystemUI implementations provide a binding for
+ * [com.android.systemui.inputmethod.ui.ImeSwitcherMenuUi.Factory], which is required for proper IME
+ * Switcher Menu functionality (validated in CTS).
+ */
 @Module(
     includes =
         [
+            ImeSwitcherMenuBinderModule::class,
+            ImeSwitcherMenuRepositoryModule::class,
             InputMethodRepositoryModule::class,
-        ],
+        ]
 )
 object InputMethodModule

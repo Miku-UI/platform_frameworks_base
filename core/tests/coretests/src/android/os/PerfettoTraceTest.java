@@ -16,7 +16,7 @@
 
 package android.os;
 
-import static android.os.PerfettoTrace.Category;
+import static com.android.internal.dev.perfetto.sdk.PerfettoTrace.Category;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -24,13 +24,14 @@ import static perfetto.protos.ChromeLatencyInfoOuterClass.ChromeLatencyInfo.Late
 import static perfetto.protos.ChromeLatencyInfoOuterClass.ChromeLatencyInfo.LatencyComponentType.COMPONENT_INPUT_EVENT_LATENCY_SCROLL_UPDATE_ORIGINAL;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.ArraySet;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+
+import com.android.internal.dev.perfetto.sdk.PerfettoTrace;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -92,15 +93,16 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testDebugAnnotations() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
         PerfettoTrace.Session session = new PerfettoTrace.Session(true, traceConfig.toByteArray());
 
         PerfettoTrace.instant(FOO_CATEGORY, "event")
-                .setFlow(2)
-                .setTerminatingFlow(3)
+                .addFlow(2)
+                .addFlow(3)
+                .addTerminatingFlow(4)
+                .addTerminatingFlow(5)
                 .addArg("long_val", 10000000000L)
                 .addArg("bool_val", true)
                 .addArg("double_val", 3.14)
@@ -130,6 +132,9 @@ public class PerfettoTraceTest {
                     assertThat(annotations.get(1).getBoolValue()).isTrue();
                     assertThat(annotations.get(2).getDoubleValue()).isEqualTo(3.14);
                     assertThat(annotations.get(3).getStringValue()).isEqualTo(FOO);
+
+                    assertThat(event.getFlowIdsList()).containsExactly(2, 3);
+                    assertThat(event.getTerminatingFlowIdsList()).containsExactly(4, 5);
                 }
             }
 
@@ -147,19 +152,18 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testNamedTrack() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
         PerfettoTrace.Session session = new PerfettoTrace.Session(true, traceConfig.toByteArray());
 
         PerfettoTrace.begin(FOO_CATEGORY, "event")
-                .usingNamedTrack(PerfettoTrace.getProcessTrackUuid(), FOO)
+                .usingNamedTrack(123, FOO, PerfettoTrace.getProcessTrackUuid())
                 .emit();
 
 
         PerfettoTrace.end(FOO_CATEGORY)
-                .usingNamedTrack(PerfettoTrace.getThreadTrackUuid(Process.myTid()), "bar")
+                .usingNamedTrack(456, "bar", PerfettoTrace.getThreadTrackUuid(Process.myTid()))
                 .emit();
 
         Trace trace = Trace.parseFrom(session.close());
@@ -195,19 +199,18 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testProcessThreadNamedTrack() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
         PerfettoTrace.Session session = new PerfettoTrace.Session(true, traceConfig.toByteArray());
 
         PerfettoTrace.begin(FOO_CATEGORY, "event")
-                .usingProcessNamedTrack(FOO)
+                .usingProcessNamedTrack(123, FOO)
                 .emit();
 
 
         PerfettoTrace.end(FOO_CATEGORY)
-                .usingThreadNamedTrack(Process.myTid(), "bar")
+                .usingThreadNamedTrack(456, "bar", Process.myTid())
                 .emit();
 
         Trace trace = Trace.parseFrom(session.close());
@@ -243,7 +246,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testCounterSimple() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
@@ -286,7 +288,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testCounter() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
@@ -332,7 +333,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testProcessThreadCounter() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
@@ -376,7 +376,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testProto() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
@@ -423,7 +422,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testProtoWithSlowPath() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
@@ -470,7 +468,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testProtoNested() throws Exception {
         TraceConfig traceConfig = getTraceConfig(FOO);
 
@@ -531,7 +528,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testActivateTrigger() throws Exception {
         TraceConfig traceConfig = getTriggerTraceConfig(FOO, FOO);
 
@@ -561,7 +557,6 @@ public class PerfettoTraceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
     public void testRegister() throws Exception {
         TraceConfig traceConfig = getTraceConfig(BAR);
 

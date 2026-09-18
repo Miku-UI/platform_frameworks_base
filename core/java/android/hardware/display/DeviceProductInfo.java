@@ -16,7 +16,7 @@
 
 package android.hardware.display;
 
-import static com.android.graphics.surfaceflinger.flags.Flags.FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE;
+import static com.android.graphics.surfaceflinger.flags.Flags.FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
@@ -55,15 +55,15 @@ public final class DeviceProductInfo implements Parcelable {
     public @interface VideoInputType {}
 
     /** The device input type is unknown. */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     public static final int VIDEO_INPUT_TYPE_UNKNOWN = -1;
 
     /** The device has an analog input. */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     public static final int VIDEO_INPUT_TYPE_ANALOG = 0;
 
     /** The device has a digital input. */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     public static final int VIDEO_INPUT_TYPE_DIGITAL = 1;
 
     /** The device connection to the display sink is unknown. */
@@ -148,7 +148,7 @@ public final class DeviceProductInfo implements Parcelable {
     /**
      * Builder for {@link DeviceProductInfo}.
      */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     public static final class Builder {
         private String mName;
         private String mManufacturerPnpId;
@@ -165,7 +165,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @param manufacturerPnpId The Manufacturer Plug and Play ID.
          * @param productId The product ID.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         public Builder(@NonNull String manufacturerPnpId, @NonNull String productId) {
             mManufacturerPnpId = Objects.requireNonNull(manufacturerPnpId);
             mProductId = Objects.requireNonNull(productId);
@@ -177,7 +177,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @param name The display name.
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setName(@Nullable String name) {
             mName = name;
@@ -190,7 +190,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @param manufacturerPnpId The Manufacturer Plug and Play ID.
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setManufacturerPnpId(@NonNull String manufacturerPnpId) {
             mManufacturerPnpId = Objects.requireNonNull(manufacturerPnpId);
@@ -203,7 +203,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @param productId The product ID.
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setProductId(@NonNull String productId) {
             mProductId = Objects.requireNonNull(productId);
@@ -216,7 +216,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @param modelYear The model year, must be >= 1990, or -1 if not available.
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setModelYear(@IntRange(from = -1) int modelYear) {
             if (modelYear != -1 && modelYear < 1990) {
@@ -234,7 +234,7 @@ public final class DeviceProductInfo implements Parcelable {
          *         available.
          * @param manufactureYear Year of manufacturing, must be >= 1990, or -1 if not available.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         // Getters are already public and are split to getManufactureWeek and getManufactureYear
         @SuppressLint("MissingGetterMatchingBuilder")
         @NonNull
@@ -266,7 +266,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @see #CONNECTION_TO_SINK_TRANSITIVE
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setConnectionToSinkType(@ConnectionToSinkType int connectionToSinkType) {
             mConnectionToSinkType = connectionToSinkType;
@@ -281,7 +281,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @param edidStructureRevision The EDID revision, must be >= 0.
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setEdidStructureMetadata(@IntRange(from = 0) int edidStructureVersion,
                 @IntRange(from = 0) int edidStructureRevision) {
@@ -306,7 +306,7 @@ public final class DeviceProductInfo implements Parcelable {
          * @see #VIDEO_INPUT_TYPE_DIGITAL
          * @return This builder.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public Builder setVideoInputType(@VideoInputType int videoInputType) {
             mVideoInputType = videoInputType;
@@ -318,7 +318,7 @@ public final class DeviceProductInfo implements Parcelable {
          *
          * @return A new {@link DeviceProductInfo}.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @NonNull
         public DeviceProductInfo build() {
             return new DeviceProductInfo(mName, mManufacturerPnpId, mProductId, mModelYear,
@@ -410,7 +410,7 @@ public final class DeviceProductInfo implements Parcelable {
      * @return An {@link EdidStructureMetadata} containing the EDID major version and minor
      * revision (e.g., version 1, revision 4 for EDID 1.4), or null if unavailable.
      */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     @Nullable
     public EdidStructureMetadata getEdidStructureMetadata() {
         return mEdidStructureMetadata;
@@ -422,7 +422,7 @@ public final class DeviceProductInfo implements Parcelable {
      * @see #VIDEO_INPUT_TYPE_ANALOG
      * @see #VIDEO_INPUT_TYPE_DIGITAL
      */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     @VideoInputType
     public int getVideoInputType() {
         return mVideoInputType;
@@ -561,7 +561,7 @@ public final class DeviceProductInfo implements Parcelable {
     /**
      * Encapsulates the EDID version, parsed from bytes 18 (version) and 19 (revision).
      */
-    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+    @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
     public static final class EdidStructureMetadata implements Parcelable {
         private final int mVersion;
         private final int mRevision;
@@ -607,7 +607,7 @@ public final class DeviceProductInfo implements Parcelable {
         /**
          * @return The EDID version. For example, if the EDID version is 1.4, this will return 1.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @IntRange(from = 0)
         public int getVersion() {
             return mVersion;
@@ -616,7 +616,7 @@ public final class DeviceProductInfo implements Parcelable {
         /**
          * @return The EDID revision. For example, if the EDID version is 1.4, this will return 4.
          */
-        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE)
+        @FlaggedApi(FLAG_PARSE_EDID_VERSION_AND_INPUT_TYPE_V2)
         @IntRange(from = 0)
         public int getRevision() {
             return mRevision;

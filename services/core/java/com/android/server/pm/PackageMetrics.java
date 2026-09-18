@@ -36,6 +36,7 @@ import android.content.pm.DataLoaderType;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.pm.SigningDetails;
 import android.content.pm.parsing.ApkLiteParseUtils;
 import android.os.UserHandle;
 import android.text.TextUtils;
@@ -70,14 +71,17 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class PackageMetrics {
     private static final String TAG = "PackageMetrics";
+    // When adding a new step, use the next available integer to preserve metrics.
+    // Next step number: 10
     public static final int STEP_PREPARE = 1;
     public static final int STEP_SCAN = 2;
     public static final int STEP_RECONCILE = 3;
     public static final int STEP_COMMIT = 4;
     public static final int STEP_DEXOPT = 5;
-    public static final int STEP_FREEZE_INSTALL = 6;
-    public static final int STEP_RESTORE = 7;
     public static final int STEP_WAIT_DEXOPT = 8;
+    public static final int STEP_FREEZE_INSTALL = 6;
+    public static final int STEP_FREEZE_INSTALL_STOP_AND_KILL = 9;
+    public static final int STEP_RESTORE = 7;
 
     @IntDef(prefix = {"STEP_"}, value = {
             STEP_PREPARE,
@@ -85,9 +89,10 @@ public final class PackageMetrics {
             STEP_RECONCILE,
             STEP_COMMIT,
             STEP_DEXOPT,
+            STEP_WAIT_DEXOPT,
             STEP_FREEZE_INSTALL,
-            STEP_RESTORE,
-            STEP_WAIT_DEXOPT
+            STEP_FREEZE_INSTALL_STOP_AND_KILL,
+            STEP_RESTORE
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface StepInt {
@@ -278,6 +283,13 @@ public final class PackageMetrics {
                 }
             }
         }
+        boolean isPqcSigned = false;
+        if (android.security.Flags.apkPqcHybridSigning()) {
+            SigningDetails signingDetails = mInstallRequest.getSigningDetails();
+            if (signingDetails != null) {
+                isPqcSigned = signingDetails.isPqcSigned();
+            }
+        }
 
 
         FrameworkStatsLog.write(FrameworkStatsLog.PACKAGE_INSTALLATION_SESSION_REPORTED,
@@ -309,7 +321,9 @@ public final class PackageMetrics {
                 false /* is_staged */,
                 mInstallRequest
                         .isDependencyInstallerEnabled() /* is_install_dependencies_enabled */,
-                mInstallRequest.getMissingSharedLibraryCount() /* missing_dependencies_count */
+                mInstallRequest.getMissingSharedLibraryCount() /* missing_dependencies_count */,
+                mInstallRequest.getAppImportance() /* app_importance */,
+                isPqcSigned /* is_pqc_signed */
         );
     }
 
@@ -433,6 +447,14 @@ public final class PackageMetrics {
     }
 
     public static void onVerificationFailed(VerifyingSession verifyingSession) {
+        boolean isPqcSigned = false;
+        if (android.security.Flags.apkPqcHybridSigning()) {
+            SigningDetails signingDetails = verifyingSession.getSigningDetails();
+            if (signingDetails != null) {
+                isPqcSigned = signingDetails.isPqcSigned();
+            }
+        }
+
         FrameworkStatsLog.write(FrameworkStatsLog.PACKAGE_INSTALLATION_SESSION_REPORTED,
                 verifyingSession.getSessionId() /* session_id */,
                 null /* package_name */,
@@ -461,7 +483,9 @@ public final class PackageMetrics {
                 false /* is_move_install */,
                 verifyingSession.isStaged() /* is_staged */,
                 false /* is_install_dependencies_enabled */,
-                0 /* missing_dependencies_count */
+                0 /* missing_dependencies_count */,
+                0 /* app_importance */,
+                isPqcSigned /* is_pqc_signed */
         );
     }
 
@@ -505,7 +529,9 @@ public final class PackageMetrics {
                 false /* is_move_install */,
                 params.isStaged /* is_staged */,
                 true /* is_install_dependencies_enabled */,
-                missingDependenciesCount /* missing_dependencies_count */
+                missingDependenciesCount /* missing_dependencies_count */,
+                0 /* app_importance */,
+                false /* is_pqc_signed */
         );
     }
 

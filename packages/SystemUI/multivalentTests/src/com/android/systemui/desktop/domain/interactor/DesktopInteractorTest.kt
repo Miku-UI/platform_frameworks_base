@@ -17,13 +17,9 @@
 package com.android.systemui.desktop.domain.interactor
 
 import android.content.res.Configuration
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
@@ -86,43 +82,5 @@ class DesktopInteractorTest : SysuiTestCase() {
             configurationController.onConfigurationChanged(Configuration())
 
             assertThat(useDesktopStatusBar).isTrue()
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_FOR_DESKTOP)
-    @EnableSceneContainer
-    fun desktopStatusBarEnabled_configEnabled_isNotificationShadeOnTopEndReturnsTrue() =
-        kosmos.runTest {
-            overrideResource(R.bool.config_notificationShadeOnTopEnd, true)
-
-            assertThat(underTest.isNotificationShadeOnTopEnd).isTrue()
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_FOR_DESKTOP)
-    @EnableSceneContainer
-    fun desktopStatusBarEnabled_configDisabled_isNotificationShadeOnTopEndReturnsFalse() =
-        kosmos.runTest {
-            overrideResource(R.bool.config_notificationShadeOnTopEnd, false)
-
-            assertThat(underTest.isNotificationShadeOnTopEnd).isFalse()
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_STATUS_BAR_FOR_DESKTOP)
-    fun desktopStatusBarDisabled_configEnabled_isNotificationShadeOnTopEndReturnsFalse() =
-        kosmos.runTest {
-            overrideResource(R.bool.config_notificationShadeOnTopEnd, true)
-
-            assertThat(underTest.isNotificationShadeOnTopEnd).isFalse()
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_STATUS_BAR_FOR_DESKTOP)
-    fun desktopStatusBarDisabled_configDisabled_isNotificationShadeOnTopEndReturnsFalse() =
-        kosmos.runTest {
-            overrideResource(R.bool.config_notificationShadeOnTopEnd, false)
-
-            assertThat(underTest.isNotificationShadeOnTopEnd).isFalse()
         }
 }

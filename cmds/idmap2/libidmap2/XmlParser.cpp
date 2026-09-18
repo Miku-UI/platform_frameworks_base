@@ -16,9 +16,9 @@
 
 #include "idmap2/XmlParser.h"
 
-#include <memory>
-#include <string>
 #include <utility>
+
+#include "androidfw/Util.h"
 
 namespace android::idmap2 {
 
@@ -83,9 +83,9 @@ XmlParser::Event XmlParser::Node::event() const {
 }
 
 std::string XmlParser::Node::name() const {
-  size_t len;
-  const String16 key16(parser_.getElementName(&len));
-  return String8(key16).c_str();
+  size_t len = 0;
+  const auto name16 = parser_.getElementName(&len);
+  return util::Utf16ToUtf8({name16, len});
 }
 
 template <typename Func>
@@ -155,12 +155,23 @@ Result<std::string> XmlParser::Node::GetAttributeStringValue(const std::string& 
 XmlParser::XmlParser(std::unique_ptr<ResXMLTree> tree) : tree_(std::move(tree)) {
 }
 
+Result<XmlParser> XmlParser::Create(std::unique_ptr<android::Asset>&& asset) {
+  auto tree = ResXMLTree::fromAsset(std::move(asset));
+  if (!tree) {
+    return Error("Malformed xml block in asset");
+  }
+  return InitializeParser(std::move(tree));
+}
+
 Result<XmlParser> XmlParser::Create(const void* data, size_t size, bool copy_data) {
   auto tree = std::make_unique<ResXMLTree>();
   if (tree->setTo(data, size, copy_data) != NO_ERROR) {
     return Error("Malformed xml block");
   }
+  return InitializeParser(std::move(tree));
+}
 
+Result<XmlParser> XmlParser::InitializeParser(std::unique_ptr<ResXMLTree> tree) {
   // Find the beginning of the first tag.
   XmlParser::Event event;
   while ((event = tree->next()) != XmlParser::Event::BAD_DOCUMENT &&

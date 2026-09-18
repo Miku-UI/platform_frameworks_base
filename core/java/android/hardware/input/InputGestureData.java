@@ -18,6 +18,7 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.view.KeyEvent;
 
 import java.util.Objects;
@@ -33,6 +34,7 @@ import java.util.Objects;
  * </p>
  * @hide
  */
+@RavenwoodKeepWholeClass
 public final class InputGestureData {
 
     public static final int TOUCHPAD_GESTURE_TYPE_UNKNOWN = 0;

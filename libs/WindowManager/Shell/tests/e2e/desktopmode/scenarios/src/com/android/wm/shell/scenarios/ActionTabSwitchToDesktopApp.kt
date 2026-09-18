@@ -17,7 +17,6 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
-import android.platform.test.annotations.RequiresFlagsEnabled
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
@@ -28,29 +27,22 @@ import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.KeyEventHelper
 import com.android.server.wm.flicker.helpers.MailAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
-import com.android.wm.shell.Utils
 import org.junit.After
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Base Test Class")
-@RequiresFlagsEnabled(
-    com.android.launcher3.Flags.FLAG_ENABLE_META_TAB_TOGGLE_IN_OVERVIEW
-)
 abstract class ActionTabSwitchToDesktopApp(
     val navigationMode: NavBar = NavBar.MODE_GESTURAL,
-    val rotation: Rotation = Rotation.ROTATION_0
-) {
+    val rotation: Rotation = Rotation.ROTATION_0,
+) : TestScenarioBase(rotation, navigationMode) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val keyEventHelper = KeyEventHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
     val fullscreenApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
     val desktopApp = DesktopModeAppHelper(MailAppHelper(instrumentation))
-
-    @Rule @JvmField val testSetup = Utils.testSetupRule(navigationMode, rotation)
 
     @Before
     fun setup() {
@@ -65,7 +57,8 @@ abstract class ActionTabSwitchToDesktopApp(
         wmHelper.StateSyncBuilder().withRecentsActivityVisible().waitForAndVerify()
         keyEventHelper.press(KeyEvent.KEYCODE_DPAD_RIGHT)
         keyEventHelper.press(KeyEvent.KEYCODE_TAB, KeyEvent.META_META_ON)
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withAppTransitionIdle()
             .withFreeformApp(desktopApp)
             .waitForAndVerify()

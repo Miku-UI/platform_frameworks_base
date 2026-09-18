@@ -880,7 +880,7 @@ public final class KeyProtection implements ProtectionParameter, UserAuthArgs {
          * disabled (reconfigured to None, Swipe or other mode which does not authenticate the user)
          * or when the secure lock screen is forcibly reset (e.g., by a Device Administrator).
          * Additionally, if the key requires that user authentication takes place for every use of
-         * the key, it is also irreversibly invalidated once a new biometric is enrolled or once\
+         * the key, it is also irreversibly invalidated once a new biometric is enrolled or once
          * no more biometrics are enrolled, unless {@link
          * #setInvalidatedByBiometricEnrollment(boolean)} is used to allow validity after
          * enrollment. Attempts to initialize cryptographic operations using such keys will throw

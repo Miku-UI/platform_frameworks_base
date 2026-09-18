@@ -22,14 +22,15 @@ import android.os.Binder
 import android.os.RemoteException
 import android.view.Display
 import android.view.WindowInsets
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.internal.statusbar.IStatusBarService
 import com.android.internal.statusbar.RegisterStatusBarResult
 import com.android.systemui.CoreStartable
 import com.android.systemui.InitController
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.navigationbar.NavigationBarController
 import com.android.systemui.statusbar.CommandQueue
-import com.android.systemui.statusbar.data.repository.StatusBarModeRepositoryStore
 import dagger.Lazy
 import javax.inject.Inject
 
@@ -40,14 +41,13 @@ constructor(
     private val context: Context,
     private val commandQueue: CommandQueue,
     private val commandQueueCallbacksLazy: Lazy<CommandQueue.Callbacks>,
-    private val statusBarModeRepository: StatusBarModeRepositoryStore,
+    private val displaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>,
     private val initController: InitController,
     private val barService: IStatusBarService,
     private val navigationBarController: NavigationBarController,
 ) : CoreStartable {
 
     override fun start() {
-        StatusBarConnectedDisplays.unsafeAssertInNewMode()
         val resultPerDisplay: Map<String, RegisterStatusBarResult> =
             try {
                 barService.registerStatusBarForAllDisplays(commandQueue)
@@ -72,7 +72,7 @@ constructor(
 
     private fun initializeStatusBarForDisplay(displayId: Int, result: RegisterStatusBarResult) {
         if ((result.mTransientBarTypes and WindowInsets.Type.statusBars()) != 0) {
-            statusBarModeRepository.forDisplay(displayId)?.showTransient()
+            displaySubcomponentRepo[displayId]?.statusBarModeRepo?.showTransient()
         }
         val commandQueueCallbacks = commandQueueCallbacksLazy.get()
         commandQueueCallbacks.onSystemBarAttributesChanged(
@@ -91,7 +91,7 @@ constructor(
             displayId,
             result.mImeWindowVis,
             result.mImeBackDisposition,
-            result.mShowImeSwitcher,
+            result.mShowImeSwitcherButton,
         )
 
         // set the initial view visibility

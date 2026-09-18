@@ -75,6 +75,66 @@
         <item>0</item>
         <item>0</item>
     </array>
+    <array name="exifwith1fillbyte_jpg">
+        <item>true</item>
+        <item>512</item>
+        <item>288</item>
+        <item>false</item>
+        <item>0.0</item>
+        <item>0.0</item>
+        <item>0.0</item>
+        <item>SAMSUNG</item>
+        <item>SM-N900S</item>
+        <item>2.200</item>
+        <item>2016:01:29 18:32:27</item>
+        <item>0.033</item>
+        <item>0</item>
+        <item>413/100</item>
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item>480</item>
+        <item>640</item>
+        <item>50</item>
+        <item>6</item>
+        <item>0</item>
+    </array>
+        <array name="exifwith2fillbytes_jpg">
+        <item>true</item>
+        <item>512</item>
+        <item>288</item>
+        <item>false</item>
+        <item>0.0</item>
+        <item>0.0</item>
+        <item>0.0</item>
+        <item>SAMSUNG</item>
+        <item>SM-N900S</item>
+        <item>2.200</item>
+        <item>2016:01:29 18:32:27</item>
+        <item>0.033</item>
+        <item>0</item>
+        <item>413/100</item>
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item />
+        <item>480</item>
+        <item>640</item>
+        <item>50</item>
+        <item>6</item>
+        <item>0</item>
+    </array>
     <array name="lg_g4_iso_800_dng">
         <item>true</item>
         <item>256</item>

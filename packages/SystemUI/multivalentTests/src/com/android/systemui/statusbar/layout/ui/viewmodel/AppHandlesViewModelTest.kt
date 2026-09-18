@@ -19,8 +19,6 @@ package com.android.systemui.statusbar.layout.ui.viewmodel
 import android.content.testableContext
 import android.graphics.Rect
 import android.graphics.Region
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -31,7 +29,6 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.statusbar.layout.StatusBarAppHandleTracking
 import com.android.systemui.testKosmos
 import com.android.wm.shell.windowdecor.viewholder.AppHandleIdentifier
 import com.android.wm.shell.windowdecor.viewholder.AppHandleIdentifier.AppHandleWindowingMode.APP_HANDLE_WINDOWING_MODE_BUBBLE
@@ -58,7 +55,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun appHandleBounds_noAppHandlesProvided_empty() =
         kosmos.runTest {
             val viewModelWithNoAppHandles =
@@ -73,7 +69,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun appHandleBounds_empty() =
         kosmos.runTest {
             fakeAppHandles.setAppHandles(emptyMap())
@@ -82,7 +77,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun appHandleBounds_notForThisDisplay_empty() =
         kosmos.runTest {
             val taskId = 10
@@ -103,7 +97,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun appHandleBounds_forThisDisplay_hasBounds() =
         kosmos.runTest {
             val taskId = 10
@@ -124,7 +117,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun appHandleBounds_multipleForThisDisplay_hasAll() =
         kosmos.runTest {
             val taskId1 = 10
@@ -156,49 +148,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(StatusBarAppHandleTracking.FLAG_NAME)
-    fun appHandleBounds_emptyIfFlagDisabled() =
-        kosmos.runTest {
-            val taskId = 10
-            val rect = Rect(1, 2, 3, 4)
-            fakeAppHandles.setAppHandles(
-                mapOf(
-                    taskId to
-                        AppHandleIdentifier(
-                            rect = rect,
-                            displayId = testableContext.displayId,
-                            taskId = taskId,
-                            windowingMode = APP_HANDLE_WINDOWING_MODE_FULLSCREEN,
-                        )
-                )
-            )
-
-            assertThat(underTest.appHandleBounds).isEmpty()
-        }
-
-    @Test
-    @DisableFlags(StatusBarAppHandleTracking.FLAG_NAME)
-    fun touchableExclusionRegion_emptyIfFlagDisabled() =
-        kosmos.runTest {
-            val taskId = 10
-            val rect = Rect(1, 2, 3, 4)
-            fakeAppHandles.setAppHandles(
-                mapOf(
-                    taskId to
-                        AppHandleIdentifier(
-                            rect = rect,
-                            displayId = testableContext.displayId,
-                            taskId = taskId,
-                            windowingMode = APP_HANDLE_WINDOWING_MODE_FULLSCREEN,
-                        )
-                )
-            )
-
-            assertThat(underTest.touchableExclusionRegion.isEmpty)
-        }
-
-    @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun touchableExclusionRegion_emptyRegionIfNoAppHandleBoundsReported() =
         kosmos.runTest {
             fakeAppHandles.setAppHandles(emptyMap())
@@ -206,7 +155,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun touchableExclusionRegion_regionContainsSingleAppHandleBounds() =
         kosmos.runTest {
             val taskId = 10
@@ -227,7 +175,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun touchableExclusionRegion_regionContainsMultipleAppHandleBounds() =
         kosmos.runTest {
             val taskId1 = 10
@@ -258,7 +205,6 @@ class AppHandlesViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(StatusBarAppHandleTracking.FLAG_NAME)
     fun touchableExclusionRegion_notForThisDisplay_empty() =
         kosmos.runTest {
             val taskId = 10

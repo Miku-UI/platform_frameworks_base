@@ -49,18 +49,13 @@
     720,
     736,
     752,
-    768,
     "after"
   ],
   "features": [
     {
-      "name": "activeIconAlpha_activeIconAlpha",
+      "name": "activeIconAlpha",
       "type": "float",
       "data_points": [
-        0,
-        0,
-        0,
-        0,
         0,
         0,
         0,
@@ -107,17 +102,16 @@
         0.8979182,
         0.97246534,
         0.9986459,
+        1,
+        1,
+        1,
         1
       ]
     },
     {
-      "name": "inactiveIconAlpha_inactiveIconAlpha",
+      "name": "inactiveIconAlpha",
       "type": "float",
       "data_points": [
-        1,
-        1,
-        1,
-        1,
         1,
         1,
         1,
@@ -159,6 +153,9 @@
         0.5782508,
         0.09543866,
         0.0008595586,
+        0,
+        0,
+        0,
         0,
         0,
         0,

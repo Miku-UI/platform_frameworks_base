@@ -32,8 +32,8 @@ import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.flicker.utils.layerBecomesVisible
 import com.android.wm.shell.scenarios.ActionTabSwitchToDesktopApp
 import org.junit.Rule
-import org.junit.runner.RunWith
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
@@ -46,7 +46,8 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class ActionTabSwitchToDesktopAppFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
-    inner class ActionTabSwitchToDesktopAppScenario : ActionTabSwitchToDesktopApp(rotation = flicker.scenario.startRotation)
+    inner class ActionTabSwitchToDesktopAppScenario :
+        ActionTabSwitchToDesktopApp(rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -57,22 +58,14 @@ class ActionTabSwitchToDesktopAppFlickerTest(flicker: FlickerTest) : DesktopMode
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.switchToDesktopAppInOverview()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.switchToDesktopAppInOverview() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun desktopWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(desktopApp)
+    @Test fun desktopWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(desktopApp)
 
-    @Test
-    fun fullscreenWindowBecomesInvisible() = flicker.appWindowBecomesInvisible(fullscreenApp)
+    @Test fun fullscreenWindowBecomesInvisible() = flicker.appWindowBecomesInvisible(fullscreenApp)
 
     @Test
     fun wallpaperActivityBecomesVisible() = flicker.layerBecomesVisible(DESKTOP_WALLPAPER_ACTIVITY)

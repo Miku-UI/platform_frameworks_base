@@ -28,8 +28,15 @@ import java.util.List;
 public class TestShellExecutor implements ShellExecutor {
     final ArrayList<Runnable> mRunnables = new ArrayList<>();
 
+    /** Set to true when this executor should behave as if it is running on the caller's thread. */
+    public boolean mIsCurrentThread = false;
+
     @Override
     public void execute(Runnable runnable) {
+        if (mIsCurrentThread) {
+            runnable.run();
+            return;
+        }
         mRunnables.add(runnable);
     }
 

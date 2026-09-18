@@ -25,7 +25,7 @@ import android.annotation.FlaggedApi;
  * was initiated by a user action. This context is used by the activity to inform
  * the {@link HandoffActivityData} returned by {@link Activity#onHandoffActivityDataRequested}.
  */
-@FlaggedApi(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+@FlaggedApi(android.companion.Flags.FLAG_TASK_CONTINUITY)
 public final class HandoffActivityDataRequestInfo {
 
     private boolean mIsActiveRequest;

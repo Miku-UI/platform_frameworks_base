@@ -42,9 +42,6 @@ final class PrimitiveDelayAdapter implements VibrationSegmentsAdapter {
     @Override
     public int adaptToVibrator(VibratorInfo info, List<VibrationEffectSegment> segments,
             int repeatIndex) {
-        if (!Flags.primitiveCompositionAbsoluteDelay()) {
-            return repeatIndex;
-        }
         int previousStartOffset = 0;
         int segmentCount = segments.size();
         for (int i = 0; i < segmentCount; i++) {

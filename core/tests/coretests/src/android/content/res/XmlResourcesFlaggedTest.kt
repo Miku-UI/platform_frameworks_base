@@ -26,11 +26,10 @@ import androidx.test.filters.SmallTest
 import androidx.test.platform.app.InstrumentationRegistry
 
 import com.android.frameworks.coretests.R
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils
+import com.android.internal.pm.pkg.component.AconfigFlags
 
 import junit.framework.Assert.assertEquals
 import junit.framework.Assert.assertTrue
-
 
 import org.junit.Before
 import org.junit.Rule
@@ -73,7 +72,7 @@ class XmlResourcesFlaggedTest {
     @RequiresFlagsEnabled(Flags.FLAG_LAYOUT_READWRITE_FLAGS)
     @Throws(IOException::class, XmlPullParserException::class)
     fun parsedFlaggedXmlWithTrueOneElement() {
-        ParsingPackageUtils.getAconfigFlags()
+        AconfigFlags.getInstance()
             .addFlagValuesForTesting(mapOf("android.content.res.always_false" to false))
         val tv = TypedValue()
         mResources.getImpl().getValue(R.xml.flags, tv, false)

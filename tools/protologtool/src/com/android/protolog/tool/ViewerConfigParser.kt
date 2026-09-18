@@ -19,11 +19,7 @@ package com.android.protolog.tool
 import com.android.json.stream.JsonReader
 
 open class ViewerConfigParser {
-    data class MessageEntry(
-        val messageString: String,
-        val level: String,
-        val groupName: String
-    )
+    data class MessageEntry(val messageString: String, val level: String, val groupName: String)
 
     fun parseMessage(jsonReader: JsonReader): MessageEntry {
         jsonReader.beginObject()
@@ -68,7 +64,8 @@ open class ViewerConfigParser {
         jsonReader.beginObject()
         while (jsonReader.hasNext()) {
             val key = jsonReader.nextName()
-            val hash = key.toLongOrNull()
+            val hash =
+                key.toLongOrNull()
                     ?: throw InvalidViewerConfigException("Invalid key in messages viewer config")
             config[hash] = parseMessage(jsonReader)
         }
@@ -109,14 +106,23 @@ open class ViewerConfigParser {
             throw InvalidViewerConfigException("Invalid config - definitions missing")
         }
         if (version != Constants.VERSION) {
-            throw InvalidViewerConfigException("Viewer config version not supported by this tool," +
-                    " config version $version, viewer version ${Constants.VERSION}")
+            throw InvalidViewerConfigException(
+                "Viewer config version not supported by this tool," +
+                    " config version $version, viewer version ${Constants.VERSION}"
+            )
         }
-        return messages.map { msg ->
-            msg.key to ConfigEntry(
-                    msg.value.messageString, msg.value.level, groups[msg.value.groupName]?.tag
-                    ?: throw InvalidViewerConfigException(
-                            "Group definition missing for ${msg.value.groupName}"))
-        }.toMap()
+        return messages
+            .map { msg ->
+                msg.key to
+                    ConfigEntry(
+                        msg.value.messageString,
+                        msg.value.level,
+                        groups[msg.value.groupName]?.tag
+                            ?: throw InvalidViewerConfigException(
+                                "Group definition missing for ${msg.value.groupName}"
+                            ),
+                    )
+            }
+            .toMap()
     }
 }

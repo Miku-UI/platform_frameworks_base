@@ -138,6 +138,26 @@ public class SplitPwleSegmentsAdapterTest {
         assertThat(segments).isEqualTo(expectedSegments);
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+    public void testSplitPwleSegmentsAdapter_propagatesStartTime() {
+        long startTime = 1234L;
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new PwleSegment(0.0f, 1.0f, 300.0f, 300.0f, 5000, startTime)));
+        VibratorInfo vibratorInfo = createVibratorInfo(
+                /*maxEnvelopeControlPointDuration=*/1000, TEST_FREQUENCY_PROFILE,
+                IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
+
+        mAdapter.adaptToVibrator(vibratorInfo, segments, -1);
+
+        assertThat(segments.size()).isEqualTo(5);
+        assertThat(segments.get(0).getStartTimeMillis()).isEqualTo(startTime);
+        assertThat(segments.get(1).getStartTimeMillis()).isEqualTo(-1);
+        assertThat(segments.get(2).getStartTimeMillis()).isEqualTo(-1);
+        assertThat(segments.get(3).getStartTimeMillis()).isEqualTo(-1);
+        assertThat(segments.get(4).getStartTimeMillis()).isEqualTo(-1);
+    }
+
     private static VibratorInfo createVibratorInfo(int maxEnvelopeControlPointDuration,
             VibratorInfo.FrequencyProfile frequencyProfile, int... capabilities) {
         return new VibratorInfo.Builder(0)

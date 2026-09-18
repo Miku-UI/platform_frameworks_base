@@ -19,7 +19,7 @@
 #include <SkAndroidFrameworkUtils.h>
 #include <SkBlendMode.h>
 #include <SkColorFilter.h>
-#include <SkGradientShader.h>
+#include <SkGradient.h>
 #include <SkHighContrastFilter.h>
 #include <SkPaint.h>
 #include <SkShader.h>
@@ -115,9 +115,11 @@ static void applyColorTransform(ColorTransform transform, SkPaint& paint) {
             for (int i = 0; i < info.fColorCount; i++) {
                 info.fColors[i] = transformColor(transform, info.fColors[i]);
             }
-            paint.setShader(SkGradientShader::MakeLinear(
-                    info.fPoints, info.fColors, nullptr, info.fColorOffsets, info.fColorCount,
-                    info.fTileMode, info.fGradientFlags, nullptr));
+            const SkGradient grad({{info.fColors, info.fColorCount},
+                                   {info.fColorOffsets, info.fColorOffsets ? info.fColorCount : 0},
+                                   info.fTileMode},
+                                  SkGradient::Interpolation::FromFlags(info.fGradientFlags));
+            paint.setShader(SkShaders::LinearGradient(info.fPoints, grad));
         }
     }
 

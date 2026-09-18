@@ -33,45 +33,37 @@ import android.app.admin.PackagePermissionPolicyKey;
 import android.app.admin.PackagePolicyKey;
 import android.app.admin.PolicyKey;
 import android.app.admin.PolicyValue;
-import android.app.admin.UserRestrictionPolicyKey;
 import android.app.admin.flags.Flags;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.UserManager;
 
 import com.android.internal.util.function.QuadFunction;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
-import com.android.server.utils.Slogf;
-
-import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-final class PolicyDefinition<V> {
+public final class PolicyDefinition<V> {
 
     static final String TAG = "PolicyDefinition";
 
-    private static final int POLICY_FLAG_NONE = 0;
+    static final int POLICY_FLAG_NONE = 0;
 
     // Only use this flag if a policy can not be applied locally.
-    private static final int POLICY_FLAG_GLOBAL_ONLY_POLICY = 1;
+    public static final int POLICY_FLAG_GLOBAL_ONLY_POLICY = 1;
 
     // Only use this flag if a policy can not be applied globally.
-    private static final int POLICY_FLAG_LOCAL_ONLY_POLICY = 1 << 1;
+    public static final int POLICY_FLAG_LOCAL_ONLY_POLICY = 1 << 1;
 
     // Only use this flag if a policy is inheritable by child profile from parent.
-    private static final int POLICY_FLAG_INHERITABLE = 1 << 2;
+    static final int POLICY_FLAG_INHERITABLE = 1 << 2;
 
     // Use this flag if admin policies should be treated independently of each other and should not
     // have any resolution logic applied, this should only be used for very limited policies were
@@ -80,35 +72,28 @@ final class PolicyDefinition<V> {
     // but saved and queried independent of each other.
     // Currently, support is  added for local only policies, if you need to add a non coexistable
     // global policy please add support.
-    private static final int POLICY_FLAG_NON_COEXISTABLE_POLICY = 1 << 3;
+    static final int POLICY_FLAG_NON_COEXISTABLE_POLICY = 1 << 3;
 
     // Add this flag to any policy that is a user restriction, the reason for this is that there
     // are some special APIs to handle user restriction policies and this is the way we can identify
     // them.
-    private static final int POLICY_FLAG_USER_RESTRICTION_POLICY = 1 << 4;
+    static final int POLICY_FLAG_USER_RESTRICTION_POLICY = 1 << 4;
 
     // Only invoke the policy enforcer callback when the policy value changes, and do not invoke the
     // callback in other cases such as device reboots.
-    private static final int POLICY_FLAG_SKIP_ENFORCEMENT_IF_UNCHANGED = 1 << 5;
+    static final int POLICY_FLAG_SKIP_ENFORCEMENT_IF_UNCHANGED = 1 << 5;
 
-    private static final MostRestrictive<Boolean> FALSE_MORE_RESTRICTIVE = new MostRestrictive<>(
-            List.of(new BooleanPolicyValue(false), new BooleanPolicyValue(true)));
+    // Add this flag to any policy that is a package policy and whose enforcement callback only
+    // takes effect on installed packages. This flag will cause the enforcement callback to be
+    // re-applied when the package is installed.
+    private static final int POLICY_FLAG_PACKAGE_POLICY = 1 << 6;
 
-    private static final MostRestrictive<Boolean> TRUE_MORE_RESTRICTIVE = new MostRestrictive<>(
+    public static final MostRestrictive<Boolean> FALSE_MORE_RESTRICTIVE =
+            new MostRestrictive<>(
+                    List.of(new BooleanPolicyValue(false), new BooleanPolicyValue(true)));
+
+    static final MostRestrictive<Boolean> TRUE_MORE_RESTRICTIVE = new MostRestrictive<>(
             List.of(new BooleanPolicyValue(true), new BooleanPolicyValue(false)));
-
-    static PolicyDefinition<Integer> AUTO_TIME_ZONE = new PolicyDefinition<>(
-            new NoArgsPolicyKey(DevicePolicyIdentifiers.AUTO_TIMEZONE_POLICY),
-            // Auto time zone is enabled by default. Enabled state has higher priority given it
-            // means the time will be more precise and other applications can rely on that for
-            // their purposes.
-            new TopPriority<>(List.of(
-                    EnforcingAdmin.getRoleAuthorityOf(ROLE_SYSTEM_SUPERVISION),
-                    EnforcingAdmin.getRoleAuthorityOf(ROLE_SYSTEM_FINANCED_DEVICE_CONTROLLER),
-                    EnforcingAdmin.DPC_AUTHORITY)),
-            POLICY_FLAG_GLOBAL_ONLY_POLICY,
-            PolicyEnforcerCallbacks::setAutoTimeZonePolicy,
-            new IntegerPolicySerializer());
 
     static final PolicyDefinition<Integer> GENERIC_PERMISSION_GRANT =
             new PolicyDefinition<>(
@@ -255,7 +240,8 @@ final class PolicyDefinition<V> {
                     //  never used, but might need some refactoring to not always assume a non-null
                     //  mechanism.
                     TRUE_MORE_RESTRICTIVE,
-                    POLICY_FLAG_LOCAL_ONLY_POLICY | POLICY_FLAG_INHERITABLE,
+                    POLICY_FLAG_LOCAL_ONLY_POLICY | POLICY_FLAG_INHERITABLE
+                            | POLICY_FLAG_PACKAGE_POLICY,
                     PolicyEnforcerCallbacks::setApplicationHidden,
                     new BooleanPolicySerializer());
 
@@ -293,7 +279,7 @@ final class PolicyDefinition<V> {
             new PackageSetPolicySerializer());
 
 
-    static PolicyDefinition<Boolean> SCREEN_CAPTURE_DISABLED = new PolicyDefinition<>(
+    public static PolicyDefinition<Boolean> SCREEN_CAPTURE_DISABLED = new PolicyDefinition<>(
             new NoArgsPolicyKey(DevicePolicyIdentifiers.SCREEN_CAPTURE_DISABLED_POLICY),
             TRUE_MORE_RESTRICTIVE,
             POLICY_FLAG_INHERITABLE,
@@ -368,22 +354,6 @@ final class PolicyDefinition<V> {
             PolicyEnforcerCallbacks::setMtePolicy,
             new IntegerPolicySerializer());
 
-    static PolicyDefinition<Integer> AUTO_TIME = new PolicyDefinition<>(
-            new NoArgsPolicyKey(DevicePolicyIdentifiers.AUTO_TIME_POLICY),
-            new TopPriority<>(List.of(
-                    EnforcingAdmin.getRoleAuthorityOf(ROLE_SYSTEM_SUPERVISION),
-                    EnforcingAdmin.getRoleAuthorityOf(ROLE_SYSTEM_FINANCED_DEVICE_CONTROLLER),
-                    EnforcingAdmin.DPC_AUTHORITY)),
-            POLICY_FLAG_GLOBAL_ONLY_POLICY,
-            PolicyEnforcerCallbacks::setAutoTimePolicy,
-            new IntegerPolicySerializer());
-
-    // The policies that are not yet supported by DevicePolicyEngine, thus don't have definition.
-    static final Set<String> LEGACY_POLICIES = Set.of(
-            DevicePolicyIdentifiers.MANAGED_PROFILE_CALLER_ID_ACCESS_POLICY,
-            DevicePolicyIdentifiers.MANAGED_PROFILE_CONTACTS_ACCESS_POLICY,
-            DevicePolicyIdentifiers.MAX_TIME_TO_LOCK_POLICY);
-
     static PolicyDefinition<Set<String>> CROSS_PROFILE_WIDGET_PROVIDER =
             new PolicyDefinition<>(
                     new NoArgsPolicyKey(
@@ -392,195 +362,22 @@ final class PolicyDefinition<V> {
                     PolicyEnforcerCallbacks::setCrossProfileWidgetProviderPolicy,
                     new PackageSetPolicySerializer());
 
-    private static final Map<String, PolicyDefinition<?>> POLICY_DEFINITIONS = new HashMap<>();
-    private static Map<String, Integer> USER_RESTRICTION_FLAGS = new HashMap<>();
-
-    private static final Set<PolicyDefinition<?>> GENERIC_POLICY_DEFINITIONS = new HashSet<>();
-
-    // TODO(b/277218360): Revisit policies that should be marked as global-only.
-    static {
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.AUTO_TIMEZONE_POLICY, AUTO_TIME_ZONE);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PERMISSION_GRANT_POLICY,
-                GENERIC_PERMISSION_GRANT);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.SECURITY_LOGGING_POLICY,
-                SECURITY_LOGGING);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.AUDIT_LOGGING_POLICY,
-                AUDIT_LOGGING);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.LOCK_TASK_POLICY, LOCK_TASK);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.USER_CONTROL_DISABLED_PACKAGES_POLICY,
-                USER_CONTROLLED_DISABLED_PACKAGES);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PERSISTENT_PREFERRED_ACTIVITY_POLICY,
-                GENERIC_PERSISTENT_PREFERRED_ACTIVITY);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PACKAGE_UNINSTALL_BLOCKED_POLICY,
-                GENERIC_PACKAGE_UNINSTALL_BLOCKED);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.APPLICATION_RESTRICTIONS_POLICY,
-                GENERIC_APPLICATION_RESTRICTIONS);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.RESET_PASSWORD_TOKEN_POLICY,
-                RESET_PASSWORD_TOKEN);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.KEYGUARD_DISABLED_FEATURES_POLICY,
-                KEYGUARD_DISABLED_FEATURES);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.APPLICATION_HIDDEN_POLICY,
-                GENERIC_APPLICATION_HIDDEN);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.ACCOUNT_MANAGEMENT_DISABLED_POLICY,
-                GENERIC_ACCOUNT_MANAGEMENT_DISABLED);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PERMITTED_INPUT_METHODS_POLICY,
-                PERMITTED_INPUT_METHODS);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.SCREEN_CAPTURE_DISABLED_POLICY,
-                SCREEN_CAPTURE_DISABLED);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PERSONAL_APPS_SUSPENDED_POLICY,
-                PERSONAL_APPS_SUSPENDED);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.USB_DATA_SIGNALING_POLICY,
-                USB_DATA_SIGNALING);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.CONTENT_PROTECTION_POLICY,
-                CONTENT_PROTECTION);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.APP_FUNCTIONS_POLICY,
-                APP_FUNCTIONS);
-        // Intentionally not flagged since if the flag is flipped off on a device already
-        // having PASSWORD_COMPLEXITY policy in the on-device XML, it will cause the
-        // deserialization logic to break due to seeing an unknown tag.
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PASSWORD_COMPLEXITY_POLICY,
-                PASSWORD_COMPLEXITY);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.PACKAGES_SUSPENDED_POLICY,
-                PACKAGES_SUSPENDED);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.MEMORY_TAGGING_POLICY,
-                MEMORY_TAGGING);
-        POLICY_DEFINITIONS.put(DevicePolicyIdentifiers.AUTO_TIME_POLICY, AUTO_TIME);
-        POLICY_DEFINITIONS.put(
-                DevicePolicyIdentifiers.CROSS_PROFILE_WIDGET_PROVIDER_POLICY,
-                CROSS_PROFILE_WIDGET_PROVIDER);
-
-        // User Restriction Policies
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_MODIFY_ACCOUNTS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_WIFI, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_CHANGE_WIFI_STATE, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_WIFI_TETHERING, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_GRANT_ADMIN, /* flags= */ 0);
-        // TODO: set as global only once we get rid of the mapping
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_SHARING_ADMIN_CONFIGURED_WIFI, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_WIFI_DIRECT, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_ADD_WIFI_CONFIG, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_LOCALE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_INSTALL_APPS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_UNINSTALL_APPS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SHARE_LOCATION, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_AIRPLANE_MODE, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_BRIGHTNESS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_AMBIENT_DISPLAY, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_SCREEN_TIMEOUT, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY,
-                POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_BLUETOOTH, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_BLUETOOTH, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_BLUETOOTH_SHARING, /* flags= */ 0);
-        // This effectively always applies globally, but it can be set on the profile
-        // parent, check the javadocs on the restriction for more info.
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_USB_FILE_TRANSFER, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_CREDENTIALS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_REMOVE_USER, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_REMOVE_MANAGED_PROFILE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_DEBUGGING_FEATURES, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_VPN, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_LOCATION, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_DATE_TIME, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_CONFIG_TETHERING, /* flags= */ 0);
-        // This effectively always applies globally, but it can be set on the profile
-        // parent, check the javadocs on the restriction for more info.
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_NETWORK_RESET, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_FACTORY_RESET, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_ADD_USER, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_ADD_MANAGED_PROFILE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_ADD_CLONE_PROFILE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_ADD_PRIVATE_PROFILE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.ENSURE_VERIFY_APPS, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_CELL_BROADCASTS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_MOBILE_NETWORKS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_APPS_CONTROL, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_UNMUTE_MICROPHONE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_ADJUST_VOLUME, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_OUTGOING_CALLS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SMS, /* flags= */ 0);
-        // TODO: check if its global only
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_FUN, /* flags= */ 0);
-        // TODO: check if its global only
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CREATE_WINDOWS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SYSTEM_ERROR_DIALOGS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CROSS_PROFILE_COPY_PASTE, /* flags= */ 0);
-        // TODO: check if its global only
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_OUTGOING_BEAM, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_WALLPAPER, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SET_WALLPAPER, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SAFE_BOOT, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_RECORD_AUDIO, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_RUN_IN_BACKGROUND, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CAMERA, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_UNMUTE_DEVICE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_DATA_ROAMING, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SET_USER_ICON, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_OEM_UNLOCK, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_UNIFIED_PASSWORD, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.ALLOW_PARENT_PROFILE_APP_LINKING, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_AUTOFILL, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONTENT_CAPTURE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONTENT_SUGGESTIONS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_USER_SWITCH, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_SHARE_INTO_MANAGED_PROFILE, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_PRINTING, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_CONFIG_PRIVATE_DNS, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_MICROPHONE_TOGGLE, /* flags= */ 0);
-        // TODO: According the UserRestrictionsUtils, this is global only, need to confirm.
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CAMERA_TOGGLE, /* flags= */ 0);
-        // TODO: check if its global only
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_BIOMETRIC, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CONFIG_DEFAULT_APPS, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_CELLULAR_2G, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_ULTRA_WIDEBAND_RADIO, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_NEAR_FIELD_COMMUNICATION_RADIO,
-                POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(
-                UserManager.DISALLOW_SIM_GLOBALLY,
-                POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_ASSIST_CONTENT, /* flags= */ 0);
-        USER_RESTRICTION_FLAGS.put(UserManager.DISALLOW_CHANGE_NEAR_FIELD_COMMUNICATION_RADIO,
-                POLICY_FLAG_GLOBAL_ONLY_POLICY);
-
-        if (com.android.net.thread.platform.flags.Flags.threadUserRestrictionEnabled()) {
-            USER_RESTRICTION_FLAGS.put(
-                    UserManager.DISALLOW_THREAD_NETWORK, POLICY_FLAG_GLOBAL_ONLY_POLICY);
-        }
-        for (String key : USER_RESTRICTION_FLAGS.keySet()) {
-            createAndAddUserRestrictionPolicyDefinition(key, USER_RESTRICTION_FLAGS.get(key));
-        }
-        GENERIC_POLICY_DEFINITIONS.add(GENERIC_PERMISSION_GRANT);
-        GENERIC_POLICY_DEFINITIONS.add(GENERIC_PERSISTENT_PREFERRED_ACTIVITY);
-        GENERIC_POLICY_DEFINITIONS.add(GENERIC_PACKAGE_UNINSTALL_BLOCKED);
-        GENERIC_POLICY_DEFINITIONS.add(GENERIC_APPLICATION_RESTRICTIONS);
-        GENERIC_POLICY_DEFINITIONS.add(GENERIC_APPLICATION_HIDDEN);
-        GENERIC_POLICY_DEFINITIONS.add(GENERIC_ACCOUNT_MANAGEMENT_DISABLED);
-
-        for (String legacyPolicy: LEGACY_POLICIES) {
-            if (POLICY_DEFINITIONS.containsKey(legacyPolicy)) {
-                throw new IllegalStateException("Policy with identifier (" + legacyPolicy
-                        + ") is already defined as legacy policy. Remove it from LEGACY_POLICIES "
-                        + "before adding a definition.");
-            }
-        }
-    }
+    static final PolicyDefinition<Integer> COMMON_CRITERIA_MODE =
+            new PolicyDefinition<>(
+                    new NoArgsPolicyKey(
+                            DevicePolicyIdentifiers.COMMON_CRITERIA_MODE_POLICY),
+                    new MostRestrictive<>(
+                            List.of(
+                                    new IntegerPolicyValue(
+                                            DevicePolicyManager.COMMON_CRITERIA_MODE_ENABLED),
+                                    new IntegerPolicyValue(
+                                            DevicePolicyManager.COMMON_CRITERIA_MODE_DISABLED)
+                            )
+                    ),
+                    POLICY_FLAG_GLOBAL_ONLY_POLICY,
+                    PolicyEnforcerCallbacks::noOp,
+                    new IntegerPolicySerializer()
+            );
 
     private final PolicyKey mPolicyKey;
     private final ResolutionMechanism<V> mResolutionMechanism;
@@ -591,43 +388,32 @@ final class PolicyDefinition<V> {
             mPolicyEnforcerCallback;
     private final PolicySerializer<V> mPolicySerializer;
 
-    private PolicyDefinition<V> createPolicyDefinition(PolicyKey key) {
+    PolicyDefinition<V> createPolicyDefinition(PolicyKey key) {
         return new PolicyDefinition<>(key, mResolutionMechanism, mPolicyFlags,
                 mPolicyEnforcerCallback, mPolicySerializer);
     }
 
-    static PolicyDefinition<Boolean> getPolicyDefinitionForUserRestriction(
-            @UserManager.UserRestrictionKey String restriction) {
-        String key = DevicePolicyIdentifiers.getIdentifierForUserRestriction(restriction);
-
-        if (!POLICY_DEFINITIONS.containsKey(key)) {
-            throw new IllegalArgumentException("Unsupported user restriction " + restriction);
-        }
-        // All user restrictions are of type boolean
-        return (PolicyDefinition<Boolean>) POLICY_DEFINITIONS.get(key);
-    }
-
     @NonNull
-    PolicyKey getPolicyKey() {
+    public PolicyKey getPolicyKey() {
         return mPolicyKey;
     }
 
     @NonNull
-    ResolutionMechanism<V> getResolutionMechanism() {
+    public ResolutionMechanism<V> getResolutionMechanism() {
         return mResolutionMechanism;
     }
 
     /**
      * Returns {@code true} if the policy is a global policy by nature and can't be applied locally.
      */
-    boolean isGlobalOnlyPolicy() {
+    public boolean isGlobalOnlyPolicy() {
         return (mPolicyFlags & POLICY_FLAG_GLOBAL_ONLY_POLICY) != 0;
     }
 
     /**
      * Returns {@code true} if the policy is a local policy by nature and can't be applied globally.
      */
-    boolean isLocalOnlyPolicy() {
+    public boolean isLocalOnlyPolicy() {
         return (mPolicyFlags & POLICY_FLAG_LOCAL_ONLY_POLICY) != 0;
     }
 
@@ -654,8 +440,8 @@ final class PolicyDefinition<V> {
         return (mPolicyFlags & POLICY_FLAG_SKIP_ENFORCEMENT_IF_UNCHANGED) != 0;
     }
 
-    boolean isGenericDefinition() {
-        return GENERIC_POLICY_DEFINITIONS.contains(this);
+    boolean shouldReapplyOnPackageInstall() {
+        return (mPolicyFlags & POLICY_FLAG_PACKAGE_POLICY) != 0;
     }
 
     @Nullable
@@ -668,30 +454,11 @@ final class PolicyDefinition<V> {
         return mPolicyEnforcerCallback.apply(value, context, userId, mPolicyKey);
     }
 
-    @Nullable
-    static PolicyDefinition<?> getPolicyDefinitionForIdentifier(@NonNull String identifier) {
-        return POLICY_DEFINITIONS.get(identifier);
-    }
-
-    private static void createAndAddUserRestrictionPolicyDefinition(
-            String restriction, int flags) {
-        String identifier = DevicePolicyIdentifiers.getIdentifierForUserRestriction(restriction);
-        UserRestrictionPolicyKey key = new UserRestrictionPolicyKey(identifier, restriction);
-        flags |= (POLICY_FLAG_USER_RESTRICTION_POLICY | POLICY_FLAG_INHERITABLE);
-        PolicyDefinition<Boolean> definition = new PolicyDefinition<>(
-                key,
-                TRUE_MORE_RESTRICTIVE,
-                flags,
-                PolicyEnforcerCallbacks::setUserRestriction,
-                new BooleanPolicySerializer());
-        POLICY_DEFINITIONS.put(key.getIdentifier(), definition);
-    }
-
     /**
      * Callers must ensure that {@code policyType} have implemented an appropriate
      * {@link Object#equals} implementation.
      */
-    private PolicyDefinition(
+    public PolicyDefinition(
             @NonNull PolicyKey key,
             ResolutionMechanism<V> resolutionMechanism,
             QuadFunction<V, Context, Integer, PolicyKey, CompletableFuture<Boolean>>
@@ -704,7 +471,7 @@ final class PolicyDefinition<V> {
      * Callers must ensure that custom {@code policyKeys} and {@code V} have an appropriate
      * {@link Object#equals} and {@link Object#hashCode()} implementation.
      */
-    private PolicyDefinition(
+    PolicyDefinition(
             @NonNull PolicyKey policyKey,
             ResolutionMechanism<V> resolutionMechanism,
             int policyFlags,
@@ -724,41 +491,6 @@ final class PolicyDefinition<V> {
         }
     }
 
-    @Nullable
-    static <V> PolicyDefinition<V> readFromXml(TypedXmlPullParser parser)
-            throws XmlPullParserException, IOException {
-        // TODO: can we avoid casting?
-        PolicyKey policyKey = readPolicyKeyFromXml(parser);
-        if (policyKey == null) {
-            Slogf.wtf(TAG, "Error parsing PolicyDefinition, PolicyKey is null.");
-            return null;
-        }
-        PolicyDefinition<V> genericPolicyDefinition =
-                (PolicyDefinition<V>) POLICY_DEFINITIONS.get(policyKey.getIdentifier());
-        if (genericPolicyDefinition == null) {
-            Slogf.wtf(TAG, "Unknown generic policy key: " + policyKey);
-            return null;
-        }
-        return genericPolicyDefinition.createPolicyDefinition(policyKey);
-    }
-
-    @Nullable
-    static PolicyKey readPolicyKeyFromXml(TypedXmlPullParser parser)
-            throws XmlPullParserException, IOException {
-        PolicyKey policyKey = PolicyKey.readGenericPolicyKeyFromXml(parser);
-        if (policyKey == null) {
-            Slogf.wtf(TAG, "Error parsing PolicyKey, GenericPolicyKey is null");
-            return null;
-        }
-        PolicyDefinition<?> genericPolicyDefinition =
-                POLICY_DEFINITIONS.get(policyKey.getIdentifier());
-        if (genericPolicyDefinition == null) {
-            Slogf.wtf(TAG, "Error parsing PolicyKey, Unknown generic policy key: " + policyKey);
-            return null;
-        }
-        return genericPolicyDefinition.mPolicyKey.readFromXml(parser);
-    }
-
     void savePolicyValueToXml(TypedXmlSerializer serializer, V value)
             throws IOException {
         mPolicySerializer.saveToXml(serializer, value);
@@ -771,7 +503,82 @@ final class PolicyDefinition<V> {
 
     @Override
     public String toString() {
-        return "PolicyDefinition{ mPolicyKey= " + mPolicyKey + ", mResolutionMechanism= "
-                + mResolutionMechanism + ", mPolicyFlags= " + mPolicyFlags + " }";
+        return "PolicyDefinition{ mPolicyKey= "
+                + mPolicyKey
+                + ", mResolutionMechanism= "
+                + mResolutionMechanism
+                + ", mPolicyFlags= "
+                + mPolicyFlags
+                + " }";
+    }
+
+    /** Returns a builder object for a {@link PolicyDefinition}. */
+    public static <T> Builder<T> builder() {
+        return new Builder<T>();
+    }
+
+    public static class Builder<T> {
+
+        private int mFlags = 0;
+        private PolicyKey mKey = null;
+        private QuadFunction<T, Context, Integer, PolicyKey, CompletableFuture<Boolean>>
+                mEnforcerCallback = null;
+        private PolicySerializer<T> mSerializer = null;
+        private ResolutionMechanism<T> mResolutionMechanism = null;
+
+        public PolicyDefinition<T> build() {
+            if (mKey == null) {
+                throw new IllegalStateException("Missing key when building PolicyDefinition");
+            }
+            if (mSerializer == null) {
+                throw new IllegalStateException(
+                        "Missing policy serializer when building PolicyDefinition of " + mKey);
+            }
+            if (mResolutionMechanism == null) {
+                throw new IllegalStateException(
+                        "Missing resolution mechanism when building PolicyDefinition of " + mKey);
+            }
+            if (mEnforcerCallback == null) {
+                throw new IllegalStateException(
+                        "Missing enforcer callback when building PolicyDefinition of " + mKey);
+            }
+            return new PolicyDefinition<T>(
+                    mKey, mResolutionMechanism, mFlags, mEnforcerCallback, mSerializer);
+        }
+
+        public Builder<T> setKey(@NonNull PolicyKey key) {
+            mKey = key;
+            return this;
+        }
+
+        public Builder<T> setResolutionMechanism(@NonNull ResolutionMechanism<T> mechanism) {
+            mResolutionMechanism = mechanism;
+            return this;
+        }
+
+        public Builder<T> setEnforcerCallback(
+                @NonNull
+                        QuadFunction<T, Context, Integer, PolicyKey, CompletableFuture<Boolean>>
+                                callback) {
+            mEnforcerCallback = callback;
+            return this;
+        }
+
+        public Builder<T> setSerializer(PolicySerializer<T> serializer) {
+            mSerializer = serializer;
+            return this;
+        }
+
+        /** Adds the given flag to the flags previously added to this builder. */
+        public Builder<T> addFlag(int newFlagValue) {
+            mFlags |= newFlagValue;
+            return this;
+        }
+
+        /** Resets the flags previously added to this builder. */
+        public Builder<T> clearFlags() {
+            mFlags = 0;
+            return this;
+        }
     }
 }

@@ -16,6 +16,7 @@
 
 package com.android.server.backup.fullbackup;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -23,9 +24,13 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import android.app.backup.BackupAnnotations;
 import android.app.backup.BackupTransport;
+import android.app.backup.IBackupObserver;
+import android.app.backup.BackupManager;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -54,6 +59,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 @Presubmit
 @RunWith(AndroidJUnit4.class)
@@ -83,6 +89,8 @@ public class PerformFullTransportBackupTaskTest {
     TransportManager mTransportManager;
     @Mock
     BackupWakeLock mWakeLock;
+    @Mock
+    IBackupObserver mBackupObserver;
 
     private final List<String> mEligiblePackages = new ArrayList<>();
 
@@ -125,7 +133,6 @@ public class PerformFullTransportBackupTaskTest {
                             .newWithCurrentTransport(
                                     mBackupManagerService,
                                     /* operationStorage */  null,
-                                    /* observer */  null,
                                     /* whichPackages */  null,
                                     /* updateSchedule */  false,
                                     /* runningJob */  null,
@@ -155,17 +162,38 @@ public class PerformFullTransportBackupTaskTest {
         inOrder.verify(mBackupAgentConnectionManager).clearNoRestrictedModePackages();
     }
 
+    @Test
+    public void run_whenPackageUpdatedDuringBackup_skipsPackage() throws Exception {
+        final String packageName = "test.package.updated";
+        mockPackageEligibleForFullBackup(packageName);
+
+        createTask(new String[] {packageName});
+
+        assertThat(mTask.getPackages().stream()
+                .map(p -> p.packageName)
+                .collect(Collectors.toList()))
+                .containsExactly(packageName);
+
+        mEligiblePackages.remove(packageName);
+
+        mTask.run();
+
+        verify(mBackupObserver).onResult(eq(packageName),
+                eq(BackupManager.ERROR_BACKUP_NOT_ALLOWED));
+        verify(mBackupTransportClient, never()).performFullBackup(any(), any(), anyInt());
+        verify(mBackupObserver).backupFinished(eq(BackupManager.SUCCESS));
+    }
+
     private void createTask(String[] packageNames) {
         mTask = PerformFullTransportBackupTask
                 .newWithCurrentTransport(
                         mBackupManagerService,
                         mOperationStorage,
-                        /* observer */  null,
                         /* whichPackages */  packageNames,
                         /* updateSchedule */  false,
                         /* runningJob */  null,
                         mLatch,
-                        /* backupObserver */  null,
+                        mBackupObserver,
                         /* monitor */  null,
                         /* userInitiated */  false,
                         /* caller */  null,

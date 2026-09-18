@@ -20,6 +20,7 @@ import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_C
 import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC;
 import static android.util.DisplayMetrics.DENSITY_HIGH;
 import static android.util.DisplayMetrics.DENSITY_MEDIUM;
+import static android.view.Display.INVALID_DISPLAY;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -27,6 +28,7 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Intent;
+import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.os.Handler;
 import android.os.Looper;
@@ -36,6 +38,7 @@ import android.util.SparseArray;
 
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.junit.After;
 import org.junit.Before;
@@ -64,6 +67,7 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
     private static final int DISPLAY_CHANGED = 2;
     private static final int DISPLAY_REMOVED = 3;
 
+
     private static final String TEST_PACKAGE =
             "com.android.servicestests.apps.displaymanagertestapp";
     private static final String TEST_ACTIVITY = TEST_PACKAGE + ".DisplayEventActivity";
@@ -88,15 +92,15 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
      * sent to DisplayEventActivity.
      */
     private static final class DisplayBundle {
-        private VirtualDisplay mVirtualDisplay;
+        private @Nullable VirtualDisplay mVirtualDisplay;
         private final int mDisplayId;
 
         // Display events we expect to receive before timeout
         private final LinkedBlockingQueue<Integer> mExpectations;
 
-        DisplayBundle(VirtualDisplay display) {
+        DisplayBundle(@Nullable VirtualDisplay display) {
             mVirtualDisplay = display;
-            mDisplayId = display.getDisplay().getDisplayId();
+            mDisplayId = display != null ? display.getDisplay().getDisplayId() : INVALID_DISPLAY;
             mExpectations = new LinkedBlockingQueue<>();
         }
 
@@ -256,7 +260,9 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
     private void testDisplayEventsInternal(boolean cached, boolean frozen) {
         Log.i(TAG, "Start test testDisplayEvents " + mDisplayCount + " " + cached + " " + frozen);
         // Launch DisplayEventActivity and start listening to display events
-        int pid = launchTestActivity();
+        int pid = launchTestActivity(/* eventMask= */ DisplayManager.EVENT_TYPE_DISPLAY_ADDED
+                | DisplayManager.EVENT_TYPE_DISPLAY_CHANGED
+                | DisplayManager.EVENT_TYPE_DISPLAY_REMOVED);
 
         // The test activity in cached or frozen mode won't receive the pending display events.
         if (cached) {
@@ -312,6 +318,7 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
             bringTestActivityTop();
 
             // The test activity becomes non-cached and should receive the pending display events
+            // in the right order
             for (int i = 0; i < mDisplayCount; i++) {
                 // The pending DISPLAY_ADDED & DISPLAY_CHANGED should arrive now
                 displayBundleAt(i).waitDisplayEvent(DISPLAY_ADDED);
@@ -335,8 +342,11 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
      */
     @Test
     public void testDisplayEvents() {
-        testDisplayEventsInternal(false, false);
+        testDisplayEventsInternal(
+                /* cached = */ false, /* frozen */ false);
     }
+
+
 
     /**
      * Create virtual displays, change their configurations and release them.  The display app is
@@ -344,8 +354,11 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
      */
     @Test
     public void testDisplayEventsCached() {
-        testDisplayEventsInternal(true, false);
+        testDisplayEventsInternal(
+                /* cached = */ true, /* frozen */ false);
     }
+
+
 
     /**
      * Create virtual displays, change their configurations and release them.  The display app is
@@ -354,8 +367,11 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
     @Test
     public void testDisplayEventsFrozen() {
         assumeTrue(isAppFreezerEnabled());
-        testDisplayEventsInternal(false, true);
+        testDisplayEventsInternal(
+                /* cached = */ false, /* frozen */ true);
     }
+
+
 
     /**
      * Create virtual displays, change their configurations and release them.  The display app is
@@ -364,8 +380,11 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
     @Test
     public void testDisplayEventsCachedFrozen() {
         assumeTrue(isAppFreezerEnabled());
-        testDisplayEventsInternal(true, true);
+        testDisplayEventsInternal(
+                /* cached = */ true, /* frozen */ true);
     }
+
+
 
     /**
      * Create a virtual display

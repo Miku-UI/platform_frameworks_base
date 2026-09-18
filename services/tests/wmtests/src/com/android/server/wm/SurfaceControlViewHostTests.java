@@ -21,6 +21,7 @@ import static android.server.wm.CtsWindowInfoUtils.waitForWindowFocus;
 import static android.server.wm.CtsWindowInfoUtils.waitForWindowVisible;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.app.Instrumentation;
@@ -147,6 +148,30 @@ public class SurfaceControlViewHostTests {
                 waitForWindowFocus(mView2, true));
     }
 
+    @Test
+    public void testViewRootImplUsesWindowlessSurfaceControl() {
+        final SurfaceControl sc = new SurfaceControl.Builder()
+                .setName("SurfaceControlViewHostTests")
+                .setCallsite("testViewRootImplUsesWindowlessSurfaceControl")
+                .build();
+        final TestWindowlessWindowManager wwm = new TestWindowlessWindowManager(
+                mActivity.getResources().getConfiguration(), sc, null /* inputTransferToken */);
+        mInstrumentation.runOnMainSync(() -> {
+            mScvh1 = new SurfaceControlViewHost(mActivity, mActivity.getDisplay(),
+                    wwm, "testViewRootImplUsesWindowlessSurfaceControl");
+            mView1 = new Button(mActivity);
+            mScvh1.setView(mView1, new WindowManager.LayoutParams(200, 200,
+                    TYPE_APPLICATION, 0, PixelFormat.OPAQUE));
+        });
+        mInstrumentation.waitForIdleSync();
+        final SurfaceControl sc1 = wwm.getSurfaceControl(
+                IWindow.Stub.asInterface(mView1.getWindowToken()));
+
+        assertNotNull(sc1);
+        assertTrue("ViewRootImpl must use the surface provided by WindowlessWindowManager",
+                mView1.getViewRootImpl().getSurfaceControl().isSameSurface(sc1));
+    }
+
     private static class TestWindowlessWindowManager extends WindowlessWindowManager {
         private final SurfaceControl mRoot;
 
@@ -160,6 +185,12 @@ public class SurfaceControlViewHostTests {
         protected SurfaceControl getParentSurface(IWindow window,
                 WindowManager.LayoutParams attrs) {
             return mRoot;
+        }
+
+        @Override
+        public SurfaceControl getSurfaceControl(IWindow window) {
+            // Access protected method.
+            return super.getSurfaceControl(window);
         }
     }
 

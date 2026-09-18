@@ -78,8 +78,11 @@ public class DozeBrightnessStrategy implements DisplayBrightnessStrategy {
                     getName(), /* slowChange= */ false);
         }
 
-        if (mFlags.isDisplayOffloadEnabled()
-                && strategyExecutionRequest.getOffloadSession() != null) {
+        // TODO(b/329676661): Introduce a config property to choose between this brightness
+        //  strategy and DOZE_DEFAULT
+        // On some devices, when auto-brightness is disabled and the device is dozing, we use the
+        // current brightness setting scaled by the doze scale factor.
+        if (strategyExecutionRequest.getOffloadSession() != null) {
             BrightnessEvent brightnessEvent = mInjector.getBrightnessEvent(mDisplayId);
             brightnessEvent.setFlags(BrightnessEvent.FLAG_DOZE_SCALE);
             return new DisplayBrightnessState.Builder()
@@ -92,6 +95,7 @@ public class DozeBrightnessStrategy implements DisplayBrightnessStrategy {
                     .build();
         }
 
+        // Use default brightness when dozing unless overridden.
         return BrightnessUtils.constructDisplayBrightnessState(BrightnessReason.REASON_DOZE_DEFAULT,
                 mDefaultDozeBrightness, getName(), /* slowChange= */ false);
     }

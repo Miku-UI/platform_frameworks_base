@@ -34,6 +34,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Trace;
 import android.util.Slog;
 
 import com.android.internal.infra.ServiceConnector;
@@ -116,6 +117,12 @@ public class CompanionServiceConnector extends ServiceConnector.Impl<ICompanionD
     }
 
     void postOnDevicePresenceEvent(@NonNull DevicePresenceEvent event) {
+        android.os.Trace.asyncTraceForTrackEnd(
+                Trace.TRACE_TAG_SYSTEM_SERVER,
+                "CompanionDeviceManager",
+                event.hashCode()
+        );
+
         post(companionService -> companionService.onDevicePresenceEvent(event));
     }
 
@@ -124,6 +131,12 @@ public class CompanionServiceConnector extends ServiceConnector.Impl<ICompanionD
      */
     public void postOnActionRequested(@NonNull AssociationInfo associationInfo,
             @NonNull ActionRequest request) {
+        android.os.Trace.asyncTraceForTrackEnd(
+                Trace.TRACE_TAG_SYSTEM_SERVER,
+                "CompanionDeviceManager",
+                request.hashCode()
+        );
+
         post(companionService ->
                 companionService.onActionRequested(associationInfo, request));
     }

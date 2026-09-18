@@ -31,53 +31,31 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import android.content.Context;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.flag.junit.FlagsParameterization;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
-import com.android.systemui.statusbar.notification.footer.shared.NotifRedesignFooter;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.List;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4.class)
+@RunWith(AndroidJUnit4.class)
 public class FooterViewTest extends SysuiTestCase {
-
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getFlags() {
-        return FlagsParameterization.allCombinationsOf(NotifRedesignFooter.FLAG_NAME);
-    }
-
-    public FooterViewTest(FlagsParameterization flags) {
-        mSetFlagsRule.setFlagsParameterization(flags);
-    }
-
     FooterView mView;
 
     Context mSpyContext = spy(mContext);
 
     @Before
     public void setUp() {
-        if (NotifRedesignFooter.isEnabled()) {
-            mView = (FooterView) LayoutInflater.from(mSpyContext).inflate(
-                    R.layout.notification_2025_footer, null, false);
-        } else {
-            mView = (FooterView) LayoutInflater.from(mSpyContext).inflate(
-                    R.layout.status_bar_notification_footer, null, false);
-        }
+        mView = (FooterView) LayoutInflater.from(mSpyContext).inflate(
+                R.layout.notification_2025_footer, null, false);
         mView.setAnimationDuration(0);
     }
 
@@ -94,13 +72,6 @@ public class FooterViewTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(NotifRedesignFooter.FLAG_NAME)
-    public void setManageOnClick() {
-        mView.setManageButtonClickListener(mock(View.OnClickListener.class));
-        assertTrue(mView.findViewById(R.id.manage_text).hasOnClickListeners());
-    }
-
-    @Test
     public void testPerformVisibilityAnimation() {
         mView.setVisible(false /* visible */, false /* animate */);
         assertFalse(mView.isVisible());
@@ -114,44 +85,6 @@ public class FooterViewTest extends SysuiTestCase {
         assertFalse(mView.isClearAllButtonVisible());
 
         mView.setClearAllButtonVisible(true /* visible */, true /* animate */);
-    }
-
-    @Test
-    @DisableFlags(NotifRedesignFooter.FLAG_NAME)
-    public void testSetManageOrHistoryButtonText_resourceOnlyFetchedOnce() {
-        int resId = R.string.manage_notifications_history_text;
-        mView.setManageOrHistoryButtonText(resId);
-        verify(mSpyContext).getString(eq(resId));
-
-        clearInvocations(mSpyContext);
-
-        assertThat(((TextView) mView.findViewById(R.id.manage_text))
-                .getText().toString()).contains("History");
-
-        // Set it a few more times, it shouldn't lead to the resource being fetched again
-        mView.setManageOrHistoryButtonText(resId);
-        mView.setManageOrHistoryButtonText(resId);
-
-        verify(mSpyContext, never()).getString(anyInt());
-    }
-
-    @Test
-    @DisableFlags(NotifRedesignFooter.FLAG_NAME)
-    public void testSetManageOrHistoryButtonDescription_resourceOnlyFetchedOnce() {
-        int resId = R.string.manage_notifications_history_text;
-        mView.setManageOrHistoryButtonDescription(resId);
-        verify(mSpyContext).getString(eq(resId));
-
-        clearInvocations(mSpyContext);
-
-        assertThat(((TextView) mView.findViewById(R.id.manage_text))
-                .getContentDescription().toString()).contains("History");
-
-        // Set it a few more times, it shouldn't lead to the resource being fetched again
-        mView.setManageOrHistoryButtonDescription(resId);
-        mView.setManageOrHistoryButtonDescription(resId);
-
-        verify(mSpyContext, never()).getString(anyInt());
     }
 
     @Test

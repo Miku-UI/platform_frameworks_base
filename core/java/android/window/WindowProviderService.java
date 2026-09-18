@@ -128,14 +128,14 @@ public abstract class WindowProviderService extends Service implements WindowPro
         return mOptions;
     }
 
-    @SuppressLint({"OnNameExpected", "ExecutorRegistration"})
-    // Suppress lint because this is a legacy named function and doesn't have an optional param
-    // for executor.
     /**
      * Here we override to prevent WindowProviderService from invoking
      * {@link Application.registerComponentCallback}, which will result in callback registered
      * for process-level Configuration change updates.
      */
+    // Suppress lint because this is a legacy named function and doesn't have an optional param
+    // for executor.
+    @SuppressLint({"OnNameExpected", "ExecutorRegistration"})
     @Override
     public void registerComponentCallbacks(@NonNull ComponentCallbacks callback) {
         // For broadcasting Configuration Changes.

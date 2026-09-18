@@ -23,8 +23,6 @@
     <!-- Second drawable shown for the sensor unblock dialog when blocked by the hardware privacy toggle -->
     <drawable name="unblock_hw_sensor_all_second">@drawable/ic_mic_off</drawable>
 
-    <drawable name="qs_bluetooth_icon_disconnected">@drawable/vd_bluetooth</drawable>
-
     <drawable name="ic_global_actions_bugreport">@*android:drawable/ic_lock_bugreport_round
     </drawable>
     <drawable name="ic_global_actions_emergency">@drawable/ic_emergency_star_round</drawable>

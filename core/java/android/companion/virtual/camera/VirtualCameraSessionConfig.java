@@ -38,7 +38,6 @@ import java.util.Objects;
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_METADATA)
 public final class VirtualCameraSessionConfig implements Parcelable {
 
     /**

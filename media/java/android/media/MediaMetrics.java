@@ -19,6 +19,8 @@ package android.media;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Bundle;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodReplace;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -34,6 +36,7 @@ import java.util.Objects;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class MediaMetrics {
     public static final String TAG = "MediaMetrics";
 
@@ -619,9 +622,15 @@ public class MediaMetrics {
          *
          * @return true if successful.
          */
+        @RavenwoodReplace(reason = "No metrics on host")
         public boolean record() {
             updateHeader();
             return native_submit_bytebuffer(mBuffer, mBuffer.limit()) >= 0;
+        }
+
+        private boolean record$ravenwood() {
+            updateHeader();
+            return true;
         }
 
         /**

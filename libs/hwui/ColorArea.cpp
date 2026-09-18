@@ -16,8 +16,14 @@
 
 #include "ColorArea.h"
 
+#include <SkAndroidFrameworkUtils.h>
+#include <com_android_graphics_hwui_flags.h>
+
 #include "CanvasTransform.h"
+#include "utils/Color.h"
 #include "utils/MathUtils.h"
+
+namespace hwui_flags = com::android::graphics::hwui::flags;
 
 namespace android::uirenderer {
 
@@ -44,12 +50,69 @@ void ColorArea::addArea(uint64_t area, const SkPaint& paint) {
     if (CC_UNLIKELY(paint.nothingToDraw())) return;
 
     if (paint.getShader()) {
-        // TODO(b/409395389): check if the shader is a gradient, and then slice up area into
-        //  sections, determining polarity for each color stop of the gradient.
+        if (!hwui_flags::edt_gradient_detection()) {
+            return;
+        }
+
+        GradientLightness result = GradientLightness::Unknown;
+        SkAndroidFrameworkUtils::LinearGradientInfo info;
+        std::array<SkColor4f, 10> _colorStorage;
+        std::array<SkScalar, _colorStorage.size()> _offsetStorage;
+        info.fColorCount = _colorStorage.size();
+        info.fColors = _colorStorage.data();
+        info.fColorOffsets = _offsetStorage.data();
+
+        if (SkAndroidFrameworkUtils::ShaderAsALinearGradient(paint.getShader(), &info) &&
+            info.fColorCount <= _colorStorage.size()) {
+            result = computeGradient(info);
+        }
+
+        switch (result) {
+            case GradientLightness::Light:
+                addArea(area, Light);
+                break;
+            case GradientLightness::Dark:
+                addArea(area, Dark);
+                break;
+            case GradientLightness::Unknown:
+                // do nothing
+                break;
+        }
+
         return;
     }
 
     addArea(area, paint.getColor4f());
+}
+
+ColorArea::GradientLightness ColorArea::computeGradient(
+        SkAndroidFrameworkUtils::LinearGradientInfo& info) {
+    if (info.fColorCount == 0) {
+        return GradientLightness::Unknown;
+    }
+    if (info.fColorCount == 1) {
+        Lab lab = sRGBToLab(info.fColors[0]);
+        return lab.L > 50 ? GradientLightness::Light : GradientLightness::Dark;
+    }
+
+    // TODO(b/455294182): The current evaluation considers that the gradient is a single item and
+    //  we calculate the average lightness of the gradient(assuming the lightness is linear in a
+    //  linear gradient). To improve the overall lightness evaluation, we could include "how light"
+    //  or "how dark" the slices are in the gradient and the detailed area for them to help us
+    //  detect the overall average lightness.
+    float averagedLightness = 0;
+    for (int i = 0; i < info.fColorCount - 1; i++) {
+        Lab labCurrent = sRGBToLab(info.fColors[i]);
+        Lab labNext = sRGBToLab(info.fColors[i + 1]);
+        averagedLightness += (labCurrent.L + labNext.L) / 2.f *
+                             (info.fColorOffsets[i + 1] - info.fColorOffsets[i]);
+    }
+
+    if (averagedLightness > 50) {
+        return GradientLightness::Light;
+    } else {
+        return GradientLightness::Dark;
+    }
 }
 
 void ColorArea::addArea(const SkRect& bounds, const SkPaint& paint,

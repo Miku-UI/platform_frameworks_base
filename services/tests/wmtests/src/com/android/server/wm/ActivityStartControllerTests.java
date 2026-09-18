@@ -19,13 +19,17 @@ package com.android.server.wm;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.eq;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.never;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spy;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.times;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.ActivityManager;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.os.Binder;
 import android.platform.test.annotations.Presubmit;
 
@@ -57,8 +61,8 @@ public class ActivityStartControllerTests extends WindowTestsBase {
     public void setUp() throws Exception {
         mFactory = mock(Factory.class);
         mController = new ActivityStartController(mAtm, mAtm.mTaskSupervisor, mFactory);
-        mStarter = spy(new ActivityStarter(mController, mAtm,
-                mAtm.mTaskSupervisor, mock(ActivityStartInterceptor.class)));
+        mStarter = spy(new ActivityStarter(mController, mAtm, mAtm.mTaskSupervisor,
+                mock(ActivityStartInterceptor.class), mock(UserHelper.class)));
         doReturn(mStarter).when(mFactory).obtain();
     }
 
@@ -91,11 +95,73 @@ public class ActivityStartControllerTests extends WindowTestsBase {
     public void testRecycling() {
         final Intent intent = new Intent();
         final ActivityStarter optionStarter = new ActivityStarter(mController, mAtm,
-                mAtm.mTaskSupervisor, mock(ActivityStartInterceptor.class));
+                mAtm.mTaskSupervisor, mock(ActivityStartInterceptor.class), mock(UserHelper.class));
         optionStarter
                 .setIntent(intent)
                 .setReason("Test")
                 .execute();
         verify(mFactory, times(1)).recycle(eq(optionStarter));
+    }
+
+    /**
+     * Verifies that starting a home activity doesn't cause a NullPointerException when the
+     * associated TaskDisplayArea has no root home task. This is the regression test for the
+     * crash fixed in the change.
+     */
+    @Test
+    public void testStartHomeActivity_nullRootHomeTask_noNpe() {
+        // Get the default TaskDisplayArea and spy on it to control its methods.
+        final TaskDisplayArea taskDisplayArea = spy(mDefaultDisplay.getDefaultTaskDisplayArea());
+        // Set up the spy to return a null root home task, simulating the crash condition.
+        doReturn(null).when(taskDisplayArea).getRootHomeTask();
+
+        // Mock the starter to return a successful result.
+        doReturn(ActivityManager.START_SUCCESS).when(mStarter).execute();
+
+        // Create dummy intent and activity info.
+        final Intent intent = new Intent();
+        final ActivityInfo aInfo = new ActivityInfo();
+        aInfo.applicationInfo = new ApplicationInfo();
+        aInfo.name = "TestHomeActivity";
+        aInfo.packageName = "com.android.test.home";
+
+        // Execute the method under test. This should not throw a NullPointerException.
+        mController.startHomeActivity(intent, aInfo, "test", taskDisplayArea, true /* onTop */);
+
+        // Verify that since the root home task is null, we don't attempt to schedule a resume.
+        verify(mAtm.mTaskSupervisor, never()).scheduleResumeTopActivities();
+    }
+
+    /**
+     * Verifies that if a home activity start is successful and its root task was already in the
+     * process of resuming, a new resume pass is scheduled.
+     */
+    @Test
+    public void testStartHomeActivity_resumesWhenInResumeTopActivity() {
+        // Get the default TaskDisplayArea and spy on it.
+        final TaskDisplayArea taskDisplayArea = spy(mDefaultDisplay.getDefaultTaskDisplayArea());
+        // Create a mock root home task.
+        final Task rootHomeTask = mock(Task.class);
+        // Set the condition that triggers the resume.
+        rootHomeTask.mInResumeTopActivity = true;
+        // Set up the spy to return our mock task.
+        doReturn(rootHomeTask).when(taskDisplayArea).getRootHomeTask();
+
+        // Mock the starter to return a successful result.
+        doReturn(ActivityManager.START_SUCCESS).when(mStarter).execute();
+
+        // Create dummy intent and activity info.
+        final Intent intent = new Intent();
+        final ActivityInfo aInfo = new ActivityInfo();
+        aInfo.applicationInfo = new ApplicationInfo();
+        aInfo.name = "TestHomeActivity";
+        aInfo.packageName = "com.android.test.home";
+
+        // Execute the method under test.
+        mController.startHomeActivity(intent, aInfo, "test", taskDisplayArea, true /* onTop */);
+
+        // Verify that since the start was successful and the task was in resume, we schedule
+        // another resume.
+        verify(mAtm.mTaskSupervisor, times(1)).scheduleResumeTopActivities();
     }
 }

@@ -125,9 +125,7 @@ public class ReduceBrightColorsControllerImpl implements
 
     @Override
     public boolean isInUpgradeMode(Resources resources) {
-        return com.android.server.display.feature.flags.Flags.evenDimmer()
-            && resources.getBoolean(
-                com.android.internal.R.bool.config_evenDimmerEnabled);
+        return resources.getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled);
     }
 
     private void dispatchOnActivated(boolean activated) {

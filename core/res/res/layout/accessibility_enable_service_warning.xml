@@ -50,7 +50,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:textSize="20sp"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/materialColorOnSurface"
                 android:fontFamily="google-sans-medium"/>
 
             <TextView
@@ -61,7 +61,7 @@
                 android:layout_marginBottom="32dp"
                 android:text="@string/accessibility_service_warning_description"
                 android:textSize="16sp"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/materialColorOnSurface"
                 android:fontFamily="sans-serif"/>
 
             <LinearLayout
@@ -85,7 +85,7 @@
                     android:layout_weight="1"
                     android:text="@string/accessibility_service_screen_control_title"
                     android:textSize="16sp"
-                    android:textColor="?android:attr/textColorPrimary"
+                    android:textColor="@color/materialColorOnSurface"
                     android:fontFamily="sans-serif"/>
             </LinearLayout>
 
@@ -97,7 +97,7 @@
                 android:paddingStart="30dp"
                 android:text="@string/accessibility_service_screen_control_description"
                 android:textSize="14sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/materialColorOnSurfaceVariant"
                 android:fontFamily="sans-serif"/>
 
             <LinearLayout
@@ -121,7 +121,7 @@
                     android:layout_weight="1"
                     android:text="@string/accessibility_service_action_perform_title"
                     android:textSize="16sp"
-                    android:textColor="?android:attr/textColorPrimary"
+                    android:textColor="@color/materialColorOnSurface"
                     android:fontFamily="sans-serif"/>
             </LinearLayout>
 
@@ -133,7 +133,7 @@
                 android:paddingStart="30dp"
                 android:text="@string/accessibility_service_action_perform_description"
                 android:textSize="14sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/materialColorOnSurfaceVariant"
                 android:fontFamily="sans-serif" />
         </LinearLayout>
 

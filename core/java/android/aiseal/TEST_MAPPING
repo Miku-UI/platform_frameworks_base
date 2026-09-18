@@ -1,0 +1,7 @@
+{
+  "imports": [
+    {
+      "path": "frameworks/base/tests/aiseal/TEST_MAPPING"
+    }
+  ]
+}

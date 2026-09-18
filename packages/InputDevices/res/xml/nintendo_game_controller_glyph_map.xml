@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<keyboard-glyph-map xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_A"
+        androidprv:glyphDrawable="@drawable/default_game_controller_down_button"
+        androidprv:displayName="@string/default_game_controller_down_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_B"
+        androidprv:glyphDrawable="@drawable/default_game_controller_right_button"
+        androidprv:displayName="@string/default_game_controller_right_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_Y"
+        androidprv:glyphDrawable="@drawable/default_game_controller_up_button"
+        androidprv:displayName="@string/default_game_controller_up_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_X"
+        androidprv:glyphDrawable="@drawable/default_game_controller_left_button"
+        androidprv:displayName="@string/default_game_controller_left_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_L1"
+        androidprv:glyphDrawable="@drawable/nintendo_game_controller_l_button"
+        androidprv:displayName="@string/nintendo_game_controller_l_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_R1"
+        androidprv:glyphDrawable="@drawable/nintendo_game_controller_r_button"
+        androidprv:displayName="@string/nintendo_game_controller_r_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_L2"
+        androidprv:glyphDrawable="@drawable/nintendo_game_controller_zl_button"
+        androidprv:displayName="@string/nintendo_game_controller_zl_button"/>
+    <key-glyph
+        androidprv:keycode="KEYCODE_BUTTON_R2"
+        androidprv:glyphDrawable="@drawable/nintendo_game_controller_zr_button"
+        androidprv:displayName="@string/nintendo_game_controller_zr_button"/>
+</keyboard-glyph-map>

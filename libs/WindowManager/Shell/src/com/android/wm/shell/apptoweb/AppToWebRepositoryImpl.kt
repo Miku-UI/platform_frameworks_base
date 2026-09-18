@@ -20,51 +20,134 @@ import android.app.ActivityManager.RunningTaskInfo
 import android.app.assist.AssistContent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.LauncherApps
 import android.net.Uri
+import android.os.SystemProperties
+import android.os.UserHandle
 import android.util.IndentingPrintWriter
 import android.util.SparseArray
 import androidx.core.net.toUri
 import androidx.core.util.forEach
 import com.android.internal.protolog.ProtoLog
+import com.android.window.flags.Flags
+import com.android.wm.shell.R
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTaskOrganizer.TaskVanishedListener
+import com.android.wm.shell.apptoweb.data.AppToWebDatastoreRepository
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
+import com.android.wm.shell.shared.annotations.ShellBackgroundThread
+import com.android.wm.shell.shared.annotations.ShellMainThread
+import com.android.wm.shell.sysui.ShellCommandHandler
+import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import java.io.PrintWriter
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
- * App-to-Web has the following features: transferring an app session to the web and transferring
- * a web session to the relevant app. To transfer an app session to the web, we utilize
- * three different [Uri]s:
+ * App-to-Web has the following features: transferring an app session to the web and transferring a
+ * web session to the relevant app. To transfer an app session to the web, we utilize three
+ * different [Uri]s:
  * 1. webUri: The web URI provided by the app using [AssistContent]
  * 2. capturedLink: The link used to open the app if app was opened by clicking on a link
  * 3. genericLink: The system provided link for the app
+ *
  * In order to create the [Intent] to transfer the user from app to the web, the [Uri]s listed above
  * are checked in the given order and the first non-null link is used. When transferring from the
  * web to an app, the [Uri] must be provided by the browser application through [AssistContent].
  *
- * This Repository encapsulates the data stored for the App-to-Web feature for all tasks and
- * creates the intents used to open switch between an app or browser session.
+ * This Repository encapsulates the data stored for the App-to-Web feature for all tasks and creates
+ * the intents used to open switch between an app or browser session.
  */
 class AppToWebRepositoryImpl(
     private val context: Context,
     private val assistContentRequester: AssistContentRequester,
     private val genericLinksParser: AppToWebGenericLinksParser,
-    shellTaskOrganizer: ShellTaskOrganizer,
+    private val appToWebDatastoreRepository: AppToWebDatastoreRepository,
+    @ShellMainThread private val mainCoroutineScope: CoroutineScope,
+    @ShellBackgroundThread private val bgCoroutineScope: CoroutineScope,
+    private val shellTaskOrganizer: ShellTaskOrganizer,
+    private val launcherApps: LauncherApps,
     shellInit: ShellInit,
+    shellController: ShellController,
+    shellCommandHandler: ShellCommandHandler,
 ) : TaskVanishedListener, AppToWebRepository {
+    private val appToWebShellCommandHandler = AppToWebShellCommandHandler(this, shellController)
+
     private var appToWebDataByTask = SparseArray<TaskAppToWebData>()
+    private val firstRunPromptShownByTaskId = mutableSetOf<Int>()
+    private var firstRunPromptAckedPackagesByUserId: MutableMap<Int, MutableSet<String>> =
+        mutableMapOf()
+
+    private val launcherAppsCallback =
+        object : LauncherApps.Callback() {
+            override fun onPackageRemoved(packageName: String, user: UserHandle) {
+                val userId = user.identifier
+                val packageRemoved =
+                    firstRunPromptAckedPackagesByUserId[userId]?.remove(packageName)
+                if (packageRemoved == true) {
+                    persistFirstRunPromptAckedPackages()
+                }
+            }
+
+            override fun onPackageAdded(packageName: String, user: UserHandle) {}
+
+            override fun onPackageChanged(packageName: String, user: UserHandle) {}
+
+            override fun onPackagesAvailable(
+                packageNames: Array<out String>,
+                user: UserHandle,
+                replacing: Boolean,
+            ) {}
+
+            override fun onPackagesUnavailable(
+                packageNames: Array<out String>,
+                user: UserHandle,
+                replacing: Boolean,
+            ) {
+                if (replacing) {
+                    return
+                }
+                val userId = user.identifier
+                var packageRemoved = false
+                packageNames.forEach { packageName ->
+                    if (firstRunPromptAckedPackagesByUserId[userId]?.remove(packageName) == true) {
+                        packageRemoved = true
+                    }
+                }
+                if (packageRemoved) {
+                    persistFirstRunPromptAckedPackages()
+                }
+            }
+        }
 
     init {
-        shellInit.addInitCallback(
-            { shellTaskOrganizer.addTaskVanishedListener(this) }, this
-        )
+        shellInit.addInitCallback(::onInit, this)
+        shellCommandHandler.addCommandCallback("apptoweb", appToWebShellCommandHandler, this)
+    }
+
+    private fun onInit() {
+        shellTaskOrganizer.addTaskVanishedListener(this)
+
+        if (Flags.enableEnhancedAppToWebTransition() && isFirstRunPromptSupportedOnDevice()) {
+            launcherApps.registerCallback(launcherAppsCallback)
+            mainCoroutineScope.launch {
+                val appToWebProto = appToWebDatastoreRepository.getAppToWebProto() ?: return@launch
+                appToWebProto.appToWebRepoByUserMap.forEach { (userId, userRepo) ->
+                    firstRunPromptAckedPackagesByUserId[userId] =
+                        userRepo.firstRunPromptAckedPackagesList.toMutableSet()
+                }
+            }
+        }
     }
 
     override fun onTaskVanished(taskInfo: RunningTaskInfo) {
         logD("Task %d is vanishing. Removing task data from repository", taskInfo.taskId)
         appToWebDataByTask.remove(taskInfo.taskId)
+        if (Flags.enableEnhancedAppToWebTransition()) {
+            firstRunPromptShownByTaskId.remove(taskInfo.taskId)
+        }
     }
 
     /** Sets the captured link for the given task if a new link is provided. */
@@ -75,8 +158,8 @@ class AppToWebRepositoryImpl(
     }
 
     /**
-     * Checks if [capturedLink] is available (non-null and has not been used)  for the given task
-     * to use for switching to browser session.
+     * Checks if [capturedLink] is available (non-null and has not been used) for the given task to
+     * use for switching to browser session.
      */
     override fun isCapturedLinkAvailable(taskId: Int): Boolean {
         val taskData = getOrCreateTaskData(taskId)
@@ -91,23 +174,24 @@ class AppToWebRepositoryImpl(
     }
 
     /**
-     * Records the timestamp of the most recent request to show the App-to-Web education  for the
+     * Records the timestamp of the most recent request to show the App-to-Web education for the
      * given task and returns [true] if new request is received.
      */
     override fun updateAppToWebEducationRequestTimestamp(
         taskId: Int,
-        latestOpenInBrowserEducationTimestamp: Long
+        latestOpenInBrowserEducationTimestamp: Long,
     ): Boolean {
         val taskData = getOrCreateTaskData(taskId)
-        if (latestOpenInBrowserEducationTimestamp == 0L
-            || (latestOpenInBrowserEducationTimestamp == taskData.educationRequestTimestamp)
+        if (
+            latestOpenInBrowserEducationTimestamp == 0L ||
+                (latestOpenInBrowserEducationTimestamp == taskData.educationRequestTimestamp)
         ) {
             return false
         }
         logD(
             "Updating education request timestamp with timestamp %d for task %d",
             latestOpenInBrowserEducationTimestamp,
-            taskId
+            taskId,
         )
         taskData.educationRequestTimestamp = latestOpenInBrowserEducationTimestamp
         return true
@@ -117,8 +201,7 @@ class AppToWebRepositoryImpl(
     override suspend fun isBrowserSessionAvailable(taskInfo: RunningTaskInfo): Boolean {
         logD("Checking for valid browser session for task %d", taskInfo.taskId)
         // If no browser application is available, return false
-        context.packageManager.getDefaultBrowserPackageNameAsUser(taskInfo.userId)
-            ?: return false
+        context.packageManager.getDefaultBrowserPackageNameAsUser(taskInfo.userId) ?: return false
 
         if (isCapturedLinkAvailable(taskInfo.taskId) || getGenericLink(taskInfo) != null) {
             return true
@@ -128,17 +211,16 @@ class AppToWebRepositoryImpl(
     }
 
     /**
-     * Retrieves the latest webUri and genericLink  for the given task. If the task requesting the
+     * Retrieves the latest webUri and genericLink for the given task. If the task requesting the
      * intent [isBrowserApp], intent is created to switch to application if link was provided by
      * browser app and a relevant application exists to host the app. Otherwise, returns intent to
      * switch to browser if webUri, capturedLink, or genericLink is available.
      *
      * Note that the capturedLink should be updated separately using [setCapturedLink]
-     *
      */
     override suspend fun getAppToWebIntent(
         taskInfo: RunningTaskInfo,
-        isBrowserApp: Boolean
+        isBrowserApp: Boolean,
     ): Intent? {
         logD("Updating browser links for task %d", taskInfo.taskId)
         val assistContent = assistContentRequester.requestAssistContent(taskInfo.taskId)
@@ -147,6 +229,133 @@ class AppToWebRepositoryImpl(
             getAppIntent(taskInfo, webUri)
         } else {
             getBrowserIntent(taskInfo, webUri, getGenericLink(taskInfo))
+        }
+    }
+
+    override fun shouldShowFirstRunPrompt(taskInfo: RunningTaskInfo): Boolean {
+        if (!Flags.enableEnhancedAppToWebTransition()) {
+            return false
+        }
+        if (!isFirstRunPromptSupportedOnDevice()) {
+            return false
+        }
+        if (taskInfo.capturedLink == null) {
+            // No captured link, so no prompt.
+            return false
+        }
+        if (isFirstRunPromptShown(taskInfo)) {
+            // The prompt is already shown on the task.
+            logD("Prompt already shown for task %d", taskInfo.taskId)
+            return false
+        }
+        val flags = taskInfo.baseIntent?.flags
+        if (flags != null && flags.and(Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER) != 0) {
+            // The intent sender explicitly prefers non-browser.
+            logD("Intent sender prefers non-browser for task %d", taskInfo.taskId)
+            return false
+        }
+        val topPackageName = taskInfo.topActivity?.packageName ?: return false
+        if (isBrowserApp(context, topPackageName, taskInfo.userId)) {
+            // Browser apps are not the target.
+            logD(
+                "Browser app %s is not the target for task %d (top)",
+                topPackageName,
+                taskInfo.taskId,
+            )
+            return false
+        }
+        val basePackageName = taskInfo.baseActivity?.packageName ?: return false
+        if (isBrowserApp(context, basePackageName, taskInfo.userId)) {
+            // Browser apps are not the target.
+            logD(
+                "Browser app %s is not the target for task %d (base)",
+                basePackageName,
+                taskInfo.taskId,
+            )
+            return false
+        }
+        if (ALWAYS_SHOW_APP_TO_WEB_FIRST_RUN_PROMPT_FOR_TESTING) {
+            logD("Debug option enabled. Always showing prompt for task %d", taskInfo.taskId)
+            return true
+        }
+        val everAcked =
+            firstRunPromptAckedPackagesByUserId[taskInfo.userId]?.contains(topPackageName) ?: false
+        if (everAcked) {
+            // The prompt has been acknowledged before.
+            logD("Prompt already acknowledged for task %d", taskInfo.taskId)
+            return false
+        }
+        if (isPackageInFirstRunPromptExemptList(topPackageName)) {
+            logD("Package %s is in the exempt list for task %d", topPackageName, taskInfo.taskId)
+            return false
+        }
+        logD("Showing prompt for task %s, topPackageName=%s", taskInfo, topPackageName)
+        return true
+    }
+
+    private fun isFirstRunPromptSupportedOnDevice(): Boolean =
+        context.resources.getBoolean(R.bool.config_appToWebActivePrompting) ||
+            ALWAYS_SHOW_APP_TO_WEB_FIRST_RUN_PROMPT_FOR_TESTING
+
+    private fun isPackageInFirstRunPromptExemptList(packageName: String): Boolean =
+        packageName in
+            context.resources.getStringArray(R.array.config_appToWebFirstRunPromptExemptPackages)
+
+    override fun isFirstRunPromptShown(taskInfo: RunningTaskInfo): Boolean {
+        if (!Flags.enableEnhancedAppToWebTransition()) {
+            return false
+        }
+        return firstRunPromptShownByTaskId.contains(taskInfo.taskId)
+    }
+
+    override fun onFirstRunPromptShown(taskInfo: RunningTaskInfo) {
+        if (!Flags.enableEnhancedAppToWebTransition()) {
+            return
+        }
+        firstRunPromptShownByTaskId.add(taskInfo.taskId)
+    }
+
+    override fun onFirstRunPromptAcked(taskInfo: RunningTaskInfo) {
+        if (!Flags.enableEnhancedAppToWebTransition()) {
+            return
+        }
+        val packageName = taskInfo.baseActivity?.packageName ?: return
+        firstRunPromptAckedPackagesByUserId.putIfAbsent(taskInfo.userId, mutableSetOf())
+        checkNotNull(firstRunPromptAckedPackagesByUserId[taskInfo.userId]) {
+                "firstRunPromptAckedPackagesByUserId must be non-null for userId ${taskInfo.userId}"
+            }
+            .add(packageName)
+        persistFirstRunPromptAckedPackages()
+    }
+
+    override fun clearFirstRunPromptAckedPackages(userId: Int, packageName: String) {
+        if (!Flags.enableEnhancedAppToWebTransition()) {
+            return
+        }
+        firstRunPromptAckedPackagesByUserId[userId]?.remove(packageName)
+        persistFirstRunPromptAckedPackages()
+    }
+
+    override fun clearAllFirstRunPromptAckedPackages(userId: Int) {
+        if (!Flags.enableEnhancedAppToWebTransition()) {
+            return
+        }
+        firstRunPromptAckedPackagesByUserId[userId]?.clear()
+        persistFirstRunPromptAckedPackages()
+    }
+
+    private fun persistFirstRunPromptAckedPackages() {
+        bgCoroutineScope.launch {
+            try {
+                appToWebDatastoreRepository.updateFirstRunPromptAckedPackages(
+                    firstRunPromptAckedPackagesByUserId
+                )
+            } catch (exception: Exception) {
+                logE(
+                    "An exception occurred while updating the app-to-web repository \n%s",
+                    exception.stackTrace,
+                )
+            }
         }
     }
 
@@ -159,14 +368,17 @@ class AppToWebRepositoryImpl(
     private fun getBrowserIntent(
         taskInfo: RunningTaskInfo,
         webUri: Uri?,
-        genericLink: Uri?
+        genericLink: Uri?,
     ): Intent? {
         val taskData = getOrCreateTaskData(taskInfo.taskId)
-        val browserLink = webUri ?: if (isCapturedLinkAvailable(taskInfo.taskId)) {
-            taskData.capturedLink?.uri
-        } else {
-            genericLink
-        } ?: return null
+        val browserLink =
+            webUri
+                ?: if (isCapturedLinkAvailable(taskInfo.taskId)) {
+                    taskData.capturedLink?.uri
+                } else {
+                    genericLink
+                }
+                ?: return null
         return getBrowserIntent(browserLink, context.packageManager, taskInfo.userId)
     }
 
@@ -206,7 +418,15 @@ class AppToWebRepositoryImpl(
         var educationRequestTimestamp: Long = 0L,
     )
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
+        ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
+    }
+
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
+    private fun logE(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
@@ -224,5 +444,11 @@ class AppToWebRepositoryImpl(
 
     companion object {
         private const val TAG = "AppToWebRepository"
+
+        private val ALWAYS_SHOW_APP_TO_WEB_FIRST_RUN_PROMPT_FOR_TESTING =
+            SystemProperties.getBoolean(
+                "persist.wm.debug.always_show_app_to_web_first_run_prompt_for_testing",
+                false,
+            )
     }
 }

@@ -16,12 +16,23 @@
 
 package com.android.systemui.clock.ui.composable
 
+import android.graphics.Typeface
+import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontSynthesis
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnitType
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.viewinterop.AndroidView
 import com.android.compose.modifiers.thenIf
 import com.android.systemui.res.R
@@ -31,15 +42,71 @@ import com.android.systemui.res.R
  * replaced by the fully composable [Clock].
  */
 @Composable
-fun ClockLegacy(textColor: Color, onClick: (() -> Unit)?, modifier: Modifier = Modifier) {
+fun ClockLegacy(
+    textColor: Color,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    textStyle: TextStyle? = null,
+) {
+    val intColor = remember(textColor) { textColor.toArgb() }
+    val density = LocalDensity.current
+    val textPx =
+        remember(textStyle, density) { textStyle?.let { with(density) { it.fontSize.toPx() } } }
+
+    val resolver = LocalFontFamilyResolver.current
+    val typefaceState =
+        remember(textStyle, resolver) {
+            textStyle?.let {
+                resolver.resolve(
+                    fontFamily = it.fontFamily,
+                    fontWeight = it.fontWeight ?: FontWeight.Normal,
+                    fontStyle = it.fontStyle ?: FontStyle.Normal,
+                    fontSynthesis = it.fontSynthesis ?: FontSynthesis.All,
+                )
+            }
+        }
+    val letterSpacingEm =
+        remember(textStyle) {
+            val spacing = textStyle?.letterSpacing
+            val size = textStyle?.fontSize
+
+            if (spacing == null || !spacing.isSpecified) return@remember null
+
+            when (spacing.type) {
+                TextUnitType.Em -> spacing.value
+                TextUnitType.Sp -> {
+                    if (
+                        size != null &&
+                            size.isSpecified &&
+                            size.type == TextUnitType.Sp &&
+                            size.value > 0f
+                    ) {
+                        spacing.value / size.value
+                    } else null
+                }
+                else -> null
+            }
+        }
+
     AndroidView(
         factory = { context ->
-            com.android.systemui.statusbar.policy.Clock(
-                ContextThemeWrapper(context, R.style.Theme_SystemUI),
-                null,
-            )
+            val clock =
+                com.android.systemui.statusbar.policy.Clock(
+                    ContextThemeWrapper(context, R.style.Theme_SystemUI_DesktopStatusBar),
+                    null,
+                )
+            // Desktop status bar handles its own padding.
+            clock.setShouldApplyPadding(false)
+            clock
         },
-        update = { view -> view.setTextColor(textColor.toArgb()) },
+        update = { view ->
+            view.setTextColor(intColor)
+            textPx?.let { view.setTextSize(TypedValue.COMPLEX_UNIT_PX, it) }
+            typefaceState?.value?.let { resolvedTypeface ->
+                view.typeface = resolvedTypeface as? Typeface
+            }
+            letterSpacingEm?.let { view.letterSpacing = it }
+        },
         modifier = modifier.thenIf(onClick != null) { Modifier.clickable { onClick?.invoke() } },
     )
 }

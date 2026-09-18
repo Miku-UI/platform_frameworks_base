@@ -20,7 +20,11 @@ import android.content.ComponentName
 import android.content.packageManager
 import android.content.pm.PackageManager
 import android.content.pm.UserInfo
+import android.content.res.mainResources
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.TestStubDrawable
+import androidx.core.graphics.drawable.toDrawable
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -55,6 +59,7 @@ class IconAndNameCustomRepositoryTest : SysuiTestCase() {
     private val userTracker: FakeUserTracker =
         kosmos.fakeUserTracker.apply {
             whenever(userContext.packageManager).thenReturn(packageManager)
+            whenever(userContext.resources).thenReturn(kosmos.mainResources)
         }
 
     private val service1 =
@@ -156,6 +161,56 @@ class IconAndNameCustomRepositoryTest : SysuiTestCase() {
                 val editTileDataList = underTest.getCustomTileData()
                 assertThat(editTileDataList).containsExactly(expectedData1)
             }
+        }
+
+    @Test
+    fun loadData_largeServiceBitmap() =
+        kosmos.runTest {
+            val largeBitmap =
+                Bitmap.createBitmap(10000, 10000, Bitmap.Config.ARGB_8888).toDrawable(mainResources)
+            val service =
+                FakeInstalledTilesComponentRepository.ServiceInfo(
+                    componentName = component1,
+                    serviceName = tileService1,
+                    serviceIcon = largeBitmap,
+                    appName = appName1,
+                    appIcon = drawable1,
+                )
+            kosmos.fakeInstalledTilesRepository.setInstalledServicesForUser(
+                userTracker.userId,
+                listOf(service),
+            )
+
+            val data = underTest.getCustomTileData()
+            val loadedIcon = data.single().icon as Icon.Loaded
+            val loadedBitmap = (loadedIcon.drawable as BitmapDrawable).bitmap
+            assertThat(loadedBitmap.height).isEqualTo(4096)
+            assertThat(loadedBitmap.width).isEqualTo(4096)
+        }
+
+    @Test
+    fun loadData_largeApplicationBitmap() =
+        kosmos.runTest {
+            val largeBitmap =
+                Bitmap.createBitmap(10000, 10000, Bitmap.Config.ARGB_8888).toDrawable(mainResources)
+            val service =
+                FakeInstalledTilesComponentRepository.ServiceInfo(
+                    componentName = component1,
+                    serviceName = tileService1,
+                    serviceIcon = drawable1,
+                    appName = appName1,
+                    appIcon = largeBitmap,
+                )
+            kosmos.fakeInstalledTilesRepository.setInstalledServicesForUser(
+                userTracker.userId,
+                listOf(service),
+            )
+
+            val data = underTest.getCustomTileData()
+            val loadedIcon = data.single().appIcon as Icon.Loaded
+            val loadedBitmap = (loadedIcon.drawable as BitmapDrawable).bitmap
+            assertThat(loadedBitmap.height).isEqualTo(4096)
+            assertThat(loadedBitmap.width).isEqualTo(4096)
         }
 
     private companion object {

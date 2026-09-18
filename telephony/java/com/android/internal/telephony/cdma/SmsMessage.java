@@ -237,7 +237,7 @@ public class SmsMessage extends SmsMessageBase {
     public static SubmitPdu getSubmitPdu(String scAddr, String destAddr, String message,
             boolean statusReportRequested, SmsHeader smsHeader, int priority) {
 
-        /**
+        /*
          * TODO(cleanup): Do we really want silent failure like this?
          * Would it not be much more reasonable to make sure we don't
          * call this function if we really want nothing done?
@@ -267,7 +267,7 @@ public class SmsMessage extends SmsMessageBase {
     public static SubmitPdu getSubmitPdu(String scAddr, String destAddr, int destPort,
             byte[] data, boolean statusReportRequested) {
 
-        /**
+        /*
          * TODO(cleanup): this is not a general-purpose SMS creation
          * method, but rather something specialized to messages
          * containing OCTET encoded (meaning non-human-readable) user
@@ -948,17 +948,17 @@ public class SmsMessage extends SmsMessageBase {
     private static SubmitPdu privateGetSubmitPdu(String destAddrStr, boolean statusReportRequested,
             UserData userData, int priority) {
 
-        /**
+        /*
          * TODO(cleanup): give this function a more meaningful name.
          */
 
-        /**
+        /*
          * TODO(cleanup): Make returning null from the getSubmitPdu
          * variations meaningful -- clean up the error feedback
          * mechanism, and avoid null pointer exceptions.
          */
 
-        /**
+        /*
          * North America Plus Code :
          * Convert + code to 011 and dial out for international SMS
          */
@@ -1000,14 +1000,14 @@ public class SmsMessage extends SmsMessageBase {
         envelope.bearerReply = RETURN_ACK;
         envelope.bearerData = encodedBearerData;
 
-        /**
+        /*
          * TODO(cleanup): envelope looks to be a pointless class, get
          * rid of it.  Also -- most of the envelope fields set here
          * are ignored, why?
          */
 
         try {
-            /**
+            /*
              * TODO(cleanup): reference a spec and get rid of the ugly comments
              */
             ByteArrayOutputStream baos = new ByteArrayOutputStream(100);
@@ -1138,7 +1138,7 @@ public class SmsMessage extends SmsMessageBase {
             dos.write(env.bearerData, 0, env.bearerData.length);
             dos.close();
 
-            /**
+            /*
              * TODO(cleanup) -- The mPdu field is managed in
              * a fragile manner, and it would be much nicer if
              * accessing the serialized representation used a less

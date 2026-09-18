@@ -279,8 +279,7 @@ public final class AttributionSource implements Parcelable {
 
         final AttributionSource globalSource = ActivityThread.currentAttributionSource();
         if (globalSource != null) {
-            if (Flags.enforceDefaultDeviceIdInMyAttributionSource()
-                    && globalSource.getDeviceId() != Context.DEVICE_ID_DEFAULT) {
+            if (globalSource.getDeviceId() != Context.DEVICE_ID_DEFAULT) {
                 Log.w(TAG,
                         "Avoid using myAttributionSource() to fetch an attributionSource with a "
                                 + "non-default device Id");
@@ -683,7 +682,7 @@ public final class AttributionSource implements Parcelable {
         /**
          * The PID of the process that is accessing the permission protected data.
          *
-         * If not called, pid will default to {@link Process@INVALID_PID} (-1). This indicates that
+         * If not called, pid will default to {@link Process#INVALID_PID} (-1). This indicates that
          * the PID data is missing. Supplying a PID is not required, but recommended when
          * accessible.
          */

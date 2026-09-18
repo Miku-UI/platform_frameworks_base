@@ -23,6 +23,7 @@ import static android.app.ActivityManager.INSTR_FLAG_DISABLE_TEST_API_CHECKS;
 import static android.app.ActivityManager.INSTR_FLAG_INSTRUMENT_SDK_IN_SANDBOX;
 import static android.app.ActivityManager.INSTR_FLAG_INSTRUMENT_SDK_SANDBOX;
 import static android.app.ActivityManager.INSTR_FLAG_NO_RESTART;
+import static android.app.ActivityManager.INSTR_FLAG_RUN_IN_PCC;
 
 import android.app.IActivityManager;
 import android.app.IInstrumentationWatcher;
@@ -102,6 +103,7 @@ public class Instrument {
     public boolean alwaysCheckSignature = false;
     public boolean instrumentSdkSandbox = false;
     public boolean instrumentSdkInSandbox = false;
+    public boolean instrumentInPcc = false;
 
     /**
      * Construct the instrument command runner.
@@ -239,7 +241,8 @@ public class Instrument {
                         protoFile = false;
                         return;
                     }
-                    SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd-hhmmss-SSS", Locale.US);
+                    SimpleDateFormat format =
+                            new SimpleDateFormat("yyyyMMdd-hhmmss-SSS", Locale.US);
                     String fileName = String.format("log-%s.instrumentation_data_proto",
                             format.format(new Date()));
                     mLog = new File(logDir, fileName);
@@ -537,6 +540,9 @@ public class Instrument {
             }
             if (instrumentSdkInSandbox) {
                 flags |= INSTR_FLAG_INSTRUMENT_SDK_IN_SANDBOX;
+            }
+            if (instrumentInPcc) {
+                flags |= INSTR_FLAG_RUN_IN_PCC;
             }
             if (!mAm.startInstrumentation(cn, profileFile, flags, args, watcher, connection, userId,
                         abi)) {

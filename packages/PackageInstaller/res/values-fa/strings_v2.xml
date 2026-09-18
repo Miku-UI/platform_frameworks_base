@@ -120,7 +120,7 @@
     <string name="button_continue" msgid="107501685249826244">"ادامه دادن"</string>
     <string name="button_close" msgid="7187308556466275899">"بستن"</string>
     <string name="button_uninstall" msgid="6317309210023038915">"حذف نصب"</string>
-    <string name="button_delete" msgid="1050833585936159792">"حذف کردن"</string>
+    <string name="button_delete" msgid="1050833585936159792">"حذف"</string>
     <string name="button_reinstall" msgid="476377927808336418">"بازنصب"</string>
     <string name="button_manage_apps" msgid="957735904821659812">"مدیریت برنامه‌ها"</string>
     <string name="button_archive" msgid="2719647830439699121">"بایگانی کردن"</string>

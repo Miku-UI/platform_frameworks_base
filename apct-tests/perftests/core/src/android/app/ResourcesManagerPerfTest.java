@@ -24,8 +24,11 @@ import android.view.Display;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.LargeTest;
 
+import com.android.internal.util.GcUtils;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +51,7 @@ public class ResourcesManagerPerfTest {
     public PerfStatusReporter mPerfStatusReporter = new PerfStatusReporter();
 
     @BeforeClass
-    public static void setUp() throws Exception {
+    public static void setUpClass() throws Exception {
         sContext = InstrumentationRegistry.getTargetContext();
         sResourcesCompressed = copyApkToTemp("LargeResourcesCompressed.apk",
                 "LargeResourcesCompressed.apk");
@@ -57,9 +60,14 @@ public class ResourcesManagerPerfTest {
     }
 
     @AfterClass
-    public static void tearDown() {
+    public static void tearDownClass() {
         Assert.assertTrue(sResourcesCompressed.delete());
         Assert.assertTrue(sResourcesUncompressed.delete());
+    }
+
+    @Before
+    public void setUp() {
+        GcUtils.runGcAndFinalizersSync();
     }
 
     private static File copyApkToTemp(String inputFileName, String fileName) throws Exception {

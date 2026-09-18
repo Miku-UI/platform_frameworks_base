@@ -19,7 +19,6 @@ import static android.security.Flags.secureLockDevice;
 
 import static com.android.systemui.DejankUtils.whitelistIpcs;
 
-import android.app.admin.DevicePolicyManager;
 import android.content.res.Resources;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -111,32 +110,33 @@ public class KeyguardSecurityModel {
             return SecurityMode.SimPuk;
         }
 
-        if (SubscriptionManager.isValidSubscriptionId(
-                mKeyguardUpdateMonitor.getNextSubIdForState(
-                        TelephonyManager.SIM_STATE_PIN_REQUIRED))) {
+        int nextSubIdInPinRequiredState = mKeyguardUpdateMonitor.getNextSubIdForState(
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+        // Return the {@code SimPin} security mode if the SIM in the "pin required" state and
+        // the PIN is not managed by the platform. If it's managed by the platform, there SIM
+        // PIN keyguard must not be displayed to the user.
+        // NOTE: Another approach is to make the KeyguardUpdateMonitor.getNextSubIdForState method
+        // "ignore" SIMs in the "pin required" state. However that might be an abstraction
+        // violation as the KeyguardUpdateMonitor does not make decisions about what to show to
+        // the user, only keeps state.
+        if (SubscriptionManager.isValidSubscriptionId(nextSubIdInPinRequiredState)
+                && !mKeyguardUpdateMonitor.isSimPinPlatformManaged(nextSubIdInPinRequiredState)) {
             return SecurityMode.SimPin;
         }
 
-        final int security = whitelistIpcs(() ->
-                mLockPatternUtils.getActivePasswordQuality(userId));
-        switch (security) {
-            case DevicePolicyManager.PASSWORD_QUALITY_NUMERIC:
-            case DevicePolicyManager.PASSWORD_QUALITY_NUMERIC_COMPLEX:
+        final int credentialType = whitelistIpcs(() ->
+                mLockPatternUtils.getCredentialTypeForUser(userId));
+        switch (credentialType) {
+            case LockPatternUtils.CREDENTIAL_TYPE_PIN:
                 return SecurityMode.PIN;
-
-            case DevicePolicyManager.PASSWORD_QUALITY_ALPHABETIC:
-            case DevicePolicyManager.PASSWORD_QUALITY_ALPHANUMERIC:
-            case DevicePolicyManager.PASSWORD_QUALITY_COMPLEX:
-            case DevicePolicyManager.PASSWORD_QUALITY_MANAGED:
+            case LockPatternUtils.CREDENTIAL_TYPE_PASSWORD:
                 return SecurityMode.Password;
-
-            case DevicePolicyManager.PASSWORD_QUALITY_SOMETHING:
+            case LockPatternUtils.CREDENTIAL_TYPE_PATTERN:
                 return SecurityMode.Pattern;
-            case DevicePolicyManager.PASSWORD_QUALITY_UNSPECIFIED:
+            case LockPatternUtils.CREDENTIAL_TYPE_NONE:
                 return SecurityMode.None;
-
             default:
-                throw new IllegalStateException("Unknown security quality:" + security);
+                throw new IllegalStateException("Unknown credential type:" + credentialType);
         }
     }
 }

@@ -114,7 +114,7 @@
     <string name="button_install" msgid="7434013176505680162">"इन्स्टल गर्नुहोस्"</string>
     <string name="button_update" msgid="3046719350226327526">"अपडेट गर्नुहोस्"</string>
     <string name="button_update_anyway" msgid="6674207037708730779">"जे भए पनि अपडेट गर्नुहोस्"</string>
-    <string name="button_done" msgid="3408025390982260629">"सम्पन्न भयो"</string>
+    <string name="button_done" msgid="3408025390982260629">"भयो"</string>
     <string name="button_open" msgid="6892684987374117955">"खोल्नुहोस्"</string>
     <string name="button_cancel" msgid="6690491435205617214">"रद्द गर्नुहोस्"</string>
     <string name="button_continue" msgid="107501685249826244">"जारी राख्नुहोस्"</string>

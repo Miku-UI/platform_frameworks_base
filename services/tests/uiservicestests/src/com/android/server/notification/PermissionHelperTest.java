@@ -41,6 +41,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoList;
 import android.content.pm.ParceledListSlice;
 import android.permission.IPermissionManager;
 import android.util.Pair;
@@ -128,7 +129,7 @@ public class PermissionHelperTest extends UiServiceTestCase {
         Set<Pair<Integer, String>> expected =
                 ImmutableSet.of(new Pair(1, "first"), new Pair(2, "second"));
 
-        ParceledListSlice<PackageInfo> infos = new ParceledListSlice<>(
+        PackageInfoList infos = new PackageInfoList(
                 ImmutableList.of(notThis, none, first, second));
         when(mPackageManager.getInstalledPackages(eq((long) GET_PERMISSIONS), anyInt()))
                 .thenReturn(infos);
@@ -436,7 +437,7 @@ public class PermissionHelperTest extends UiServiceTestCase {
         when(mPackageManager.getPackagesHoldingPermissions(
                 eq(new String[] {Manifest.permission.POST_NOTIFICATIONS}), anyLong(), eq(userId)))
                 .thenReturn(infos);
-        ParceledListSlice<PackageInfo> requesting = new ParceledListSlice<>(
+        PackageInfoList requesting = new PackageInfoList(
                 ImmutableList.of(first, second, third));
         when(mPackageManager.getInstalledPackages(eq((long) GET_PERMISSIONS), anyInt()))
                 .thenReturn(requesting);

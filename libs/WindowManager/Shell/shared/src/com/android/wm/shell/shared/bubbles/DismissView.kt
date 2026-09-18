@@ -49,39 +49,38 @@ class DismissView(context: Context) : FrameLayout(context) {
      * @see [setup] method
      */
     data class Config(
-            /** The resource id to set on the dismiss target circle view */
-            val dismissViewResId: Int,
-            /** dimen resource id of the dismiss target circle view size */
-            @DimenRes val targetSizeResId: Int,
-            /** dimen resource id of the icon size in the dismiss target */
-            @DimenRes val iconSizeResId: Int,
-            /**
-             * dimen resource id of the bottom margin for the dismiss target
-             *
-             * By default the margin is applied on top of the bottom navigation bar inset. To ignore
-             * the bottom navigation inset, and apply a margin relative to the bottom edge of the
-             * screen set [applyMarginOverNavBarInset] to `false`.
-             */
-            @DimenRes var bottomMarginResId: Int,
-            /** dimen resource id of the height for dismiss area gradient */
-            @DimenRes val floatingGradientHeightResId: Int,
-            /** color resource id of the dismiss area gradient color */
-            @ColorRes val floatingGradientColorResId: Int,
-            /** drawable resource id of the dismiss target background */
-            @DrawableRes val backgroundResId: Int,
-            /** drawable resource id of the icon for the dismiss target */
-            @DrawableRes val iconResId: Int,
-            /**
-             * Whether the value provided in [bottomMarginResId] should be applied on top of the
-             * bottom navigation bar inset. If this is `false` the margin is relative to the bottom
-             * edge of the screen.
-             */
-            val applyMarginOverNavBarInset: Boolean = true,
+        /** The resource id to set on the dismiss target circle view */
+        val dismissViewResId: Int,
+        /** dimen resource id of the dismiss target circle view size */
+        @DimenRes val targetSizeResId: Int,
+        /** dimen resource id of the icon size in the dismiss target */
+        @DimenRes val iconSizeResId: Int,
+        /**
+         * dimen resource id of the bottom margin for the dismiss target
+         *
+         * By default the margin is applied on top of the bottom navigation bar inset. To ignore the
+         * bottom navigation inset, and apply a margin relative to the bottom edge of the screen set
+         * [applyMarginOverNavBarInset] to `false`.
+         */
+        @DimenRes var bottomMarginResId: Int,
+        /** dimen resource id of the height for dismiss area gradient */
+        @DimenRes val floatingGradientHeightResId: Int,
+        /** color resource id of the dismiss area gradient color */
+        @ColorRes val floatingGradientColorResId: Int,
+        /** drawable resource id of the dismiss target background */
+        @DrawableRes val backgroundResId: Int,
+        /** drawable resource id of the icon for the dismiss target */
+        @DrawableRes val iconResId: Int,
+        /**
+         * Whether the value provided in [bottomMarginResId] should be applied on top of the bottom
+         * navigation bar inset. If this is `false` the margin is relative to the bottom edge of the
+         * screen.
+         */
+        val applyMarginOverNavBarInset: Boolean = true,
     )
 
     companion object {
-        private const val SHOULD_SETUP =
-                "The view isn't ready. Should be called after `setup`"
+        private const val SHOULD_SETUP = "The view isn't ready. Should be called after `setup`"
         private val TAG = DismissView::class.simpleName
     }
 
@@ -93,18 +92,19 @@ class DismissView(context: Context) : FrameLayout(context) {
     private val spring = PhysicsAnimator.SpringConfig(STIFFNESS_LOW, DAMPING_RATIO_LOW_BOUNCY)
     private val DISMISS_SCRIM_FADE_MS = 200L
     private var wm: WindowManager =
-            context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var gradientDrawable: GradientDrawable? = null
 
     private val GRADIENT_ALPHA: IntProperty<GradientDrawable> =
-            object : IntProperty<GradientDrawable>("alpha") {
-        override fun setValue(d: GradientDrawable, percent: Int) {
-            d.alpha = percent
+        object : IntProperty<GradientDrawable>("alpha") {
+            override fun setValue(d: GradientDrawable, percent: Int) {
+                d.alpha = percent
+            }
+
+            override fun get(d: GradientDrawable): Int {
+                return d.alpha
+            }
         }
-        override fun get(d: GradientDrawable): Int {
-            return d.alpha
-        }
-    }
 
     init {
         clipToPadding = false
@@ -118,16 +118,19 @@ class DismissView(context: Context) : FrameLayout(context) {
      *
      * Decouples resource dependency in order to be used externally (e.g. Launcher). Usually called
      * with default params in module specific extension:
+     *
      * @see [DismissView.setup] in DismissViewExt.kt
      */
     fun setup(config: Config) {
         this.config = config
 
         // Setup layout
-        layoutParams = LayoutParams(
+        layoutParams =
+            LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 resources.getDimensionPixelSize(config.floatingGradientHeightResId),
-                Gravity.BOTTOM)
+                Gravity.BOTTOM,
+            )
         updatePadding()
 
         // Setup gradient
@@ -138,11 +141,11 @@ class DismissView(context: Context) : FrameLayout(context) {
         circle.id = config.dismissViewResId
         circle.setup(config.backgroundResId, config.iconResId, config.iconSizeResId)
         val targetSize: Int = resources.getDimensionPixelSize(config.targetSizeResId)
-        circle.layoutParams = LayoutParams(targetSize, targetSize,
-                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+        circle.layoutParams =
+            LayoutParams(targetSize, targetSize, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
         // Initial position with circle offscreen so it's animated up
-        circle.translationY = resources.getDimensionPixelSize(config.floatingGradientHeightResId)
-                .toFloat()
+        circle.translationY =
+            resources.getDimensionPixelSize(config.floatingGradientHeightResId).toFloat()
     }
 
     /**
@@ -155,33 +158,30 @@ class DismissView(context: Context) : FrameLayout(context) {
         val gradientDrawable = checkExists(gradientDrawable) ?: return false
         isShowing = true
         setVisibility(View.VISIBLE)
-        val alphaAnim = ObjectAnimator.ofInt(gradientDrawable, GRADIENT_ALPHA,
-                gradientDrawable.alpha, 255)
+        val alphaAnim =
+            ObjectAnimator.ofInt(gradientDrawable, GRADIENT_ALPHA, gradientDrawable.alpha, 255)
         alphaAnim.setDuration(DISMISS_SCRIM_FADE_MS)
         alphaAnim.start()
 
-        animator.cancel()
-        animator
-            .spring(DynamicAnimation.TRANSLATION_Y, 0f, spring)
-            .start()
+        animator.cancel(DynamicAnimation.TRANSLATION_Y)
+        animator.spring(DynamicAnimation.TRANSLATION_Y, 0f, spring).start()
         return true
     }
 
     /**
-     * Animates this view out, as well as the circle that encircles the bubbles, if they
-     * were dragged into the target and encircled.
+     * Animates this view out, as well as the circle that encircles the bubbles, if they were
+     * dragged into the target and encircled.
      */
     fun hide() {
         if (!isShowing) return
         val gradientDrawable = checkExists(gradientDrawable) ?: return
         isShowing = false
-        val alphaAnim = ObjectAnimator.ofInt(gradientDrawable, GRADIENT_ALPHA,
-                gradientDrawable.alpha, 0)
+        val alphaAnim =
+            ObjectAnimator.ofInt(gradientDrawable, GRADIENT_ALPHA, gradientDrawable.alpha, 0)
         alphaAnim.setDuration(DISMISS_SCRIM_FADE_MS)
         alphaAnim.start()
         animator
-            .spring(DynamicAnimation.TRANSLATION_Y, height.toFloat(),
-                spring)
+            .spring(DynamicAnimation.TRANSLATION_Y, height.toFloat(), spring)
             .withEndActions({
                 visibility = View.INVISIBLE
                 circle.scaleX = 1f
@@ -190,11 +190,9 @@ class DismissView(context: Context) : FrameLayout(context) {
             .start()
     }
 
-    /**
-     * Cancels the animator for the dismiss target.
-     */
+    /** Cancels the animator for the dismiss target. */
     fun cancelAnimators() {
-        animator.cancel()
+        animator.cancel(DynamicAnimation.TRANSLATION_Y)
     }
 
     fun updateResources() {
@@ -210,13 +208,18 @@ class DismissView(context: Context) : FrameLayout(context) {
     private fun createGradient(@ColorRes color: Int): GradientDrawable {
         val gradientColor = ContextCompat.getColor(context, color)
         val alpha = 0.7f * 255
-        val gradientColorWithAlpha = Color.argb(alpha.toInt(),
+        val gradientColorWithAlpha =
+            Color.argb(
+                alpha.toInt(),
                 Color.red(gradientColor),
                 Color.green(gradientColor),
-                Color.blue(gradientColor))
-        val gd = GradientDrawable(
+                Color.blue(gradientColor),
+            )
+        val gd =
+            GradientDrawable(
                 GradientDrawable.Orientation.BOTTOM_TOP,
-                intArrayOf(gradientColorWithAlpha, Color.TRANSPARENT))
+                intArrayOf(gradientColorWithAlpha, Color.TRANSPARENT),
+            )
         gd.setDither(true)
         gd.setAlpha(0)
         return gd
@@ -227,9 +230,7 @@ class DismissView(context: Context) : FrameLayout(context) {
         val bottomMargin = resources.getDimensionPixelSize(config.bottomMarginResId)
         if (config.applyMarginOverNavBarInset) {
             val insets: WindowInsets = wm.currentWindowMetrics.windowInsets
-            val navInset = insets.getInsetsIgnoringVisibility(
-                WindowInsets.Type.navigationBars()
-            )
+            val navInset = insets.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
             setPadding(0, 0, 0, navInset.bottom + bottomMargin)
         } else {
             setPadding(0, 0, 0, bottomMargin)
@@ -237,12 +238,12 @@ class DismissView(context: Context) : FrameLayout(context) {
     }
 
     /**
-     * Checks if the value is set up and exists, if not logs an exception.
-     * Used for convenient logging in case `setup` wasn't called before
+     * Checks if the value is set up and exists, if not logs an exception. Used for convenient
+     * logging in case `setup` wasn't called before
      *
      * @return value provided as argument
      */
-    private fun <T>checkExists(value: T?): T? {
+    private fun <T> checkExists(value: T?): T? {
         if (value == null) Log.e(TAG, SHOULD_SETUP)
         return value
     }

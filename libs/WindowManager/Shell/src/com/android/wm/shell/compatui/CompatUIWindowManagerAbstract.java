@@ -34,6 +34,7 @@ import android.content.res.Configuration;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.os.Binder;
+import android.os.Handler;
 import android.util.Log;
 import android.view.IWindow;
 import android.view.SurfaceControl;
@@ -299,16 +300,30 @@ public abstract class CompatUIWindowManagerAbstract extends WindowlessWindowMana
 
     /** Releases the surface control and tears down the view hierarchy. */
     public void release() {
+        Runnable removeViews = () -> {
+            removeLayout();
+
+            if (mViewHost != null) {
+                mViewHost.release();
+                mViewHost = null;
+            }
+        };
+
         // Hiding before releasing to avoid flickering when transitioning to the Home screen.
         View layout = getLayout();
         if (layout != null) {
-            layout.setVisibility(View.GONE);
-        }
-        removeLayout();
-
-        if (mViewHost != null) {
-            mViewHost.release();
-            mViewHost = null;
+            final Handler handler = layout.getHandler();
+            if (handler != null && !handler.getLooper().isCurrentThread()) {
+                handler.post(() -> {
+                    layout.setVisibility(View.GONE);
+                    removeViews.run();
+                });
+            } else {
+                layout.setVisibility(View.GONE);
+                removeViews.run();
+            }
+        } else {
+            removeViews.run();
         }
 
         if (mLeash != null) {

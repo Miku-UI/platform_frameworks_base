@@ -3,6 +3,8 @@
 # for restructuring and test maintenance only
 
 saff@google.com
+yuzhechen@google.com
 
 # Work around per-file set noparent includes
 per-file *=saff@google.com
+per-file *=yuzhechen@google.com

@@ -60,7 +60,7 @@ constructor(demoModeController: DemoModeController, @Application scope: Coroutin
             level = level,
             activity = activity,
             ssid = ssid,
-            validated = validated,
+            showExclamation = !validated,
             hotspotDeviceType,
         )
     }

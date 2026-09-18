@@ -20,7 +20,7 @@ import com.android.wm.shell.compatui.api.CompatUIComponentState
 import com.android.wm.shell.compatui.api.CompatUIInfo
 import com.android.wm.shell.compatui.api.CompatUILifecyclePredicates
 import com.android.wm.shell.compatui.api.CompatUISharedState
-import junit.framework.Assert.assertEquals
+import kotlin.test.assertEquals
 
 /** Fake class for {@link CompatUILifecycle} */
 class FakeCompatUILifecyclePredicates(
@@ -34,11 +34,13 @@ class FakeCompatUILifecyclePredicates(
     var creationInvocation = 0
     var removalInvocation = 0
     var initialStateInvocation = 0
+    var onRemovalInvocation = 0
     var lastCreationCompatUIInfo: CompatUIInfo? = null
     var lastCreationSharedState: CompatUISharedState? = null
     var lastRemovalCompatUIInfo: CompatUIInfo? = null
     var lastRemovalSharedState: CompatUISharedState? = null
     var lastRemovalCompState: CompatUIComponentState? = null
+    var lastOnRemovalSharedState: CompatUISharedState? = null
 
     fun getLifecycle() =
         CompatUILifecyclePredicates(
@@ -59,11 +61,17 @@ class FakeCompatUILifecyclePredicates(
                 initialStateInvocation++
                 initialState(a, b)
             },
+            onRemoval = { uiInfo, sharedState ->
+                onRemovalInvocation++
+                lastOnRemovalSharedState = sharedState
+            },
         )
 
     fun assertCreationInvocation(expected: Int) = assertEquals(expected, creationInvocation)
 
     fun assertRemovalInvocation(expected: Int) = assertEquals(expected, removalInvocation)
+
+    fun assertOnRemovalInvocation(expected: Int) = assertEquals(expected, onRemovalInvocation)
 
     fun assertInitialStateInvocation(expected: Int) = assertEquals(expected, initialStateInvocation)
 }

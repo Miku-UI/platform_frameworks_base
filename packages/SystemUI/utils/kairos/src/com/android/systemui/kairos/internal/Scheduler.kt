@@ -21,21 +21,21 @@ import com.android.systemui.kairos.internal.util.fastForEach
 import java.util.PriorityQueue
 
 internal interface Scheduler {
-    fun schedule(depth: Int, node: MuxNode<*, *, *>)
+    fun schedule(depth: Int, node: MuxNode<*, *, *, *>)
 
-    fun scheduleIndirect(indirectDepth: Int, node: MuxNode<*, *, *>)
+    fun scheduleIndirect(indirectDepth: Int, node: MuxNode<*, *, *, *>)
 }
 
-internal class SchedulerImpl(private val enqueue: (MuxNode<*, *, *>) -> Boolean) : Scheduler {
-    private val scheduledQ = PriorityQueue<Pair<Int, MuxNode<*, *, *>>>(compareBy { it.first })
+internal class SchedulerImpl(private val enqueue: (MuxNode<*, *, *, *>) -> Boolean) : Scheduler {
+    private val scheduledQ = PriorityQueue<Pair<Int, MuxNode<*, *, *, *>>>(compareBy { it.first })
 
-    override fun schedule(depth: Int, node: MuxNode<*, *, *>) {
+    override fun schedule(depth: Int, node: MuxNode<*, *, *, *>) {
         if (enqueue(node)) {
             scheduledQ.add(Pair(depth, node))
         }
     }
 
-    override fun scheduleIndirect(indirectDepth: Int, node: MuxNode<*, *, *>) {
+    override fun scheduleIndirect(indirectDepth: Int, node: MuxNode<*, *, *, *>) {
         schedule(Int.MIN_VALUE + indirectDepth, node)
     }
 
@@ -65,7 +65,7 @@ internal class SchedulerImpl(private val enqueue: (MuxNode<*, *, *>) -> Boolean)
         logIndent: Int,
         crossinline onStep:
             LogIndent.(
-                runStep: LogIndent.(visit: LogIndent.(MuxNode<*, *, *>) -> Unit) -> Unit
+                runStep: LogIndent.(visit: LogIndent.(MuxNode<*, *, *, *>) -> Unit) -> Unit
             ) -> Unit,
     ): Int {
         var total = 0
@@ -82,9 +82,12 @@ internal class SchedulerImpl(private val enqueue: (MuxNode<*, *, *>) -> Boolean)
         return total
     }
 
-    private inline fun runStep(maxDepth: Int, crossinline visit: (MuxNode<*, *, *>) -> Unit): Int {
+    private inline fun runStep(
+        maxDepth: Int,
+        crossinline visit: (MuxNode<*, *, *, *>) -> Unit,
+    ): Int {
         var total = 0
-        val toVisit = mutableListOf<MuxNode<*, *, *>>()
+        val toVisit = mutableListOf<MuxNode<*, *, *, *>>()
         while (scheduledQ.peek()?.first?.let { it <= maxDepth } == true) {
             val (d, node) = scheduledQ.remove()
             if (

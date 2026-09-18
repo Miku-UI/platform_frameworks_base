@@ -42,7 +42,7 @@ object WindowManagerLockscreenVisibilityViewBinder {
 
         scope.launch("$TAG#viewModel.lockscreenVisibility") {
             viewModel.lockscreenVisibility.collect { (visibility, reason) ->
-                lockscreenVisibilityManager.setLockscreenShown(visibility, reason)
+                lockscreenVisibilityManager.setLockscreenShowing(visibility, reason)
             }
         }
 

@@ -31,7 +31,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Information about a telephony network.
+ * Represents information about the countries associated with a mobile network.
  *
  * @hide
  */

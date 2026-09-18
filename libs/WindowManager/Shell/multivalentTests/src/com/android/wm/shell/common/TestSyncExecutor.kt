@@ -25,8 +25,7 @@ class TestSyncExecutor : ShellExecutor {
         runnable.run()
     }
 
-    override fun removeCallbacks(runnable: Runnable) {
-    }
+    override fun removeCallbacks(runnable: Runnable) {}
 
     override fun hasCallback(runnable: Runnable): Boolean {
         return false

@@ -45,16 +45,6 @@ public final class SfVsyncFrameCallbackProvider implements AnimationFrameCallbac
     }
 
     @Override
-    public void postCommitCallback(Runnable runnable) {
-        mChoreographer.postCallback(Choreographer.CALLBACK_COMMIT, runnable, null);
-    }
-
-    @Override
-    public long getFrameTime() {
-        return mChoreographer.getFrameTime();
-    }
-
-    @Override
     public long getFrameDelay() {
         return Choreographer.getFrameDelay();
     }

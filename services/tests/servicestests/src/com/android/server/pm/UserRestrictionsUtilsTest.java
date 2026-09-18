@@ -20,23 +20,37 @@ import static com.android.server.devicepolicy.DpmTestUtils.assertRestrictions;
 import static com.android.server.devicepolicy.DpmTestUtils.newRestrictions;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
+import android.app.admin.DevicePolicyManagerInternal;
+import android.content.Context;
 import android.os.Bundle;
+import android.os.Process;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.provider.Settings;
 import android.util.Pair;
 import android.util.SparseArray;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.server.LocalServices;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.truth.Expect;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,11 +73,47 @@ public final class UserRestrictionsUtilsTest {
             Pair.create(UserManager.DISALLOW_WALLPAPER, false),
             Pair.create(UserManager.DISALLOW_ADJUST_VOLUME, true));
 
+    private static final int TEST_USER_ID = 10;
+    private static final int DEVICE_OWNER_USER_ID = 11;
+    private static final String DISALLOW_DEBUGGING_FEATURES =
+            UserManager.DISALLOW_DEBUGGING_FEATURES;
+
     @Rule
     public final Expect expect = Expect.create();
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Mock
+    private Context mContext;
+    @Mock
+    private UserManager mUserManager;
+    @Mock
+    private UserManagerInternal mUserManagerInternal;
+    @Mock
+    private DevicePolicyManagerInternal mDevicePolicyManagerInternal;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        // Mock LocalServices
+        LocalServices.removeServiceForTest(UserManagerInternal.class);
+        LocalServices.addService(UserManagerInternal.class, mUserManagerInternal);
+        LocalServices.removeServiceForTest(DevicePolicyManagerInternal.class);
+        LocalServices.addService(DevicePolicyManagerInternal.class, mDevicePolicyManagerInternal);
+
+        // Mock Context to return UserManager. The test environment can sometimes confuse
+        // getSystemService with getSystemServiceName, so we mock both to be safe.
+        when(mContext.getSystemServiceName(UserManager.class)).thenReturn(Context.USER_SERVICE);
+        when(mContext.getSystemService(UserManager.class)).thenReturn(mUserManager);
+    }
+
+    @After
+    public void tearDown() {
+        LocalServices.removeServiceForTest(UserManagerInternal.class);
+        LocalServices.removeServiceForTest(DevicePolicyManagerInternal.class);
+    }
 
     @Test
     public void testNonNull() {
@@ -322,5 +372,120 @@ public final class UserRestrictionsUtilsTest {
 
         expect.that(UserRestrictionsUtils.areEqual(a, b)).isFalse();
         expect.that(UserRestrictionsUtils.areEqual(b, a)).isFalse();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_restrictedBySystemUser() {
+        // GIVEN the DISALLOW_DEBUGGING_FEATURES restriction is set on the system user
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(true);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "1", Process.SYSTEM_UID,
+                UserHandle.USER_NULL);
+
+        // THEN the setting should be restricted
+        expect.that(isRestricted).isTrue();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_restrictedByDeviceOwner() {
+        // GIVEN the DISALLOW_DEBUGGING_FEATURES restriction is set on the device owner
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(false);
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(DEVICE_OWNER_USER_ID))).thenReturn(true);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "1", Process.SYSTEM_UID,
+                DEVICE_OWNER_USER_ID);
+
+        // THEN the setting should be restricted
+        expect.that(isRestricted).isTrue();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_notRestrictedGlobally() {
+        // GIVEN no global restrictions for DISALLOW_DEBUGGING_FEATURES are set
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(false);
+        // AND the restriction is not set for the current user
+        when(mUserManager.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), any(UserHandle.class))).thenReturn(false);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "1", Process.SYSTEM_UID,
+                UserHandle.USER_NULL);
+
+        // THEN the setting should not be restricted
+        expect.that(isRestricted).isFalse();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_restrictedForCurrentUser() {
+        // GIVEN no global restrictions for DISALLOW_DEBUGGING_FEATURES are set
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(false);
+        // BUT the restriction is set for the current user
+        when(mUserManager.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.of(TEST_USER_ID)))).thenReturn(true);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "1", Process.SYSTEM_UID,
+                UserHandle.USER_NULL);
+
+        // THEN the setting should be restricted
+        expect.that(isRestricted).isTrue();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_restrictedButValueIsZero() {
+        // GIVEN the DISALLOW_DEBUGGING_FEATURES restriction is set globally
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(true);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted for a value of "0" (disabled)
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "0", Process.SYSTEM_UID,
+                UserHandle.USER_NULL);
+
+        // THEN the setting should NOT be restricted, as disabling is always allowed
+        expect.that(isRestricted).isFalse();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_deviceOwnerIsSystemUser() {
+        // GIVEN the device owner is the system user and has the restriction
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(true);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "1", Process.SYSTEM_UID,
+                UserHandle.USER_SYSTEM);
+
+        // THEN the setting should be restricted (and checked only once)
+        expect.that(isRestricted).isTrue();
+    }
+
+    @Test
+    public void isSettingRestrictedForUser_adbEnabled_deviceOwnerIsSystemUser_noRestriction() {
+        // GIVEN the device owner is the system user but does NOT have the restriction
+        when(mUserManagerInternal.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), eq(UserHandle.USER_SYSTEM))).thenReturn(false);
+        when(mUserManager.hasUserRestriction(
+                eq(DISALLOW_DEBUGGING_FEATURES), any(UserHandle.class))).thenReturn(false);
+
+        // WHEN checking if the ADB_ENABLED setting is restricted
+        boolean isRestricted = UserRestrictionsUtils.isSettingRestrictedForUser(mContext,
+                Settings.Global.ADB_ENABLED, TEST_USER_ID, "1", Process.SYSTEM_UID,
+                UserHandle.USER_SYSTEM);
+
+        // THEN the setting should not be restricted
+        expect.that(isRestricted).isFalse();
     }
 }

@@ -94,7 +94,7 @@ impl NetlinkKObjectUEventSocket {
 #[async_trait]
 pub trait AsyncUEventSocket: Send + Sync {
     /// Waits for data from netlink socket and returns parsed uevent from read data.
-    async fn read(&self) -> Result<kobject_uevent::UEvent>;
+    async fn read(&mut self) -> Result<kobject_uevent::UEvent>;
 }
 
 /// Asynchronous implementation of uevent socket listener.
@@ -114,7 +114,7 @@ impl AsyncNetlinkKObjectUEventSocket {
 #[async_trait]
 impl AsyncUEventSocket for AsyncNetlinkKObjectUEventSocket {
     /// Waits for data from netlink socket and returns parsed uevent from read data.
-    async fn read(&self) -> Result<kobject_uevent::UEvent> {
+    async fn read(&mut self) -> Result<kobject_uevent::UEvent> {
         let mut buffer = [0u8; UEVENT_BUF_SIZE];
 
         loop {

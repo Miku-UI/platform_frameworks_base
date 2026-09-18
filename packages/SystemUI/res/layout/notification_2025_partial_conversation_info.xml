@@ -66,6 +66,15 @@
                 android:textDirection="locale"
                 android:text="@string/notification_delegate_header"
                 android:maxLines="1" />
+            <TextView
+                android:id="@+id/summarized_by"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.NotificationImportanceHeader"
+                android:ellipsize="end"
+                android:textDirection="locale"
+                android:visibility="gone"
+                android:maxLines="1" />
 
         </LinearLayout>
 
@@ -81,7 +90,7 @@
             android:contentDescription="@string/notification_guts_bundle_feedback"
             android:src="@*android:drawable/ic_feedback"
             android:layout_toStartOf="@id/info"
-            android:tint="@androidprv:color/materialColorPrimary"/>
+            android:tint="@color/materialColorPrimary"/>
         <ImageButton
             android:id="@+id/info"
             android:layout_width="@dimen/notification_2025_guts_button_size"
@@ -110,7 +119,7 @@
             android:padding="@dimen/notification_importance_button_padding"
             android:clickable="true"
             android:focusable="true"
-            android:background="@drawable/notification_guts_priority_button_bg"
+            android:background="@drawable/notification_2025_guts_priority_button_bg"
             android:orientation="vertical">
 
             <LinearLayout
@@ -125,7 +134,7 @@
                     android:layout_width="wrap_content"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_info"
-                    android:tint="?android:attr/textColorPrimary"
+                    android:tint="@color/materialColorOnSurface"
                     android:layout_marginEnd="8dp"/>
                 <TextView
                     android:id="@+id/non_configurable_text"

@@ -32,6 +32,7 @@ import android.app.Dialog;
 import android.app.DirectAction;
 import android.app.Instrumentation;
 import android.app.VoiceInteractor;
+import android.app.appfunctions.AppFunctionActivityId;
 import android.app.assist.AssistContent;
 import android.app.assist.AssistStructure;
 import android.content.ComponentCallbacks2;
@@ -152,6 +153,17 @@ public class VoiceInteractionSession implements KeyEvent.Callback, ComponentCall
      * from an Android automotive system UI.
      */
     public static final int SHOW_SOURCE_AUTOMOTIVE_SYSTEM_UI = 1 << 7;
+
+    /**
+     * Flag received in {@link #onShow}: originator requested that the session be started with
+     * included screen content in the AssistStructure.
+     *
+     * NOTE: This flag must be passed along with {@link SHOW_WITH_ASSIST} or it will have no effect,
+     * as the new session will not receive any assist data, and thus no {@link AssistStructure}
+     * will be included.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES)
+    public static final int SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT = 1 << 8;
 
     /** @hide */
     public static final int VOICE_INTERACTION_ACTIVITY_EVENT_START = 1;
@@ -1841,7 +1853,7 @@ public class VoiceInteractionSession implements KeyEvent.Callback, ComponentCall
      *     <li>
      *         {@link #KEY_FOREGROUND_ACTIVITIES} provides foreground activities of up coming
      *         onHandleAssist/onHandleScreenshot calls earlier. This is only populated if session
-     *         was requested with {@link VoiceInteractionSession.SHOW_WITH_ASSIST} show flag.
+     *         was requested with {@link VoiceInteractionSession#SHOW_WITH_ASSIST} show flag.
      *     </li>
      *     <li>
      *         Starting from Android 14, the system will add {@link #KEY_SHOW_SESSION_ID}, the
@@ -2229,6 +2241,23 @@ public class VoiceInteractionSession implements KeyEvent.Callback, ComponentCall
 
         mHandlerCaller.sendMessage(
                 mHandlerCaller.obtainMessageO(MSG_UNREGISTER_VISIBLE_ACTIVITY_CALLBACK, callback));
+    }
+
+    /**
+     * Converts a {@link ActivityId} to an {@link AppFunctionActivityId}.
+     *
+     * <p>The resulting {@link AppFunctionActivityId} will equal an element of {@link
+     * android.app.appfunctions.AppFunctionState#getActivityIds} if they reference the same {@link
+     * android.app.Activity} instance.
+     *
+     * @param activityId The {@link ActivityId} to convert.
+     * @return The converted {@link AppFunctionActivityId}.
+     */
+    @FlaggedApi(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
+    @NonNull
+    public AppFunctionActivityId getAppFunctionActivityId(@NonNull ActivityId activityId) {
+        Objects.requireNonNull(activityId);
+        return new AppFunctionActivityId(activityId.getAssistToken());
     }
 
     /**

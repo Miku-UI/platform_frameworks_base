@@ -30,6 +30,7 @@ import android.text.InputType;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.method.TextKeyListener;
+import android.uilatencystats.UiLatencyStatsManager;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -58,6 +59,7 @@ import com.android.systemui.util.concurrency.DelayableExecutor;
 import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
 import java.util.List;
+import java.util.Optional;
 
 public class KeyguardPasswordViewController
         extends KeyguardAbsKeyInputViewController<KeyguardPasswordView> {
@@ -139,12 +141,14 @@ public class KeyguardPasswordViewController
             KeyguardKeyboardInteractor keyguardKeyboardInteractor,
             BouncerHapticPlayer bouncerHapticPlayer,
             UserActivityNotifier userActivityNotifier,
-            LockPatternCheckerWrapper lockPatternCheckerWrapper
+            LockPatternCheckerWrapper lockPatternCheckerWrapper,
+            Optional<UiLatencyStatsManager> uiLatencyStatsManager
     ) {
         super(view, keyguardUpdateMonitor, securityMode, lockPatternUtils, keyguardSecurityCallback,
                 messageAreaControllerFactory, latencyTracker, falsingCollector,
                 emergencyButtonController, featureFlags, selectedUserInteractor,
-                bouncerHapticPlayer, userActivityNotifier, lockPatternCheckerWrapper);
+                bouncerHapticPlayer, userActivityNotifier, lockPatternCheckerWrapper,
+                uiLatencyStatsManager);
         mKeyguardSecurityCallback = keyguardSecurityCallback;
         mInputMethodManager = inputMethodManager;
         mPostureController = postureController;
@@ -207,12 +211,15 @@ public class KeyguardPasswordViewController
             }
         });
 
-        mSwitchImeButton.setOnClickListener(v -> {
-            mKeyguardSecurityCallback.userActivity(); // Leave the screen on a bit longer
-            // Do not show auxiliary subtypes in password lock screen.
-            mInputMethodManager.showInputMethodPickerFromSystem(false,
-                    mView.getContext().getDisplayId());
-        });
+        mSwitchImeButton.setOnClickListener(
+                v -> {
+                    mKeyguardSecurityCallback.userActivity(); // Leave the screen on a bit longer
+                    // Do not show auxiliary subtypes in password lock screen.
+                    mInputMethodManager.showInputMethodPickerFromSystem(
+                            false /* showAuxiliarySubtypes */,
+                            InputMethodManager.IM_PICKER_ENTRY_POINT_DEFAULT,
+                            mView.getContext().getDisplayId());
+                });
 
         View cancelBtn = mView.findViewById(R.id.cancel_button);
         if (cancelBtn != null) {

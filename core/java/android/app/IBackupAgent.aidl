@@ -1,35 +1,36 @@
 /*
  * Copyright 2009, The Android Open Source Project
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); 
- * you may not use this file except in compliance with the License. 
- * You may obtain a copy of the License at 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0 
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, 
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- * See the License for the specific language governing permissions and 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
 package android.app;
 
 import android.app.backup.BackupRestoreEventLogger;
+import android.app.backup.DelayedRestoreRequest;
 import android.app.backup.IBackupCallback;
 import android.app.backup.IBackupManager;
 import android.os.ParcelFileDescriptor;
 
 import com.android.internal.infra.AndroidFuture;
- 
+
 /**
  * Interface presented by applications being asked to participate in the
  * backup & restore mechanism.  End user code will not typically implement
  * this interface directly; they subclass BackupAgent instead.
  *
  * @hide
- */ 
+ */
 oneway interface IBackupAgent {
     /**
      * Request that the app perform an incremental backup.
@@ -226,4 +227,57 @@ oneway interface IBackupAgent {
      * Clears the logs accumulated by the BackupAgent during a backup or restore operation.
      */
     void clearBackupRestoreEventLogger();
+
+    /**
+     * Callback for a delayed K/V restore when a requested trigger has been met.
+     *
+     * This method should fetch any cached data, invoke the agent's onDelayedRestore callback,
+     * and ensure the operation completion is reported to the callbackBinder.
+     *
+     * @param request The {@link DelayedRestoreRequest} event requested by this agent that has now
+     *               been fulfilled to trigger the callback
+     * @param newState The {@link ParcelFileDescriptor} containing the new state of the app after
+     *                 the delayed restore operation (for K/V backups)
+     * @param callbackBinder Binder on which to indicate operation completion,
+     *        passed here as a convenience to the agent.
+     * @param appVersionCode The android:versionCode attribute of the application
+     *        that created this data set.  This can help the agent distinguish among
+     *        various historical backup content possibilities.
+     * @param token Opaque token identifying this transaction.  This must
+     *        be echoed back to the backup service binder once the agent is
+     *        finished restoring the application based on the restore data
+     *        contents.
+     */
+    void doDelayedRestore(in DelayedRestoreRequest request, in ParcelFileDescriptor newState,
+            IBackupManager callbackBinder, long appVersionCode, int token);
+
+    /**
+     * Clears cached key-value backup data that was stored for delayed restore.
+     *
+     * This method is called by the Android Backup system when the TTL (time to live) of the cache
+     * expires, which is defined in
+     * {@link com.android.server.backup.BackupManagerConstants#DELAYED_RESTORE_CACHE_TTL_MILLIS}.
+     *
+     * @param token The token of the restore session to clear cached data for.
+     * @param callbackBinder Binder on which to indicate operation completion.
+     */
+    void doDelayedRestoreCachedDataExpired(int token, IBackupManager callbackBinder);
+
+    /**
+     * Callback for a delayed full restore when a requested trigger has been met.
+     *
+     * This method should invoke the agent's onDelayedFullRestore callback and report
+     * operation completion to the callbackBinder. No data stream is provided for this operation.
+     *
+     * @param request The {@link DelayedRestoreRequest} event requested by this agent that has now
+     *               been fulfilled to trigger the callback
+     * @param callbackBinder Binder on which to indicate operation completion,
+     *        passed here as a convenience to the agent.
+     * @param token Opaque token identifying this transaction.  This must
+     *        be echoed back to the backup service binder once the agent is
+     *        finished restoring the application based on the restore data
+     *        contents.
+     */
+    void doDelayedFullRestore(in DelayedRestoreRequest request, IBackupManager callbackBinder,
+            int token);
 }

@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-import static android.view.HapticFeedbackConstants.CLOCK_TICK;
-
 import static com.android.systemui.SwipeHelper.SWIPED_FAR_ENOUGH_SIZE_FRACTION;
 
 import android.animation.Animator;
@@ -52,10 +49,8 @@ import com.android.systemui.plugins.statusbar.NotificationMenuRowPlugin;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.AlphaOptimizedImageView;
 import com.android.systemui.statusbar.notification.NotificationActivityStarter;
-import com.android.systemui.statusbar.notification.collection.NotificationClassificationUiFlag;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
 import com.android.systemui.statusbar.notification.row.NotificationGuts.GutsContent;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout;
 
 import kotlin.Unit;
@@ -87,7 +82,6 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
     private Context mContext;
     private FrameLayout mMenuContainer;
     private NotificationMenuItem mInfoItem;
-    private MenuItem mFeedbackItem;
     private MenuItem mSnoozeItem;
     private ArrayList<MenuItem> mLeftMenuItems;
     private ArrayList<MenuItem> mRightMenuItems;
@@ -150,11 +144,6 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
     @Override
     public MenuItem getLongpressMenuItem(Context context) {
         return mInfoItem;
-    }
-
-    @Override
-    public MenuItem getFeedbackMenuItem(Context context) {
-        return mFeedbackItem;
     }
 
     @Override
@@ -277,30 +266,19 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
             // Only show snooze for non-foreground notifications, and if the setting is on
             mSnoozeItem = createSnoozeItem(mContext);
         }
-        mFeedbackItem = createFeedbackItem(mContext);
-        int personNotifType = NotificationBundleUi.isEnabled()
-                ? mParent.getEntryAdapter().getPeopleNotificationType()
-                : mPeopleNotificationIdentifier.getPeopleNotificationType(mParent.getEntryLegacy());
-        StatusBarNotification sbn = NotificationBundleUi.isEnabled()
-                ? mParent.getEntryAdapter().getSbn()
-                : mParent.getEntryLegacy().getSbn();
-        NotificationListenerService.Ranking ranking = NotificationBundleUi.isEnabled()
-                ? mParent.getEntryAdapter().getRanking()
-                : mParent.getEntryLegacy().getRanking();
-        boolean isBundled = NotificationBundleUi.isEnabled()
-                ? mParent.getEntryAdapter().isBundled()
-                : mParent.getEntryLegacy().isBundled();
-        if (personNotifType == PeopleNotificationIdentifier.TYPE_PERSON) {
+        int personNotifType = mParent.getEntryAdapter().getPeopleNotificationType();
+        StatusBarNotification sbn = mParent.getEntryAdapter().getSbn();
+        boolean isBundled = mParent.getEntryAdapter().isBundled();
+        if (android.app.Flags.bridgedNotifications()
+                && sbn != null && sbn.getNotification().getBridgedNotificationMetadata() != null) {
+            mInfoItem = createBridgedNotificationItem(mContext);
+        } else if (personNotifType == PeopleNotificationIdentifier.TYPE_PERSON) {
             mInfoItem = createPartialConversationItem(mContext);
         } else if (personNotifType >= PeopleNotificationIdentifier.TYPE_FULL_PERSON) {
             mInfoItem = createConversationItem(mContext);
-        } else if (android.app.Flags.uiRichOngoing()
-                && android.app.Flags.apiRichOngoing()
-                && Flags.permissionHelperUiRichOngoing()
-                && (sbn != null && sbn.getNotification().isPromotedOngoing())) {
+        } else if (sbn != null && sbn.getNotification().isPromotedOngoing()) {
             mInfoItem = createPromotedItem(mContext);
-        } else if ((NotificationClassificationUiFlag.isEnabled()
-                || NotificationBundleUi.isEnabled()) && isBundled) {
+        } else if (isBundled) {
             mInfoItem = createBundledInfoItem(mContext);
         } else if (mParent.isBundle()) {
             mInfoItem = createBundleHeaderInfoItem();
@@ -312,12 +290,8 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
             mRightMenuItems.add(mSnoozeItem);
         }
         mRightMenuItems.add(mInfoItem);
-        mRightMenuItems.add(mFeedbackItem);
-        boolean isPromotedOngoing = NotificationBundleUi.isEnabled()
-                ? mParent.getEntryAdapter().isPromotedOngoing()
-                : mParent.getEntryLegacy().isPromotedOngoing();
-        if (android.app.Flags.uiRichOngoing() && Flags.permissionHelperInlineUiRichOngoing()
-                && isPromotedOngoing) {
+        boolean isPromotedOngoing = mParent.getEntryAdapter().isPromotedOngoing();
+        if (Flags.permissionHelperInlineUiRichOngoing() && isPromotedOngoing) {
             mRightMenuItems.add(createDemoteItem(mContext));
         }
 
@@ -397,13 +371,7 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
         }
         if (canBeDismissed()) {
             final float dismissThreshold = getDismissThreshold();
-            final boolean snappingToDismiss = delta < -dismissThreshold || delta > dismissThreshold;
-            if (mSnappingToDismiss != snappingToDismiss) {
-                if (!Flags.magneticNotificationSwipes()) {
-                    getMenuView().performHapticFeedback(CLOCK_TICK);
-                }
-            }
-            mSnappingToDismiss = snappingToDismiss;
+            mSnappingToDismiss = delta < -dismissThreshold || delta > dismissThreshold;
         }
     }
 
@@ -740,9 +708,7 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
     static NotificationMenuItem createConversationItem(Context context) {
         Resources res = context.getResources();
         String infoDescription = res.getString(R.string.notification_menu_gear_description);
-        int layoutId = notificationsRedesignTemplates()
-                ? R.layout.notification_2025_conversation_info
-                : R.layout.notification_conversation_info;
+        int layoutId = R.layout.notification_2025_conversation_info;
         NotificationConversationInfo infoContent =
                 (NotificationConversationInfo) LayoutInflater.from(context).inflate(
                         layoutId, null, false);
@@ -763,9 +729,7 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
     static NotificationMenuItem createPartialConversationItem(Context context) {
         Resources res = context.getResources();
         String infoDescription = res.getString(R.string.notification_menu_gear_description);
-        int layoutId = notificationsRedesignTemplates()
-                ? R.layout.notification_2025_partial_conversation_info
-                : R.layout.partial_conversation_info;
+        int layoutId = R.layout.notification_2025_partial_conversation_info;
         PartialConversationInfo infoContent =
                 (PartialConversationInfo) LayoutInflater.from(context).inflate(
                         layoutId, null, false);
@@ -840,24 +804,25 @@ public class NotificationMenuRow implements NotificationMenuRowPlugin, View.OnCl
         mNotificationActivityStarter.startNotificationGutsIntent(intent, appUid, row);
     }
 
-    static NotificationMenuItem createInfoItem(Context context) {
+    private NotificationMenuItem createBridgedNotificationItem(Context context) {
         Resources res = context.getResources();
         String infoDescription = res.getString(R.string.notification_menu_gear_description);
-        int layoutId = notificationsRedesignTemplates()
-                ? R.layout.notification_2025_info
-                : R.layout.notification_info;
-        NotificationInfo infoContent = (NotificationInfo) LayoutInflater.from(context).inflate(
-                layoutId, null, false);
+        int layoutId = R.layout.notification_bridged_info;
+        BridgedNotificationInfo infoContent =
+                (BridgedNotificationInfo) LayoutInflater.from(context).inflate(
+                        layoutId, null, false);
         return new NotificationMenuItem(context, infoDescription, infoContent,
                 NotificationMenuItem.OMIT_FROM_SWIPE_MENU);
     }
 
-    static MenuItem createFeedbackItem(Context context) {
-        FeedbackInfo feedbackContent = (FeedbackInfo) LayoutInflater.from(context).inflate(
-                R.layout.feedback_info, null, false);
-        MenuItem info = new NotificationMenuItem(context, null, feedbackContent,
+    static NotificationMenuItem createInfoItem(Context context) {
+        Resources res = context.getResources();
+        String infoDescription = res.getString(R.string.notification_menu_gear_description);
+        int layoutId = R.layout.notification_2025_info;
+        NotificationInfo infoContent = (NotificationInfo) LayoutInflater.from(context).inflate(
+                layoutId, null, false);
+        return new NotificationMenuItem(context, infoDescription, infoContent,
                 NotificationMenuItem.OMIT_FROM_SWIPE_MENU);
-        return info;
     }
 
     private void addMenuView(MenuItem item, ViewGroup parent) {

@@ -57,7 +57,8 @@ interface IBiometricService {
 
     // Checks if biometrics can be used.
     @EnforcePermission("USE_BIOMETRIC_INTERNAL")
-    int canAuthenticate(String opPackageName, int userId, int callingUserId, int authenticators);
+    int canAuthenticate(String opPackageName, int userId, int callingUserId, int authenticators,
+            int displayId);
 
     // Gets the time of last authentication for the given user and authenticators.
     @EnforcePermission("USE_BIOMETRIC_INTERNAL")
@@ -117,7 +118,8 @@ interface IBiometricService {
 
     // Returns a bit field of the modality (or modalities) that are will be used for authentication.
     @EnforcePermission("USE_BIOMETRIC_INTERNAL")
-    int getCurrentModality(String opPackageName, int userId, int callingUserId, int authenticators);
+    int getCurrentModality(String opPackageName, int userId, int callingUserId, int authenticators,
+            int displayId);
 
     // Returns a bit field of the authentication modalities that are supported by this device.
     @EnforcePermission("USE_BIOMETRIC_INTERNAL")

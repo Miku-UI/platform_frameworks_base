@@ -88,6 +88,9 @@ interface HeadsUpManager : Dumpable {
      */
     fun hasNotifications(): Boolean = false
 
+    /** Returns if HeadsUpManager tracks a different NotificationEntry instance for same key. */
+    fun hasMismatchedEntry(entry: NotificationEntry): Boolean
+
     /** Returns whether there are any pinned Heads Up Notifications or not. */
     fun hasPinnedHeadsUp(): Boolean
 
@@ -99,6 +102,9 @@ interface HeadsUpManager : Dumpable {
 
     /** Returns whether or not the given notification is managed by this manager. */
     fun isHeadsUpEntry(key: String): Boolean
+
+    /** Returns whether or not the given notification was pinned by the user. */
+    fun isPinnedByUser(key: String): Boolean
 
     /** @see setHeadsUpAnimatingAway */
     fun isHeadsUpAnimatingAwayValue(): Boolean
@@ -149,7 +155,7 @@ interface HeadsUpManager : Dumpable {
     ): Boolean
 
     /** Clears all managed notifications. */
-    fun releaseAllImmediately()
+    fun releaseAllImmediately(reason: String)
 
     fun setAnimationStateHandler(handler: AnimationStateHandler)
 
@@ -160,16 +166,13 @@ interface HeadsUpManager : Dumpable {
     fun setExpanded(key: String, row: ExpandableNotificationRow, expanded: Boolean)
 
     /**
-     * Set an entry to be expanded and therefore stick in the heads up area if it's pinned until
-     * it's collapsed again.
-     */
-    fun setExpanded(entry: NotificationEntry, expanded: Boolean)
-
-    /**
      * Sets whether an entry's guts are exposed and therefore it should stick in the heads up area
      * if it's pinned until it's hidden again.
      */
     fun setGutsShown(entry: NotificationEntry, gutsShown: Boolean)
+
+    /** Sets whether the auto-dismiss timer for a heads-up notification is paused. */
+    fun setHeadsUpDismissTimerPaused(entryKey: String, paused: Boolean)
 
     /**
      * Set that we are exiting the headsUp pinned mode, but some notifications might still be
@@ -219,10 +222,10 @@ interface HeadsUpManager : Dumpable {
      * the notification to be managed.
      *
      * @param entry entry to show
-     * @param isPinnedByUser true if the notification was pinned by the user and false if the
-     *   notification was pinned by the system.
+     * @param isFromUserOpenAction true if the notification being pinned is a request from the user
+     *   or false if it's a result of the system handling some notification update.
      */
-    fun showNotification(entry: NotificationEntry, isPinnedByUser: Boolean = false)
+    fun showNotification(entry: NotificationEntry, isFromUserOpenAction: Boolean = false)
 
     fun snooze()
 
@@ -231,7 +234,7 @@ interface HeadsUpManager : Dumpable {
      *
      * @param userUnPinned The unpinned action is trigger by user real operation.
      */
-    fun unpinAll(userUnPinned: Boolean)
+    fun unpinAll(userUnPinned: Boolean, reason: String)
 
     /**
      * Called when the notification state has been updated.
@@ -285,11 +288,15 @@ class HeadsUpManagerEmptyImpl @Inject constructor() : HeadsUpManager {
 
     override fun getTopEntry() = null
 
+    override fun hasMismatchedEntry(entry: NotificationEntry) = false
+
     override fun hasPinnedHeadsUp() = false
 
     override fun pinnedHeadsUpStatus() = PinnedStatus.NotPinned
 
     override fun isHeadsUpEntry(key: String) = false
+
+    override fun isPinnedByUser(key: String) = false
 
     override fun isHeadsUpAnimatingAwayValue() = false
 
@@ -301,7 +308,7 @@ class HeadsUpManagerEmptyImpl @Inject constructor() : HeadsUpManager {
 
     override fun onExpandingFinished() {}
 
-    override fun releaseAllImmediately() {}
+    override fun releaseAllImmediately(reason: String) {}
 
     override fun removeListener(listener: OnHeadsUpChangedListener) {}
 
@@ -319,9 +326,9 @@ class HeadsUpManagerEmptyImpl @Inject constructor() : HeadsUpManager {
 
     override fun setExpanded(key: String, row: ExpandableNotificationRow, expanded: Boolean) {}
 
-    override fun setExpanded(entry: NotificationEntry, expanded: Boolean) {}
-
     override fun setGutsShown(entry: NotificationEntry, gutsShown: Boolean) {}
+
+    override fun setHeadsUpDismissTimerPaused(entryKey: String, paused: Boolean) {}
 
     override fun setHeadsUpAnimatingAway(headsUpAnimatingAway: Boolean) {}
 
@@ -339,7 +346,7 @@ class HeadsUpManagerEmptyImpl @Inject constructor() : HeadsUpManager {
 
     override fun snooze() {}
 
-    override fun unpinAll(userUnPinned: Boolean) {}
+    override fun unpinAll(userUnPinned: Boolean, reason: String) {}
 
     override fun updateNotification(key: String, requestedPinnedStatus: PinnedStatus) {}
 

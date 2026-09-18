@@ -47,12 +47,12 @@ import android.window.TransitionInfo;
 import android.window.TransitionRequestInfo;
 import android.window.WindowContainerTransaction;
 
+import com.android.testing.wm.util.TransitionInfoBuilder;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestSyncExecutor;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.shared.TransactionPool;
 import com.android.wm.shell.sysui.ShellInit;
-import com.android.wm.shell.transition.TransitionInfoBuilder;
 import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.transition.Transitions.TransitionFinishCallback;
 import com.android.wm.shell.unfold.animation.FullscreenUnfoldTaskAnimator;
@@ -99,7 +99,7 @@ public class UnfoldTransitionHandlerTest extends ShellTestCase {
                 shellInit,
                 mShellUnfoldProgressProvider,
                 mFullscreenUnfoldTaskAnimator,
-                mSplitTaskUnfoldAnimator,
+                Optional.of(mSplitTaskUnfoldAnimator),
                 mTransactionPool,
                 executor,
                 mHandler,
@@ -118,8 +118,10 @@ public class UnfoldTransitionHandlerTest extends ShellTestCase {
                 .setPhysicalDisplayChanged(true)
                 .setStartAbsBounds(new Rect(0, 0, 100, 100))
                 .setEndAbsBounds(new Rect(0, 0, 200, 200));
+        final List<TransitionRequestInfo.DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(displayChange);
         TransitionRequestInfo requestInfo = new TransitionRequestInfo(TRANSIT_CHANGE,
-                triggerTaskInfo, /* remoteTransition= */ null, displayChange, 0 /* flags */);
+                triggerTaskInfo, /* remoteTransition= */ null, displayChanges, 0 /* flags */);
 
         WindowContainerTransaction result = mUnfoldTransitionHandler.handleRequest(mTransition,
                 requestInfo);
@@ -135,8 +137,10 @@ public class UnfoldTransitionHandlerTest extends ShellTestCase {
                 .setPhysicalDisplayChanged(true)
                 .setStartAbsBounds(new Rect(0, 0, 200, 200))
                 .setEndAbsBounds(new Rect(0, 0, 100, 100));
+        final List<TransitionRequestInfo.DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(displayChange);
         TransitionRequestInfo requestInfo = new TransitionRequestInfo(TRANSIT_CHANGE,
-                triggerTaskInfo, /* remoteTransition= */ null, displayChange, 0 /* flags */);
+                triggerTaskInfo, /* remoteTransition= */ null, displayChanges, 0 /* flags */);
 
         WindowContainerTransaction result = mUnfoldTransitionHandler.handleRequest(mTransition,
                 requestInfo);
@@ -149,8 +153,10 @@ public class UnfoldTransitionHandlerTest extends ShellTestCase {
         ActivityManager.RunningTaskInfo triggerTaskInfo = new ActivityManager.RunningTaskInfo();
         TransitionRequestInfo.DisplayChange displayChange = new TransitionRequestInfo.DisplayChange(
                 Display.DEFAULT_DISPLAY).setPhysicalDisplayChanged(false);
+        final List<TransitionRequestInfo.DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(displayChange);
         TransitionRequestInfo requestInfo = new TransitionRequestInfo(TRANSIT_CHANGE,
-                triggerTaskInfo, /* remoteTransition= */ null, displayChange, 0 /* flags */);
+                triggerTaskInfo, /* remoteTransition= */ null, displayChanges, 0 /* flags */);
 
         WindowContainerTransaction result = mUnfoldTransitionHandler.handleRequest(mTransition,
                 requestInfo);
@@ -398,8 +404,10 @@ public class UnfoldTransitionHandlerTest extends ShellTestCase {
                 .setPhysicalDisplayChanged(true)
                 .setStartAbsBounds(new Rect(0, 0, 100, 100))
                 .setEndAbsBounds(new Rect(0, 0, 200, 200));
+        final List<TransitionRequestInfo.DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(displayChange);
         return new TransitionRequestInfo(TRANSIT_CHANGE,
-                triggerTaskInfo, /* remoteTransition= */ null, displayChange, 0 /* flags */);
+                triggerTaskInfo, /* remoteTransition= */ null, displayChanges, 0 /* flags */);
     }
 
     private TransitionInfo createFoldTransitionInfo() {

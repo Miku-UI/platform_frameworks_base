@@ -24,21 +24,18 @@ import androidx.compose.ui.geometry.Offset
  * the buttons to its left and right).
  */
 sealed interface MediaNavigationViewModel {
+    /** The action button to the left of the seek bar. */
+    val left: MediaSecondaryActionViewModel
+    /** The action button to the right of the seek bar. */
+    val right: MediaSecondaryActionViewModel
 
     /** The seek bar should be showing. */
     data class Showing(
         /** The progress to show on the seek bar, between `0` and `1`. */
         @FloatRange(from = 0.0, to = 1.0) val progress: Float,
-        /**
-         * The action button to the left of the seek bar; or `null` if it should be absent in the
-         * UI.
-         */
-        val left: MediaSecondaryActionViewModel,
-        /**
-         * The action button to the right of the seek bar; or `null` if it should be absent in the
-         * UI.
-         */
-        val right: MediaSecondaryActionViewModel,
+        override val left: MediaSecondaryActionViewModel,
+        override val right: MediaSecondaryActionViewModel,
+
         /**
          * Whether the portion of the seek bar track before the thumb should show the squiggle
          * animation.
@@ -52,18 +49,25 @@ sealed interface MediaNavigationViewModel {
         /**
          * A callback to invoke while the user is "scrubbing" (e.g. actively moving the thumb of the
          * seek bar). The position/progress of the actual track should not be changed during this
-         * time.
+         * time. If null, scrubbing is not allowed.
          */
-        val onScrubChange: (progress: Float) -> Unit,
+        val onScrubChange: ((progress: Float) -> Unit)?,
         /**
          * A callback to invoke once the user finishes "scrubbing" (e.g. stopped moving the thumb of
          * the seek bar). The position/progress should be committed.
          */
-        val onScrubFinished: (delta: Offset) -> Unit,
+        val onScrubFinished: ((delta: Offset, isVelocityValid: Boolean) -> Unit)?,
         /** Accessibility string to attach to the seekbar UI element. */
         val contentDescription: String,
+        /** User-facing string for the media duration */
+        val durationText: String,
+        /** User-facing string for the media progress time */
+        val progressText: String,
     ) : MediaNavigationViewModel
 
     /** The seek bar should be hidden. */
-    data object Hidden : MediaNavigationViewModel
+    data class Hidden(
+        override val left: MediaSecondaryActionViewModel,
+        override val right: MediaSecondaryActionViewModel,
+    ) : MediaNavigationViewModel
 }

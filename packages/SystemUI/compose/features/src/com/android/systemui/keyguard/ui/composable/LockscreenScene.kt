@@ -29,6 +29,7 @@ import com.android.systemui.keyguard.ui.viewmodel.LockscreenUserActionsViewModel
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.qs.shared.ui.QuickSettings
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.scene.shared.model.TransitionKeys.ToAlwaysOnDisplay
 import com.android.systemui.scene.ui.composable.Scene
 import dagger.Lazy
 import javax.inject.Inject
@@ -52,7 +53,7 @@ constructor(
 
     override val alwaysCompose: Boolean = false
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         actionsViewModel.activate()
     }
 
@@ -71,8 +72,16 @@ private fun ContentScope.LockscreenScene(
     lockscreenContent: Lazy<LockscreenContent>,
     modifier: Modifier = Modifier,
 ) {
+    val targetTilesSquishiness =
+        if (layoutState.currentTransition?.key == ToAlwaysOnDisplay) {
+            // When transitioning to AOD, avoid squishing the tiles. They should remain in place and
+            // fade out.
+            1f
+        } else {
+            QuickSettings.SharedValues.SquishinessValues.LockscreenSceneStarting
+        }
     animateContentFloatAsState(
-        value = QuickSettings.SharedValues.SquishinessValues.LockscreenSceneStarting,
+        value = targetTilesSquishiness,
         key = QuickSettings.SharedValues.TilesSquishiness,
     )
 

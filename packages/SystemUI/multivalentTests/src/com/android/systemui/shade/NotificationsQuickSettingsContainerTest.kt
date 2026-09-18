@@ -16,8 +16,6 @@
 
 package com.android.systemui.shade
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -25,8 +23,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.qs.QSFragmentLegacy
-import com.android.systemui.qs.flags.QSComposeFragment
+import com.android.systemui.qs.composefragment.QSFragmentCompose
 import com.android.systemui.res.R
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
@@ -43,7 +40,7 @@ class NotificationsQuickSettingsContainerTest : SysuiTestCase() {
     @Mock private lateinit var qsFrame: View
     @Mock private lateinit var stackScroller: View
     @Mock private lateinit var keyguardStatusBar: View
-    @Mock private lateinit var qsFragment: QSFragmentLegacy
+    @Mock private lateinit var qsFragment: QSFragmentCompose
 
     private lateinit var qsView: ViewGroup
     private lateinit var qsContainer: View
@@ -62,23 +59,7 @@ class NotificationsQuickSettingsContainerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(QSComposeFragment.FLAG_NAME)
-    fun qsContainerPaddingSetAgainAfterQsRecreated_flagOn() {
-        val padding = 100
-        underTest.setQSContainerPaddingBottom(padding)
-
-        assertThat(qsContainer.paddingBottom).isEqualTo(padding)
-
-        // We reset the padding before "creating" a new QSFragment
-        qsContainer.setPadding(0, 0, 0, 0)
-        underTest.onFragmentViewCreated("QS", qsFragment)
-
-        assertThat(qsContainer.paddingBottom).isEqualTo(padding)
-    }
-
-    @Test
-    @EnableFlags(QSComposeFragment.FLAG_NAME)
-    fun qsContainerPadding_notSetWhenFlagOff() {
+    fun qsContainerPadding_notSetDirectly() {
         val padding = 100
         underTest.setQSContainerPaddingBottom(padding)
 

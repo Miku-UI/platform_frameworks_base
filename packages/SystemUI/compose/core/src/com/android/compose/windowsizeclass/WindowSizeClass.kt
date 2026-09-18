@@ -24,8 +24,23 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.window.core.layout.WindowSizeClass
+import androidx.window.core.layout.addHeightDpBreakpoints
 import androidx.window.core.layout.computeWindowSizeClass
 import androidx.window.layout.WindowMetricsCalculator
+
+object AdditionalHeightBreakpoints {
+    const val HEIGHT_DP_LARGE_LOWER_BOUND: Int = WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND
+    const val HEIGHT_DP_EXTRA_LARGE_LOWER_BOUND: Int =
+        WindowSizeClass.WIDTH_DP_EXTRA_LARGE_LOWER_BOUND
+}
+
+private val BREAKPOINTS =
+    WindowSizeClass.BREAKPOINTS_V2.addHeightDpBreakpoints(
+        setOf(
+            AdditionalHeightBreakpoints.HEIGHT_DP_LARGE_LOWER_BOUND,
+            AdditionalHeightBreakpoints.HEIGHT_DP_EXTRA_LARGE_LOWER_BOUND,
+        )
+    )
 
 val LocalWindowSizeClass =
     staticCompositionLocalOf<WindowSizeClass> {
@@ -44,8 +59,5 @@ fun calculateWindowSizeClass(): WindowSizeClass {
     val context = LocalContext.current
     val metrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(context)
     val size = with(density) { metrics.bounds.toComposeRect().size.toDpSize() }
-    return WindowSizeClass.BREAKPOINTS_V2.computeWindowSizeClass(
-        size.width.value,
-        size.height.value,
-    )
+    return BREAKPOINTS.computeWindowSizeClass(size.width.value, size.height.value)
 }

@@ -16,13 +16,13 @@
 
 package com.android.systemui.qs.ui.viewmodel
 
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_SHADE_WINDOW_GOES_AROUND
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.display.data.repository.displayRepository
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
@@ -33,6 +33,7 @@ import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragmen
 import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -56,6 +57,7 @@ class QuickSettingsContainerViewModelTest : SysuiTestCase() {
     @Before
     fun setUp() {
         underTest.activateIn(testScope)
+        kosmos.setDisplayType(Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL)
     }
 
     @Test
@@ -97,10 +99,10 @@ class QuickSettingsContainerViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_SHADE_WINDOW_GOES_AROUND)
     fun isBrightnessSliderVisible_externalDisplay_isInvisible() =
         with(kosmos) {
             testScope.runTest {
+                setDisplayType(Display.DEFAULT_DISPLAY + 1, Display.TYPE_EXTERNAL)
                 fakeShadeDisplaysRepository.setPendingDisplayId(
                     Display.DEFAULT_DISPLAY + 1
                 ) // Not default.
@@ -108,4 +110,34 @@ class QuickSettingsContainerViewModelTest : SysuiTestCase() {
                 assertThat(underTest.isBrightnessSliderVisible).isFalse()
             }
         }
+
+    @Test
+    fun isBrightnessSliderVisible_defaultDisplay_internal_isVisible() =
+        with(kosmos) {
+            testScope.runTest {
+                setDisplayType(Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL)
+                fakeShadeDisplaysRepository.setPendingDisplayId(Display.DEFAULT_DISPLAY)
+
+                assertThat(underTest.isBrightnessSliderVisible).isTrue()
+            }
+        }
+
+    @Test
+    fun isBrightnessSliderVisible_defaultDisplay_external_isInvisible() =
+        with(kosmos) {
+            testScope.runTest {
+                setDisplayType(Display.DEFAULT_DISPLAY, Display.TYPE_EXTERNAL)
+                fakeShadeDisplaysRepository.setPendingDisplayId(Display.DEFAULT_DISPLAY)
+
+                assertThat(underTest.isBrightnessSliderVisible).isFalse()
+            }
+        }
+
+    private fun Kosmos.setDisplayType(displayId: Int, type: Int) {
+        runBlocking {
+            displayRepository.removeDisplay(displayId)
+            displayRepository.addDisplay(displayId, type = type)
+            displayRepository.emitDisplayChangeEvent(displayId)
+        }
+    }
 }

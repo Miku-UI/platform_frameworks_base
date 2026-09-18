@@ -27,7 +27,6 @@ import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import javax.inject.Inject;
 
@@ -43,19 +42,7 @@ public final class NotificationClicker implements View.OnClickListener {
     private final NotificationActivityStarter mNotificationActivityStarter;
 
     private ExpandableNotificationRow.OnDragSuccessListener mOnDragSuccessListener
-            = new ExpandableNotificationRow.OnDragSuccessListener() {
-        @Override
-        public void onDragSuccess(NotificationEntry entry) {
-            NotificationBundleUi.assertInLegacyMode();
-            mNotificationActivityStarter.onDragSuccess(entry);
-        }
-
-        @Override
-        public void onDragSuccess(EntryAdapter entryAdapter) {
-            NotificationBundleUi.isUnexpectedlyInLegacyMode();
-            entryAdapter.onDragSuccess();
-        }
-    };
+            = EntryAdapter::onDragSuccess;
 
     private NotificationClicker(
             NotificationClickerLogger logger,
@@ -102,11 +89,7 @@ public final class NotificationClicker implements View.OnClickListener {
         row.setJustClicked(true);
         DejankUtils.postAfterTraversal(() -> row.setJustClicked(false));
 
-        if (NotificationBundleUi.isEnabled()) {
-            row.getEntryAdapter().onEntryClicked(row);
-        } else {
-            mNotificationActivityStarter.onNotificationClicked(row.getEntryLegacy(), row);
-        }
+        row.getEntryAdapter().onEntryClicked(row);
     }
 
     private boolean isMenuVisible(ExpandableNotificationRow row) {
@@ -117,20 +100,12 @@ public final class NotificationClicker implements View.OnClickListener {
      * Attaches the click listener to the row if appropriate.
      */
     public void register(ExpandableNotificationRow row, StatusBarNotification sbn) {
-        boolean isBubble = NotificationBundleUi.isEnabled()
-                ? row.getEntryAdapter().isBubble()
-                : row.getEntryLegacy().isBubble();
+        boolean isBubble = row.getEntryAdapter().isBubble();
         Notification notification = sbn.getNotification();
         if (notification.contentIntent != null || notification.fullScreenIntent != null
                 || isBubble) {
-            if (NotificationBundleUi.isEnabled()) {
-                row.setBubbleClickListener(
-                        v -> row.getEntryAdapter().onNotificationBubbleIconClicked());
-            } else {
-                row.setBubbleClickListener(v ->
-                        mNotificationActivityStarter.onNotificationBubbleIconClicked(
-                                row.getEntryLegacy()));
-            }
+            row.setBubbleClickListener(
+                    v -> row.getEntryAdapter().onNotificationBubbleIconClicked());
             row.setOnClickListener(this);
             row.setOnDragSuccessListener(mOnDragSuccessListener);
         } else {

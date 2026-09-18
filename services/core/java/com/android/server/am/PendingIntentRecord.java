@@ -31,11 +31,12 @@ import static android.os.Process.SYSTEM_UID;
 
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
-import static com.android.window.flags.Flags.balCheckBroadcastWhenDispatched;
+import static com.android.window.flags.Flags.balDontAddBalTokenInSetAllowBgActivityStarts;
 
 import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.BackgroundStartPrivileges;
@@ -146,7 +147,7 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
         String[] allResolvedTypes;
         final int flags;
         final int hashCode;
-        final int userId;
+        final @CanBeCURRENT int userId;
 
         private static final int ODD_PRIME_NUMBER = 37;
 
@@ -315,7 +316,9 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
     void setAllowBgActivityStarts(IBinder token, int flags) {
         if (token == null) return;
         if ((flags & FLAG_ACTIVITY_SENDER) != 0) {
-            mAllowBgActivityStartsForActivitySender.add(token);
+            if (!balDontAddBalTokenInSetAllowBgActivityStarts()) {
+                mAllowBgActivityStartsForActivitySender.add(token);
+            }
         }
         if ((flags & FLAG_BROADCAST_SENDER) != 0) {
             mAllowBgActivityStartsForBroadcastSender.add(token);
@@ -756,8 +759,7 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
         }
         // temporarily allow receivers and services to open activities from background if the
         // PendingIntent.send() caller was foreground at the time of sendInner() call
-        if ((uid != callingUid || balCheckBroadcastWhenDispatched())
-                && controller.mAtmInternal.isUidForeground(callingUid)) {
+        if (controller.mAtmInternal.isUidForeground(callingUid)) {
             return getBackgroundStartPrivilegesAllowedByCaller(options, callingUid, null);
         }
         return BackgroundStartPrivileges.NONE;

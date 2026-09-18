@@ -20,7 +20,8 @@
     android:layout_height="wrap_content"
     style="@style/SettingsLibButtonPreferenceStyle"
     android:paddingVertical="@dimen/settingslib_expressive_space_extrasmall4"
-    android:filterTouchesWhenObscured="true">
+    android:filterTouchesWhenObscured="true"
+    android:importantForAccessibility="no">
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingslib_section_button"

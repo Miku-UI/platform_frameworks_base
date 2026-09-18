@@ -21,13 +21,24 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.statusbar.phone.ui.IconManager
+import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import kotlinx.coroutines.flow.Flow
 
 object HomeStatusBarIconBlockListBinder {
-    fun bind(view: View, iconManager: IconManager, iconList: Flow<List<String>>) {
+    fun bind(
+        view: View,
+        iconManager: IconManager,
+        iconList: Flow<List<String>>,
+        iconController: StatusBarIconController,
+    ) {
         view.repeatWhenAttached {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                iconList.collect { newBlockList -> iconManager.setBlockList(newBlockList) }
+            iconController.addIconGroup(iconManager)
+            try {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    iconList.collect { newBlockList -> iconManager.setBlockList(newBlockList) }
+                }
+            } finally {
+                iconController.removeIconGroup(iconManager)
             }
         }
     }

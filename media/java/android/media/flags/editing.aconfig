@@ -8,3 +8,10 @@ flag {
   description: "Add media metrics for transcoding/editing events."
   bug: "297487694"
 }
+
+flag {
+  name: "add_uid_to_media_metrics_editing"
+  namespace: "media_solutions"
+  description: "Add caller UID to media metrics for transcoding/editing events."
+  bug: "446822971"
+}

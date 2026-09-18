@@ -23,7 +23,6 @@
     android:clipChildren="false"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:theme="@style/Theme.DeviceDefault.Notification"
     android:importantForAccessibility="yes"
     android:accessibilityTraversalBefore="@+id/notification_main_column_container"
     >
@@ -66,7 +65,6 @@
         android:clipChildren="false"
         android:gravity="center_vertical"
         android:paddingStart="@dimen/notification_2025_content_margin_start"
-        android:theme="@style/Theme.DeviceDefault.Notification"
         >
 
         <include layout="@layout/notification_2025_top_line_views" />

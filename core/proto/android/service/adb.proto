@@ -36,4 +36,19 @@ message AdbDebuggingManagerProto {
     optional string user_keys = 3 [ (android.privacy).dest = DEST_LOCAL ];
     optional string system_keys = 4 [ (android.privacy).dest = DEST_LOCAL ];
     optional string keystore = 5 [ (android.privacy).dest = DEST_LOCAL ];
+    optional AdbWifiProto adb_wifi = 6;
+}
+
+message AdbWifiProto {
+    option (android.msg_privacy).dest = DEST_AUTOMATIC;
+
+    // whether user has wireless debugging toggle enabled or not.
+    optional bool enabled = 1;
+    // the current Wi-Fi network adb Wi-Fi is working on.
+    optional string network_bssid = 2 [ (android.privacy).dest = DEST_LOCAL ];
+    optional string network_ssid = 3 [ (android.privacy).dest = DEST_LOCAL ];
+    // to verify the auto-enable logic for trusted networks.
+    optional bool is_trusted_network = 4;
+    // set when tls server is connected, 0 otherwise.
+    optional int32 tls_port = 5;
 }

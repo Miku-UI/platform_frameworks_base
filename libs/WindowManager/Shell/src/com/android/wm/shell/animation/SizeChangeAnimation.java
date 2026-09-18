@@ -22,6 +22,7 @@ import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.annotation.Nullable;
 import android.graphics.Matrix;
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.view.Choreographer;
 import android.view.SurfaceControl;
@@ -60,13 +61,20 @@ public class SizeChangeAnimation {
     final float[] mTmpVecs = new float[4];
 
     private final Animation mAnimation;
-    private final Animation mSnapshotAnim;
+    private final @Nullable Animation mSnapshotAnim;
 
     private final ValueAnimator mAnimator = ValueAnimator.ofFloat(0f, 1f);
 
     /**
-     * The maximum of stretching applied to any surface during interpolation (since the animation
-     * is a combination of stretching/cropping/fading).
+     * Indicates if the animation end bounds collapse to a 0-width or 0-height rectangle.
+     *
+     * @see #isCollapsing(Rect)
+     */
+    private final boolean mIsCollapsing;
+
+    /**
+     * The default proportion of the animation in which stretching is applied to a surface during
+     * interpolation (since the animation is a combination of stretching/cropping/fading).
      */
     private static final float DEFAULT_SCALE_FACTOR = 0.7f;
 
@@ -98,11 +106,17 @@ public class SizeChangeAnimation {
      * start bounds. This can be useful for example when a task is scaled down when the size change
      * animation starts.
      * <p>
-     * By default the max scale applied to any surface is {@link #DEFAULT_SCALE_FACTOR}. Use
-     * {@code scaleFactor} to override it.
+     * By default the proportion of the animation in which we apply a scale interpolation on any
+     * surface is {@link #DEFAULT_SCALE_FACTOR}. Use {@code scaleFactor} to override it.
      */
     public SizeChangeAnimation(Rect startBounds, Rect endBounds, float initialScale,
             float scaleFactor) {
+        mIsCollapsing = isCollapsing(endBounds);
+        if (mIsCollapsing) {
+            mAnimation = buildCollapsingAnimation(startBounds, endBounds);
+            mSnapshotAnim = null;
+            return;
+        }
         mAnimation = buildContainerAnimation(startBounds, endBounds, initialScale, scaleFactor);
         mSnapshotAnim = buildSnapshotAnimation(startBounds, endBounds, scaleFactor);
     }
@@ -110,11 +124,17 @@ public class SizeChangeAnimation {
     /**
      * Initialize a size-change animation for a container leash.
      */
-    public void initialize(SurfaceControl leash, SurfaceControl snapshot,
+    public void initialize(SurfaceControl leash, @Nullable SurfaceControl snapshot,
             SurfaceControl.Transaction startT) {
-        startT.reparent(snapshot, leash);
-        startT.setPosition(snapshot, 0, 0);
-        startT.show(snapshot);
+        if (snapshot != null) {
+            startT.reparent(snapshot, leash);
+            startT.setPosition(snapshot, 0, 0);
+            if (mIsCollapsing) {
+                startT.hide(snapshot);
+            } else {
+                startT.show(snapshot);
+            }
+        }
         startT.show(leash);
         apply(startT, leash, snapshot, 0.f);
     }
@@ -122,22 +142,30 @@ public class SizeChangeAnimation {
     /**
      * Initialize a size-change animation for a view containing the leash surface(s).
      *
-     * Note that this **will** apply {@param startToApply}!
+     * Note that this **will** apply {@code startToApply}!
      */
-    public void initialize(View view, SurfaceControl leash, SurfaceControl snapshot,
+    public void initialize(View view, SurfaceControl leash, @Nullable SurfaceControl snapshot,
             SurfaceControl.Transaction startToApply) {
-        startToApply.reparent(snapshot, leash);
-        startToApply.setPosition(snapshot, 0, 0);
-        startToApply.show(snapshot);
+        if (snapshot != null) {
+            startToApply.reparent(snapshot, leash);
+            startToApply.setPosition(snapshot, 0, 0);
+            startToApply.show(snapshot);
+        }
         startToApply.show(leash);
         apply(view, startToApply, leash, snapshot, 0.f);
     }
 
+    public Animation getAnimation() {
+        return mAnimation;
+    }
+
     private ValueAnimator buildAnimatorInner(ValueAnimator.AnimatorUpdateListener updater,
-            SurfaceControl leash, SurfaceControl snapshot, Consumer<Animator> onFinish,
+            SurfaceControl leash, @Nullable SurfaceControl snapshot, Consumer<Animator> onFinish,
             SurfaceControl.Transaction transaction, @Nullable View view) {
         return setupValueAnimator(mAnimator, updater, (anim) -> {
-            transaction.reparent(snapshot, null);
+            if (snapshot != null) {
+                transaction.reparent(snapshot, null);
+            }
             if (view != null) {
                 view.setClipBounds(null);
                 view.setAnimationMatrix(null);
@@ -155,7 +183,7 @@ public class SizeChangeAnimation {
      *
      * @param onFinish Called when animation finishes. This is called on the anim thread!
      */
-    public ValueAnimator buildAnimator(SurfaceControl leash, SurfaceControl snapshot,
+    public ValueAnimator buildAnimator(SurfaceControl leash, @Nullable SurfaceControl snapshot,
             Consumer<Animator> onFinish) {
         final SurfaceControl.Transaction transaction = new SurfaceControl.Transaction();
         Choreographer choreographer = Choreographer.getInstance();
@@ -176,7 +204,7 @@ public class SizeChangeAnimation {
      * @param onFinish Called when animation finishes. This is called on the anim thread!
      */
     public ValueAnimator buildViewAnimator(View view, SurfaceControl leash,
-            SurfaceControl snapshot, Consumer<Animator> onFinish) {
+            @Nullable SurfaceControl snapshot, Consumer<Animator> onFinish) {
         final SurfaceControl.Transaction transaction = new SurfaceControl.Transaction();
         return buildAnimatorInner(animator -> {
             // The finish callback in buildSurfaceAnimation will ensure that the animation ends
@@ -193,15 +221,12 @@ public class SizeChangeAnimation {
         boolean growing = endBounds.width() - startBounds.width()
                 + endBounds.height() - startBounds.height() >= 0;
         long scalePeriod = (long) (duration * scaleFactor);
-        float startScaleX = scaleFactor * ((float) startBounds.width()) / endBounds.width()
-                + (1.f - scaleFactor);
-        float startScaleY = scaleFactor * ((float) startBounds.height()) / endBounds.height()
-                + (1.f - scaleFactor);
         final AnimationSet animSet = new AnimationSet(true);
         // Use a linear interpolator so the driving ValueAnimator sets the interpolation
         animSet.setInterpolator(Interpolators.LINEAR);
 
-        final Animation scaleAnim = new ScaleAnimation(startScaleX, 1, startScaleY, 1);
+        final PointF startScale = getStartScale(startBounds, endBounds, scaleFactor);
+        final Animation scaleAnim = new ScaleAnimation(startScale.x, 1, startScale.y, 1);
         scaleAnim.setDuration(scalePeriod);
         long scaleStartOffset = 0;
         if (!growing) {
@@ -222,6 +247,7 @@ public class SizeChangeAnimation {
                 endBounds.left, startBounds.top, endBounds.top);
         translateAnim.setDuration(duration);
         animSet.addAnimation(translateAnim);
+
         Rect startClip = new Rect(startBounds);
         startClip.scale(initialScale);
         Rect endClip = new Rect(endBounds);
@@ -230,6 +256,7 @@ public class SizeChangeAnimation {
         final Animation clipAnim = new ClipRectAnimation(startClip, endClip);
         clipAnim.setDuration(duration);
         animSet.addAnimation(clipAnim);
+
         animSet.initialize(startBounds.width(), startBounds.height(),
                 endBounds.width(), endBounds.height());
         return animSet;
@@ -242,10 +269,7 @@ public class SizeChangeAnimation {
         boolean growing = endBounds.width() - startBounds.width()
                 + endBounds.height() - startBounds.height() >= 0;
         long scalePeriod = (long) (duration * scaleFactor);
-        float endScaleX = 1.f / (scaleFactor * ((float) startBounds.width()) / endBounds.width()
-                + (1.f - scaleFactor));
-        float endScaleY = 1.f / (scaleFactor * ((float) startBounds.height()) / endBounds.height()
-                + (1.f - scaleFactor));
+        final PointF startScale = getStartScale(startBounds, endBounds, scaleFactor);
 
         AnimationSet snapAnimSet = new AnimationSet(true);
         // Use a linear interpolator so the driving ValueAnimator sets the interpolation
@@ -258,12 +282,50 @@ public class SizeChangeAnimation {
         }
         snapAnimSet.addAnimation(snapAlphaAnim);
         final Animation snapScaleAnim =
-                new ScaleAnimation(endScaleX, endScaleX, endScaleY, endScaleY);
+                new ScaleAnimation(
+                        1.0f / startScale.x, 1.0f / startScale.x,
+                        1.0f / startScale.y, 1.0f / startScale.y);
         snapScaleAnim.setDuration(duration);
         snapAnimSet.addAnimation(snapScaleAnim);
         snapAnimSet.initialize(startBounds.width(), startBounds.height(),
                 endBounds.width(), endBounds.height());
         return snapAnimSet;
+    }
+
+    /** Checks if it is animating a collapsing surface. */
+    private static boolean isCollapsing(Rect endBounds) {
+        return endBounds.width() == 0 || endBounds.height() == 0;
+    }
+
+    /** When collapsing a surface, instead of squizzing the shape, translates and center-crops. */
+    private static AnimationSet buildCollapsingAnimation(Rect startBounds, Rect endBounds) {
+        long duration = ANIMATION_RESOLUTION;
+        final AnimationSet animSet = new AnimationSet(true);
+        // Use a linear interpolator so the driving ValueAnimator sets the interpolation
+        animSet.setInterpolator(Interpolators.LINEAR);
+
+        final Animation translateAnim = new TranslateAnimation(
+                startBounds.left,
+                endBounds.left - (startBounds.width() - endBounds.width()) / 2f,
+                startBounds.top,
+                endBounds.top - (startBounds.height() - endBounds.height()) / 2f);
+        translateAnim.setDuration(duration);
+        animSet.addAnimation(translateAnim);
+
+        Rect startClip = new Rect(startBounds);
+        // Ensure non-degenerate clip rect
+        Rect endClip = new Rect(endBounds.left, endBounds.top, endBounds.right + 1,
+                endBounds.bottom + 1);
+        startClip.offsetTo(0, 0);
+        endClip.offsetTo((startBounds.width() - endBounds.width()) / 2,
+                (startBounds.height() - endBounds.height()) / 2);
+        final Animation clipAnim = new ClipRectAnimation(startClip, endClip);
+        clipAnim.setDuration(duration);
+        animSet.addAnimation(clipAnim);
+
+        animSet.initialize(startBounds.width(), startBounds.height(),
+                endBounds.width(), endBounds.height());
+        return animSet;
     }
 
     private void calcCurrentClipBounds(Rect outClip, Transformation fromTransform) {
@@ -282,13 +344,47 @@ public class SizeChangeAnimation {
         outClip.bottom = (int) (clipRect.bottom * mTmpVecs[3] + 0.5f);
     }
 
-    private void apply(SurfaceControl.Transaction t, SurfaceControl leash, SurfaceControl snapshot,
-            float progress) {
+    /**
+     * Convenience function to calculate {@link #getStartScale(int, int, float)} on two
+     * dimensions independently.
+     *
+     * This does not preserve aspect ratio.
+     */
+    private static PointF getStartScale(Rect startBounds, Rect endBounds, float scaleFactor) {
+        return new PointF(
+                getStartScale(startBounds.width(), endBounds.width(), scaleFactor),
+                getStartScale(startBounds.height(), endBounds.height(), scaleFactor));
+    }
+
+    /**
+     * Returns a scale to animate from relative to the new size of the container, if we are going
+     * to play only {@param scaleFactor} of the original animation.
+     *
+     * <p>For example, if {@code scaleFactor} is 0.7, meaning only 70% of the animation will play:
+     * <ul>
+     *   <li>If the size doubled, animate from 65% to 100% of the new size.
+     *   <li>If the size halved, animate from 170% to 100% of the new size.
+     * </ul>
+     */
+    private static float getStartScale(int start, int end, float scaleFactor) {
+        if (end == 0) {
+            // Avoids division by zero
+            return 1.0f;
+        } else {
+            float scale = start / (float) end;
+            return 1.f + scaleFactor * (scale - 1.0f);
+        }
+    }
+
+    private void apply(SurfaceControl.Transaction t, SurfaceControl leash,
+            @Nullable SurfaceControl snapshot, float progress) {
         long currentPlayTime = (long) (((float) ANIMATION_RESOLUTION) * progress);
         // update thumbnail surface
-        mSnapshotAnim.getTransformation(currentPlayTime, mTmpTransform);
-        t.setMatrix(snapshot, mTmpTransform.getMatrix(), mTmpFloats);
-        t.setAlpha(snapshot, mTmpTransform.getAlpha());
+        if (snapshot != null && mSnapshotAnim != null) {
+            mSnapshotAnim.getTransformation(currentPlayTime, mTmpTransform);
+            t.setMatrix(snapshot, mTmpTransform.getMatrix(), mTmpFloats);
+            t.setAlpha(snapshot, mTmpTransform.getAlpha());
+        }
 
         // update container surface
         mAnimation.getTransformation(currentPlayTime, mTmpTransform);
@@ -300,12 +396,14 @@ public class SizeChangeAnimation {
     }
 
     private void apply(View view, SurfaceControl.Transaction tmpT, SurfaceControl leash,
-            SurfaceControl snapshot, float progress) {
+            @Nullable SurfaceControl snapshot, float progress) {
         long currentPlayTime = (long) (((float) ANIMATION_RESOLUTION) * progress);
         // update thumbnail surface
-        mSnapshotAnim.getTransformation(currentPlayTime, mTmpTransform);
-        tmpT.setMatrix(snapshot, mTmpTransform.getMatrix(), mTmpFloats);
-        tmpT.setAlpha(snapshot, mTmpTransform.getAlpha());
+        if (snapshot != null && mSnapshotAnim != null) {
+            mSnapshotAnim.getTransformation(currentPlayTime, mTmpTransform);
+            tmpT.setMatrix(snapshot, mTmpTransform.getMatrix(), mTmpFloats);
+            tmpT.setAlpha(snapshot, mTmpTransform.getAlpha());
+        }
 
         // update container surface
         mAnimation.getTransformation(currentPlayTime, mTmpTransform);
@@ -321,6 +419,10 @@ public class SizeChangeAnimation {
         view.setClipBounds(mTmpRect);
 
         // this takes stuff out of mTmpT so mTmpT can be re-used immediately
-        view.getViewRootImpl().applyTransactionOnDraw(tmpT);
+        if (view.getViewRootImpl() != null) {
+            view.getViewRootImpl().applyTransactionOnDraw(tmpT);
+        } else {
+            tmpT.apply();
+        }
     }
 }

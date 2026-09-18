@@ -76,7 +76,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -212,10 +211,40 @@ public class AmbientStatusBarViewControllerTest extends SysuiTestCase {
 
         final PrivacyItem item = Mockito.mock(PrivacyItem.class);
         when(item.getPrivacyType()).thenReturn(PrivacyType.TYPE_LOCATION);
-        callbackCaptor.getValue().onPrivacyItemsChanged(Arrays.asList(item));
+        callbackCaptor.getValue().onPrivacyItemsChanged(List.of(item));
 
         verify(mView).showIcon(
                 eq(AmbientStatusBarView.STATUS_ICON_LOCATION_ACTIVE), eq(true), any());
+    }
+
+    @Test
+    public void testMicPrivacyIconShownWhenMicActive() {
+        mController.onViewAttached();
+        final ArgumentCaptor<PrivacyItemController.Callback> callbackCaptor =
+                ArgumentCaptor.forClass(PrivacyItemController.Callback.class);
+        verify(mPrivacyItemController).addCallback(callbackCaptor.capture());
+
+        final PrivacyItem item = Mockito.mock(PrivacyItem.class);
+        when(item.getPrivacyType()).thenReturn(PrivacyType.TYPE_MICROPHONE);
+        callbackCaptor.getValue().onPrivacyItemsChanged(List.of(item));
+
+        verify(mView).showIcon(
+                eq(AmbientStatusBarView.STATUS_ICON_MIC_PRIVACY_ON), eq(true), any());
+    }
+
+    @Test
+    public void testCameraPrivacyIconShownWhenCameraActive() {
+        mController.onViewAttached();
+        final ArgumentCaptor<PrivacyItemController.Callback> callbackCaptor =
+                ArgumentCaptor.forClass(PrivacyItemController.Callback.class);
+        verify(mPrivacyItemController).addCallback(callbackCaptor.capture());
+
+        final PrivacyItem item = Mockito.mock(PrivacyItem.class);
+        when(item.getPrivacyType()).thenReturn(PrivacyType.TYPE_CAMERA);
+        callbackCaptor.getValue().onPrivacyItemsChanged(List.of(item));
+
+        verify(mView).showIcon(
+                eq(AmbientStatusBarView.STATUS_ICON_CAMERA_PRIVACY_ON), eq(true), any());
     }
 
     @Test
@@ -227,7 +256,7 @@ public class AmbientStatusBarViewControllerTest extends SysuiTestCase {
 
         final PrivacyItem item = Mockito.mock(PrivacyItem.class);
         when(item.getPrivacyType()).thenReturn(PrivacyType.TYPE_CAMERA);
-        callbackCaptor.getValue().onPrivacyItemsChanged(Arrays.asList(item));
+        callbackCaptor.getValue().onPrivacyItemsChanged(List.of(item));
 
         verify(mView, never()).showIcon(
                 eq(AmbientStatusBarView.STATUS_ICON_LOCATION_ACTIVE), eq(true), any());
@@ -243,7 +272,7 @@ public class AmbientStatusBarViewControllerTest extends SysuiTestCase {
         verify(mView, never()).showIcon(
                 eq(AmbientStatusBarView.STATUS_ICON_LOCATION_ACTIVE), eq(true), any());
 
-        callbackCaptor.getValue().onPrivacyItemsChanged(Arrays.asList());
+        callbackCaptor.getValue().onPrivacyItemsChanged(List.of());
 
         verify(mView, never()).showIcon(
                 eq(AmbientStatusBarView.STATUS_ICON_LOCATION_ACTIVE), eq(true), any());

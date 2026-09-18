@@ -30,6 +30,8 @@ import android.view.Display;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import org.junit.Test;
 
 /**
@@ -47,7 +49,7 @@ public class BatteryStatsBackgroundStatsTest {
         MockBatteryStatsImpl bi = new MockBatteryStatsImpl(clocks);
         long cur = 0; // realtime in us
 
-        BatteryStatsImpl.TimeBase bgtb = bi.getOnBatteryBackgroundTimeBase(UID);
+        TimeBase bgtb = bi.getOnBatteryBackgroundTimeBase(UID);
 
         // Off-battery, non-existent
         clocks.realtime = clocks.uptime = 10;
@@ -116,7 +118,7 @@ public class BatteryStatsBackgroundStatsTest {
         MockBatteryStatsImpl bi = new MockBatteryStatsImpl(clocks);
         long cur = 0; // realtime in us
 
-        BatteryStatsImpl.TimeBase bgtb = bi.getOnBatteryScreenOffBackgroundTimeBase(UID);
+        TimeBase bgtb = bi.getOnBatteryScreenOffBackgroundTimeBase(UID);
 
         // battery=off, screen=off, background=off
         cur = (clocks.realtime = clocks.uptime = 100) * 1000;

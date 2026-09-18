@@ -31,22 +31,14 @@ import androidx.core.animation.AnimatorListenerAdapter
 import androidx.core.animation.AnimatorSet
 import androidx.core.animation.ValueAnimator
 import com.android.internal.annotations.VisibleForTesting
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Default
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
-import com.android.systemui.statusbar.data.repository.StatusBarContentInsetsProviderStore
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsChangedListener
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
 import com.android.systemui.statusbar.window.StatusBarWindowController
-import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
 import com.android.systemui.util.animation.AnimationUtil.Companion.frames
-import dagger.Lazy
-import dagger.Module
-import dagger.Provides
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
+import javax.inject.Inject
 import kotlin.math.roundToInt
 
 /** Controls the view for system event animations. */
@@ -70,12 +62,13 @@ interface SystemEventChipAnimationController : SystemStatusAnimationCallback {
     override fun onSystemEventAnimationFinish(hasPersistentDot: Boolean): Animator
 }
 
+@PerDisplaySingleton
 class SystemEventChipAnimationControllerImpl
-@AssistedInject
+@Inject
 constructor(
-    @Assisted private val context: Context,
-    @Assisted private val statusBarWindowController: StatusBarWindowController,
-    @Assisted private val contentInsetsProvider: StatusBarContentInsetsProvider,
+    @DisplayAware private val context: Context,
+    @DisplayAware private val statusBarWindowController: StatusBarWindowController?,
+    @DisplayAware private val contentInsetsProvider: StatusBarContentInsetsProvider,
 ) : SystemEventChipAnimationController {
 
     private lateinit var animationWindowView: FrameLayout
@@ -335,7 +328,7 @@ constructor(
         val height = themedContext.resources.getDimensionPixelSize(R.dimen.status_bar_height)
         val lp = FrameLayout.LayoutParams(MATCH_PARENT, height)
         lp.gravity = Gravity.END or Gravity.TOP
-        statusBarWindowController.addViewToWindow(animationWindowView, lp)
+        statusBarWindowController?.addViewToWindow(animationWindowView, lp)
         animationWindowView.clipToPadding = false
         animationWindowView.clipChildren = false
 
@@ -446,15 +439,6 @@ constructor(
             animRect.bottom,
         )
     }
-
-    @AssistedFactory
-    fun interface Factory {
-        fun create(
-            context: Context,
-            statusBarWindowController: StatusBarWindowController,
-            contentInsetsProvider: StatusBarContentInsetsProvider,
-        ): SystemEventChipAnimationControllerImpl
-    }
 }
 
 /** Chips should provide a view that can be animated with something better than a fade-in */
@@ -474,38 +458,3 @@ interface BackgroundAnimatableView {
 // Animation directions
 private const val LEFT = 1
 private const val RIGHT = 2
-
-@Module
-interface SystemEventChipAnimationControllerModule {
-
-    companion object {
-        @Provides
-        @Default
-        @SysUISingleton
-        fun defaultController(
-            factory: SystemEventChipAnimationControllerImpl.Factory,
-            context: Context,
-            statusBarWindowControllerStore: StatusBarWindowControllerStore,
-            contentInsetsProviderStore: StatusBarContentInsetsProviderStore,
-        ): SystemEventChipAnimationController {
-            return factory.create(
-                context,
-                statusBarWindowControllerStore.defaultDisplay,
-                contentInsetsProviderStore.defaultDisplay,
-            )
-        }
-
-        @Provides
-        @SysUISingleton
-        fun controller(
-            @Default defaultLazy: Lazy<SystemEventChipAnimationController>,
-            multiDisplayLazy: Lazy<MultiDisplaySystemEventChipAnimationController>,
-        ): SystemEventChipAnimationController {
-            return if (StatusBarConnectedDisplays.isEnabled) {
-                multiDisplayLazy.get()
-            } else {
-                defaultLazy.get()
-            }
-        }
-    }
-}

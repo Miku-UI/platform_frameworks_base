@@ -34,21 +34,21 @@
     <string name="summary_glasses" msgid="5469208629679579157">"האפליקציה הזו תוכל לגשת להרשאות הבאות ב<xliff:g id="DEVICE_TYPE">%1$s</xliff:g> שלך"</string>
     <string name="profile_name_medical" msgid="5617160509499466400">"מכשיר רפואי"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"‏לאשר לאפליקציה &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; לשדר תכונות מערכת ואפליקציות בין ה<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> שלך לבין &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
-    <string name="summary_app_streaming" msgid="8346968726357732862">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> תקבל את ההרשאות הבאות:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"‏לאפליקציה <xliff:g id="APP_NAME_0">%1$s</xliff:g> תהיה גישה לכל מה שמוצג או מופעל ב<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, כולל אודיו, תמונות, פרטי תשלום, סיסמאות והודעות.&lt;br/&gt;&lt;br/&gt;לאפליקציה <xliff:g id="APP_NAME_1">%1$s</xliff:g> תהיה אפשרות לשדר אפליקציות אל <xliff:g id="DEVICE_NAME">%3$s</xliff:g> עד שהגישה להרשאה הזו תוסר."</string>
-    <string name="helper_summary_app_streaming" msgid="160149899100957545">"האפליקציה <xliff:g id="APP_NAME">%1$s</xliff:g> מבקשת הרשאה בשם <xliff:g id="DEVICE_NAME">%2$s</xliff:g> כדי לשדר תכונות מערכת ואפליקציות בין המכשירים שלך"</string>
+    <string name="summary_app_streaming" msgid="8346968726357732862">"אפליקציית \"‫<xliff:g id="APP_NAME">%1$s</xliff:g>\" תקבל את ההרשאות הבאות:"</string>
+    <string name="helper_summary_app_streaming" msgid="160149899100957545">"האפליקציה \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" מבקשת הרשאה בשם <xliff:g id="DEVICE_NAME">%2$s</xliff:g> כדי לשדר תכונות מערכת ואפליקציות בין המכשירים שלך"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
     <string name="title_computer" msgid="5040395223341777259">"‏מכשיר &lt;strong&gt;<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>&lt;/strong&gt; יוכל לגשת למידע הזה מה<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> שלך"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"האפליקציה <xliff:g id="APP_NAME">%1$s</xliff:g> מבקשת הרשאה ל-<xliff:g id="DEVICE_NAME">%2$s</xliff:g> כדי לגשת לתמונות, למדיה ולהתראות ב<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"‏לאשר לאפליקציה &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; לשדר תכונות מערכת ואפליקציות בין ה<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> שלך לבין &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
-    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> תקבל את ההרשאות הבאות:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"‏לאפליקציה <xliff:g id="APP_NAME_0">%1$s</xliff:g> תהיה גישה לכל מה שמוצג או מופעל ב-<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, כולל אודיו, תמונות, פרטי תשלום, סיסמאות והודעות.&lt;br/&gt;&lt;br/&gt;לאפליקציה <xliff:g id="APP_NAME_2">%1$s</xliff:g> תהיה אפשרות לשדר אפליקציות אל <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> עד שהגישה להרשאה הזו תוסר."</string>
+    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"אפליקציית \"‫<xliff:g id="APP_NAME">%1$s</xliff:g>\" תקבל את ההרשאות הבאות:"</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"האפליקציה <xliff:g id="APP_NAME">%1$s</xliff:g> מבקשת הרשאה ל-<xliff:g id="DEVICE_NAME">%2$s</xliff:g> כדי לשדר אפליקציות מה<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"‏לאשר לאפליקציה &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; לשדר תכונות מערכת ואודיו בין ה<xliff:g id="DEVICE_TYPE">%3$s</xliff:g> שלך לבין &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
-    <string name="summary_virtual_device" msgid="1062189396947962635">"‫<xliff:g id="APP_NAME">%2$s</xliff:g> תקבל את ההרשאות הבאות:"</string>
+    <string name="summary_virtual_device" msgid="1062189396947962635">"אפליקציית \"‫<xliff:g id="APP_NAME">%2$s</xliff:g>\" תקבל את ההרשאות הבאות:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"מכשיר"</string>
     <string name="summary_generic" msgid="1761976003668044801">"האפליקציה הזו תוכל לסנכרן מידע בין הטלפון שלך למכשיר שבחרת, למשל השם של מי שמתקשר"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"‏האפליקציה &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; תוכל לסנכרן מידע כמו פרטי המתקשר ולהריץ פעולות חכמות מהמכשיר <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"‏לאפליקציה &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; יהיו הרשאות לסנכרן מידע כמו פרטי המתקשר ולהריץ פעולות חכמות מ<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
     <string name="consent_yes" msgid="8344487259618762872">"יש אישור"</string>
     <string name="consent_no" msgid="2640796915611404382">"אין אישור"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"ביטול"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"שינוי פלט המדיה"</string>
     <string name="permission_storage" msgid="6831099350839392343">"תמונות ומדיה"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"התראות"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"שיקוף המסך ושידור אפליקציות"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"שידור נתונים אל ה<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"שיקוף המסך"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"שידור אפליקציות"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"הקלטת אודיו"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"אפשרות למצוא ולהתחבר למכשירים בסביבה, ולזהות את המיקום היחסי שלהם"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"אפשרות לקרוא את כל ההתראות, כולל מידע כמו אנשי קשר, הודעות ותמונות"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"‏• קריאה של כל ההתראות, כולל מידע כמו אנשי קשר, הודעות ותמונות&lt;br/&gt;‏• שליחת התראות אליך&lt;br/&gt;&lt;br/&gt;בכל שלב אפשר להיכנס ל\"הגדרות\" &gt; \"התראות\" ולשנות את היכולת של האפליקציה לקרוא ולשלוח התראות."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"‏• קריאה של כל ההתראות, כולל מידע כמו אנשי קשר, הודעות ותמונות&lt;br/&gt;‏• שליחת התראות אליך&lt;br/&gt;&lt;br/&gt;בכל שלב אפשר להיכנס להגדרות › התראות ולשנות את היכולת של האפליקציה לקרוא ולשלוח התראות."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"שיתוף של תמונות ומדיה מהטלפון עם המכשירים האחרים שלך."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"יישלחו אליך התראות"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"‏שיתוף של מסך הטלפון, כולל האפליקציות, עם המכשירים שלך. למכשירים שלך תהיה גישה לכל מה שמוצג בטלפון, כולל אודיו, תמונות, פרטי תשלום, סיסמאות והודעות, גם כשהטלפון נעול.&lt;br/&gt;&lt;br/&gt;שליחת נתונים מהמיקרופון, מהמצלמה ומחיישנים אחרים במכשירים שלך בחזרה לטלפון, כולל אינטראקציות כמו תנועות מגע ולחיצות בעכבר."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"‏שידור נתונים מהמיקרופון ומהמצלמה, ונתוני חיישנים אחרים מהמכשיר &lt;strong&gt;‏<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; אל ה<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"‏אפשר להקליט, להפעיל Cast או לשתף את המסך של ה<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> ב-&lt;strong&gt;‏<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;לאפליקציה <xliff:g id="APP_NAME">%1$s</xliff:g> תהיה גישה לכל מה שמוצג או מופעל ב<xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>, כולל אודיו, תמונות, פרטי תשלום, סיסמאות והודעות."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"‏שידור של האפליקציות מה<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> אל &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;לאפליקציה <xliff:g id="APP_NAME">%1$s</xliff:g> תהיה גישה לכל מה שמוצג או מופעל ב-<xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, כולל אודיו, תמונות, פרטי תשלום, סיסמאות והודעות, גם כשה<xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> נעול."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"‏גישה לרשימה של מכשירים זמינים ובחירה איזה מהם ישמש כדי לשדר אודיו או וידאו או להפעיל Cast שלהם מאפליקציות אחרות"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"שליחת התראות"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"שליחת התראות גם כשהמצב \"נא לא להפריע\" מופעל"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"טלפון"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"טאבלט"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"טלוויזיה"</string>

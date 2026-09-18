@@ -2,15 +2,6 @@ package: "android.view.flags"
 container: "system"
 
 flag {
-    name: "enable_surface_native_alloc_registration_ro"
-    namespace: "toolkit"
-    description: "Feature flag for registering surfaces with the VM for faster"
-      " cleanup. Fixed readonly version."
-    bug: "306193257"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "enable_use_measure_cache_during_force_layout"
     namespace: "toolkit"
     description: "Enables using the measure cache during a view force layout from the second "
@@ -73,14 +64,6 @@ flag {
 }
 
 flag {
-    name: "enable_invalidate_check_thread"
-    namespace: "toolkit"
-    description: "Enable checkThread call in ViewRootImpl#onDescendentInvalidated"
-    bug: "333752000"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "disable_draw_wake_lock"
     namespace: "wear_frameworks"
     description: "Disable Draw Wakelock starting U."
@@ -112,6 +95,15 @@ flag {
     description: "Deprecate SurfaceView z order control APIs."
     bug: "341021569"
     is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "deprecate_is_credential_api"
+    namespace: "autofill"
+    description: "Deprecate isCredential api."
+    bug: "459677787"
+    is_exported: true
 }
 
 flag {
@@ -123,19 +115,12 @@ flag {
 }
 
 flag {
-    name: "buffer_stuffing_recovery"
-    namespace: "window_surfaces"
-    description: "Recover from buffer stuffing when SurfaceFlinger misses a frame"
-    bug: "294922229"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "root_view_changed_listener"
     namespace: "windowing_sdk"
     description: "Implement listener pattern for WindowInspector#getGlobalWindowViews."
     bug: "394397033"
     is_fixed_read_only: false
+    is_exported: true
 }
 
 flag {
@@ -152,6 +137,89 @@ flag {
     name: "buffer_stuffing_multi_recovery"
     namespace: "window_surfaces"
     description: "Recover from buffer stuffing multiple times within the same animation"
-    bug: "44156655"
+    bug: "441566552"
     is_fixed_read_only: false
+}
+
+flag {
+    name: "buffer_stuffing_recovery_threshold"
+    namespace: "window_surfaces"
+    description: "Set a threshold to bound how much frame delay can be incurred during an animation"
+    bug: "395989945"
+    is_fixed_read_only: false
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_windowless_window_focus_navigation"
+    namespace: "window_surfaces"
+    description: "Enable focus navigation for between embedded and host windows"
+    bug: "425417918"
+    is_fixed_read_only: false
+}
+
+flag {
+  name: "redact_web_otp_sms_api"
+  namespace: "telephony"
+  description: "API flag for redacting WebOTP SMS messages from untrusted packages"
+  is_exported: true
+  bug: "437043173"
+}
+
+flag {
+  name: "redact_otp_app_compat_api"
+  namespace: "telephony"
+  description: "App Compat API flag for redacting OTP messages from untrusted packages"
+  is_exported: true
+  bug: "437043173"
+}
+
+flag {
+    name: "scroll_to_top"
+    namespace: "systemui"
+    description: "Enable scroll to top feature."
+    bug: "467959711"
+    is_exported: true
+}
+
+flag {
+    name: "surface_view_set_blur_regions"
+    namespace: "core_graphics"
+    description: "Add API to set blur regions for SurfaceView"
+    is_exported: true
+    bug: "425418052"
+}
+
+flag {
+    name: "surface_view_max_hdr_headroom"
+    namespace: "core_graphics"
+    description: "Enable SurfaceView max HDR headroom API"
+    bug: "416494780"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "atomic_traversal_barrier"
+    namespace: "system_performance"
+    description: "Control whether traversal sync barriers are stored in atomics."
+    bug: "464275874"
+}
+
+flag {
+  name: "called_from_wrong_thread_listener_api"
+  is_exported: true
+  namespace: "system_performance"
+  description: "Guards View#setEnforceThreadChecks"
+  bug: "464275874"
+}
+
+flag {
+  name: "no_more_resync"
+  namespace: "window_surfaces"
+  description: "Control whether Choreographer no longer resyncs animnation time."
+  bug: "470321586"
 }

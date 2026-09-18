@@ -48,3 +48,40 @@ flag {
     description: "Feature flag to reduce binder transaction for content capture, by batching metrics logging and reducing the number of flush events"
     bug: "433614684"
 }
+
+flag {
+    name: "new_heuristics_for_importance_enabled"
+    namespace: "ailabs"
+    description: "Feature flag to extend heuristics for calculating whether a node is considered important for content capture"
+    bug: "444631439"
+}
+
+flag {
+    name: "flush_on_non_empty_text"
+    namespace: "ailabs"
+    description: "Feature flag to flush text changed event when text is non-empty"
+    bug: "451804320"
+}
+
+flag {
+    name: "notify_correct_view_events"
+    namespace: "ailabs"
+    description: "Feature flag to fix content capture event data in chat apps."
+    bug: "453529467"
+}
+
+flag {
+  name: "deprecate_set_content_capture_enabled"
+  namespace: "private_compute"
+  description: "Controls the deprecation of the ContentCaptureManager#setContentCaptureEnabled method."
+  bug: "454307959"
+  is_exported: true
+}
+
+flag {
+    name: "content_interaction_api_enabled"
+    namespace: "ailabs"
+    description: "Feature flag to enable content interaction API."
+    bug: "460569434"
+    is_exported: true
+}

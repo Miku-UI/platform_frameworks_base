@@ -169,8 +169,7 @@ class ZygoteCommandBuffer implements AutoCloseable {
         try {
             boolean useFifoUi = SystemProperties.getInt("sys.use_fifo_ui", 0) == 1;
             return nativeForkRepeatedly(mNativeBuffer, zygoteSocket.getInt$(),
-                    expectedUid, minUid, firstNiceName, isTopApp,
-                    com.android.internal.os.Flags.zygoteEarlyFifoBoost() ? useFifoUi : false);
+                    expectedUid, minUid, firstNiceName, isTopApp, useFifoUi);
         } finally {
             Reference.reachabilityFence(mSocket);
             Reference.reachabilityFence(zygoteSocket);

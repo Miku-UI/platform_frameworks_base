@@ -31,7 +31,6 @@ import com.android.wm.shell.bubbles.BubbleEducationController
 import com.android.wm.shell.bubbles.ManageEducationView.Companion.PREF_MANAGED_EDUCATION
 import com.android.wm.shell.bubbles.StackEducationView.Companion.PREF_STACK_EDUCATION
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.MoreExecutors.directExecutor
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -123,12 +122,10 @@ class BubbleEducationControllerTest : SysUiStateTest() {
                 /* taskId= */ 0,
                 "locus",
                 /* isDismissable= */ true,
-                directExecutor(),
-                directExecutor()
             ) {}
         } else {
             val intent = Intent(Intent.ACTION_VIEW).setPackage(mContext.packageName)
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+            Bubble.createAppBubble(intent, UserHandle(1), null)
         }
     }
 }

@@ -227,9 +227,11 @@ public class RescuePartyTest {
         mockCrashRecoveryProperties(mMockPackageWatchdog);
 
         // Mock CrashRecoveryUtils
-        doAnswer((Answer<Set<String>>) invocationOnMock ->
-                Set.of(NAMESPACE_TO_RESET1, NAMESPACE_TO_RESET2))
-                .when(CrashRecoveryUtils::getFlagNamespacesInModules);
+        Field sFlagNamespacesToMonitorField = RescueParty.class
+                .getDeclaredField("sFlagNamespacesToMonitor");
+        sFlagNamespacesToMonitorField.setAccessible(true);
+        sFlagNamespacesToMonitorField.set(RescueParty.class,
+                Set.of(NAMESPACE_TO_RESET1, NAMESPACE_TO_RESET2));
         doAnswer((Answer<String>) invocationOnMock -> NETWORK_STACK_PACKAGE_NAME)
                 .when(() -> CrashRecoveryUtils.getNetworkStackPackageName(mMockContext));
 
@@ -477,7 +479,6 @@ public class RescuePartyTest {
         RescuePartyObserver observer = RescuePartyObserver.getInstance(mMockContext);
         injectTestHandler(observer);
 
-        verify(CrashRecoveryUtils::getFlagNamespacesInModules);
         verify(() -> CrashRecoveryUtils.getNetworkStackPackageName(mMockContext));
         observer.initializeDeviceConfigMonitoringIfRequiredAsync();
         mTestLooperManager.execute(mTestLooperManager.next());
@@ -509,22 +510,6 @@ public class RescuePartyTest {
     }
 
     @Test
-    public void testObserverCreation_emptyNamespaces() throws Exception {
-        assumeTrue(RescueParty.isFlagResetEnabled());
-        doAnswer((Answer<Set<String>>) invocationOnMock -> Set.of())
-                .when(CrashRecoveryUtils::getFlagNamespacesInModules);
-
-        RescuePartyObserver observer = RescuePartyObserver.getInstance(mMockContext);
-        injectTestHandler(observer);
-
-        observer.initializeDeviceConfigMonitoringIfRequiredAsync();
-
-        // Verify no listeners are added
-        verify(() -> DeviceConfig.addOnPropertiesChangedListener(anyString(),
-                any(Executor.class), any(OnPropertiesChangedListener.class)), times(0));
-    }
-
-    @Test
     public void testObserverCreation_nullNetworkPackage() throws Exception {
         assumeTrue(RescueParty.isFlagResetEnabled());
         doAnswer((Answer<String>) invocationOnMock -> null)
@@ -544,24 +529,23 @@ public class RescuePartyTest {
     }
 
     @Test
-    public void testObserverCreation_emptyNamespaces_nullNetworkPackage() throws Exception {
-        assumeTrue(RescueParty.isFlagResetEnabled());
-        doAnswer((Answer<Set<String>>) invocationOnMock -> Set.of())
-                .when(CrashRecoveryUtils::getFlagNamespacesInModules);
-        doAnswer((Answer<String>) invocationOnMock -> null)
-                .when(() -> CrashRecoveryUtils.getNetworkStackPackageName(mMockContext));
-
+    public void testLevels_factoryResetDisabled() {
+        doReturn(true).when(RescueParty::isFactoryResetDisabled);
         RescuePartyObserver observer = RescuePartyObserver.getInstance(mMockContext);
-        injectTestHandler(observer);
 
-        verify(() -> android.util.Slog.wtf(eq(RescueParty.TAG),
-                eq("Unable to find NetworkPackage for monitoring network health")));
+        // App crash impact levels
+        // For app crashes, modularized RescueParty starts at WARM_REBOOT (50)
+        assertEquals(PackageHealthObserverImpact.USER_IMPACT_LEVEL_50,
+                observer.onHealthCheckFailed(sFailingPackage,
+                        PackageWatchdog.FAILURE_REASON_APP_CRASH, 1));
+        // And stays at WARM_REBOOT (50) if factory reset is disabled
+        assertEquals(PackageHealthObserverImpact.USER_IMPACT_LEVEL_50,
+                observer.onHealthCheckFailed(sFailingPackage,
+                        PackageWatchdog.FAILURE_REASON_APP_CRASH, 2));
 
-        observer.initializeDeviceConfigMonitoringIfRequiredAsync();
-
-        // Verify no listeners are added
-        verify(() -> DeviceConfig.addOnPropertiesChangedListener(anyString(),
-                any(Executor.class), any(OnPropertiesChangedListener.class)), times(0));
+        // Verify boot loop impact levels
+        assertEquals(PackageHealthObserverImpact.USER_IMPACT_LEVEL_50, observer.onBootLoop(2));
+        assertEquals(PackageHealthObserverImpact.USER_IMPACT_LEVEL_50, observer.onBootLoop(3));
     }
 
     private void noteBoot(int mitigationCount) {

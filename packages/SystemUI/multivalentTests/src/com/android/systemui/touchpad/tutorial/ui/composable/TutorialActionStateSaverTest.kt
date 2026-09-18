@@ -16,9 +16,11 @@
 
 package com.android.systemui.touchpad.tutorial.ui.composable
 
+import android.platform.test.annotations.EnableFlags
 import androidx.compose.runtime.saveable.SaverScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Error
@@ -26,6 +28,7 @@ import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionSta
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgress
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgressAfterError
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.NotStarted
+import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.PartialSuccess
 import com.android.systemui.res.R
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -58,6 +61,7 @@ class TutorialActionStateSaverTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
     fun otherStatesAreRestoredToTheSameState() {
         assertRestoredState(savedState = NotStarted, expectedRestoredState = NotStarted)
         assertRestoredState(savedState = Error, expectedRestoredState = Error)
@@ -65,6 +69,7 @@ class TutorialActionStateSaverTest : SysuiTestCase() {
             savedState = Finished(successAnimation = R.raw.trackpad_home_success),
             expectedRestoredState = Finished(successAnimation = R.raw.trackpad_home_success),
         )
+        assertRestoredState(savedState = PartialSuccess, expectedRestoredState = PartialSuccess)
     }
 
     private fun assertRestoredState(

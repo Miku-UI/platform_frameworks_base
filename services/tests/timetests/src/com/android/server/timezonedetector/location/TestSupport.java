@@ -37,8 +37,7 @@ final class TestSupport {
     static final ConfigurationInternal USER2_CONFIG_GEO_DETECTION_DISABLED =
             createUserConfig(USER2_ID, false);
 
-    private TestSupport() {
-    }
+    private TestSupport() {}
 
     private static ConfigurationInternal createUserConfig(
             @UserIdInt int userId, boolean geoDetectionEnabledSetting) {

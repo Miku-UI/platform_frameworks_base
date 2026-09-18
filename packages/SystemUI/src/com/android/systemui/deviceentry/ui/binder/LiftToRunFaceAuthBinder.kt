@@ -20,11 +20,11 @@ import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.TriggerEvent
 import android.hardware.TriggerEventListener
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.ActiveUnlockConfig
 import com.android.keyguard.KeyguardUpdateMonitor
 import com.android.systemui.CoreStartable
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
-import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
@@ -40,7 +40,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /**
  * Triggers face auth and active unlock on lift when the device is showing the lock screen or
@@ -56,7 +55,6 @@ constructor(
     private val asyncSensorManager: AsyncSensorManager,
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
     keyguardInteractor: KeyguardInteractor,
-    primaryBouncerInteractor: PrimaryBouncerInteractor,
     alternateBouncerInteractor: AlternateBouncerInteractor,
     private val deviceEntryFaceAuthInteractor: DeviceEntryFaceAuthInteractor,
     powerInteractor: PowerInteractor,
@@ -67,25 +65,22 @@ constructor(
     private val stoppedListening: Flow<Unit> = isListening.filterNot { it }.map {} // map to Unit
 
     private val onAwakeKeyguard: Flow<Boolean> =
-        combine(
-            powerInteractor.isInteractive,
-            keyguardInteractor.isKeyguardVisible,
-        ) { isInteractive, isKeyguardVisible ->
+        combine(powerInteractor.isInteractive, keyguardInteractor.isKeyguardVisible) {
+            isInteractive,
+            isKeyguardVisible ->
             isInteractive && isKeyguardVisible
         }
     private val bouncerShowing: Flow<Boolean> =
-        combine(
-            primaryBouncerInteractor.isShowing,
-            alternateBouncerInteractor.isVisible,
-        ) { primaryBouncerShowing, alternateBouncerShowing ->
+        combine(keyguardInteractor.primaryBouncerShowing, alternateBouncerInteractor.isVisible) {
+            primaryBouncerShowing,
+            alternateBouncerShowing ->
             primaryBouncerShowing || alternateBouncerShowing
         }
     private val listenForPickupSensor: Flow<Boolean> =
-        combine(
-            stoppedListening,
+        combine(stoppedListening, bouncerShowing, onAwakeKeyguard) {
+            _,
             bouncerShowing,
-            onAwakeKeyguard,
-        ) { _, bouncerShowing, onAwakeKeyguard ->
+            onAwakeKeyguard ->
             (onAwakeKeyguard || bouncerShowing) &&
                 deviceEntryFaceAuthInteractor.isFaceAuthEnabledAndEnrolled()
         }
@@ -112,7 +107,7 @@ constructor(
                 deviceEntryFaceAuthInteractor.onDeviceLifted()
                 keyguardUpdateMonitor.requestActiveUnlock(
                     ActiveUnlockConfig.ActiveUnlockRequestOrigin.WAKE,
-                    "KeyguardLiftController"
+                    "KeyguardLiftController",
                 )
 
                 // Not listening anymore since trigger events unregister themselves

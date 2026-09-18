@@ -63,6 +63,7 @@ import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.DumpUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.LocalServices;
 import com.android.server.SystemService;
@@ -82,6 +83,7 @@ import java.io.FileDescriptor;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1262,6 +1264,17 @@ public class RecoverySystemService extends IRecoverySystem.Stub implements Reboo
                     this, in, out, err, args, callback, resultReceiver);
         } finally {
             Binder.restoreCallingIdentity(origId);
+        }
+    }
+
+    @Override
+    protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+        if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) return;
+
+        pw.printf("DEBUG: %b TAG: %s\n", DEBUG, TAG);
+        synchronized (this) {
+            pw.printf("mCallerPreparedForReboot: %s\n", mCallerPreparedForReboot);
+            pw.printf("mCallerPendingRequest : %s\n", mCallerPendingRequest);
         }
     }
 }

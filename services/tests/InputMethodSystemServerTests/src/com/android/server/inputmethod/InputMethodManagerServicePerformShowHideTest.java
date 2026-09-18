@@ -50,8 +50,9 @@ public class InputMethodManagerServicePerformShowHideTest extends
     @Test
     public void testPerformShowIme() throws Exception {
         synchronized (ImfLock.class) {
-            mInputMethodManagerService.performShowIme(new Binder() /* showInputToken */,
-                    ImeTracker.Token.empty(), SHOW_SOFT_INPUT, mUserData);
+            mInputMethodManagerService.performShowIme(mMockInputMethodInvoker,
+                    new Binder() /* showInputToken */, ImeTracker.Token.empty(), SHOW_SOFT_INPUT,
+                    mUserData);
         }
         verifyShowSoftInput(true  /* showSoftInput */);
     }
@@ -59,8 +60,9 @@ public class InputMethodManagerServicePerformShowHideTest extends
     @Test
     public void testPerformHideIme() throws Exception {
         synchronized (ImfLock.class) {
-            mInputMethodManagerService.performHideIme(new Binder() /* hideInputToken */,
-                    ImeTracker.Token.empty(), HIDE_SOFT_INPUT, mUserData);
+            mInputMethodManagerService.performHideIme(mMockInputMethodInvoker,
+                    new Binder() /* hideInputToken */, ImeTracker.Token.empty(), HIDE_SOFT_INPUT,
+                    mUserData);
         }
         verifyHideSoftInput(true  /* hideSoftInput */);
     }

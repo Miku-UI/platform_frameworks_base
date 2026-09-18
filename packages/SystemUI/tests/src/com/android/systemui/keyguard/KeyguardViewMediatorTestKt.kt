@@ -31,6 +31,7 @@ import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper
 import android.testing.TestableLooper.RunWithLooper
+import android.uilatencystats.UiLatencyStatsManager
 import android.view.IRemoteAnimationFinishedCallback
 import android.view.RemoteAnimationTarget
 import android.view.SurfaceControl
@@ -55,8 +56,6 @@ import com.android.systemui.animation.RemoteTransitionHelper
 import com.android.systemui.animation.activityTransitionAnimator
 import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.classifier.falsingCollector
-import com.android.systemui.common.data.repository.batteryRepositoryDeprecated
-import com.android.systemui.common.data.repository.fake
 import com.android.systemui.communal.data.model.FEATURE_AUTO_OPEN
 import com.android.systemui.communal.data.model.SuppressionReason
 import com.android.systemui.communal.data.repository.communalSceneRepository
@@ -89,6 +88,7 @@ import com.android.systemui.plugins.statusbar.statusBarStateController
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.process.processWrapper
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.settings.userTracker
 import com.android.systemui.shade.shadeController
 import com.android.systemui.statusbar.notificationShadeDepthController
@@ -98,6 +98,8 @@ import com.android.systemui.statusbar.phone.dozeParameters
 import com.android.systemui.statusbar.phone.screenOffAnimationController
 import com.android.systemui.statusbar.phone.scrimController
 import com.android.systemui.statusbar.phone.statusBarKeyguardViewManager
+import com.android.systemui.statusbar.policy.batteryController
+import com.android.systemui.statusbar.policy.fake
 import com.android.systemui.statusbar.policy.keyguardStateController
 import com.android.systemui.statusbar.policy.userSwitcherController
 import com.android.systemui.testKosmos
@@ -109,6 +111,7 @@ import com.android.systemui.util.time.systemClock
 import com.android.systemui.wallpapers.data.repository.wallpaperRepository
 import com.android.wm.shell.keyguard.KeyguardTransitions
 import com.google.common.truth.Truth.assertThat
+import java.util.Optional
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -205,6 +208,8 @@ class KeyguardViewMediatorTestKt : SysuiTestCase() {
                 { communalSceneInteractor },
                 { communalSettingsInteractor },
                 mock<WindowManagerOcclusionManager>(),
+                Optional.of(mock<UiLatencyStatsManager>()),
+                { kosmos.sceneInteractor },
             )
         }
 
@@ -218,6 +223,7 @@ class KeyguardViewMediatorTestKt : SysuiTestCase() {
                 kosmos.activityTransitionAnimator.createOriginTransition(
                     any<ActivityTransitionAnimator.Controller>(),
                     eq(kosmos.testScope),
+                    anyBoolean(),
                     anyBoolean(),
                     any<RemoteTransitionHelper>(),
                 )
@@ -410,7 +416,7 @@ class KeyguardViewMediatorTestKt : SysuiTestCase() {
 
     private fun Kosmos.enableHubOnCharging() {
         communalSettingsInteractor.setSuppressionReasons(emptyList())
-        batteryRepositoryDeprecated.fake.setDevicePluggedIn(true)
+        batteryController.fake._isPluggedIn = true
     }
 
     private fun Kosmos.disableHubShowingAutomatically() {

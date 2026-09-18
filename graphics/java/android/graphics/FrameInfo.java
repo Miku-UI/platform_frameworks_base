@@ -97,13 +97,17 @@ public final class FrameInfo {
     // Workload target deadline for a frame
     public static final int WORKLOAD_TARGET = 12;
 
+    // Time used by animations to compute progress and render frames.
+    // 0 is first frame of animation / non-animated frame.
+    public static final int ANIMATION_TIME = 13;
+
     // Must be the last one
     // This value must be in sync with `UI_THREAD_FRAME_INFO_SIZE` in FrameInfo.h
-    private static final int FRAME_INFO_SIZE = WORKLOAD_TARGET + 1;
+    private static final int FRAME_INFO_SIZE = ANIMATION_TIME + 1;
 
     /** checkstyle */
     public void setVsync(long intendedVsync, long usedVsync, long frameTimelineVsyncId,
-            long frameDeadline, long frameStartTime, long frameInterval) {
+            long frameDeadline, long frameStartTime, long frameInterval, long animationTime) {
         frameInfo[FRAME_TIMELINE_VSYNC_ID] = frameTimelineVsyncId;
         frameInfo[INTENDED_VSYNC] = intendedVsync;
         frameInfo[VSYNC] = usedVsync;
@@ -112,6 +116,7 @@ public final class FrameInfo {
         frameInfo[FRAME_START_TIME] = frameStartTime;
         frameInfo[FRAME_INTERVAL] = frameInterval;
         frameInfo[WORKLOAD_TARGET] = frameDeadline - intendedVsync;
+        frameInfo[ANIMATION_TIME] = animationTime;
     }
 
     /** checkstyle */

@@ -22,14 +22,20 @@ import kotlinx.coroutines.flow.map
 
 class FakeSecureSettingsRepository : SecureSettingsRepository {
 
-    private val settings = MutableStateFlow<Map<String, String>>(mutableMapOf())
+    private val settings = MutableStateFlow<Map<String, String?>>(mutableMapOf())
 
     override fun intSetting(name: String, defaultValue: Int): Flow<Int> {
-        return settings.map { it.getOrDefault(name, defaultValue.toString()) }.map { it.toInt() }
+        return settings
+            .map { it.getOrDefault(name, defaultValue.toString()) }
+            .map { it?.toInt() ?: defaultValue }
     }
 
     override fun boolSetting(name: String, defaultValue: Boolean): Flow<Boolean> {
         return intSetting(name, if (defaultValue) 1 else 0).map { it != 0 }
+    }
+
+    override fun stringSetting(name: String, defaultValue: String?): Flow<String?> {
+        return settings.map { it.getOrDefault(name, defaultValue) }
     }
 
     override suspend fun setBoolean(name: String, value: Boolean) {
@@ -43,6 +49,10 @@ class FakeSecureSettingsRepository : SecureSettingsRepository {
 
     override suspend fun getInt(name: String, defaultValue: Int): Int {
         return settings.value[name]?.toInt() ?: defaultValue
+    }
+
+    override suspend fun setString(name: String, value: String?) {
+        settings.value = settings.value.toMutableMap().apply { this[name] = value }
     }
 
     override suspend fun getString(name: String): String? {

@@ -116,7 +116,7 @@
     <string name="restore" msgid="8460854736328970444">"ပြန်ယူရန်"</string>
     <string name="unarchive_error_offline_title" msgid="4021785324565678605">"သင်အော့ဖ်လိုင်း ဖြစ်နေသည်"</string>
     <string name="unarchive_error_offline_body" msgid="2256042209364094099">"ဤအက်ပ် ပြန်ယူရန် သင့်အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်စမ်းကြည့်ပါ"</string>
-    <string name="unarchive_error_generic_title" msgid="7123457671482449992">"တစ်ခုခုမှားသွားသည်"</string>
+    <string name="unarchive_error_generic_title" msgid="7123457671482449992">"တစ်ခုခု မှားသွားသည်"</string>
     <string name="unarchive_error_generic_body" msgid="4486803312463813079">"ဤအက်ပ်ကို ပြန်ယူရန် ကြိုးပမ်းရာတွင် ပြဿနာရှိသည်"</string>
     <string name="unarchive_error_storage_title" msgid="5080723357273852630">"သိုလှောင်ခန်း မလုံလောက်ပါ"</string>
     <string name="unarchive_error_storage_body" msgid="6879544407568780524">"ဤအက်ပ်ကို ပြန်ယူရန် ဤစက်တွင် နေရာလွတ်ပြုလုပ်နိုင်သည်။ သိုလှောင်ခန်း လိုအပ်သည်- <xliff:g id="BYTES">%1$s</xliff:g>"</string>

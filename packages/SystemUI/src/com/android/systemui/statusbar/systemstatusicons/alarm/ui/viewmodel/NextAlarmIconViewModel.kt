@@ -20,8 +20,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.domain.interactor.NextAlarmInteractor
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
@@ -37,33 +36,23 @@ import dagger.assisted.AssistedInject
 class NextAlarmIconViewModel
 @AssistedInject
 constructor(@Assisted context: Context, interactor: NextAlarmInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
     init {
         SystemStatusIconsInCompose.expectInNewMode()
     }
 
-    private val hydrator = Hydrator("NextAlarmIconViewModel.hydrator")
-
     override val slotName = context.getString(com.android.internal.R.string.status_bar_alarm_clock)
 
     override val visible: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = null,
-            initialValue = false,
-            source = interactor.isAlarmSet,
-        )
+        interactor.isAlarmSet.hydratedStateOf(traceName = null, initialValue = false)
 
     override val icon: Icon?
         get() = visible.toUiState()
 
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
-
     private fun Boolean.toUiState(): Icon? =
         if (this) {
             Icon.Resource(
-                resId = R.drawable.ic_alarm,
+                resId = R.drawable.stat_sys_alarm,
                 contentDescription = ContentDescription.Resource(R.string.status_bar_alarm),
             )
         } else {

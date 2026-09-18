@@ -28,6 +28,7 @@ import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
 import com.android.systemui.Flags.communalResponsiveGrid
+import com.android.systemui.Flags.doNotUseRunBlocking
 import com.android.systemui.Flags.glanceableHubBlurredBackground
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.communal.data.repository.CommunalMediaRepository
@@ -78,6 +79,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
@@ -182,31 +184,42 @@ constructor(
         _selectedKey.value = key
     }
 
+    fun allocateWidgets() {
+        bgScope.launch { widgetRepository.allocateWidgets() }
+    }
+
     /** Whether to show communal when exiting the occluded state. */
-    val showCommunalFromOccluded: Flow<Boolean> =
-        keyguardTransitionInteractor.startedKeyguardTransitionStep
-            .filter { step -> step.to == KeyguardState.OCCLUDED }
-            .combine(isCommunalAvailable, ::Pair)
-            .map { (step, available) ->
-                val enteredFromHub = step.from == KeyguardState.GLANCEABLE_HUB
-                val enteredFromDream =
-                    step.from == KeyguardState.DREAMING &&
-                        !communalSettingsInteractor.isV2FlagEnabled()
-                available && (enteredFromHub || enteredFromDream)
-            }
-            .flowOn(bgDispatcher)
-            .stateIn(
-                scope = applicationScope,
-                started = SharingStarted.WhileSubscribed(),
-                initialValue = false,
-            )
+    @Deprecated("SceneContainer uses SceneContainerStartable for this")
+    val showCommunalFromOccluded: Flow<Boolean> by lazy {
+        if (SceneContainerFlag.isEnabled) {
+            // Always return false here.
+            MutableStateFlow(false)
+        } else {
+            keyguardTransitionInteractor.startedKeyguardTransitionStep
+                .filter { step -> step.to == KeyguardState.OCCLUDED }
+                .combine(isCommunalAvailable, ::Pair)
+                .map { (step, available) ->
+                    val enteredFromHub = step.from == KeyguardState.GLANCEABLE_HUB
+                    val enteredFromDream =
+                        step.from == KeyguardState.DREAMING &&
+                            !communalSettingsInteractor.isV2FlagEnabled()
+                    available && (enteredFromHub || enteredFromDream)
+                }
+                .flowOn(bgDispatcher)
+                .stateIn(
+                    scope = applicationScope,
+                    started = SharingStarted.WhileSubscribed(),
+                    initialValue = false,
+                )
+        }
+    }
 
     /** Whether to start dreaming when returning from occluded */
     val dreamFromOccluded: Flow<Boolean> =
         keyguardTransitionInteractor
             .transition(Edge.create(to = KeyguardState.OCCLUDED))
             .map { it.from == KeyguardState.DREAMING }
-            .stateIn(scope = applicationScope, SharingStarted.Eagerly, false)
+            .stateIn(scope = applicationScope, SharingStarted.WhileSubscribed(), false)
 
     /**
      * Target scene as requested by the underlying [SceneTransitionLayout] or through [changeScene].
@@ -223,7 +236,7 @@ constructor(
         "Use com.android.systemui.communal.domain.interactor.CommunalSceneInteractor instead"
     )
     val transitionState: StateFlow<ObservableTransitionState> =
-        communalSceneInteractor.transitionState
+        communalSceneInteractor.transitionStateFlow
 
     private val _userActivity: MutableSharedFlow<Unit> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -320,7 +333,7 @@ constructor(
             }
             .stateIn(
                 scope = applicationScope,
-                started = SharingStarted.Eagerly,
+                started = SharingStarted.WhileSubscribed(),
                 initialValue = false,
             )
 
@@ -444,42 +457,48 @@ constructor(
         }
 
     /** A list of widget content to be displayed in the communal hub. */
-    val widgetContent: Flow<List<WidgetContent>> =
+    val widgetContent: StateFlow<List<WidgetContent>> =
         combine(
-            widgetRepository.communalWidgets
-                .map { filterWidgetsByExistingUsers(it) }
-                .combine(communalSettingsInteractor.workProfileUserDisallowedByDevicePolicy) {
-                    // exclude widgets under work profile if not allowed by device policy
-                    widgets,
-                    disallowedByPolicyUser ->
-                    filterWidgetsAllowedByDevicePolicy(widgets, disallowedByPolicyUser)
-                },
-            updateOnWorkProfileBroadcastReceived,
-        ) { widgets, _ ->
-            widgets.map { widget ->
-                when (widget) {
-                    is CommunalWidgetContentModel.Available -> {
-                        WidgetContent.Widget(
-                            appWidgetId = widget.appWidgetId,
-                            rank = widget.rank,
-                            providerInfo = widget.providerInfo,
-                            inQuietMode = isQuietModeEnabled(widget.providerInfo.profile),
-                            size = CommunalContentSize.toSize(widget.spanY),
-                        )
-                    }
+                widgetRepository.communalWidgets
+                    .map { filterWidgetsByExistingUsers(it) }
+                    .combine(communalSettingsInteractor.workProfileUserDisallowedByDevicePolicy) {
+                        // exclude widgets under work profile if not allowed by device policy
+                        widgets,
+                        disallowedByPolicyUser ->
+                        filterWidgetsAllowedByDevicePolicy(widgets, disallowedByPolicyUser)
+                    },
+                updateOnWorkProfileBroadcastReceived,
+            ) { widgets, _ ->
+                widgets.map { widget ->
+                    when (widget) {
+                        is CommunalWidgetContentModel.Available -> {
+                            WidgetContent.Widget(
+                                appWidgetId = widget.appWidgetId,
+                                rank = widget.rank,
+                                providerInfo = widget.providerInfo,
+                                inQuietMode = isQuietModeEnabled(widget.providerInfo.profile),
+                                size = CommunalContentSize.toSize(widget.spanY),
+                            )
+                        }
 
-                    is CommunalWidgetContentModel.Pending -> {
-                        WidgetContent.PendingWidget(
-                            appWidgetId = widget.appWidgetId,
-                            rank = widget.rank,
-                            componentName = widget.componentName,
-                            icon = widget.icon,
-                            size = CommunalContentSize.toSize(widget.spanY),
-                        )
+                        is CommunalWidgetContentModel.Pending -> {
+                            WidgetContent.PendingWidget(
+                                appWidgetId = widget.appWidgetId,
+                                rank = widget.rank,
+                                componentName = widget.componentName,
+                                icon = widget.icon,
+                                size = CommunalContentSize.toSize(widget.spanY),
+                            )
+                        }
                     }
                 }
             }
-        }
+            .stateIn(
+                scope = bgScope,
+                started =
+                    if (doNotUseRunBlocking()) SharingStarted.Eagerly else SharingStarted.Lazily,
+                initialValue = emptyList(),
+            )
 
     /** Filter widgets based on whether their associated profile is allowed by device policy. */
     private fun filterWidgetsAllowedByDevicePolicy(

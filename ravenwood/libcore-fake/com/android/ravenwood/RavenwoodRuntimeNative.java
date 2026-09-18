@@ -64,8 +64,6 @@ public class RavenwoodRuntimeNative {
 
     public static native int gettid();
 
-    public static native String getIcuDataName();
-
     public static long lseek(FileDescriptor fd, long offset, int whence) throws ErrnoException {
         return nLseek(OpenJdkWorkaround.getFdInt(fd), offset, whence);
     }

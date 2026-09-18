@@ -34,7 +34,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Objects;
@@ -268,6 +267,24 @@ public class TestableLooper {
         }
     }
 
+    private Long peekWhenWithNullReturn() {
+        if (isAtLeastBaklava()) {
+            return mQueueWrapper.peekWhen();
+        } else {
+            try {
+                Message msg = (Message) MESSAGE_QUEUE_MESSAGES_FIELD.get(mLooper.getQueue());
+                if (msg != null) {
+                    return msg.getWhen();
+                } else {
+                    return null;
+                }
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(
+                    "Access failed in TestableLooper: set - Message.when", e);
+            }
+        }
+    }
+
     public void moveTimeForward(long milliSeconds) {
         if (isAtLeastBaklava()) {
             moveTimeForwardBaklava(milliSeconds);
@@ -348,6 +365,10 @@ public class TestableLooper {
 
     private boolean processSingleMessage(Runnable barrierRunnable) {
         try {
+            if (peekWhenWithNullReturn() == null) {
+                // No messages, don't continue parsing
+                return false;
+            }
             Message result = mQueueWrapper.next();
             if (result != null) {
                 // This is a break message.

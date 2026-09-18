@@ -20,24 +20,20 @@ import android.app.ActivityManager.getCurrentUser
 import android.app.TaskInfo
 import android.app.WallpaperColors
 import android.app.WallpaperManager
-import android.content.BroadcastReceiver
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.res.Configuration
 import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.view.WindowManager
 import android.window.DesktopExperienceFlags
 import androidx.activity.addCallback
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
-import com.android.wm.shell.desktopmode.multidesks.animation.DeskWallpaperAnimator
-import com.android.wm.shell.desktopmode.multidesks.animation.DeskWallpaperAnimator.Companion.JUMP_CUT_ANIMATION
-import com.android.wm.shell.desktopmode.multidesks.animation.DeskWallpaperAnimator.Companion.SLIDE_ANIMATION
+import com.android.window.flags.Flags
 
 /**
  * A transparent activity used in the desktop mode to show the wallpaper under the freeform windows.
@@ -88,14 +84,6 @@ class DesktopWallpaperActivity : FragmentActivity() {
             }
         }
 
-    private val wallpaperAnimationReceiver =
-        object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                intent ?: return
-                handleStartWallpaperAnimationRequest(intent)
-            }
-        }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate")
@@ -109,12 +97,7 @@ class DesktopWallpaperActivity : FragmentActivity() {
         // it to be focusable).
         updateFocusableFlag(focusable = false)
 
-        if (
-            DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue &&
-                DesktopExperienceFlags.ENABLE_EMPTY_DESK_ON_MINIMIZE.isTrue
-        ) {
-            onBackPressedDispatcher.addCallback(this) { moveTaskToBack(true) }
-        }
+        onBackPressedDispatcher.addCallback(this) { moveTaskToBack(true) }
 
         // Handle wallpaper color changes
         wallpaperManager = getSystemService(WallpaperManager::class.java)
@@ -133,15 +116,9 @@ class DesktopWallpaperActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(
-            wallpaperAnimationReceiver,
-            IntentFilter(START_WALLPAPER_ANIMATION_ACTION),
-            RECEIVER_EXPORTED,
-        )
     }
 
     override fun onPause() {
-        unregisterReceiver(wallpaperAnimationReceiver)
         super.onPause()
     }
 
@@ -155,8 +132,21 @@ class DesktopWallpaperActivity : FragmentActivity() {
         finish()
     }
 
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (
+            Flags.changeDisplayFocusOnWallpaperTouch() &&
+                event.actionMasked == MotionEvent.ACTION_DOWN
+        ) {
+            Log.d(TAG, "onTouchEvent: " + event)
+            val intent = Intent(ACTION_WALLPAPER_TOUCH)
+            intent.putExtra(WALLPAPER_TOUCH_EXTRA_DISPLAY_ID, displayId)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+        }
+        return super.onTouchEvent(event)
+    }
+
     override fun onTopResumedActivityChanged(isTopResumedActivity: Boolean) {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) return
         Log.d(TAG, "onTopResumedActivityChanged: $isTopResumedActivity")
         // Let the activity be focusable when it is top-resumed (e.g. empty desk), otherwise input
         // events will result in an ANR because the focused app would have no focusable window.
@@ -182,60 +172,13 @@ class DesktopWallpaperActivity : FragmentActivity() {
     private fun getWindowInsetsController(): WindowInsetsControllerCompat =
         WindowCompat.getInsetsController(window, window.decorView)
 
-    private fun handleStartWallpaperAnimationRequest(intent: Intent) {
-        Log.d(TAG, "handleStartWallpaperAnimationRequest")
-        if (intent.action != START_WALLPAPER_ANIMATION_ACTION) return
-        val animType = intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_ANIM_TYPE, JUMP_CUT_ANIMATION)
-        val displayId = intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_DISPLAY_ID, -1)
-        if (displayId == -1 || displayId != initialDisplayId) return
-        val token = window?.decorView?.rootView?.windowToken ?: return
-        val wm = wallpaperManager ?: return
-        when (animType) {
-            JUMP_CUT_ANIMATION -> {
-                val numberOfDesks = intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_NUM_OF_DESKS, -1)
-                val toDeskIndex = intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_FROM_DESK_INDEX, -1)
-                if (numberOfDesks == -1 || toDeskIndex == -1) {
-                    return
-                }
-                DeskWallpaperAnimator.jumpCutAnimator(
-                        wallpaperManager = wm,
-                        windowToken = token,
-                        numberOfDesks = numberOfDesks,
-                        toDeskIndex = toDeskIndex,
-                    )
-                    .start()
-            }
-            SLIDE_ANIMATION -> {
-                val numberOfDesks = intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_NUM_OF_DESKS, -1)
-                val fromDeskIndex =
-                    intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_FROM_DESK_INDEX, -1)
-                val toDeskIndex = intent.getIntExtra(WALLPAPER_ANIMATION_EXTRA_TO_DESK_INDEX, -1)
-                if (numberOfDesks == -1 || fromDeskIndex == -1 || toDeskIndex == -1) {
-                    return
-                }
-                DeskWallpaperAnimator.slideAnimator(
-                        wallpaperManager = wm,
-                        windowToken = token,
-                        numberOfDesks = numberOfDesks,
-                        fromDeskIndex = fromDeskIndex,
-                        toDeskIndex = toDeskIndex,
-                    )
-                    .start()
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "DesktopWallpaperActivity"
         private const val SYSTEM_UI_PACKAGE_NAME = "com.android.systemui"
 
-        private const val START_WALLPAPER_ANIMATION_ACTION =
-            "com.android.wm.shell.desktop.action.ANIMATE_WALLPAPER"
-        private const val WALLPAPER_ANIMATION_EXTRA_ANIM_TYPE = "animation_type"
-        private const val WALLPAPER_ANIMATION_EXTRA_DISPLAY_ID = "display_id"
-        private const val WALLPAPER_ANIMATION_EXTRA_NUM_OF_DESKS = "num_of_desks"
-        private const val WALLPAPER_ANIMATION_EXTRA_FROM_DESK_INDEX = "from_desk_index"
-        private const val WALLPAPER_ANIMATION_EXTRA_TO_DESK_INDEX = "to_desk_index"
+        /** Action for the broadcast intent sent when the wallpaper is touched. */
+        const val ACTION_WALLPAPER_TOUCH = "com.android.wm.shell.desktop.action.WALLPAPER_TOUCH"
+        const val WALLPAPER_TOUCH_EXTRA_DISPLAY_ID = "display_id"
 
         @JvmStatic
         val wallpaperActivityComponent =
@@ -247,33 +190,5 @@ class DesktopWallpaperActivity : FragmentActivity() {
 
         @JvmStatic
         fun isWallpaperComponent(component: ComponentName) = component == wallpaperActivityComponent
-
-        /** An intent to use in a broadcast to trigger the slide wallpaper animation. */
-        fun createWallpaperSlideAnimationIntent(
-            displayId: Int,
-            numberOfDesks: Int,
-            fromDeskIndex: Int,
-            toDeskIndex: Int,
-        ): Intent =
-            Intent(START_WALLPAPER_ANIMATION_ACTION).apply {
-                putExtra(WALLPAPER_ANIMATION_EXTRA_ANIM_TYPE, SLIDE_ANIMATION)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_DISPLAY_ID, displayId)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_NUM_OF_DESKS, numberOfDesks)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_FROM_DESK_INDEX, fromDeskIndex)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_TO_DESK_INDEX, toDeskIndex)
-            }
-
-        /** An intent to use in a broadcast to trigger the no-animation wallpaper animation. */
-        fun createWallpaperNoAnimationIntent(
-            displayId: Int,
-            numberOfDesks: Int,
-            deskIndex: Int,
-        ): Intent =
-            Intent(START_WALLPAPER_ANIMATION_ACTION).apply {
-                putExtra(WALLPAPER_ANIMATION_EXTRA_ANIM_TYPE, JUMP_CUT_ANIMATION)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_DISPLAY_ID, displayId)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_NUM_OF_DESKS, numberOfDesks)
-                putExtra(WALLPAPER_ANIMATION_EXTRA_TO_DESK_INDEX, deskIndex)
-            }
     }
 }

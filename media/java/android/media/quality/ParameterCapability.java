@@ -104,6 +104,7 @@ public final class ParameterCapability implements Parcelable {
     @NonNull
     private final String mName;
     private final boolean mIsSupported;
+    private final boolean mIsMutable;
     @ParameterType
     private final int mType;
     @NonNull
@@ -113,6 +114,7 @@ public final class ParameterCapability implements Parcelable {
     protected ParameterCapability(Parcel in) {
         mName = in.readString();
         mIsSupported = in.readBoolean();
+        mIsMutable = in.readBoolean();
         mType = in.readInt();
         mCaps = in.readBundle();
     }
@@ -121,6 +123,7 @@ public final class ParameterCapability implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeString(mName);
         dest.writeBoolean(mIsSupported);
+        dest.writeBoolean(mIsMutable);
         dest.writeInt(mType);
         dest.writeBundle(mCaps);
     }
@@ -152,10 +155,12 @@ public final class ParameterCapability implements Parcelable {
     public ParameterCapability(
             @NonNull String name,
             boolean isSupported,
+            boolean isMutable,
             int type,
             @NonNull Bundle caps) {
         this.mName = name;
         this.mIsSupported = isSupported;
+        this.mIsMutable = isSupported && isMutable;
         this.mType = type;
         this.mCaps = caps;
     }
@@ -173,6 +178,17 @@ public final class ParameterCapability implements Parcelable {
      */
     public boolean isSupported() {
         return mIsSupported;
+    }
+
+    /**
+     * Returns whether this parameter can currently be modified by the application.
+     *
+     * <p>Returns {@code false} if the parameter is read-only due to the current
+     * device state (e.g., a specific picture mode is active that locks this parameter).
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public boolean isMutable() {
+        return mIsMutable;
     }
 
     /**

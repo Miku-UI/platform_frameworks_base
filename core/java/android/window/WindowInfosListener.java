@@ -99,7 +99,7 @@ public abstract class WindowInfosListener {
          */
         public final Matrix mTransform;
 
-        private DisplayInfo(int displayId, int logicalWidth, int logicalHeight, Matrix transform) {
+        public DisplayInfo(int displayId, int logicalWidth, int logicalHeight, Matrix transform) {
             mDisplayId = displayId;
             mLogicalSize = new Size(logicalWidth, logicalHeight);
             mTransform = transform;

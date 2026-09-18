@@ -31,6 +31,7 @@
 #include <unordered_map>
 
 #include "android_os_MessageQueue.h"
+#include "android_util_Binder.h"
 #include "android_view_InputChannel.h"
 #include "android_view_KeyEvent.h"
 #include "android_view_MotionEvent.h"
@@ -54,13 +55,14 @@ static struct {
 class NativeInputEventSender : public LooperCallback {
 public:
     NativeInputEventSender(JNIEnv* env, jobject senderWeak,
-                           const std::shared_ptr<InputChannel>& inputChannel,
+                           std::unique_ptr<InputChannel> inputChannel,
                            const sp<MessageQueue>& messageQueue);
 
     status_t initialize();
     void dispose();
     status_t sendKeyEvent(uint32_t seq, const KeyEvent* event);
     status_t sendMotionEvent(uint32_t seq, const MotionEvent* event);
+    sp<IBinder> getInputChannelToken() const;
 
 protected:
     virtual ~NativeInputEventSender();
@@ -73,7 +75,7 @@ private:
 
     uint32_t mNextPublishedSeq;
 
-    const std::string getInputChannelName() {
+    const std::string& getInputChannelName() {
         return mInputPublisher.getChannel().getName();
     }
 
@@ -85,10 +87,10 @@ private:
 };
 
 NativeInputEventSender::NativeInputEventSender(JNIEnv* env, jobject senderWeak,
-                                               const std::shared_ptr<InputChannel>& inputChannel,
+                                               std::unique_ptr<InputChannel> inputChannel,
                                                const sp<MessageQueue>& messageQueue)
       : mSenderWeakGlobal(env->NewGlobalRef(senderWeak)),
-        mInputPublisher(inputChannel),
+        mInputPublisher(std::move(inputChannel)),
         mMessageQueue(messageQueue),
         mNextPublishedSeq(1) {
     if (kDebugDispatchCycle) {
@@ -178,6 +180,10 @@ status_t NativeInputEventSender::sendMotionEvent(uint32_t seq, const MotionEvent
         }
     }
     return OK;
+}
+
+sp<IBinder> NativeInputEventSender::getInputChannelToken() const {
+    return mInputPublisher.getChannel().getConnectionToken();
 }
 
 int NativeInputEventSender::handleEvent(int receiveFd, int events, void* data) {
@@ -322,8 +328,8 @@ bool NativeInputEventSender::notifyConsumerResponse(
 
 static jlong nativeInit(JNIEnv* env, jclass clazz, jobject senderWeak,
         jobject inputChannelObj, jobject messageQueueObj) {
-    std::shared_ptr<InputChannel> inputChannel =
-            android_view_InputChannel_getInputChannel(env, inputChannelObj);
+    std::unique_ptr<InputChannel> inputChannel =
+            android_view_InputChannel_extractInputChannel(env, inputChannelObj);
     if (inputChannel == NULL) {
         jniThrowRuntimeException(env, "InputChannel is not initialized.");
         return 0;
@@ -335,8 +341,8 @@ static jlong nativeInit(JNIEnv* env, jclass clazz, jobject senderWeak,
         return 0;
     }
 
-    sp<NativeInputEventSender> sender = new NativeInputEventSender(env,
-            senderWeak, inputChannel, messageQueue);
+    sp<NativeInputEventSender> sender =
+            new NativeInputEventSender(env, senderWeak, std::move(inputChannel), messageQueue);
     status_t status = sender->initialize();
     if (status) {
         String8 message;
@@ -374,18 +380,20 @@ static jboolean nativeSendMotionEvent(JNIEnv* env, jclass clazz, jlong senderPtr
     return !status;
 }
 
+static jobject nativeGetToken(JNIEnv* env, jclass clazz, jlong senderPtr) {
+    sp<NativeInputEventSender> sender = reinterpret_cast<NativeInputEventSender*>(senderPtr);
+    return javaObjectForIBinder(env, sender->getInputChannelToken());
+}
 
 static const JNINativeMethod gMethods[] = {
-    /* name, signature, funcPtr */
-    { "nativeInit",
-            "(Ljava/lang/ref/WeakReference;Landroid/view/InputChannel;Landroid/os/MessageQueue;)J",
-            (void*)nativeInit },
-    { "nativeDispose", "(J)V",
-            (void*)nativeDispose },
-    { "nativeSendKeyEvent", "(JILandroid/view/KeyEvent;)Z",
-            (void*)nativeSendKeyEvent },
-    { "nativeSendMotionEvent", "(JILandroid/view/MotionEvent;)Z",
-            (void*)nativeSendMotionEvent },
+        /* name, signature, funcPtr */
+        {"nativeInit",
+         "(Ljava/lang/ref/WeakReference;Landroid/view/InputChannel;Landroid/os/MessageQueue;)J",
+         (void*)nativeInit},
+        {"nativeDispose", "(J)V", (void*)nativeDispose},
+        {"nativeSendKeyEvent", "(JILandroid/view/KeyEvent;)Z", (void*)nativeSendKeyEvent},
+        {"nativeSendMotionEvent", "(JILandroid/view/MotionEvent;)Z", (void*)nativeSendMotionEvent},
+        {"nativeGetToken", "(J)Landroid/os/IBinder;", (void*)nativeGetToken},
 };
 
 int register_android_view_InputEventSender(JNIEnv* env) {

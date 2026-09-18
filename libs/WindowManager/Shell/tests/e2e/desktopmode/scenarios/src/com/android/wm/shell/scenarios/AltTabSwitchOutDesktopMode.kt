@@ -33,7 +33,7 @@ import org.junit.Test
 @Ignore("Test Base Class")
 @RequiresFlagsEnabled(
     Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-    com.android.launcher3.Flags.FLAG_ENABLE_ALT_TAB_KQS_FLATENNING
+    com.android.launcher3.Flags.FLAG_ENABLE_ALT_TAB_KQS_FLATENNING,
 )
 abstract class AltTabSwitchOutDesktopMode : TestScenarioBase() {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -46,16 +46,14 @@ abstract class AltTabSwitchOutDesktopMode : TestScenarioBase() {
     @Test
     fun switchBetweenFullscreenAppAndDesktopApp() {
         firstApp.launchViaIntent(wmHelper)
+        // Ensure firstApp starts from fullscreen to verify fullscreen switch back from secondApp
+        firstApp.exitDesktopModeToFullScreenIfNeeded(wmHelper, device)
         secondApp.enterDesktopMode(wmHelper, device)
 
-        tapl.launchedAppState
-            .showQuickSwitchView()
-            .launchFocusedAppTask(firstApp.packageName)
+        tapl.launchedAppState.showQuickSwitchView().launchFocusedAppTask(firstApp.packageName)
         firstApp.waitForTransitionToFullscreen(wmHelper)
 
-        tapl.launchedAppState
-            .showQuickSwitchView()
-            .launchFocusedAppTask(secondApp.packageName)
+        tapl.launchedAppState.showQuickSwitchView().launchFocusedAppTask(secondApp.packageName)
         secondApp.waitForTransitionToFreeform(wmHelper)
     }
 

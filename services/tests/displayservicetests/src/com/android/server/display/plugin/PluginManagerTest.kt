@@ -20,6 +20,9 @@ import android.content.Context
 import androidx.test.filters.SmallTest
 import com.android.server.display.feature.DisplayManagerFlags
 import com.android.server.display.plugin.PluginManager.PluginChangeListener
+import com.android.server.display.plugin.PluginManager.PluginProviderDependencies
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -33,6 +36,7 @@ class PluginManagerTest {
     private val mockContext = mock<Context>()
     private val mockFlags = mock<DisplayManagerFlags>()
     private val mockListener = mock<PluginChangeListener<Int>>()
+    private val mockDependency = mock<PluginProviderDependencies>()
     private val testInjector = TestInjector()
 
     @Test
@@ -63,24 +67,40 @@ class PluginManagerTest {
         verify(testInjector.mockStorage).removeListener(TEST_PLUGIN_TYPE, DISPLAY_ID, mockListener)
     }
 
+    @Test
+    fun testConstructor_passesDependenciesToInjector() {
+        val mockDeps = mock<PluginProviderDependencies>()
+        val injector = TestInjector()
+
+        // The call to loadPlugins happens inside the constructor.
+        PluginManager(mockContext, mockDeps, mockFlags, injector)
+
+        // Verify that the dependencies object was captured by the injector.
+        assertNotNull(injector.capturedDependencies)
+        assertEquals(mockDeps, injector.capturedDependencies)
+    }
+
     private fun createPluginManager(): PluginManager {
-        return PluginManager(mockContext, mockFlags, testInjector)
+        return PluginManager(mockContext, mockDependency, mockFlags, testInjector)
     }
 
     private class TestInjector : PluginManager.Injector() {
         val mockStorage = mock<PluginStorage>()
         val mockPlugin1 = mock<Plugin>()
         val mockPlugin2 = mock<Plugin>()
+        var capturedDependencies: PluginProviderDependencies? = null
 
         override fun getPluginStorage(enabledTypes: Set<PluginType<*>>): PluginStorage {
             return mockStorage
         }
 
         override fun loadPlugins(
-            context: Context?,
-            storage: PluginStorage?,
+            context: Context,
+            storage: PluginStorage,
+            dependencies: PluginProviderDependencies,
             enabledTypes: Set<PluginType<*>>
         ): List<Plugin> {
+            capturedDependencies = dependencies
             return listOf(mockPlugin1, mockPlugin2)
         }
     }

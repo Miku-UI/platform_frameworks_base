@@ -16,6 +16,8 @@
 
 package com.android.server.security.advancedprotection.features;
 
+import static android.security.advancedprotection.AdvancedProtectionManager.FeatureId;
+
 import android.annotation.NonNull;
 import android.content.Context;
 import android.security.advancedprotection.AdvancedProtectionFeature;
@@ -25,5 +27,5 @@ import java.util.List;
 /** @hide */
 public abstract class AdvancedProtectionProvider {
     /** The list of features provided */
-    public abstract List<AdvancedProtectionFeature> getFeatures(@NonNull Context context);
+    public abstract @NonNull @FeatureId List<Integer> getFeatureIds(@NonNull Context context);
 }

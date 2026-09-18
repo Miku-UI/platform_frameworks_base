@@ -37,6 +37,16 @@ cc_library_shared {
         "liblog",
         "libutils",
     ],
+    target: {
+        host: {
+            sanitize: {
+                // The host JVMs are not built with address sanitizer (ASan) enabled;
+                // as a result, they cannot load shared libraries with ASan enabled.
+                // Explicitly disable ASan for the host variant of this library.
+                address: false,
+            },
+        },
+    },
 }
 
 aidl_interface {

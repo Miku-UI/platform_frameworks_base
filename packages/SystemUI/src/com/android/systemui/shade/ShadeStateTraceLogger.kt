@@ -31,7 +31,6 @@ import com.android.systemui.shade.LargeScreenHeaderHelper.Companion.getLargeScre
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -66,11 +65,9 @@ constructor(
                     instantForGroup(TRACK_GROUP_NAME, "shadeExpansion", it)
                 }
             }
-            if (ShadeWindowGoesAround.isEnabled) {
-                launch {
-                    shadeDisplaysRepository.get().displayId.collect {
-                        instantForGroup(TRACK_GROUP_NAME, "displayId", it)
-                    }
+            launch {
+                shadeDisplaysRepository.get().displayId.collect {
+                    instantForGroup(TRACK_GROUP_NAME, "displayId", it)
                 }
             }
             launch {

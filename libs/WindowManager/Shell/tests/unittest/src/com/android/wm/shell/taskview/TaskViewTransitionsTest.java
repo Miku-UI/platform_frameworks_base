@@ -22,6 +22,7 @@ import static android.view.WindowManager.TRANSIT_OPEN;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
 import static android.view.WindowManager.TRANSIT_TO_FRONT;
 
+import static com.android.window.flags.Flags.FLAG_ENABLE_BUBBLE_ROOT_TASK;
 import static com.android.wm.shell.Flags.FLAG_ENABLE_BUBBLE_ANYTHING;
 import static com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE;
 import static com.android.wm.shell.bubbles.util.BubbleTestUtils.verifyExitBubbleTransaction;
@@ -32,6 +33,8 @@ import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -50,13 +53,14 @@ import android.window.TransitionInfo;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
+import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
 
-import com.android.wm.shell.MockToken;
+import com.android.testing.wm.util.MockToken;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
-import com.android.wm.shell.common.SyncTransactionQueue;
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
+import com.android.wm.shell.bubbles.BubbleHelper;
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper;
 import com.android.wm.shell.transition.Transitions;
 
 import org.junit.Before;
@@ -72,6 +76,7 @@ import platform.test.runner.parameterized.Parameters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 /**
@@ -97,7 +102,8 @@ public class TaskViewTransitionsTest extends ShellTestCase {
     @Mock
     ShellTaskOrganizer mOrganizer;
     @Mock
-    SyncTransactionQueue mSyncQueue;
+    BubbleHelper mBubbleHelper;
+    private final FakeTaskViewRootTask mTaskViewRootTask = new FakeTaskViewRootTask();
 
     Executor mExecutor = Runnable::run;
 
@@ -118,7 +124,7 @@ public class TaskViewTransitionsTest extends ShellTestCase {
         mTaskViewRepository = new TaskViewRepository();
         when(mOrganizer.getExecutor()).thenReturn(mExecutor);
         mTaskViewTransitions = spy(new TaskViewTransitions(mTransitions, mTaskViewRepository,
-                mOrganizer, mSyncQueue));
+                mOrganizer, Optional.of(mBubbleHelper), Optional.of(mTaskViewRootTask)));
         mTaskViewTaskController = createMockTaskController(mTaskInfo);
         mTaskViewTransitions.registerTaskView(mTaskViewTaskController);
     }
@@ -132,7 +138,9 @@ public class TaskViewTransitionsTest extends ShellTestCase {
         verify(mTransitions).startTransition(anyInt(), wctCaptor.capture(), any());
         WindowContainerTransaction.Change chg =
                 wctCaptor.getValue().getChanges().get(mToken.asBinder());
-        assertThat(chg.getInterceptBackPressed()).isFalse();
+        if (!BubbleFlagHelper.enableRootTaskForBubble()) {
+            assertThat(chg.getInterceptBackPressed()).isFalse();
+        }
     }
 
     @EnableFlags({
@@ -150,7 +158,7 @@ public class TaskViewTransitionsTest extends ShellTestCase {
         assertThat(pending).isNotNull();
         final WindowContainerTransaction wct = pending.mWct;
         assertThat(wct).isNotNull();
-        verifyExitBubbleTransaction(wct, mToken.asBinder(), captionInsetsOwner);
+        verifyExitBubbleTransaction(wct, mToken.asBinder(), captionInsetsOwner, true);
     }
 
     @Test
@@ -255,7 +263,7 @@ public class TaskViewTransitionsTest extends ShellTestCase {
 
     @Test
     public void testSetTaskVisibility_reorderNoHiddenVisibilitySync_resetsAlwaysOnTopAndReorder() {
-        assumeTrue(BubbleAnythingFlagHelper.enableCreateAnyBubble());
+        assumeTrue(BubbleFlagHelper.enableCreateAnyBubble());
 
         final Rect bounds = new Rect(0, 0, 100, 100);
         mTaskViewRepository.byTaskView(mTaskViewTaskController).mBounds = bounds;
@@ -534,6 +542,122 @@ public class TaskViewTransitionsTest extends ShellTestCase {
         assertThat(pendingTransition.mClaimed).isNull();
     }
 
+    @Test
+    public void transitionWithNoTaskViewChanges_shouldNotBeHandled() {
+        // Create an open transition for a task that is not in a taskView
+        IBinder transition = new Binder();
+        TransitionInfo info = new TransitionInfo(TRANSIT_OPEN, /* flags= */ 0);
+        ActivityManager.RunningTaskInfo otherTask = createMockTaskInfo(8, new MockToken().token());
+        SurfaceControl taskLeash = new SurfaceControl.Builder().setName("otherLeash").build();
+        TransitionInfo.Change chg = new TransitionInfo.Change(otherTask.token, taskLeash);
+        chg.setTaskInfo(otherTask);
+        chg.setMode(TRANSIT_OPEN);
+        info.addChange(chg);
+        SurfaceControl rootLeash = new SurfaceControl.Builder().setName("rootLeash").build();
+        info.addRoot(new TransitionInfo.Root(0, rootLeash, 0, 0));
+
+        Boolean[] finishCalled = {false};
+        Transitions.TransitionFinishCallback finishCallback = wct -> {
+            finishCalled[0] = true;
+        };
+
+        // Check that TaskViewTransitions does not try to animate it
+        boolean handled = mTaskViewTransitions.startAnimation(transition, info,
+                new SurfaceControl.Transaction(),
+                new SurfaceControl.Transaction(),
+                finishCallback);
+
+        assertThat(handled).isFalse();
+        assertThat(finishCalled[0]).isFalse();
+    }
+
+    @EnableFlags({FLAG_ENABLE_CREATE_ANY_BUBBLE, FLAG_ENABLE_BUBBLE_ROOT_TASK})
+    @Test
+    public void testUpdateTaskViewTaskBounds_rootTask() {
+        WindowContainerToken rootTaskToken = new MockToken().token();
+        ActivityManager.RunningTaskInfo rootTaskInfo = createMockTaskInfo(100, rootTaskToken);
+        WindowContainerToken taskToken = new MockToken().token();
+        ActivityManager.RunningTaskInfo taskInfo = createMockTaskInfo(101, taskToken);
+        Rect bounds = new Rect(0, 0, 10, 10);
+
+        WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
+        mTaskViewTransitions.updateTaskViewTaskBounds(wct, taskInfo, bounds);
+        verify(wct).setBounds(eq(taskToken), eq(bounds));
+
+        clearInvocations(wct);
+        mTaskViewRootTask.rootTaskInfo = rootTaskInfo;
+        taskInfo.parentTaskId = rootTaskInfo.taskId;
+        mTaskViewTransitions.updateTaskViewTaskBounds(wct, taskInfo, bounds);
+        verify(wct).setBounds(eq(rootTaskToken), eq(bounds));
+
+        clearInvocations(wct);
+        taskInfo.parentTaskId = 10;
+        mTaskViewTransitions.updateTaskViewTaskBounds(wct, taskInfo, bounds);
+        verify(wct).setBounds(eq(taskToken), eq(bounds));
+    }
+
+    @Test
+    public void bubbleTrampoline_shouldNotBeHandled() {
+        IBinder trampolineToken = new Binder();
+        TransitionInfo trampoline = createBubbleTrampolineTransition();
+        boolean handled = mTaskViewTransitions.startAnimation(trampolineToken, trampoline,
+                new SurfaceControl.Transaction(),
+                new SurfaceControl.Transaction(),
+                mock(Transitions.TransitionFinishCallback.class));
+
+        assertThat(handled).isFalse();
+    }
+
+    @Test
+    public void bubbleTrampoline_tvtManaged_shouldStartNextTransition() {
+        // enqueue a trampoline transition managed by TaskViewTransitions
+        IBinder trampolineToken = new Binder();
+        mTaskViewTransitions.enqueueRunningExternal(mTaskViewTaskController, trampolineToken);
+        assertThat(mTaskViewTransitions.hasPending()).isTrue();
+
+        // enqueue a normal transition
+        mTaskViewTransitions.setTaskViewVisible(mTaskViewTaskController, true);
+        TaskViewTransitions.PendingTransition pendingTransition =
+                mTaskViewTransitions.findPending(mTaskViewTaskController, TRANSIT_TO_FRONT);
+        assertThat(pendingTransition).isNotNull();
+        assertThat(pendingTransition.mClaimed).isNull();
+
+        IBinder pendingTransitionToken = new Binder();
+        when(mTransitions.startTransition(pendingTransition.mType, pendingTransition.mWct,
+                mTaskViewTransitions)).thenReturn(pendingTransitionToken);
+
+        // dispatch the bubble trampoline transition
+        TransitionInfo trampoline = createBubbleTrampolineTransition();
+        mTaskViewTransitions.startAnimation(trampolineToken, trampoline,
+                new SurfaceControl.Transaction(),
+                new SurfaceControl.Transaction(),
+                mock(Transitions.TransitionFinishCallback.class));
+
+        // check that the next transition was dispatched
+        assertThat(pendingTransition.mClaimed).isNotNull();
+    }
+
+    @Test
+    public void bubbleTrampoline_notTvtManaged_shouldNotStartNextTransition() {
+        // enqueue a normal transition
+        mTaskViewTransitions.setTaskViewVisible(mTaskViewTaskController, true);
+        TaskViewTransitions.PendingTransition pendingTransition =
+                mTaskViewTransitions.findPending(mTaskViewTaskController, TRANSIT_TO_FRONT);
+        assertThat(pendingTransition).isNotNull();
+        assertThat(pendingTransition.mClaimed).isNull();
+
+        // dispatch the bubble trampoline transition
+        IBinder trampolineToken = new Binder();
+        TransitionInfo trampoline = createBubbleTrampolineTransition();
+        mTaskViewTransitions.startAnimation(trampolineToken, trampoline,
+                new SurfaceControl.Transaction(),
+                new SurfaceControl.Transaction(),
+                mock(Transitions.TransitionFinishCallback.class));
+
+        // check that the next transition was not dispatched
+        assertThat(pendingTransition.mClaimed).isNull();
+    }
+
     private ActivityManager.RunningTaskInfo createMockTaskInfo(int taskId,
             WindowContainerToken token) {
         ActivityManager.RunningTaskInfo taskInfo = new ActivityManager.RunningTaskInfo();
@@ -557,5 +681,46 @@ public class TaskViewTransitionsTest extends ShellTestCase {
         when(transaction.setPosition(any(), anyFloat(), anyFloat())).thenReturn(transaction);
         when(transaction.setWindowCrop(any(), anyInt(), anyInt())).thenReturn(transaction);
         return transaction;
+    }
+
+    private TransitionInfo createBubbleTrampolineTransition() {
+        final SurfaceControl leash = new SurfaceControl.Builder().setName("testLeash").build();
+        final ActivityManager.RunningTaskInfo openingBubbleTask = createFakeAppBubbleTaskInfo();
+        final TransitionInfo.Change openingBubble =
+                new TransitionInfo.Change(openingBubbleTask.token, leash);
+        openingBubble.setTaskInfo(openingBubbleTask);
+        openingBubble.setMode(TRANSIT_OPEN);
+
+        final ActivityManager.RunningTaskInfo closingBubbleTask = createFakeAppBubbleTaskInfo();
+        final TransitionInfo.Change closingBubble =
+                new TransitionInfo.Change(closingBubbleTask.token, leash);
+        closingBubble.setTaskInfo(closingBubbleTask);
+        closingBubble.setMode(TRANSIT_CLOSE);
+
+        TransitionInfo info = new TransitionInfo(TRANSIT_CLOSE, 0);
+        info.addChange(openingBubble);
+        info.addChange(closingBubble);
+
+        when(mBubbleHelper.containsBubbleSwitch(info)).thenReturn(true);
+
+        return info;
+    }
+
+    private ActivityManager.RunningTaskInfo createFakeAppBubbleTaskInfo() {
+        ActivityManager.RunningTaskInfo appBubble = new ActivityManager.RunningTaskInfo();
+        appBubble.token = new MockToken().token();
+        appBubble.isAppBubble = true;
+        return appBubble;
+    }
+
+    private static class FakeTaskViewRootTask implements TaskViewRootTask {
+
+        public ActivityManager.RunningTaskInfo rootTaskInfo;
+
+        @Nullable
+        @Override
+        public ActivityManager.RunningTaskInfo getRootTaskInfo() {
+            return rootTaskInfo;
+        }
     }
 }

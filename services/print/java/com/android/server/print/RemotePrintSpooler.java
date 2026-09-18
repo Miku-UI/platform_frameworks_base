@@ -24,6 +24,9 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.drawable.Icon;
 import android.os.Binder;
 import android.os.Build;
@@ -68,6 +71,8 @@ import java.util.concurrent.TimeoutException;
 final class RemotePrintSpooler {
 
     private static final String LOG_TAG = "RemotePrintSpooler";
+
+    private static final String PRINT_SPOOLER_PACKAGE_NAME = "com.android.printspooler";
 
     private static final boolean DEBUG = false;
 
@@ -558,6 +563,10 @@ final class RemotePrintSpooler {
 
     public void dump(@NonNull DualDumpOutputStream dumpStream) {
         synchronized (mLock) {
+            if (!isInstalled()) {
+                return;
+            }
+
             dumpStream.write("is_destroyed", PrintSpoolerStateProto.IS_DESTROYED, mDestroyed);
             dumpStream.write("is_bound", PrintSpoolerStateProto.IS_BOUND, mRemoteInstance != null);
         }
@@ -572,6 +581,18 @@ final class RemotePrintSpooler {
             }
         } catch (IOException | TimeoutException | RemoteException | InterruptedException e) {
             Slog.e(LOG_TAG, "Failed to dump remote instance", e);
+        }
+    }
+
+    private boolean isInstalled() {
+        try {
+            mContext.createPackageContextAsUser(PRINT_SPOOLER_PACKAGE_NAME, 0, mUserHandle);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        } catch (Exception e) {
+            Slog.e(LOG_TAG, "Failed to check if print spooler is installed", e);
+            return false;
         }
     }
 

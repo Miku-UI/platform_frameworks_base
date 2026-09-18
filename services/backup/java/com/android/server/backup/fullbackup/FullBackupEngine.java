@@ -18,11 +18,6 @@ package com.android.server.backup.fullbackup;
 
 import static com.android.server.backup.BackupManagerService.DEBUG;
 import static com.android.server.backup.BackupManagerService.TAG;
-import static com.android.server.backup.UserBackupManagerService.BACKUP_MANIFEST_FILENAME;
-import static com.android.server.backup.UserBackupManagerService.BACKUP_METADATA_FILENAME;
-import static com.android.server.backup.UserBackupManagerService.CROSS_PLATFORM_MANIFEST_FILENAME;
-import static com.android.server.backup.UserBackupManagerService.SHARED_BACKUP_AGENT_PACKAGE;
-import static com.android.server.backup.crossplatform.PlatformConfigParser.PLATFORM_IOS;
 
 import android.annotation.UserIdInt;
 import android.app.ApplicationThreadConstants;
@@ -45,7 +40,6 @@ import com.android.server.backup.BackupRestoreTask;
 import com.android.server.backup.Flags;
 import com.android.server.backup.OperationStorage.OpType;
 import com.android.server.backup.UserBackupManagerService;
-import com.android.server.backup.crossplatform.CrossPlatformManifest;
 import com.android.server.backup.remote.RemoteCall;
 import com.android.server.backup.utils.BackupEligibilityRules;
 import com.android.server.backup.utils.BackupManagerMonitorEventSender;
@@ -62,12 +56,11 @@ import java.util.Objects;
  * and emitting it to the designated OutputStream.
  */
 public class FullBackupEngine {
-    private UserBackupManagerService backupManagerService;
-    private OutputStream mOutput;
-    private FullBackupPreflight mPreflightHook;
-    private BackupRestoreTask mTimeoutMonitor;
+    private final UserBackupManagerService backupManagerService;
+    private final OutputStream mOutput;
+    private final FullBackupPreflight mPreflightHook;
+    private final BackupRestoreTask mTimeoutMonitor;
     private IBackupAgent mAgent;
-    private boolean mIncludeApks;
     private final PackageInfo mPkg;
     private final long mQuota;
     private final int mOpToken;
@@ -83,7 +76,6 @@ public class FullBackupEngine {
         private final IBackupAgent mAgent;
         private final ParcelFileDescriptor mPipe;
         private final int mToken;
-        private final boolean mIncludeApks;
         private final File mFilesDir;
 
         FullBackupRunner(
@@ -91,8 +83,7 @@ public class FullBackupEngine {
                 PackageInfo packageInfo,
                 IBackupAgent agent,
                 ParcelFileDescriptor pipe,
-                int token,
-                boolean includeApks)
+                int token)
                 throws IOException {
             mUserId = userBackupManagerService.getUserId();
             mPackageManager = backupManagerService.getPackageManager();
@@ -100,7 +91,6 @@ public class FullBackupEngine {
             mAgent = agent;
             mPipe = ParcelFileDescriptor.dup(pipe.getFileDescriptor());
             mToken = token;
-            mIncludeApks = includeApks;
             mFilesDir = userBackupManagerService.getDataDir();
         }
 
@@ -110,55 +100,33 @@ public class FullBackupEngine {
                 FullBackupDataOutput output =
                         new FullBackupDataOutput(mPipe, /* quota */ -1, mTransportFlags);
                 AppMetadataBackupWriter appMetadataBackupWriter =
-                        new AppMetadataBackupWriter(output, mPackageManager);
+                        new AppMetadataBackupWriter(output, mPackageManager, mPackage, mFilesDir);
 
                 String packageName = mPackage.packageName;
-                boolean isSharedStorage = SHARED_BACKUP_AGENT_PACKAGE.equals(packageName);
-                boolean writeApk =
-                        shouldWriteApk(mPackage.applicationInfo, mIncludeApks, isSharedStorage);
 
-                if (!isSharedStorage) {
-                    if (DEBUG) {
-                        Slog.d(TAG, "Writing manifest for " + packageName);
-                    }
-
-                    File manifestFile = new File(mFilesDir, BACKUP_MANIFEST_FILENAME);
-                    appMetadataBackupWriter.backupManifest(
-                            mPackage, manifestFile, mFilesDir, writeApk);
-                    manifestFile.delete();
-
-                    // Write widget data.
-                    byte[] widgetData =
-                            AppWidgetBackupBridge.getWidgetState(packageName, mUserId);
-                    if (widgetData != null && widgetData.length > 0) {
-                        File metadataFile = new File(mFilesDir, BACKUP_METADATA_FILENAME);
-                        appMetadataBackupWriter.backupWidget(
-                                mPackage, metadataFile, mFilesDir, widgetData);
-                        metadataFile.delete();
-                    }
+                if (DEBUG) {
+                    Slog.d(TAG, "Writing manifest for " + packageName);
                 }
 
-                // TODO(b/113807190): Look into removing, only used for 'adb backup'.
-                if (writeApk) {
-                    appMetadataBackupWriter.backupApk(mPackage);
-                    appMetadataBackupWriter.backupObb(mUserId, mPackage);
+                appMetadataBackupWriter.backupManifest();
+
+                // Write widget data.
+                byte[] widgetData = AppWidgetBackupBridge.getWidgetState(packageName, mUserId);
+                if (widgetData != null && widgetData.length > 0) {
+                    appMetadataBackupWriter.backupWidget(widgetData);
                 }
 
                 if (Flags.enableCrossPlatformTransfer()
                         && (mTransportFlags & BackupAgent.FLAG_CROSS_PLATFORM_DATA_TRANSFER_IOS)
                                 != 0) {
-                    backupCrossPlatformManifest(output, mPackage.applicationInfo);
+                    appMetadataBackupWriter.backupCrossPlatformManifest(mBackupEligibilityRules);
                 }
 
                 Slog.d(TAG, "Calling doFullBackup() on " + packageName);
 
-                long timeout =
-                        isSharedStorage
-                                ? mAgentTimeoutParameters.getSharedBackupAgentTimeoutMillis()
-                                : mAgentTimeoutParameters.getFullBackupAgentTimeoutMillis();
                 backupManagerService.prepareOperationTimeout(
                         mToken,
-                        timeout,
+                        mAgentTimeoutParameters.getFullBackupAgentTimeoutMillis(),
                         mTimeoutMonitor /* in parent class */,
                         OpType.BACKUP_WAIT);
                 mAgent.doFullBackup(
@@ -181,48 +149,6 @@ public class FullBackupEngine {
                 }
             }
         }
-
-        /**
-         * Don't write apks for system-bundled apps that are not upgraded.
-         */
-        private boolean shouldWriteApk(
-                ApplicationInfo applicationInfo, boolean includeApks, boolean isSharedStorage) {
-            boolean isSystemApp = (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-            boolean isUpdatedSystemApp =
-                    (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
-            return includeApks
-                    && !isSharedStorage
-                    && (!isSystemApp || isUpdatedSystemApp);
-        }
-
-        /** Back up the app's cross platform manifest. */
-        private void backupCrossPlatformManifest(
-                FullBackupDataOutput output, ApplicationInfo applicationInfo) throws IOException {
-            CrossPlatformManifest manifest =
-                    CrossPlatformManifest.create(
-                            mPackage,
-                            PLATFORM_IOS,
-                            mBackupEligibilityRules.getPlatformSpecificParams(
-                                    applicationInfo, PLATFORM_IOS));
-            File manifestFile = new File(mFilesDir, CROSS_PLATFORM_MANIFEST_FILENAME);
-            try (FileOutputStream out = new FileOutputStream(manifestFile)) {
-                out.write(manifest.toByteArray());
-            }
-
-            // We want the manifest block in the archive stream to be constant each time we generate
-            // a backup stream for the app. However, the underlying TAR mechanism sees it as a file
-            // and will propagate its last modified time. We pin the last modified time to zero to
-            // prevent the TAR header from varying.
-            manifestFile.setLastModified(0);
-
-            FullBackup.backupToTar(
-                    mPackage.packageName,
-                    /* domain= */ null,
-                    /* linkdomain= */ null,
-                    mFilesDir.getAbsolutePath(),
-                    manifestFile.getAbsolutePath(),
-                    output);
-        }
     }
 
     public FullBackupEngine(
@@ -230,7 +156,6 @@ public class FullBackupEngine {
             OutputStream output,
             FullBackupPreflight preflightHook,
             PackageInfo pkg,
-            boolean alsoApks,
             BackupRestoreTask timeoutMonitor,
             long quota,
             int opToken,
@@ -241,7 +166,6 @@ public class FullBackupEngine {
         mOutput = output;
         mPreflightHook = preflightHook;
         mPkg = pkg;
-        mIncludeApks = alsoApks;
         mTimeoutMonitor = timeoutMonitor;
         mQuota = quota;
         mOpToken = opToken;
@@ -255,12 +179,6 @@ public class FullBackupEngine {
     }
 
     public int preflightCheck() throws RemoteException {
-        if (mPreflightHook == null) {
-            if (DEBUG) {
-                Slog.v(TAG, "No preflight check");
-            }
-            return BackupTransport.TRANSPORT_OK;
-        }
         if (initializeAgent()) {
             int result = mPreflightHook.preflightFullBackup(mPkg, mAgent);
             if (DEBUG) {
@@ -290,8 +208,7 @@ public class FullBackupEngine {
                                 mPkg,
                                 mAgent,
                                 pipes[1],
-                                mOpToken,
-                                mIncludeApks);
+                                mOpToken);
                 pipes[1].close(); // the runner has dup'd it
                 pipes[1] = null;
                 Thread t = new Thread(runner, "app-data-runner");

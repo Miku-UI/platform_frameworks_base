@@ -27,6 +27,7 @@ import com.android.compatibility.common.util.PollingCheck
 import com.android.compatibility.common.util.PollingCheck.waitFor
 import kotlin.time.Duration.Companion.seconds
 import platform.test.desktop.DesktopMouseTestRule
+import platform.test.desktop.LogicalDisplayPointPx
 
 private val FIND_OBJECT_TIMEOUT = 10.seconds
 
@@ -66,12 +67,14 @@ fun initiateAutoclickPanel(
     desktopMouseTestRule: DesktopMouseTestRule
 ) {
     // Move the mouse across the display to create the panel.
-    desktopMouseTestRule.move(DEFAULT_DISPLAY, 0, 0)
+    desktopMouseTestRule.move(LogicalDisplayPointPx(DEFAULT_DISPLAY, 0, 0))
     val wm = context.getSystemService(WindowManager::class.java)
     desktopMouseTestRule.move(
-        DEFAULT_DISPLAY,
-        wm.currentWindowMetrics.bounds.width() / 2,
-        wm.currentWindowMetrics.bounds.height() / 2
+        LogicalDisplayPointPx(
+            DEFAULT_DISPLAY,
+            wm.currentWindowMetrics.bounds.width() / 2,
+            wm.currentWindowMetrics.bounds.height() / 2,
+        )
     )
 
     // Wait for the panel to close before beginning the tests.
@@ -103,9 +106,11 @@ fun changeClickType(
         uiDevice, By.res(CLICK_TYPE_BUTTON_GROUP_ID)
     )
     desktopMouseTestRule.move(
-        DEFAULT_DISPLAY,
-        clickTypeButtonGroup.visibleCenter.x,
-        clickTypeButtonGroup.visibleCenter.y
+        LogicalDisplayPointPx(
+            DEFAULT_DISPLAY,
+            clickTypeButtonGroup.visibleCenter.x,
+            clickTypeButtonGroup.visibleCenter.y,
+        )
     )
 
     // Wait for the panel to fully open before attempting to select a click type.
@@ -115,9 +120,11 @@ fun changeClickType(
 
     val targetClickTypeButton = findObject(uiDevice, By.res(clickTypeResourceId))
     desktopMouseTestRule.move(
-        DEFAULT_DISPLAY,
-        targetClickTypeButton.visibleCenter.x,
-        targetClickTypeButton.visibleCenter.y
+        LogicalDisplayPointPx(
+            DEFAULT_DISPLAY,
+            targetClickTypeButton.visibleCenter.x,
+            targetClickTypeButton.visibleCenter.y,
+        )
     )
 
     // Wait for the panel to close as the signal that the click type was selected.

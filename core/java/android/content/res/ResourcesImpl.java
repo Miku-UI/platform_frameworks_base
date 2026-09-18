@@ -272,12 +272,8 @@ public class ResourcesImpl {
         return mConfiguration;
     }
 
-    Configuration[] getSizeConfigurations() {
-        return mAssets.getSizeConfigurations();
-    }
-
-    Configuration[] getSizeAndUiModeConfigurations() {
-        return mAssets.getSizeAndUiModeConfigurations();
+    Configuration[] getResourceConfigurations() {
+        return mAssets.getResourceConfigurations();
     }
 
     CompatibilityInfo getCompatibilityInfo() {
@@ -521,7 +517,7 @@ public class ResourcesImpl {
                         // so that we will use the same locales on other non-locale config changes.
 
                         Locale[] intersection = null;
-                        if (Flags.defaultLocale() && (mLocaleConfig.getDefaultLocale() != null)) {
+                        if (mLocaleConfig.getDefaultLocale() != null) {
                             // Note: getIntersection() returns a list of locales in the same order
                             // currently in `configLocales`, which is desired (i.e., app-specific
                             // locales first before system locales).
@@ -537,9 +533,6 @@ public class ResourcesImpl {
                                     selectedLocales[i] =
                                             adjustLanguageTag(intersection[i].toLanguageTag());
                                 }
-                                Slog.v(TAG, "Updating configuration, with default locale "
-                                        + defaultLocale + " and selected locales "
-                                        + Arrays.toString(selectedLocales));
                             }
                         }
 
@@ -591,7 +584,7 @@ public class ResourcesImpl {
                     // 3. Locales changed, and there were multiple locales in the configuration,
                     //    but the app does not support any of them, so we use whatever locales are
                     //    currently in the configuration.
-                    if (Flags.defaultLocale() && (mLocaleConfig.getDefaultLocale() != null)) {
+                    if (mLocaleConfig.getDefaultLocale() != null) {
                         selectedLocales = new String[configLocales.size()];
                         for (int i = 0; i < configLocales.size(); i++) {
                             selectedLocales[i] =

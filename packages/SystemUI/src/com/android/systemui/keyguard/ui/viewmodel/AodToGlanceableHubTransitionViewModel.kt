@@ -27,7 +27,6 @@ import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.transitions.GlanceableHubTransition
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.shared.Flags.ambientAod
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -55,32 +54,15 @@ constructor(
         var currentAlpha = 0f
         return transitionAnimation.sharedFlow(
             duration = 250.milliseconds,
-            startTime =
-                if (ambientAod()) {
-                    100.milliseconds // Wait for the light reveal to "hit" the LS elements.
-                } else {
-                    0.milliseconds
-                },
-            onStart = {
-                currentAlpha =
-                    if (ambientAod()) {
-                        viewState.alpha()
-                    } else {
-                        0f
-                    }
-            },
+            startTime = 100.milliseconds, // Wait for the light reveal to "hit" the LS elements.
+            onStart = { currentAlpha = viewState.alpha() },
             onStep = { MathUtils.lerp(currentAlpha, 0f, it) },
             onFinish = { 0f },
         )
     }
 
     override val zoomOut: Flow<Float> =
-        transitionAnimation.sharedFlow(
-            onStep = { it },
-            onFinish = { 1f },
-            onCancel = { 0f },
-            name = "AOD->GLANCEABLE_HUB: zoomOut",
-        )
+        transitionAnimation.sharedFlow(onStep = { it }, onFinish = { 1f }, onCancel = { 0f })
 
     override val windowBlurRadius: Flow<Float> =
         blurFactory.create(transitionAnimation).getBlurProvider().enterBlurRadius

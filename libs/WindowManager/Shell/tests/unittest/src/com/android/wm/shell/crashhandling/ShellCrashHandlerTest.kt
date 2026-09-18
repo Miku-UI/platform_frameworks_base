@@ -20,21 +20,21 @@ import android.app.ActivityManager.RunningTaskInfo
 import android.app.PendingIntent
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW
+import android.app.WindowConfiguration.WINDOWING_MODE_PINNED
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.WindowManager.TRANSIT_CHANGE
 import android.window.WindowContainerTransaction
 import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_PENDING_INTENT
 import com.android.modules.utils.testing.ExtendedMockitoRule
+import com.android.testing.wm.util.MockToken
 import com.android.window.flags.Flags
-import com.android.wm.shell.MockToken
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.bubbles.BubbleController
+import com.android.wm.shell.bubbles.BubbleHelper
 import com.android.wm.shell.bubbles.util.BubbleTestUtils.verifyExitBubbleTransaction
 import com.android.wm.shell.common.HomeIntentProvider
 import com.android.wm.shell.common.ShellExecutor
@@ -49,10 +49,12 @@ import org.junit.Before
 import org.junit.Rule
 import org.mockito.ArgumentCaptor
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.isA
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
+import org.mockito.kotlin.stub
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -67,7 +69,7 @@ class ShellCrashHandlerTest : ShellTestCase() {
     private val shellTaskOrganizer = mock<ShellTaskOrganizer>()
     private val desktopState = FakeDesktopState()
     private val transitions = mock<Transitions>()
-    private val bubbleController = mock<BubbleController>()
+    private val bubbleHelper = mock<BubbleHelper>()
 
     private lateinit var homeIntentProvider: HomeIntentProvider
     private lateinit var crashHandler: ShellCrashHandler
@@ -87,30 +89,17 @@ class ShellCrashHandlerTest : ShellTestCase() {
                 transitions,
                 homeIntentProvider,
                 desktopState,
-                Optional.of(bubbleController),
+                Optional.of(bubbleHelper),
                 shellInit,
             )
     }
 
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun init_freeformTaskExists_sendsHomeIntent() {
-        val wctCaptor = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
-        val task = createTaskInfo(1)
-        whenever(shellTaskOrganizer.getRunningTasks()).thenReturn(arrayListOf(task))
-
-        shellInit.init()
-
-        verify(shellTaskOrganizer).applyTransaction(wctCaptor.capture())
-        wctCaptor.value.assertPendingIntentAt(0, launchHomeIntent(DEFAULT_DISPLAY))
-    }
 
     @Test
-    @EnableFlags(com.android.wm.shell.Flags.FLAG_ENABLE_SHELL_RESTART_BUBBLE_CLEANUP)
     fun init_bubbleTaskExists_convertsToUndefined() {
         val bubbleTask = createTaskInfo(1, windowingMode = WINDOWING_MODE_MULTI_WINDOW)
         whenever(shellTaskOrganizer.getRunningTasks()).thenReturn(arrayListOf(bubbleTask))
-        whenever(bubbleController.shouldBeAppBubble(bubbleTask)).thenReturn(true)
+        bubbleHelper.stub { on { isAppBubbleTask(any()) } doReturn true }
 
         shellInit.init()
 
@@ -121,6 +110,28 @@ class ShellCrashHandlerTest : ShellTestCase() {
 
         verifyExitBubbleTransaction(wct, bubbleTask.token.asBinder())
         wct.assertPendingIntentAt(wct.hierarchyOps.lastIndex, launchHomeIntent(DEFAULT_DISPLAY))
+    }
+
+    @Test
+    fun init_pipTaskExists_removesTask() {
+        val pipTask = createTaskInfo(1, windowingMode = WINDOWING_MODE_PINNED)
+        whenever(shellTaskOrganizer.getRunningTasks()).thenReturn(arrayListOf(pipTask))
+
+        shellInit.init()
+
+        val wctCaptor = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
+        verify(transitions)
+            .startTransition(
+                eq(android.view.WindowManager.TRANSIT_CLOSE),
+                wctCaptor.capture(),
+                eq(null),
+            )
+        val wct = wctCaptor.value
+        assertThat(wct.hierarchyOps).hasSize(1)
+        val op = wct.hierarchyOps[0]
+        assertThat(op.type)
+            .isEqualTo(WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REMOVE_TASK)
+        assertThat(op.container).isEqualTo(pipTask.token.asBinder())
     }
 
     private fun launchHomeIntent(displayId: Int): Intent {

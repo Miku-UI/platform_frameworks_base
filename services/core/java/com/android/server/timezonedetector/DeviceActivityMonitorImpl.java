@@ -32,9 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * The real implementation of {@link DeviceActivityMonitor}.
- */
+/** The real implementation of {@link DeviceActivityMonitor}. */
 class DeviceActivityMonitorImpl implements DeviceActivityMonitor {
 
     private static final String LOG_TAG = TimeZoneDetectorService.TAG;
@@ -52,25 +50,27 @@ class DeviceActivityMonitorImpl implements DeviceActivityMonitor {
         // The way this "detects" a flight concluding is by the user explicitly turning off airplane
         // mode. Smarter heuristics would be nice.
         ContentResolver contentResolver = context.getContentResolver();
-        ContentObserver airplaneModeObserver = new ContentObserver(handler) {
-            @Override
-            public void onChange(boolean unused) {
-                try {
-                    int state = Settings.Global.getInt(
-                            contentResolver, Settings.Global.AIRPLANE_MODE_ON);
-                    if (state == 0) {
-                        notifyFlightComplete();
-                    } else if (state == 1) {
-                        notifyFlightStart();
+        ContentObserver airplaneModeObserver =
+                new ContentObserver(handler) {
+                    @Override
+                    public void onChange(boolean unused) {
+                        try {
+                            int state =
+                                    Settings.Global.getInt(
+                                            contentResolver, Settings.Global.AIRPLANE_MODE_ON);
+                            if (state == 0) {
+                                notifyFlightComplete();
+                            } else if (state == 1) {
+                                notifyFlightStart();
+                            }
+                        } catch (Settings.SettingNotFoundException e) {
+                            Slog.e(LOG_TAG, "Unable to read airplane mode state", e);
+                        }
                     }
-                } catch (Settings.SettingNotFoundException e) {
-                    Slog.e(LOG_TAG, "Unable to read airplane mode state", e);
-                }
-            }
-        };
+                };
         contentResolver.registerContentObserver(
                 Settings.Global.getUriFor(Settings.Global.AIRPLANE_MODE_ON),
-                true /* notifyForDescendants */,
+                /* notifyForDescendants= */ true,
                 airplaneModeObserver);
     }
 

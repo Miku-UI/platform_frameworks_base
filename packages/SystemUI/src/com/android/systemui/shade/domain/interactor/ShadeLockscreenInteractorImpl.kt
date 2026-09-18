@@ -99,7 +99,11 @@ constructor(
     }
 
     override fun showAodUi() {
-        sceneInteractor.changeScene(Scenes.Lockscreen, "showAodUi", sceneState = KeyguardState.AOD)
+        sceneInteractor.changeScene(
+            Scenes.Lockscreen,
+            "showAodUi",
+            keyguardState = KeyguardState.AOD,
+        )
         // TODO(b/330311871) implement transition to AOD
     }
 }

@@ -18,17 +18,11 @@ package com.android.wm.shell.shared.bubbles
 
 import android.graphics.Rect
 
-/**
- * Provide bounds for Bubbles drop targets that are shown when dragging over drag zones
- */
+/** Provide bounds for Bubbles drop targets that are shown when dragging over drag zones */
 interface BubbleDropTargetBoundsProvider {
-    /**
-     * Get bubble bar expanded view visual drop target bounds on screen
-     */
+    /** Get bubble bar expanded view visual drop target bounds on screen */
     fun getBubbleBarExpandedViewDropTargetBounds(onLeft: Boolean): Rect
 
-    /**
-     * Get the bar visual drop target bounds on screen
-     */
+    /** Get the bar visual drop target bounds on screen */
     fun getBarDropTargetBounds(onLeft: Boolean): Rect
 }

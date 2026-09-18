@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardSmartspaceInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -30,5 +31,6 @@ val Kosmos.keyguardSmartspaceViewModel by
             keyguardClockViewModel = keyguardClockViewModel,
             smartspaceInteractor = keyguardSmartspaceInteractor,
             shadeModeInteractor = shadeModeInteractor,
+            keyguardInteractor = keyguardInteractor,
         )
     }

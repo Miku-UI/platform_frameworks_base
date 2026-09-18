@@ -26,7 +26,7 @@ import android.content.ComponentName;
  * DevicePolicyManager} and its service. For public version, please see {@link
  * MultiUserDeviceProvisioningParams}.
  *
- * {@hide}
+ * @hide
  */
 parcelable MultiUserDeviceProvisioningParamsTransport {
     // TODO(b/390162247): Remove this param once we decide where to store

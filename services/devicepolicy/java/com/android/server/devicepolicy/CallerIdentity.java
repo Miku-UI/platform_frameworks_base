@@ -20,12 +20,14 @@ import android.annotation.Nullable;
 import android.content.ComponentName;
 import android.os.UserHandle;
 
+import java.util.Objects;
+
 /**
  * Caller identity containing the caller's UID, package name and component name.
  * All parameters are verified on object creation unless the component name is null and the
  * caller is a delegate.
  */
-final class CallerIdentity {
+public final class CallerIdentity {
 
     private final int mPid;
     private final int mUid;
@@ -34,7 +36,7 @@ final class CallerIdentity {
     @Nullable
     private final ComponentName mComponentName;
 
-    CallerIdentity(int pid, int uid, @Nullable String packageName,
+    public CallerIdentity(int pid, int uid, @Nullable String packageName,
             @Nullable ComponentName componentName) {
         mPid = pid;
         mUid = uid;
@@ -86,5 +88,19 @@ final class CallerIdentity {
             builder.append(", cmp=").append(mComponentName.flattenToShortString());
         }
         return builder.append("]").toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof CallerIdentity that)) return false;
+        return mPid == that.mPid
+                && mUid == that.mUid
+                && Objects.equals(mPackageName, that.mPackageName)
+                && Objects.equals(mComponentName, that.mComponentName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mPid, mUid, mPackageName, mComponentName);
     }
 }

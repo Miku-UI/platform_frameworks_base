@@ -16,20 +16,27 @@
 
 package com.android.systemui.globalactions.data.repository
 
-import com.android.systemui.dagger.SysUISingleton
-import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.android.systemui.globalactions.shared.model.GlobalActionType
+import kotlinx.coroutines.flow.StateFlow
 
 /** Encapsulates application state for global actions. */
-@SysUISingleton
-class GlobalActionsRepository @Inject constructor() {
-    private val _isVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+interface GlobalActionsRepository {
     /** Is the global actions dialog visible. */
-    val isVisible = _isVisible.asStateFlow()
+    val isVisible: StateFlow<Boolean>
 
     /** Sets whether the global actions dialog is visible. */
-    fun setVisible(isVisible: Boolean) {
-        _isVisible.value = isVisible
-    }
+    fun setVisible(isVisible: Boolean)
+
+    /**
+     * The list of all possible global actions. This list is used to determine what actions can be
+     * displayed but it does not guarantee that they will be displayed. The actions that are finally
+     * displayed are determined by device state.
+     */
+    val possibleGlobalActions: List<GlobalActionType>
+
+    /** The list of global actions that should be blocked when the device is not yet provisioned. */
+    val unprovisionedDeviceStateBlockList: List<GlobalActionType>
+
+    /** The list of global actions that should be blocked when the device is locked. */
+    val lockedDeviceStateBlockList: List<GlobalActionType>
 }

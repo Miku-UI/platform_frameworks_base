@@ -16,18 +16,27 @@
 
 package com.android.settingslib.spa.widget.preference
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelectable
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.settingslib.spa.widget.ui.SettingsIcon
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -144,6 +153,51 @@ class RadioPreferencesTest {
         enabledState.value = false
         composeTestRule.onNodeWithText("A").assertIsDisplayed().assertIsNotEnabled()
         composeTestRule.onNodeWithText("B").assertIsDisplayed().assertIsNotEnabled()
+    }
+
+    @Test
+    fun summary_displayed() {
+        composeTestRule.setContent {
+            RadioPreferences(remember {
+                object : ListPreferenceModel {
+                    override val title = TITLE
+                    override val options = listOf(
+                        ListPreferenceOption(id = 1, text = "A", summary = "Summary A"),
+                        ListPreferenceOption(id = 2, text = "B", summary = "Summary B"),
+                    )
+                    override val selectedId = mutableIntStateOf(1)
+                    override val onIdSelected: (Int) -> Unit = {}
+                }
+            })
+        }
+        composeTestRule.onNodeWithText("Summary A").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Summary B").assertIsDisplayed()
+    }
+
+    @Test
+    fun icon_displayed() {
+        composeTestRule.setContent {
+            RadioPreferences(remember {
+                object : ListPreferenceModel {
+                    override val title = TITLE
+                    override val options = listOf(
+                        ListPreferenceOption(
+                            id = 1,
+                            text = "A",
+                            icon = @Composable {
+                                Box(Modifier.testTag("Icon")) {
+                                    SettingsIcon(imageVector = Icons.Outlined.Apps)
+                                }
+                            }
+                        ),
+                        ListPreferenceOption(id = 2, text = "B"),
+                    )
+                    override val selectedId = mutableIntStateOf(1)
+                    override val onIdSelected: (Int) -> Unit = {}
+                }
+            })
+        }
+        composeTestRule.onNodeWithTag("Icon", useUnmergedTree = true).assertIsDisplayed()
     }
 
     private companion object {

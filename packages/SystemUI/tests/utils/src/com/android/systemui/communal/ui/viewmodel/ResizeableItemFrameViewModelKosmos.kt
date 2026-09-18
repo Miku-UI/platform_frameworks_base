@@ -16,6 +16,19 @@
 
 package com.android.systemui.communal.ui.viewmodel
 
+import android.content.ComponentName
+import com.android.internal.logging.uiEventLogger
 import com.android.systemui.kosmos.Kosmos
 
-val Kosmos.resizeableItemFrameViewModel by Kosmos.Fixture { ResizeableItemFrameViewModel() }
+val Kosmos.resizeableItemFrameViewModel by
+    Kosmos.Fixture {
+        ResizeableItemFrameViewModel(uiEventLogger = uiEventLogger, componentName = null)
+    }
+
+val Kosmos.resizeableItemFrameViewModelFactory by
+    Kosmos.Fixture {
+        object : ResizeableItemFrameViewModel.Factory {
+            override fun create(componentName: ComponentName?) =
+                ResizeableItemFrameViewModel(uiEventLogger, componentName)
+        }
+    }

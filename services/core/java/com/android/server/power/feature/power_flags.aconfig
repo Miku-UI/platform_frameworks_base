@@ -22,22 +22,13 @@ flag {
 }
 
 flag {
-    name: "wakelock_attribution_via_workchain"
-    namespace: "power"
-    description: "Enables the attribution of wakelocks via WorkChain for updateWakelockUids"
-    bug: "331304805"
-    is_fixed_read_only: true
+    name: "nudge_user_activity_on_fold"
+    namespace: "display_manager"
+    description: "Nudge user activity on fold/unfold"
+    bug: "446941468"
     metadata {
       purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-    name: "improve_wakelock_latency"
-    namespace: "power"
-    description: "Feature flag for tracking the optimizations to improve the latency of acquiring and releasing a wakelock."
-    bug: "339590565"
-    is_fixed_read_only: true
 }
 
 flag {
@@ -59,21 +50,6 @@ flag {
 }
 
 flag {
-    name: "policy_reason_in_display_power_request"
-    namespace: "wear_frameworks"
-    description: "Whether the policy reason is populted in DisplayPowerRequest."
-    bug: "364349703"
-    is_fixed_read_only: true
-}
-
-flag {
-    name: "move_wsc_logging_to_notifier"
-    namespace: "power"
-    description: "Feature flag to move logging of WakelockStateChanged atoms from BatteryStatsImpl to Notifier."
-    bug: "352602149"
-}
-
-flag {
     name: "disable_frozen_process_wakelocks"
     namespace: "power"
     description: "Feature flag to disable/enable wakelocks of a process when it is frozen/unfrozen"
@@ -81,17 +57,13 @@ flag {
 }
 
 flag {
-    name: "force_disable_wakelocks"
-    namespace: "power"
-    description: "Feature flag to force disable wakelocks"
-    bug: "370557028"
-}
-
-flag {
-    name: "enable_app_wakelock_data_source"
-    namespace: "power"
-    description: "Feature flag to enable a new Perfetto data source for tracing app wakelocks."
-    bug: "400774865"
+    name: "tap_to_wake_cd"
+    namespace: "lse_desktop_experience"
+    description: "Feature flag to enable tap to wake on connected displays"
+    bug: "425279223"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -99,6 +71,17 @@ flag {
     namespace: "power"
     description: "Feature flag to have a system API which shuts down the device."
     bug: "365055195"
+    is_exported: true
+}
+
+flag {
+    name: "lock_on_power_group_disconnect"
+    namespace: "lse_desktop_experience"
+    description: "Fixes device locking when all remaining power groups are disconnected"
+    bug: "449662568"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -107,23 +90,52 @@ flag {
     description: "Enable new wakelock to keep device asleep - for the user, but ensure that the CPU remains awake."
     bug: "401624085"
     is_fixed_read_only: true
+    is_exported: true
 }
 
 flag {
-    name: "extra_logging_separate_timeout"
+    namespace: "wear_frameworks"
+    name: "interactive_doze_experience"
+    description: "Enable active user interaction in doze power state."
+    bug: "331963926"
+    metadata {
+      purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    name: "wait_for_user_boot_complete"
     namespace: "power"
-    description: "Adds extra logs to triage some test flakiness"
-    bug: "428848574"
+    description: "When enabled, holds the BootSuspendBlocker until after the ACTION_BOOT_COMPLETED broadcast is sent. This prevents the CPU from suspending prematurely during a quiescent reboot."
+    bug: "440425374"
+    metadata {
+          purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "remove_cached_uids_from_wakelock"
+    namespace: "power"
+    description: "When enabled, removes the attribution of the cached uids from wakelock"
+    bug: "397943328"
+}
+
+flag {
+    name: "dont_churn_tag_database_on_release"
+    namespace: "power"
+    description: "When enabled, tag database will not churn old values when a non-existent tag wakelock is released"
+    bug: "478418224"
     metadata {
       purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "wake_adjacent_displays_on_wakeup_call"
-    namespace: "lse_desktop_experience"
-    description: "Wakes up the displays from default and default adjacent group"
-    bug: "428848574"
+    name: "enable_inset_focus_rings_in_suw"
+    namespace: "power"
+    description: "Decides whether to enable inset focus rings in the reboot into safe mode dialog during the SuW."
+    bug: "484084632"
+    is_fixed_read_only: true
     metadata {
       purpose: PURPOSE_BUGFIX
     }

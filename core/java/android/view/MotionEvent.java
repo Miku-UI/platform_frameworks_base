@@ -32,6 +32,7 @@ import android.os.MotionEventFlag;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 import android.util.SparseArray;
 
@@ -194,6 +195,7 @@ import java.util.Objects;
  * received an {@link #ACTION_UP} for the prior gesture.
  * </p>
  */
+@RavenwoodKeepWholeClass
 public final class MotionEvent extends InputEvent implements Parcelable {
     private static final String TAG = "MotionEvent";
     private static final long NS_PER_MS = 1000000;
@@ -242,9 +244,15 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     public static final int ACTION_MOVE             = 2;
 
     /**
-     * Constant for {@link #getActionMasked}: The current gesture has been aborted.
-     * You will not receive any more points in it.  You should treat this as
-     * an up event, but not perform any action that you normally would.
+     * Constant for {@link #getActionMasked}: The current gesture has been aborted. You will not
+     * receive any more points in it. You should not perform any action that you normally would as a
+     * result of this gesture.
+     * <p>
+     * After an {@code ACTION_CANCEL} event, you should assume that all pointers that were down have
+     * been lifted. In cases where only one pointer is cancelled, {@link #ACTION_POINTER_UP} with
+     * {@link #FLAG_CANCELED} will be sent instead.
+     * <p>
+     * {@link #FLAG_CANCELED} is always set on {@code ACTION_CANCEL} events.
      */
     public static final int ACTION_CANCEL           = 3;
 
@@ -286,9 +294,12 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     public static final int ACTION_POINTER_UP       = 6;
 
     /**
-     * Constant for {@link #getActionMasked}: A change happened but the pointer
-     * is not down (unlike {@link #ACTION_MOVE}).  The motion contains the most
-     * recent point, as well as any intermediate points since the last
+     * Constant for {@link #getActionMasked}: The pointer moved while hovering.
+     * <p>
+     * See {@link #ACTION_HOVER_ENTER} for the conditions in which a pointer is considered to be
+     * hovering. If these are not met, an {@link #ACTION_MOVE} event is sent instead.
+     * <p>
+     * The motion contains the most recent point, as well as any intermediate points since the last
      * hover move event.
      * <p>
      * This action is always delivered to the window or view under the pointer.
@@ -297,6 +308,9 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * {@link View#onGenericMotionEvent(MotionEvent)} rather than
      * {@link View#onTouchEvent(MotionEvent)}.
      * </p>
+     * @see #ACTION_HOVER_ENTER
+     * @see #ACTION_HOVER_EXIT
+     * @see #ACTION_MOVE
      */
     public static final int ACTION_HOVER_MOVE       = 7;
 
@@ -317,8 +331,21 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     public static final int ACTION_SCROLL           = 8;
 
     /**
-     * Constant for {@link #getActionMasked}: The pointer is not down but has entered the
-     * boundaries of a window or view.
+     * Constant for {@link #getActionMasked}: The pointer is not down but has begun to hover over a
+     * window or view.
+     * <p>
+     * A pointer is considered to be hovering over a window or view when all of the following are
+     * true:
+     * <ul>
+     * <li>It is within the boundaries of the window or view
+     * <li>The window or view is not obscured by another at the pointer's location
+     * <li>For mice and touchpads, none of the primary, secondary, or tertiary buttons (also known
+     *     as the left, right, and middle buttons) are pressed
+     * <li>For styluses, the stylus is hovering over the screen or drawing tablet but has not
+     *     touched it
+     * </ul>
+     * <p>
+     * When all of these conditions become true for a window or view, it will receive this event.
      * <p>
      * This action is always delivered to the window or view under the pointer.
      * </p><p>
@@ -326,12 +353,22 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * {@link View#onGenericMotionEvent(MotionEvent)} rather than
      * {@link View#onTouchEvent(MotionEvent)}.
      * </p>
+     * @see #ACTION_HOVER_MOVE
+     * @see #ACTION_HOVER_EXIT
      */
     public static final int ACTION_HOVER_ENTER      = 9;
 
     /**
-     * Constant for {@link #getActionMasked}: The pointer is not down but has exited the
-     * boundaries of a window or view.
+     * Constant for {@link #getActionMasked}: The pointer is no longer hovering over a window or
+     * view.
+     * <p>
+     * This event occurs when one or more of the conditions described in {@link #ACTION_HOVER_ENTER}
+     * becomes false, for example:
+     * <ul>
+     * <li>When the pointer exits the boundaries of the window or view
+     * <li>When a mouse or touchpad button is pressed, putting the pointer into the "down" state (in
+     *     which case this event will be followed by an {@link #ACTION_DOWN} event)
+     * </ul>
      * <p>
      * This action is always delivered to the window or view that was previously under the pointer.
      * </p><p>
@@ -339,6 +376,8 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * {@link View#onGenericMotionEvent(MotionEvent)} rather than
      * {@link View#onTouchEvent(MotionEvent)}.
      * </p>
+     * @see #ACTION_HOVER_ENTER
+     * @see #ACTION_HOVER_MOVE
      */
     public static final int ACTION_HOVER_EXIT       = 10;
 
@@ -640,6 +679,14 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     public static final int EDGE_RIGHT = 0x00000008;
 
     /**
+     * Used by {@link InputManager#remapControllerAxis} to indicate that the axis should be
+     * disabled.
+     *
+     * @hide
+     */
+    public static final int AXIS_DISABLED = -1;
+
+    /**
      * Axis constant: X axis of a motion event.
      * <p>
      * <ul>
@@ -861,7 +908,9 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * The value is normalized to a range from -1.0 (down) to 1.0 (up).
      * </ul>
      * </p><p>
-     * This axis should be used to scroll views vertically.
+     * This axis should be used to scroll views vertically. Positive values should scroll the
+     * viewport up (i.e. move the content down), while negative ones should scroll the viewport down
+     * (i.e. move the content up).
      * </p>
      *
      * @see #getAxisValue(int, int)
@@ -879,7 +928,9 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * The value is normalized to a range from -1.0 (left) to 1.0 (right).
      * </ul>
      * </p><p>
-     * This axis should be used to scroll views horizontally.
+     * This axis should be used to scroll views horizontally. Positive values should scroll the
+     * viewport to the right (i.e. move the content to the left), while negative ones should scroll
+     * the viewport to the left (i.e. move the content to the right).
      * </p>
      *
      * @see #getAxisValue(int, int)
@@ -1555,7 +1606,7 @@ public final class MotionEvent extends InputEvent implements Parcelable {
             AXIS_GESTURE_SWIPE_FINGER_COUNT,
     })
     @Retention(RetentionPolicy.SOURCE)
-    @interface Axis {}
+    public @interface Axis {}
 
     /**
      * Button constant: Primary button (left mouse button).
@@ -1749,7 +1800,7 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     public static final int TOOL_TYPE_UNKNOWN = 0;
 
     /**
-     * Tool type constant: The tool is a finger.
+     * Tool type constant: The tool is a finger, touching a touchscreen or touchpad.
      *
      * @see #getToolType
      */
@@ -2250,7 +2301,7 @@ public final class MotionEvent extends InputEvent implements Parcelable {
             pp[0].clear();
             pp[0].id = 0;
 
-            final PointerCoords pc[] = gSharedTempPointerCoords;
+            final PointerCoords[] pc = gSharedTempPointerCoords;
             pc[0].clear();
             pc[0].x = x;
             pc[0].y = y;
@@ -2326,6 +2377,58 @@ public final class MotionEvent extends InputEvent implements Parcelable {
             float x, float y, int metaState) {
         return obtain(downTime, eventTime, action, x, y, 1.0f, 1.0f,
                 metaState, 1.0f, 1.0f, 0, 0);
+    }
+
+
+    /**
+     * Create a new MotionEvent, filling in all of the basic values that
+     * define the motion.
+     *
+     * @param downTimeNanos     The time (in ns) when the user originally pressed down to start
+     *                          a stream of position events. This must be obtained from
+     *                          {@link SystemClock#uptimeNanos()}.
+     * @param eventTimeNanos    The time (in ns) when this specific event was generated. This
+     *                          must be obtained from {@link SystemClock#uptimeNanos()}.
+     * @param action            The kind of action being performed, such as {@link #ACTION_DOWN}.
+     * @param pointerCount      The number of pointers that will be in this event.
+     * @param pointerProperties An array of <em>pointerCount</em> values providing
+     *                          a {@link PointerProperties} property object for each pointer, which
+     *                          must
+     *                          include the pointer identifier.
+     * @param pointerCoords     An array of <em>pointerCount</em> values providing
+     *                          a {@link PointerCoords} coordinate object for each pointer.
+     * @param metaState         The state of any meta / modifier keys that were in effect when
+     *                          the event was generated.
+     * @param buttonState       The state of buttons that are pressed.
+     * @param xPrecision        The precision of the X coordinate being reported.
+     * @param yPrecision        The precision of the Y coordinate being reported.
+     * @param deviceId          The ID for the device that this event came from.  An ID of
+     *                          zero indicates that the event didn't come from a physical device;
+     *                          other
+     *                          numbers are arbitrary and you shouldn't depend on the values.
+     * @param edgeFlags         A bitfield indicating which edges, if any, were touched by this
+     *                          MotionEvent.
+     * @param source            The source of this event.
+     * @param displayId         The display ID associated with this event.
+     * @param flags             The motion event flags.
+     * @param classification    The classification to give this event.
+     * @hide
+     */
+    public static MotionEvent obtainNanoseconds(long downTimeNanos, long eventTimeNanos, int action,
+            int pointerCount, PointerProperties[] pointerProperties, PointerCoords[] pointerCoords,
+            int metaState, int buttonState, float xPrecision, float yPrecision, int deviceId,
+            int edgeFlags, int source, int displayId, int flags,
+            @Classification int classification) {
+        MotionEvent ev = obtain();
+        final boolean success = ev.initialize(deviceId, source, displayId, action, flags, edgeFlags,
+                metaState, buttonState, classification, 0, 0, xPrecision, yPrecision,
+                downTimeNanos, eventTimeNanos, pointerCount, pointerProperties,
+                pointerCoords);
+        if (!success) {
+            ev.recycle();
+            throw new IllegalArgumentException("Could not initialize MotionEvent");
+        }
+        return ev;
     }
 
     /**
@@ -2428,7 +2531,20 @@ public final class MotionEvent extends InputEvent implements Parcelable {
         return nativeGetDeviceId(mNativePtr);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     * <p>
+     * <b>Note:</b> for events from touchpads, this method will normally only return
+     * {@link InputDevice#SOURCE_MOUSE}. To distinguish touchpad events from mouse events, check the
+     * return value of {@link #getToolType(int)} for pointer 0. If it's {@link #TOOL_TYPE_FINGER},
+     * the event is from a touchpad; if it's {@link #TOOL_TYPE_MOUSE}, the event is from a mouse.
+     * <p>
+     * The exception to this is when the touchpad is
+     * {@linkplain View#requestPointerCapture() captured}, in which case
+     * {@link InputDevice#SOURCE_TOUCHPAD} will be returned as expected.
+     */
+    // TODO(b/403531245): update the last paragraph of the JavaDoc to specify that SOURCE_TOUCHPAD
+    //  will only be used when the touchpad is captured in absolute mode.
     @Override
     public final int getSource() {
         return nativeGetSource(mNativePtr);
@@ -2633,6 +2749,16 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      */
     public final long getDownTime() {
         return nativeGetDownTimeNanos(mNativePtr) / NS_PER_MS;
+    }
+
+    /**
+     * Retrieve the time (in ns) when the user originally pressed down to start
+     * a stream of position events.
+     *
+     * @hide
+     */
+    public long getDownTimeNanos() {
+        return nativeGetDownTimeNanos(mNativePtr);
     }
 
     /**
@@ -3089,6 +3215,23 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * Equivalent to {@link #getRawX(int)} for pointer index 0 (regardless of
      * the pointer identifier).
      *
+     * <p>Warning: Typical apps should almost never use this method. It's designed for system-level
+     * components or multi-window apps/services that must operate within the full coordinate space
+     * of the device display, regardless of window boundaries.
+     *
+     * <p>For typical applications, this method will lead to incorrect and unpredictable behavior
+     * because it does not account for crucial factors, such as:
+     *
+     * <ul>
+     *   <li>Window positioning (e.g. split-screen and freeform desktop modes)
+     *   <li>Accessibility features (e.g. screen magnification)
+     *   <li>And other display-related caveats
+     * </ul>
+     *
+     * <p>Using it will likely break an app's touch and interaction logic. Use {@link #getX()}
+     * instead, which correctly handles these scenarios and provides coordinates relative to the
+     * app's own view.
+     *
      * @return The X coordinate of the first pointer index in the coordinate
      *      space of the device display.
      *
@@ -3102,6 +3245,23 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     /**
      * Equivalent to {@link #getRawY(int)} for pointer index 0 (regardless of
      * the pointer identifier).
+     *
+     * <p>Warning: Typical apps should almost never use this method. It's designed for system-level
+     * components or multi-window apps/services that must operate within the full coordinate space
+     * of the device display, regardless of window boundaries.
+     *
+     * <p>For typical applications, this method will lead to incorrect and unpredictable behavior
+     * because it does not account for crucial factors, such as:
+     *
+     * <ul>
+     *   <li>Window positioning (e.g. split-screen and freeform desktop modes)
+     *   <li>Accessibility features (e.g. screen magnification)
+     *   <li>And other display-related caveats
+     * </ul>
+     *
+     * <p>Using it will likely break an app's touch and interaction logic. Use {@link #getY()}
+     * instead, which correctly handles these scenarios and provides coordinates relative to the
+     * app's own view.
      *
      * @return The Y coordinate of the first pointer index in the coordinate
      *      space of the device display.
@@ -3120,6 +3280,23 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * decorations and whether or not the system is in multi-window mode. If the
      * app spans multiple screens in a multiple-screen environment, the
      * coordinate space includes all of the spanned screens.
+     *
+     * <p>Warning: Typical apps should almost never use this method. It's designed for system-level
+     * components or multi-window apps/services that must operate within the full coordinate space
+     * of the device display, regardless of window boundaries.
+     *
+     * <p>For typical applications, this method will lead to incorrect and unpredictable behavior
+     * because it does not account for crucial factors, such as:
+     *
+     * <ul>
+     *   <li>Window positioning (e.g. split-screen and freeform desktop modes)
+     *   <li>Accessibility features (e.g. screen magnification)
+     *   <li>And other display-related caveats
+     * </ul>
+     *
+     * <p>Using it will likely break an app's touch and interaction logic. Use {@link #getX(int)}
+     * instead, which correctly handles these scenarios and provides coordinates relative to the
+     * app's own view.
      *
      * <p>In multi-window mode, the coordinate space extends beyond the bounds
      * of the app window to encompass the entire display area. For example, if
@@ -3161,6 +3338,23 @@ public final class MotionEvent extends InputEvent implements Parcelable {
      * decorations and whether or not the system is in multi-window mode. If the
      * app spans multiple screens in a multiple-screen environment, the
      * coordinate space includes all of the spanned screens.
+     *
+     * <p>Warning: Typical apps should almost never use this method. It's designed for system-level
+     * components or multi-window apps/services that must operate within the full coordinate space
+     * of the device display, regardless of window boundaries.
+     *
+     * <p>For typical applications, this method will lead to incorrect and unpredictable behavior
+     * because it does not account for crucial factors, such as:
+     *
+     * <ul>
+     *   <li>Window positioning (e.g. split-screen and freeform desktop modes)
+     *   <li>Accessibility features (e.g. screen magnification)
+     *   <li>And other display-related caveats
+     * </ul>
+     *
+     * <p>Using it will likely break an app's touch and interaction logic. Use {@link #getY(int)}
+     * instead, which correctly handles these scenarios and provides coordinates relative to the
+     * app's own view.
      *
      * <p>In multi-window mode, the coordinate space extends beyond the bounds
      * of the app window to encompass the entire device screen. For example, if
@@ -4118,6 +4312,15 @@ public final class MotionEvent extends InputEvent implements Parcelable {
         } catch (NumberFormatException ex) {
             return -1;
         }
+    }
+
+    /**
+     * Returns whether the specified axis is valid.
+     *
+     * @hide
+     */
+    public static boolean isValidAxis(int axis) {
+        return AXIS_SYMBOLIC_NAMES.contains(axis);
     }
 
     /**

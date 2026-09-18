@@ -17,7 +17,7 @@ package android.platform.test.ravenwood;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.platform.test.ravenwood.RavenwoodInternalUtils.MapCache;
+import android.platform.test.ravenwood.RavenwoodImplUtils.MapCache;
 import android.util.Log;
 
 import com.android.hoststubgen.hosthelper.HostTestUtils;
@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -77,6 +78,12 @@ public class RavenwoodMethodCallLogger {
         default -> LogMode.Default;
     };
 
+    /**
+     * If set, we filter methods with this regex
+     */
+    private static final String METHOD_FILTER_RE = System.getenv(
+            "RAVENWOOD_METHOD_LOG_FILTER");
+
     /** The policy file is created with this filename. */
     private static final String CALLED_METHOD_POLICY_FILE = "/tmp/ravenwood-called-methods.txt";
 
@@ -89,13 +96,20 @@ public class RavenwoodMethodCallLogger {
 
     /** It's a singleton, except we create different instances for unit tests. */
     @VisibleForTesting
-    public RavenwoodMethodCallLogger(LogMode logMode) {
+    public RavenwoodMethodCallLogger(@NonNull LogMode logMode, @Nullable String filterRe) {
         mLogMode = logMode;
+        if (filterRe == null) {
+            mMethodFilter = (clz, name) -> true;
+        } else {
+            var pat = Pattern.compile(filterRe);
+            mMethodFilter = (clz, name) ->
+                pat.matcher(clz.getName() + "#" + name).find();
+        }
     }
 
     /** Singleton instance */
     private static final RavenwoodMethodCallLogger sInstance =
-            new RavenwoodMethodCallLogger(LOG_MODE);
+            new RavenwoodMethodCallLogger(LOG_MODE, METHOD_FILTER_RE);
 
     /**
      * @return the singleton instance.
@@ -117,9 +131,15 @@ public class RavenwoodMethodCallLogger {
     /** We don't want to log anything before ravenwood is initialized. This flag controls it.*/
     private volatile boolean mEnabled = false;
 
+    @NonNull
     private volatile PrintStream mOut = System.out;
 
+    @NonNull
     private final LogMode mLogMode;
+
+    /** Takes a class and a method name and returns if it should be logged or not. */
+    @NonNull
+    private final BiPredicate<Class<?>, String> mMethodFilter;
 
     private static class MethodDesc {
         public final String name;
@@ -339,6 +359,9 @@ public class RavenwoodMethodCallLogger {
             @NonNull String methodDesc
     ) {
         if (!mEnabled) {
+            return;
+        }
+        if (!mMethodFilter.test(methodClass, methodName)) {
             return;
         }
         synchronized (mAllMethods) {

@@ -31,6 +31,7 @@ import com.android.compatibility.common.tradefed.build.CompatibilityBuildHelper;
 import com.android.ddmlib.Log;
 import com.android.tests.rollback.host.AbandonSessionsRule;
 import com.android.tradefed.device.DeviceNotAvailableException;
+import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.PackageInfo;
 import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
@@ -48,6 +49,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RunWith(DeviceJUnit4ClassRunner.class)
@@ -93,13 +95,7 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
         } catch (AssertionError e) {
             Log.e(TAG, e);
         }
-        // Delete test APEXes from the preinstalled partitions and test-only sysconfig.
-        // Note that installed APEX files will be deleted by apexd after reboot.
-        deleteFiles("/system/apex/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
-                "/system/apex/test.rebootless_apex_v*.apex",
-                "/vendor/apex/test.rebootless_apex_v*.apex",
-                "/system/app/TestApp/TestAppAv1.apk",
-                TEST_VENDOR_APEX_ALLOW_LIST);
+        deleteFilesAndReboot();
     }
 
     @Before
@@ -113,21 +109,28 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
     }
 
     /**
-     * Deletes files and reboots the device if necessary.
-     * @param files the paths of files which might contain wildcards
+     * Delete test APEXes from the preinstalled partitions and test-only sysconfig.
+     * Note that installed APEX files will be deleted by apexd after reboot except SHIM APEX.
+     * Hence, SHIM APEX should be uninstalled instead.
      */
-    private void deleteFiles(String... files) throws Exception {
+    private void deleteFilesAndReboot() throws Exception {
+        // paths of files to delete, which might contain wildcards
+        String[] files = {"/system/apex/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
+                "/system/apex/test.rebootless_apex_v*.apex",
+                "/vendor/apex/test.rebootless_apex_v*.apex",
+                "/system/app/TestApp/TestAppAv1.apk",
+                TEST_VENDOR_APEX_ALLOW_LIST};
         if (!getDevice().isAdbRoot()) {
             getDevice().enableAdbRoot();
         }
 
-        boolean found = false;
+        boolean filesFound = false;
         boolean remountSystem = false;
         boolean remountVendor = false;
         for (String file : files) {
             CommandResult result = getDevice().executeShellV2Command("ls " + file);
             if (result.getStatus() == CommandStatus.SUCCESS) {
-                found = true;
+                filesFound = true;
                 if (file.startsWith("/system")) {
                     remountSystem = true;
                 } else if (file.startsWith("/vendor")) {
@@ -136,7 +139,7 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
             }
         }
 
-        if (found) {
+        if (filesFound) {
             if (remountSystem) {
                 getDevice().remountSystemWritable();
             }
@@ -146,8 +149,27 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
             for (String file : files) {
                 getDevice().executeShellCommand("rm -rf " + file);
             }
+        }
+
+        boolean shimApexUninstalled = false;
+        final ITestDevice.ApexInfo shimApex = getShimApex().orElseThrow(
+                () -> new AssertionError("Can't find " + SHIM_APEX_PACKAGE_NAME));
+        if (!shimApex.sourceDir.startsWith("/system")) {
+            getDevice().uninstallPackage(SHIM_APEX_PACKAGE_NAME);
+            shimApexUninstalled = true;
+        }
+
+        if (filesFound || shimApexUninstalled) {
             getDevice().reboot();
         }
+    }
+
+    /**
+     * Returns the active shim apex as optional.
+     */
+    public Optional<ITestDevice.ApexInfo> getShimApex() throws DeviceNotAvailableException {
+        return getDevice().getActiveApexes().stream().filter(
+                apex -> apex.name.equals(SHIM_APEX_PACKAGE_NAME)).findAny();
     }
 
     private void pushTestApex(String fileName) throws Exception {
@@ -352,6 +374,8 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
 
     @Test
     public void testAbandonShouldCleanUpApexSession_AbandonDuringVerification() throws Exception {
+        // apexd --dump sessions may contain previous states
+        getDevice().reboot();
         String before = getDevice().executeShellCommand("apexd --dump sessions");
         getDevice().setProperty("apexd.test_hook.submit_staged_session", "sleep_ms 1000");
         try {
@@ -365,6 +389,8 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
 
     @Test
     public void testAbandonShouldCleanUpApexSession_AbandonAfterVerification() throws Exception {
+        // apexd --dump sessions may contain previous states
+        getDevice().reboot();
         String before = getDevice().executeShellCommand("apexd --dump sessions");
         runPhase("testAbandonShouldCleanUpApexSession_AbandonAfterVerification");
         String after = getDevice().executeShellCommand("apexd --dump sessions");
@@ -455,24 +481,31 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
     }
 
     @Test
+    public void testAbandonedSessionShouldNotBlockNewStaging() throws Exception {
+        runPhase("testAbandonedSessionShouldNotBlockNewStaging_Commit");
+        getDevice().reboot();
+        runPhase("testAbandonedSessionShouldNotBlockNewStaging_Verify");
+    }
+
+    @Test
     public void testApexActivationFailureIsCapturedInSession() throws Exception {
         // We initiate staging a normal apex update which passes pre-reboot verification.
-        // Then we replace the valid apex waiting in /data/app-staging with something
-        // that cannot be activated and reboot. The apex should fail to activate, which
-        // is what we want for this test.
+        // Then we inject a failure so that the staged apex can't be activated after reboot. The
+        // failure should be captured in session.
         runPhase("testApexActivationFailureIsCapturedInSession_Commit");
-        final String sessionId = getDevice().executeShellCommand(
-                "pm get-stagedsessions --only-ready --only-parent --only-sessionid").trim();
-        assertThat(sessionId).isNotEmpty();
-        // Now replace the valid staged apex with something invalid
-        getDevice().enableAdbRoot();
-        getDevice().executeShellCommand("rm /data/app-staging/session_" + sessionId + "/*");
-        final File invalidApexFile = mHostUtils.getTestFile(APEX_WRONG_SHA);
-        getDevice().pushFile(invalidApexFile,
-                "/data/app-staging/session_" + sessionId + "/base.apex");
-        getDevice().reboot();
+        try {
+            // Now inject failure via a test_hook prop.
+            getDevice().enableAdbRoot();
+            getDevice().executeShellCommand("echo \"apexd.test_hook.verify_package_boot=error has "
+                                            + "unexpected SHA512 hash\" > "
+                    + "/metadata/apex/test_hook.prop");
+            getDevice().reboot();
 
-        runPhase("testApexActivationFailureIsCapturedInSession_Verify");
+            runPhase("testApexActivationFailureIsCapturedInSession_Verify");
+        } finally {
+            getDevice().executeShellCommand("rm -f /metadata/apex/test_hook.prop");
+            getDevice().setProperty("apexd.test_hook.verify_package_boot", "");
+        }
     }
 
     @Test

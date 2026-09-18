@@ -54,7 +54,8 @@ public class FakeServiceConfigAccessor implements ServiceConfigAccessor {
 
     @Override
     public boolean updateConfiguration(
-            @UserIdInt int userId, @NonNull TimeConfiguration requestedChanges,
+            @UserIdInt int userId,
+            @NonNull TimeConfiguration requestedChanges,
             boolean bypassUserPolicyChecks) {
         assertNotNull(mCurrentUserConfigurationInternal);
         assertNotNull(requestedChanges);
@@ -83,7 +84,6 @@ public class FakeServiceConfigAccessor implements ServiceConfigAccessor {
         return true;
     }
 
-
     void initializeCurrentUserConfiguration(ConfigurationInternal configurationInternal) {
         mCurrentUserConfigurationInternal = configurationInternal;
     }
@@ -97,8 +97,10 @@ public class FakeServiceConfigAccessor implements ServiceConfigAccessor {
 
     @Override
     public ConfigurationInternal getConfigurationInternal(int userId) {
-        assertEquals("Multi-user testing not supported currently",
-                userId, mCurrentUserConfigurationInternal.getUserId());
+        assertEquals(
+                "Multi-user testing not supported currently",
+                userId,
+                mCurrentUserConfigurationInternal.getUserId());
         return mCurrentUserConfigurationInternal;
     }
 

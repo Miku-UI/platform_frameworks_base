@@ -29,6 +29,7 @@ import android.graphics.Rect;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.DisplayMetrics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,9 +96,9 @@ public final class TaskFragmentInfo implements Parcelable {
     private final boolean mIsClearedForReorderActivityToFront;
 
     /**
-     * The maximum {@link android.content.pm.ActivityInfo.WindowLayout#minWidth} and
-     * {@link android.content.pm.ActivityInfo.WindowLayout#minHeight} aggregated from the
-     * TaskFragment's child activities.
+     * The maximum {@link android.content.pm.ActivityInfo.WindowLayout#getMinWidth(DisplayMetrics)}
+     * and {@link android.content.pm.ActivityInfo.WindowLayout#getMinHeight(DisplayMetrics)}
+     * aggregated from the TaskFragment's child activities.
      */
     @NonNull
     private final Point mMinimumDimensions = new Point();
@@ -226,7 +227,7 @@ public final class TaskFragmentInfo implements Parcelable {
 
     /**
      * Returns {@code true} if the parameters that are important for task fragment organizers are
-     * equal between this {@link TaskFragmentInfo} and {@param that}.
+     * equal between this {@link TaskFragmentInfo} and {@code that}.
      * Note that this method is usually called with
      * {@link com.android.server.wm.WindowOrganizerController#configurationsAreEqualForOrganizer(
      * Configuration, Configuration)} to determine if this {@link TaskFragmentInfo} should

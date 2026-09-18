@@ -22,7 +22,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources.NotFoundException
 import android.graphics.Rect
-import android.hardware.biometrics.Flags
 import android.security.Flags.secureLockDevice
 import android.util.RotationUtils
 import androidx.compose.runtime.getValue
@@ -343,11 +342,8 @@ constructor(
             }
             .distinctUntilChanged()
 
-    val udfpsLocation by
-        deviceEntryUdfpsInteractor.udfpsLocation.hydratedStateOf(
-            traceName = "udfpsLocationState",
-            initialValue = null,
-        )
+    val udfpsLocationState by
+        deviceEntryUdfpsInteractor.udfpsLocation.hydratedStateOf(initialValue = null)
 
     /** The size of the biometric icon */
     val iconSize: Flow<Pair<Int, Int>> =
@@ -583,8 +579,7 @@ constructor(
                     R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
                 }
             showingError -> R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
-            Flags.bpFallbackOptions() -> R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
-            else -> -1
+            else -> R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
         }
     }
 
@@ -611,10 +606,8 @@ constructor(
             }
         } else if (showingError) {
             getSfpsAsset_fingerprintToError(rotation, isInRearDisplayMode)
-        } else if (Flags.bpFallbackOptions()) {
-            getSfpsAsset_fingerprintAuthenticating(isInRearDisplayMode)
         } else {
-            -1
+            getSfpsAsset_fingerprintAuthenticating(isInRearDisplayMode)
         }
     }
 
@@ -671,10 +664,8 @@ constructor(
             }
         } else if (showingError) {
             R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
-        } else if (Flags.bpFallbackOptions()) {
-            R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
         } else {
-            -1
+            R.raw.fingerprint_dialogue_fingerprint_to_error_lottie
         }
     }
 
@@ -710,10 +701,8 @@ constructor(
             }
         } else if (showingError) {
             getSfpsAsset_fingerprintToError(rotation, isInRearDisplayMode)
-        } else if (Flags.bpFallbackOptions()) {
-            getSfpsAsset_fingerprintAuthenticating(isInRearDisplayMode)
         } else {
-            -1
+            getSfpsAsset_fingerprintAuthenticating(isInRearDisplayMode)
         }
     }
 

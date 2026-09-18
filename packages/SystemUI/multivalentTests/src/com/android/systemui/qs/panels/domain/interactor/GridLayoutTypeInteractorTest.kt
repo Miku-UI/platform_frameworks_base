@@ -16,8 +16,11 @@
 
 package com.android.systemui.qs.panels.domain.interactor
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
@@ -39,11 +42,12 @@ import org.junit.runner.RunWith
 @EnableSceneContainer
 class GridLayoutTypeInteractorTest : SysuiTestCase() {
 
-    val kosmos = testKosmos().useUnconfinedTestDispatcher()
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    val Kosmos.underTest by Kosmos.Fixture { kosmos.gridLayoutTypeInteractor }
+    private val Kosmos.underTest by Kosmos.Fixture { gridLayoutTypeInteractor }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun noDualShade_gridAlwaysPaginated() =
         kosmos.runTest {
             val type by collectLastValue(underTest.layout)
@@ -56,6 +60,7 @@ class GridLayoutTypeInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun dualShade_gridAlwaysInfinite() =
         kosmos.runTest {
             val type by collectLastValue(underTest.layout)

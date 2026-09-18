@@ -26,9 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * The real implementation of {@link ThreadingDomain} that uses a {@link Handler}.
- */
+/** The real implementation of {@link ThreadingDomain} that uses a {@link Handler}. */
 final class HandlerThreadingDomain extends ThreadingDomain {
 
     @NonNull private final Handler mHandler;
@@ -70,15 +68,16 @@ final class HandlerThreadingDomain extends ThreadingDomain {
         AtomicReference<V> resultReference = new AtomicReference<>();
         AtomicReference<Exception> exceptionReference = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
-        post(() -> {
-            try {
-                resultReference.set(callable.call());
-            } catch (Exception e) {
-                exceptionReference.set(e);
-            } finally {
-                latch.countDown();
-            }
-        });
+        post(
+                () -> {
+                    try {
+                        resultReference.set(callable.call());
+                    } catch (Exception e) {
+                        exceptionReference.set(e);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
 
         try {
             if (!latch.await(durationMillis, TimeUnit.MILLISECONDS)) {

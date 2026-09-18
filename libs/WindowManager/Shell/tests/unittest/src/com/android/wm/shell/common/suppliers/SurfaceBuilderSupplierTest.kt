@@ -25,8 +25,7 @@ import org.junit.runner.RunWith
 /**
  * Tests for [SurfaceBuilderSupplier].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:SurfaceBuilderSupplierTest
+ * Build/Install/Run: atest WMShellUnitTests:SurfaceBuilderSupplierTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -35,8 +34,6 @@ class SurfaceBuilderSupplierTest {
     @Test
     fun `SurfaceBuilderSupplier supplies an SurfaceControl Builder`() {
         val supplier = SurfaceBuilderSupplier()
-        SuppliersUtilsTest.assertSupplierProvidesValue(supplier) {
-            it is SurfaceControl.Builder
-        }
+        SuppliersUtilsTest.assertSupplierProvidesValue(supplier) { it is SurfaceControl.Builder }
     }
 }

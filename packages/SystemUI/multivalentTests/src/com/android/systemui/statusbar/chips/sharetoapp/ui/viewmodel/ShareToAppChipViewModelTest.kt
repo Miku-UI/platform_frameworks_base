@@ -24,15 +24,14 @@ import android.view.View
 import android.view.ViewRootImpl
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.internal.jank.Cuj
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
 import com.android.systemui.animation.mockDialogTransitionAnimator
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
@@ -47,24 +46,24 @@ import com.android.systemui.statusbar.chips.mediaprojection.domain.interactor.Me
 import com.android.systemui.statusbar.chips.mediaprojection.domain.model.MediaProjectionStopDialogModel
 import com.android.systemui.statusbar.chips.sharetoapp.ui.view.EndGenericShareToAppDialogDelegate
 import com.android.systemui.statusbar.chips.sharetoapp.ui.view.EndShareScreenToAppDialogDelegate
+import com.android.systemui.statusbar.chips.ui.model.Chronometer
 import com.android.systemui.statusbar.chips.ui.model.ColorsModel
+import com.android.systemui.statusbar.chips.ui.model.EventTime
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.chips.ui.view.ChipBackgroundContainer
-import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsViewModelTest.Companion.getStopActionFromDialog
+import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsWithNotifsViewModelTest.Companion.getStopActionFromDialog
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.phone.mockSystemUIDialogFactory
-import com.android.systemui.statusbar.phone.ongoingcall.DisableChipsModernization
-import com.android.systemui.statusbar.phone.ongoingcall.EnableChipsModernization
 import com.android.systemui.testKosmos
 import com.android.systemui.util.time.fakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.times
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
@@ -99,12 +98,13 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             on { dialogTransitionController(any()) } doReturn dialogTransitionController
         }
 
-    private val underTest = kosmos.shareToAppChipViewModel
+    private val Kosmos.underTest by Kosmos.Fixture { shareToAppChipViewModel }
     private val mockDialog = mock<SystemUIDialog>()
 
     @Before
     fun setUp() {
-        underTest.start()
+        kosmos.overrideResource(R.bool.config_largeScreenPrivacyIndicator, false)
+
         setUpPackageManagerForMediaProjection(kosmos)
 
         whenever(
@@ -339,7 +339,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_notProjectingState_isHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value = MediaProjectionState.NotProjecting
@@ -349,7 +349,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_noScreenState_otherDevicesPackage_isHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -363,7 +363,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_singleTaskState_otherDevicesPackage_isHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -378,7 +378,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_entireScreenState_otherDevicesPackage_isHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -389,7 +389,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_noScreenState_normalPackage_isShownAsIconOnly() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -412,7 +412,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_singleTaskState_normalPackage_isShownAsTimer() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -437,7 +437,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_entireScreenState_normalPackage_isShownAsTimer() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -457,8 +457,34 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    fun chip_singleTaskState_nullNotificationKey() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.chip)
+
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.SingleTask(
+                    NORMAL_PACKAGE,
+                    hostDeviceName = null,
+                    createTask(taskId = 1),
+                )
+
+            assertThat((latest as OngoingActivityChipModel.Active).notificationKey).isNull()
+        }
+
+    @Test
+    fun chip_entireScreenState_nullNotificationKey() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.chip)
+
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
+
+            assertThat((latest as OngoingActivityChipModel.Active).notificationKey).isNull()
+        }
+
+    @Test
     fun chip_shareStoppedFromDialog_chipImmediatelyHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -489,7 +515,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_colorsAreRed() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -501,7 +527,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_timeResetsOnEachNewShare() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             systemClock.setElapsedRealtime(1234)
@@ -512,9 +538,9 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             assertThat(
                     ((latest as OngoingActivityChipModel.Active).content
                             as OngoingActivityChipModel.Content.Timer)
-                        .startTimeMs
+                        .value
                 )
-                .isEqualTo(1234)
+                .isEqualTo(Chronometer.Running(EventTime.ElapsedRealtime(1234)))
 
             mediaProjectionRepo.mediaProjectionState.value = MediaProjectionState.NotProjecting
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Inactive::class.java)
@@ -531,106 +557,14 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             assertThat(
                     ((latest as OngoingActivityChipModel.Active).content
                             as OngoingActivityChipModel.Content.Timer)
-                        .startTimeMs
+                        .value
                 )
-                .isEqualTo(5678)
+                .isEqualTo(Chronometer.Running(EventTime.ElapsedRealtime(5678)))
         }
 
     @Test
-    @DisableChipsModernization
-    fun chip_noScreen_clickListenerShowsGenericShareDialog() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.chip)
-            mediaProjectionRepo.mediaProjectionState.value =
-                MediaProjectionState.Projecting.NoScreen(NORMAL_PACKAGE)
-
-            val clickListener = ((latest as OngoingActivityChipModel.Active).onClickListenerLegacy)
-            assertThat(clickListener).isNotNull()
-
-            clickListener!!.onClick(chipView)
-            verify(kosmos.mockDialogTransitionAnimator)
-                .showFromView(
-                    eq(mockGenericShareDialog),
-                    eq(chipBackgroundView),
-                    any(),
-                    anyBoolean(),
-                )
-        }
-
-    @Test
-    @DisableChipsModernization
-    fun chip_entireScreen_clickListenerShowsScreenShareDialog() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.chip)
-            mediaProjectionRepo.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
-
-            val clickListener = ((latest as OngoingActivityChipModel.Active).onClickListenerLegacy)
-            assertThat(clickListener).isNotNull()
-
-            clickListener!!.onClick(chipView)
-            verify(kosmos.mockDialogTransitionAnimator)
-                .showFromView(
-                    eq(mockScreenShareDialog),
-                    eq(chipBackgroundView),
-                    any(),
-                    anyBoolean(),
-                )
-        }
-
-    @Test
-    @DisableChipsModernization
-    fun chip_singleTask_clickListenerShowsScreenShareDialog() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.chip)
-            mediaProjectionRepo.mediaProjectionState.value =
-                MediaProjectionState.Projecting.SingleTask(
-                    NORMAL_PACKAGE,
-                    hostDeviceName = null,
-                    createTask(taskId = 1),
-                )
-
-            val clickListener = ((latest as OngoingActivityChipModel.Active).onClickListenerLegacy)
-            assertThat(clickListener).isNotNull()
-
-            clickListener!!.onClick(chipView)
-            verify(kosmos.mockDialogTransitionAnimator)
-                .showFromView(
-                    eq(mockScreenShareDialog),
-                    eq(chipBackgroundView),
-                    any(),
-                    anyBoolean(),
-                )
-        }
-
-    @Test
-    @DisableChipsModernization
-    fun chip_clickListenerHasCuj() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.chip)
-            mediaProjectionRepo.mediaProjectionState.value =
-                MediaProjectionState.Projecting.SingleTask(
-                    NORMAL_PACKAGE,
-                    hostDeviceName = null,
-                    createTask(taskId = 1),
-                )
-
-            val clickListener = ((latest as OngoingActivityChipModel.Active).onClickListenerLegacy)
-            clickListener!!.onClick(chipView)
-
-            val cujCaptor = argumentCaptor<DialogCuj>()
-            verify(kosmos.mockDialogTransitionAnimator)
-                .showFromView(any(), any(), cujCaptor.capture(), anyBoolean())
-
-            assertThat(cujCaptor.firstValue.cujType)
-                .isEqualTo(Cuj.CUJ_STATUS_BAR_LAUNCH_DIALOG_FROM_CHIP)
-            assertThat(cujCaptor.firstValue.tag).contains("Share")
-        }
-
-    @Test
-    @EnableChipsModernization
     fun chip_noScreen_hasClickBehavior() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.NoScreen(NORMAL_PACKAGE)
@@ -640,9 +574,8 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableChipsModernization
     fun chip_entireScreen_hasClickBehavior() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
@@ -652,9 +585,8 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableChipsModernization
     fun chip_singleTask_hasClickBehavior() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
@@ -668,9 +600,9 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableChipsModernization
-    fun chip_noScreen_clickBehaviorShowsGenericShareDialog() =
-        testScope.runTest {
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun chip_noScreen_clickBehaviorShowsGenericShareDialog_withDynamicTargetResolution() =
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.NoScreen(NORMAL_PACKAGE)
@@ -680,13 +612,29 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                     as OngoingActivityChipModel.ClickBehavior.ExpandAction)
             expandAction.onClick(mockExpandable)
             verify(kosmos.mockDialogTransitionAnimator)
-                .show(eq(mockGenericShareDialog), any(), any())
+                .show(eq(mockGenericShareDialog), any(), anyOrNull(), anyBoolean())
         }
 
     @Test
-    @EnableChipsModernization
-    fun chip_entireScreen_clickBehaviorShowsScreenShareDialog() =
-        testScope.runTest {
+    @DisableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun chip_noScreen_clickBehaviorShowsGenericShareDialog_withoutDynamicTargetResolution() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.chip)
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.NoScreen(NORMAL_PACKAGE)
+
+            val expandAction =
+                ((latest as OngoingActivityChipModel.Active).clickBehavior
+                    as OngoingActivityChipModel.ClickBehavior.ExpandAction)
+            expandAction.onClick(mockExpandable)
+            verify(kosmos.mockDialogTransitionAnimator)
+                .show(eq(mockGenericShareDialog), any(), anyBoolean())
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun chip_entireScreen_clickBehaviorShowsScreenShareDialog_withDynamicTargetResolution() =
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
@@ -696,13 +644,29 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                     as OngoingActivityChipModel.ClickBehavior.ExpandAction)
             expandAction.onClick(mockExpandable)
             verify(kosmos.mockDialogTransitionAnimator)
-                .show(eq(mockScreenShareDialog), any(), any())
+                .show(eq(mockScreenShareDialog), anyOrNull(), anyOrNull(), anyBoolean())
         }
 
     @Test
-    @EnableChipsModernization
+    @DisableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun chip_entireScreen_clickBehaviorShowsScreenShareDialog_withoutDynamicTargetResolution() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.chip)
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
+
+            val expandAction =
+                ((latest as OngoingActivityChipModel.Active).clickBehavior
+                    as OngoingActivityChipModel.ClickBehavior.ExpandAction)
+            expandAction.onClick(mockExpandable)
+            verify(kosmos.mockDialogTransitionAnimator)
+                .show(eq(mockScreenShareDialog), any(), anyBoolean())
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
     fun chip_singleTask_clickBehaviorShowsScreenShareDialog() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
@@ -717,12 +681,33 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             expandAction.onClick(mockExpandable)
 
             verify(kosmos.mockDialogTransitionAnimator)
-                .show(eq(mockScreenShareDialog), any(), any())
+                .show(eq(mockScreenShareDialog), any(), anyBoolean())
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun chip_singleTask_clickBehaviorShowsScreenShareDialog_withDynamicTargetResolution() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.chip)
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.SingleTask(
+                    NORMAL_PACKAGE,
+                    hostDeviceName = null,
+                    createTask(taskId = 1),
+                )
+
+            val expandAction =
+                ((latest as OngoingActivityChipModel.Active).clickBehavior
+                    as OngoingActivityChipModel.ClickBehavior.ExpandAction)
+            expandAction.onClick(mockExpandable)
+
+            verify(kosmos.mockDialogTransitionAnimator)
+                .show(eq(mockScreenShareDialog), any(), anyOrNull(), anyBoolean())
         }
 
     @Test
     fun chip_packageNameIsSet_entireScreen() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -735,7 +720,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     @Test
     fun chip_packageNameIsSet_singleTask() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.chip)
 
             mediaProjectionRepo.mediaProjectionState.value =
@@ -748,5 +733,19 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).managingPackageName)
                 .isEqualTo(NORMAL_PACKAGE)
+        }
+
+    @Test
+    fun chip_largeScreenPrivacyIndicatorEnabled_chipHidden() =
+        kosmos.runTest {
+            kosmos.overrideResource(R.bool.config_largeScreenPrivacyIndicator, true)
+            val latest by collectLastValue(underTest.chip)
+
+            // Set mediaProjectionState to Projecting
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
+
+            // Verify the chip is hidden
+            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Inactive::class.java)
         }
 }

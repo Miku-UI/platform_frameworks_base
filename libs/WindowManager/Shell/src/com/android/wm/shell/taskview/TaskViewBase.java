@@ -40,6 +40,11 @@ public interface TaskViewBase {
      */
     void setResizeBgColor(SurfaceControl.Transaction transaction, int color);
 
+    /** Whether the surface should be hidden while the task view is closing. */
+    default boolean shouldHideSurfaceWhileClosing() {
+        return false;
+    }
+
     /**
      * Called when a task appears on the TaskView. See
      * {@link TaskViewTaskController#onTaskAppeared(ActivityManager.RunningTaskInfo,

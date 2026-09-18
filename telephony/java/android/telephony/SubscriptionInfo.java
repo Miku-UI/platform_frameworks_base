@@ -242,6 +242,26 @@ public class SubscriptionInfo implements Parcelable {
      */
     private final int mTransferStatus;
 
+    /**
+     * The maximum downlink data rate in Kilobits per second (Kbps) for streaming applications
+     * defined in GSMA TS.43 9.1.3.
+     * <p>
+     * This value represents the data rate that the carrier has allocated for streaming
+     * applications. It can be used by streaming apps to select an appropriate media quality
+     * that matches the available bandwidth, helping to avoid buffering.
+     */
+    private final long mStreamingAppMaxDownlinkKbps;
+
+    /**
+     * The maximum uplink data rate in Kilobits per second (Kbps) for streaming applications.
+     * defined in GSMA TS.43 9.1.3.
+     * <p>
+     * This value represents the data rate that the carrier has allocated for streaming
+     * applications to upload data. It can be used by streaming apps to select an appropriate
+     * media quality for outgoing streams, helping to avoid buffering or connection issues.
+     */
+    private final long mStreamingAppMaxUplinkKbps;
+
     // Below are the fields that do not exist in the database.
 
     /**
@@ -279,134 +299,9 @@ public class SubscriptionInfo implements Parcelable {
     private final boolean mIsSatelliteESOSSupported;
 
     /**
-     * @hide
-     *
-     * @deprecated Use {@link SubscriptionInfo.Builder}.
+     * Whether this subscription is used exclusively for a private network.
      */
-    // TODO: Clean up after external usages moved to builder model.
-    @Deprecated
-    public SubscriptionInfo(int id, String iccId, int simSlotIndex, CharSequence displayName,
-            CharSequence carrierName, int nameSource, int iconTint, String number, int roaming,
-            Bitmap icon, String mcc, String mnc, String countryIso, boolean isEmbedded,
-            @Nullable UiccAccessRule[] nativeAccessRules, String cardString) {
-        this(id, iccId, simSlotIndex, displayName, carrierName, nameSource, iconTint, number,
-                roaming, icon, mcc, mnc, countryIso, isEmbedded, nativeAccessRules, cardString, -1,
-                false, null, false, TelephonyManager.UNKNOWN_CARRIER_ID,
-                SubscriptionManager.PROFILE_CLASS_UNSET,
-                SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM, null, null, true);
-    }
-
-    /**
-     * @hide
-     *
-     * @deprecated Use {@link SubscriptionInfo.Builder}.
-     */
-    // TODO: Clean up after external usages moved to builder model.
-    @Deprecated
-    public SubscriptionInfo(int id, String iccId, int simSlotIndex, CharSequence displayName,
-            CharSequence carrierName, int nameSource, int iconTint, String number, int roaming,
-            Bitmap icon, String mcc, String mnc, String countryIso, boolean isEmbedded,
-            @Nullable UiccAccessRule[] nativeAccessRules, String cardString,
-            boolean isOpportunistic, @Nullable String groupUUID, int carrierId, int profileClass) {
-        this(id, iccId, simSlotIndex, displayName, carrierName, nameSource, iconTint, number,
-                roaming, icon, mcc, mnc, countryIso, isEmbedded, nativeAccessRules, cardString, -1,
-                isOpportunistic, groupUUID, false, carrierId, profileClass,
-                SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM, null, null, true);
-    }
-
-    /**
-     * @hide
-     *
-     * @deprecated Use {@link SubscriptionInfo.Builder}.
-     */
-    // TODO: Clean up after external usages moved to builder model.
-    @Deprecated
-    public SubscriptionInfo(int id, String iccId, int simSlotIndex, CharSequence displayName,
-            CharSequence carrierName, int nameSource, int iconTint, String number, int roaming,
-            Bitmap icon, String mcc, String mnc, String countryIso, boolean isEmbedded,
-            @Nullable UiccAccessRule[] nativeAccessRules, String cardString, int cardId,
-            boolean isOpportunistic, @Nullable String groupUUID, boolean isGroupDisabled,
-            int carrierId, int profileClass, int subType, @Nullable String groupOwner,
-            @Nullable UiccAccessRule[] carrierConfigAccessRules,
-            boolean areUiccApplicationsEnabled) {
-        this(id, iccId, simSlotIndex, displayName, carrierName, nameSource, iconTint, number,
-                roaming, icon, mcc, mnc, countryIso, isEmbedded, nativeAccessRules, cardString,
-                cardId, isOpportunistic, groupUUID, isGroupDisabled, carrierId, profileClass,
-                subType, groupOwner, carrierConfigAccessRules, areUiccApplicationsEnabled, 0);
-    }
-
-    /**
-     * @hide
-     *
-     * @deprecated Use {@link SubscriptionInfo.Builder}.
-     */
-    // TODO: Clean up after external usages moved to builder model.
-    @Deprecated
-    public SubscriptionInfo(int id, String iccId, int simSlotIndex, CharSequence displayName,
-            CharSequence carrierName, int displayNameSource, int iconTint, String number,
-            int roaming, Bitmap icon, String mcc, String mnc, String countryIso, boolean isEmbedded,
-            @Nullable UiccAccessRule[] nativeAccessRules, String cardString, int cardId,
-            boolean isOpportunistic, @Nullable String groupUUID, boolean isGroupDisabled,
-            int carrierId, int profileClass, int subType, @Nullable String groupOwner,
-            @Nullable UiccAccessRule[] carrierConfigAccessRules,
-            boolean areUiccApplicationsEnabled, int portIndex) {
-        this(id, iccId, simSlotIndex, displayName, carrierName, displayNameSource, iconTint, number,
-                roaming, icon, mcc, mnc, countryIso, isEmbedded, nativeAccessRules, cardString,
-                cardId, isOpportunistic, groupUUID, isGroupDisabled, carrierId, profileClass,
-                subType, groupOwner, carrierConfigAccessRules, areUiccApplicationsEnabled,
-                portIndex, SubscriptionManager.USAGE_SETTING_DEFAULT);
-    }
-
-    /**
-     * @hide
-     *
-     * @deprecated Use {@link SubscriptionInfo.Builder}.
-     */
-    // TODO: Clean up after external usages moved to builder model.
-    @Deprecated
-    public SubscriptionInfo(int id, String iccId, int simSlotIndex, CharSequence displayName,
-            CharSequence carrierName, int nameSource, int iconTint, String number, int roaming,
-            Bitmap icon, String mcc, String mnc, String countryIso, boolean isEmbedded,
-            @Nullable UiccAccessRule[] nativeAccessRules, String cardString, int cardId,
-            boolean isOpportunistic, @Nullable String groupUuid, boolean isGroupDisabled,
-            int carrierId, int profileClass, int subType, @Nullable String groupOwner,
-            @Nullable UiccAccessRule[] carrierConfigAccessRules,
-            boolean areUiccApplicationsEnabled, int portIndex, @UsageSetting int usageSetting) {
-        this.mId = id;
-        this.mIccId = iccId;
-        this.mSimSlotIndex = simSlotIndex;
-        this.mDisplayName =  displayName;
-        this.mCarrierName = carrierName;
-        this.mDisplayNameSource = nameSource;
-        this.mIconTint = iconTint;
-        this.mNumber = number;
-        this.mDataRoaming = roaming;
-        this.mIconBitmap = icon;
-        this.mMcc = TextUtils.emptyIfNull(mcc);
-        this.mMnc = TextUtils.emptyIfNull(mnc);
-        this.mHplmns = null;
-        this.mEhplmns = null;
-        this.mCountryIso = TextUtils.emptyIfNull(countryIso);
-        this.mIsEmbedded = isEmbedded;
-        this.mNativeAccessRules = nativeAccessRules;
-        this.mCardString = TextUtils.emptyIfNull(cardString);
-        this.mCardId = cardId;
-        this.mIsOpportunistic = isOpportunistic;
-        this.mGroupUuid = groupUuid == null ? null : ParcelUuid.fromString(groupUuid);
-        this.mIsGroupDisabled = isGroupDisabled;
-        this.mCarrierId = carrierId;
-        this.mProfileClass = profileClass;
-        this.mType = subType;
-        this.mGroupOwner = TextUtils.emptyIfNull(groupOwner);
-        this.mCarrierConfigAccessRules = carrierConfigAccessRules;
-        this.mAreUiccApplicationsEnabled = areUiccApplicationsEnabled;
-        this.mPortIndex = portIndex;
-        this.mUsageSetting = usageSetting;
-        this.mIsOnlyNonTerrestrialNetwork = false;
-        this.mServiceCapabilities = 0;
-        this.mTransferStatus = 0;
-        this.mIsSatelliteESOSSupported = false;
-    }
+    private final boolean mIsPrivateNetwork;
 
     /**
      * Constructor from builder.
@@ -448,6 +343,9 @@ public class SubscriptionInfo implements Parcelable {
         this.mServiceCapabilities = builder.mServiceCapabilities;
         this.mTransferStatus = builder.mTransferStatus;
         this.mIsSatelliteESOSSupported = builder.mIsSatelliteESOSSupported;
+        this.mIsPrivateNetwork = builder.mIsPrivateNetwork;
+        this.mStreamingAppMaxDownlinkKbps = builder.mStreamingAppMaxDownlinkKbps;
+        this.mStreamingAppMaxUplinkKbps = builder.mStreamingAppMaxUplinkKbps;
     }
 
     /**
@@ -850,7 +748,7 @@ public class SubscriptionInfo implements Parcelable {
     /**
      * @return The card ID of the SIM card which contains the subscription.
      *
-     * @see UiccCardInfo#getCardId().
+     * @see UiccCardInfo#getCardId()
      */
     public int getCardId() {
         return mCardId;
@@ -916,6 +814,24 @@ public class SubscriptionInfo implements Parcelable {
         return mIsSatelliteESOSSupported;
     }
 
+    /**
+     * Checks if the subscription is exclusively for a private network.
+     *
+     * <p>A private network subscription is typically constrained to a specific geo-fenced area or a
+     * particular enterprise/venue. System apps like Settings and SystemUI may adjust their behavior
+     * based on this flag.
+     *
+     * <p>The default value is determined by the carrier configuration.
+     *
+     * @return {@code true} if the subscription is for a private network, {@code false} otherwise.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ENABLE_IS_PRIVATE_NETWORK_API)
+    public boolean isPrivateNetwork() {
+        return mIsPrivateNetwork;
+    }
+
     // TODO(b/316183370): replace @code with @link in javadoc after feature is released
     /**
      * Retrieves the service capabilities for the current subscription.
@@ -966,6 +882,42 @@ public class SubscriptionInfo implements Parcelable {
         return mTransferStatus;
     }
 
+    /**
+     * Returns the maximum downstream bitrate for streaming applications on this subscription
+     * plan, in Kilobits per second (Kbps) defined in GSMA TS.43 9.1.3.
+     *
+     * <p>This value represents the data rate that the carrier has allocated for streaming
+     * applications. It can be used by streaming apps to select an appropriate media quality
+     * that matches the available bandwidth, helping to avoid buffering.
+     *
+     * <p>For example, a 2000 Kbps connection would be represented as {@code 2000}.
+     *
+     * @return The maximum downstream bandwidth for streaming in Kbps, or
+     * {@link SubscriptionPlan#BITRATE_UNKNOWN} if unknown or not applicable.
+     */
+    @FlaggedApi(Flags.FLAG_SUBSCRIPTION_PLAN_ENHANCEMENT)
+    public long getStreamingAppMaxDownlinkKbps() {
+        return mStreamingAppMaxDownlinkKbps;
+    }
+
+    /**
+     * Returns the maximum upstream bitrate for streaming applications on this subscription
+     * plan, in Kilobits per second (Kbps) defined in GSMA TS.43 9.1.3.
+     *
+     * <p>This value represents the data rate that the carrier has allocated for streaming
+     * applications to upload data. It can be used by streaming apps to select an appropriate
+     * media quality for outgoing streams, helping to avoid buffering or connection issues.
+     *
+     * <p>For example, a 1000 Kbps connection would be represented as {@code 1000}.
+     *
+     * @return The maximum upstream bitrate for streaming in Kbps, or
+     * {@link SubscriptionPlan#BITRATE_UNKNOWN} if unknown or not applicable.
+     */
+    @FlaggedApi(Flags.FLAG_SUBSCRIPTION_PLAN_ENHANCEMENT)
+    public long getStreamingAppMaxUplinkKbps() {
+        return mStreamingAppMaxUplinkKbps;
+    }
+
     @NonNull
     public static final Parcelable.Creator<SubscriptionInfo> CREATOR =
             new Parcelable.Creator<SubscriptionInfo>() {
@@ -1007,6 +959,9 @@ public class SubscriptionInfo implements Parcelable {
                             SubscriptionManager.getServiceCapabilitiesSet(source.readInt()))
                     .setTransferStatus(source.readInt())
                     .setSatelliteESOSSupported(source.readBoolean())
+                    .setIsPrivateNetwork(source.readBoolean())
+                    .setStreamingAppMaxDownlinkKbps(source.readLong())
+                    .setStreamingAppMaxUplinkKbps(source.readLong())
                     .build();
         }
 
@@ -1052,6 +1007,9 @@ public class SubscriptionInfo implements Parcelable {
         dest.writeInt(mServiceCapabilities);
         dest.writeInt(mTransferStatus);
         dest.writeBoolean(mIsSatelliteESOSSupported);
+        dest.writeBoolean(mIsPrivateNetwork);
+        dest.writeLong(mStreamingAppMaxDownlinkKbps);
+        dest.writeLong(mStreamingAppMaxUplinkKbps);
     }
 
     @Override
@@ -1119,6 +1077,9 @@ public class SubscriptionInfo implements Parcelable {
                 mServiceCapabilities).toString()
                 + " transferStatus=" + mTransferStatus
                 + " isSatelliteESOSSupported=" + mIsSatelliteESOSSupported
+                + " isPrivateNetwork=" + mIsPrivateNetwork
+                + " streamingAppMaxDownlinkKbps=" + mStreamingAppMaxDownlinkKbps
+                + " streamingAppMaxUplinkKbps=" + mStreamingAppMaxUplinkKbps
                 + "]";
     }
 
@@ -1147,7 +1108,10 @@ public class SubscriptionInfo implements Parcelable {
                 && mIsOnlyNonTerrestrialNetwork == that.mIsOnlyNonTerrestrialNetwork
                 && mServiceCapabilities == that.mServiceCapabilities
                 && mTransferStatus == that.mTransferStatus
-                && mIsSatelliteESOSSupported == that.mIsSatelliteESOSSupported;
+                && mIsSatelliteESOSSupported == that.mIsSatelliteESOSSupported
+                && mIsPrivateNetwork == that.mIsPrivateNetwork
+                && mStreamingAppMaxDownlinkKbps == that.mStreamingAppMaxDownlinkKbps
+                && mStreamingAppMaxUplinkKbps == that.mStreamingAppMaxUplinkKbps;
     }
 
     @Override
@@ -1157,7 +1121,8 @@ public class SubscriptionInfo implements Parcelable {
                 mCardString, mIsOpportunistic, mGroupUuid, mCountryIso, mCarrierId, mProfileClass,
                 mType, mGroupOwner, mAreUiccApplicationsEnabled, mPortIndex, mUsageSetting, mCardId,
                 mIsGroupDisabled, mIsOnlyNonTerrestrialNetwork, mServiceCapabilities,
-                mTransferStatus, mIsSatelliteESOSSupported);
+                mTransferStatus, mIsSatelliteESOSSupported, mIsPrivateNetwork,
+                mStreamingAppMaxDownlinkKbps, mStreamingAppMaxUplinkKbps);
         result = 31 * result + Arrays.hashCode(mEhplmns);
         result = 31 * result + Arrays.hashCode(mHplmns);
         result = 31 * result + Arrays.hashCode(mNativeAccessRules);
@@ -1374,6 +1339,23 @@ public class SubscriptionInfo implements Parcelable {
         private boolean mIsSatelliteESOSSupported = false;
 
         /**
+         * Whether the subscription is for private network.
+         */
+        private boolean mIsPrivateNetwork = false;
+
+        /**
+         * The maximum downlink data rate in Kilobits per second (Kbps) for streaming applications
+         * defined in GSMA TS.43 9.1.3.
+         */
+        private long mStreamingAppMaxDownlinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
+
+        /**
+         * The maximum uplink data rate in Kilobits per second (Kbps) for streaming applications
+         * defined in GSMA TS.43 9.1.3.
+         */
+        private long mStreamingAppMaxUplinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
+
+        /**
          * Default constructor.
          */
         public Builder() {
@@ -1419,6 +1401,9 @@ public class SubscriptionInfo implements Parcelable {
             mServiceCapabilities = info.mServiceCapabilities;
             mTransferStatus = info.mTransferStatus;
             mIsSatelliteESOSSupported = info.mIsSatelliteESOSSupported;
+            mIsPrivateNetwork = info.mIsPrivateNetwork;
+            mStreamingAppMaxDownlinkKbps = info.mStreamingAppMaxDownlinkKbps;
+            mStreamingAppMaxUplinkKbps = info.mStreamingAppMaxUplinkKbps;
         }
 
         /**
@@ -1864,6 +1849,55 @@ public class SubscriptionInfo implements Parcelable {
         @NonNull
         public Builder setSatelliteESOSSupported(boolean isSatelliteESOSSupported) {
             mIsSatelliteESOSSupported = isSatelliteESOSSupported;
+            return this;
+        }
+
+        /**
+         * Set whether the subscription is for private network.
+         *
+         * @param isPrivateNetwork {@code true} if the subscription is for private network.
+         * @return The builder.
+         */
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_IS_PRIVATE_NETWORK_API)
+        public Builder setIsPrivateNetwork(boolean isPrivateNetwork) {
+            mIsPrivateNetwork = isPrivateNetwork;
+            return this;
+        }
+
+        /**
+         * Set the maximum downlink data rate in Kilobits per second (Kbps) for streaming
+         * applications defined in GSMA TS.43 9.1.3.
+         *
+         * <p>This value represents the data rate that the carrier has allocated for streaming
+         * applications. It can be used by streaming apps to select an appropriate media quality
+         * that matches the available bandwidth, helping to avoid buffering.
+         *
+         * @param streamingAppMaxDownlinkKbps The maximum downlink data rate in Kbps.
+         * @return The builder.
+         */
+        @FlaggedApi(Flags.FLAG_SUBSCRIPTION_PLAN_ENHANCEMENT)
+        @NonNull
+        public Builder setStreamingAppMaxDownlinkKbps(long streamingAppMaxDownlinkKbps) {
+            mStreamingAppMaxDownlinkKbps = streamingAppMaxDownlinkKbps;
+            return this;
+        }
+
+        /**
+         * Set the maximum uplink data rate in Kilobits per second (Kbps) for streaming
+         * applications defined in GSMA TS.43 9.1.3.
+         *
+         * <p>This value represents the data rate that the carrier has allocated for streaming
+         * applications to upload data. It can be used by streaming apps to select an appropriate
+         * media quality for outgoing streams, helping to avoid buffering or connection issues.
+         *
+         * @param streamingAppMaxUplinkKbps The maximum uplink data rate in Kbps.
+         * @return The builder.
+         */
+        @FlaggedApi(Flags.FLAG_SUBSCRIPTION_PLAN_ENHANCEMENT)
+        @NonNull
+        public Builder setStreamingAppMaxUplinkKbps(long streamingAppMaxUplinkKbps) {
+            mStreamingAppMaxUplinkKbps = streamingAppMaxUplinkKbps;
             return this;
         }
 

@@ -16,6 +16,9 @@
 
 package android.net.wifi.nl80211;
 
+import static android.net.wifi.flags.Flags.FLAG_DEPRECATE_WIFICOND;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
@@ -29,7 +32,11 @@ import java.util.Objects;
  * network allows configuration of a specific network to search for.
  *
  * @hide
+ * @deprecated Wificond functionality has moved to the Wi-Fi mainline module.
+ *             See {@link com.android.server.wifi.nl80211.Nl80211Native}.
  */
+@FlaggedApi(FLAG_DEPRECATE_WIFICOND)
+@Deprecated
 @SystemApi
 public final class PnoNetwork implements Parcelable {
     private boolean mIsHidden;

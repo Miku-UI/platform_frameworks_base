@@ -46,6 +46,9 @@ protected constructor(
 
     @get:PriorityBucket override var bucket: Int = BUCKET_ALERTING
 
+    override val bucketForLogging: Int
+        get() = bucket
+
     override fun asListEntry(): ListEntry? {
         return this
     }

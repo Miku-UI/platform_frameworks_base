@@ -20,7 +20,6 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
 import android.os.UserHandle
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
 import com.android.systemui.qs.tiles.impl.uimodenight.domain.interactor.model.UiModeNightTileModel
@@ -29,6 +28,7 @@ import com.android.systemui.statusbar.policy.BatteryController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.LocationController
 import com.android.systemui.util.time.DateFormatUtil
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -50,7 +50,7 @@ constructor(
         user: UserHandle,
         triggers: Flow<DataUpdateTrigger>,
     ): Flow<UiModeNightTileModel> =
-        ConflatedCallbackFlow.conflatedCallbackFlow {
+        conflatedCallbackFlow {
             // send initial state
             trySend(createModel())
 

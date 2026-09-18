@@ -16,6 +16,18 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- Label for split screen shortcut-->
     <string name="split_screen_shortcut_label">Split Screen Secondary Activity</string>
+    <!-- Label for static shortcuts activity shortcut-->
+    <string name="ssa_shortcut_label">Open SSA</string>
     <string name="long_text">This\n is\n a\n long\n text\n to\n demonstrate\n scrolling\n.\n Keep\n scrolling\n down\n to\n find\n the\n finish\n button\n.\n</string>
     <string name="finish_button_text">Finish</string>
+
+    <!-- Request Fullscreen Mode strings -->
+    <string name="activity_request_fullscreen_mode">App/Activity/Request Fullscreen Mode</string>
+    <string name="enter_button">Enter Fullscreen</string>
+    <string name="exit_button">Exit Fullscreen</string>
+    <string name="window_state_fullscreen">Window State: Fullscreen</string>
+    <string name="window_state_multi_window">Window State: Multi Window</string>
+    <string name="callback_label_title">Callbacks Received</string>
+    <string name="callback_success_title">Success</string>
+    <string name="callback_failed_title">Error: %1$s</string>
 </resources>

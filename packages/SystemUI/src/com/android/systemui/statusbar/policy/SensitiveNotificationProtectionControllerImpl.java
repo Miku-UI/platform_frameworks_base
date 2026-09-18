@@ -20,7 +20,6 @@ import static android.permission.flags.Flags.sensitiveNotificationAppProtection;
 import static android.provider.Settings.Global.DISABLE_SCREEN_SHARE_PROTECTIONS_FOR_APPS_AND_NOTIFICATIONS;
 
 import static com.android.server.notification.Flags.screenshareNotificationHiding;
-import static com.android.systemui.Flags.screenshareNotificationHidingBugFix;
 
 import android.annotation.MainThread;
 import android.app.IActivityManager;
@@ -277,20 +276,18 @@ public class SensitiveNotificationProtectionControllerImpl
 
         // Get Emergency Assistance Package, all notifications from this package should not be
         // hidden/redacted.
-        if (screenshareNotificationHidingBugFix()) {
-            try {
-                String emergencyAssistancePackageName =
-                        telephonyManager.getEmergencyAssistancePackageName();
-                if (emergencyAssistancePackageName != null) {
-                    notificationProtectionExemptPackages.add(emergencyAssistancePackageName);
-                }
-            } catch (IllegalStateException e) {
-                Log.w(
-                        LOG_TAG,
-                        "Error adding emergency assistance package to exemption",
-                        e);
-                // silent failure, skip adding packages to exemption
+        try {
+            String emergencyAssistancePackageName =
+                    telephonyManager.getEmergencyAssistancePackageName();
+            if (emergencyAssistancePackageName != null) {
+                notificationProtectionExemptPackages.add(emergencyAssistancePackageName);
             }
+        } catch (IllegalStateException e) {
+            Log.w(
+                    LOG_TAG,
+                    "Error adding emergency assistance package to exemption",
+                    e);
+            // silent failure, skip adding packages to exemption
         }
         return notificationProtectionExemptPackages;
     }
@@ -306,9 +303,7 @@ public class SensitiveNotificationProtectionControllerImpl
             ArraySet<String> notificationProtectionExemptPackages) {
         Assert.isMainThread();
         mSessionProtectionExemptPackages.addAll(sessionProtectionExemptPackages);
-        if (screenshareNotificationHidingBugFix()) {
-            mNotificationProtectionExemptPackages.addAll(notificationProtectionExemptPackages);
-        }
+        mNotificationProtectionExemptPackages.addAll(notificationProtectionExemptPackages);
 
         if (mProjection != null) {
             updateProjectionStateAndNotifyListeners(mProjection);
@@ -408,12 +403,11 @@ public class SensitiveNotificationProtectionControllerImpl
             return false;
         }
 
-        if (screenshareNotificationHidingBugFix() && UserHandle.isCore(sbn.getUid())) {
+        if (UserHandle.isCore(sbn.getUid())) {
             return false; // do not hide/redact notifications from system uid
         }
 
-        if (screenshareNotificationHidingBugFix()
-                && mNotificationProtectionExemptPackages.contains(sbn.getPackageName())) {
+        if (mNotificationProtectionExemptPackages.contains(sbn.getPackageName())) {
             return false; // do not hide/redact notifications from emergency app
         }
 

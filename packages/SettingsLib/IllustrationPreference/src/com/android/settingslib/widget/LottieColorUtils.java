@@ -39,6 +39,12 @@ public class LottieColorUtils {
     public static final Map<String, Integer> DARK_TO_LIGHT_THEME_COLOR_MAP;
     public static final Map<String, Integer> MATERIAL_COLOR_MAP;
 
+    /**
+     * Additional color palette to handle custom theming needs for Lottie assets created by
+     * assigning asset parts to color roles. Supports both dark and light modes.
+     */
+    public static final Map<String, Integer> ILLO_COLOR_MAP;
+
     static {
         DARK_TO_LIGHT_THEME_COLOR_MAP = Map.ofEntries(
                 Map.entry(".grey200",
@@ -117,6 +123,8 @@ public class LottieColorUtils {
                 Map.entry(".onSurfaceVariant", R.color.settingslib_materialColorOnSurfaceVariant),
                 Map.entry(".surfaceInverse", R.color.settingslib_materialColorSurfaceInverse),
                 Map.entry(".onSurfaceInverse", R.color.settingslib_materialColorOnSurfaceInverse),
+                Map.entry(".inverseSurface", R.color.settingslib_materialColorSurfaceInverse),
+                Map.entry(".inverseOnSurface", R.color.settingslib_materialColorOnSurfaceInverse),
                 Map.entry(".surfaceBright", R.color.settingslib_materialColorSurfaceBright),
                 Map.entry(".surfaceDim", R.color.settingslib_materialColorSurfaceDim),
                 Map.entry(".surfaceContainer", R.color.settingslib_materialColorSurfaceContainer),
@@ -128,6 +136,144 @@ public class LottieColorUtils {
                         R.color.settingslib_materialColorSurfaceContainerHigh),
                 Map.entry(".surfaceContainerHighest",
                         R.color.settingslib_materialColorSurfaceContainerHighest));
+
+        // TODO(b/483417597): Update illo colors tokens to reference colors in the dynamically
+        // generated tonal palette.
+        ILLO_COLOR_MAP =
+                Map.ofEntries(
+                        Map.entry(
+                                ".illoBg1",
+                                R.color.settingslib_materialColorSurfaceContainerLowest),
+                        Map.entry(".illoBg2", R.color.settingslib_materialColorSurface),
+                        Map.entry(".illoBg3", R.color.settingslib_materialColorSurfaceContainer),
+                        Map.entry(
+                                ".illoBg4", R.color.settingslib_materialColorSurfaceContainerHigh),
+                        Map.entry(
+                                ".illoAccentSubtle1",
+                                R.color.settingslib_materialColorSurfaceBright),
+                        Map.entry(
+                                ".illoAccentSubtle2",
+                                R.color.settingslib_materialColorSurfaceContainerHighest),
+                        Map.entry(
+                                ".illoAccentSubtle3",
+                                R.color.settingslib_materialColorSurfaceContainerLow),
+                        Map.entry(
+                                ".illoAccentSubtle4", R.color.settingslib_materialColorSurfaceDim),
+                        Map.entry(
+                                ".illoAccentDynamic1",
+                                R.color.settingslib_materialColorOutlineVariant),
+                        Map.entry(".illoAccentDynamic2", R.color.settingslib_materialColorOutline),
+                        Map.entry(
+                                ".illoAccentDynamic3",
+                                R.color.settingslib_materialColorOnSurfaceVariant),
+                        Map.entry(".illoCoreTheme0", R.color.settingslib_materialColorOnPrimary),
+                        Map.entry(
+                                ".illoCoreTheme1",
+                                R.color.settingslib_materialColorOnPrimaryContainer),
+                        Map.entry(
+                                ".illoCoreTheme2",
+                                R.color.settingslib_materialColorPrimaryContainer),
+                        Map.entry(".illoCoreTheme3", R.color.settingslib_materialColorPrimary),
+                        Map.entry(
+                                ".illoCoreSecondary0",
+                                R.color.settingslib_materialColorOnSecondary),
+                        Map.entry(
+                                ".illoCoreSecondary1",
+                                R.color.settingslib_materialColorOnSecondaryContainer),
+                        Map.entry(
+                                ".illoCoreSecondary2",
+                                R.color.settingslib_materialColorSecondaryContainer),
+                        Map.entry(
+                                ".illoCoreSecondary3", R.color.settingslib_materialColorSecondary),
+                        Map.entry(
+                                ".illoCoreTertiary0", R.color.settingslib_materialColorOnTertiary),
+                        Map.entry(
+                                ".illoCoreTertiary1",
+                                R.color.settingslib_materialColorOnTertiaryContainer),
+                        Map.entry(
+                                ".illoCoreTertiary2",
+                                R.color.settingslib_materialColorTertiaryContainer),
+                        Map.entry(".illoCoreTertiary3", R.color.settingslib_materialColorTertiary),
+                        Map.entry(".illoInverse1", R.color.settingslib_materialColorPrimaryInverse),
+                        Map.entry(".illoFixed1", R.color.settingslib_materialColorPrimaryFixed),
+                        Map.entry(".illoFixed2", R.color.settingslib_materialColorTertiaryFixedDim),
+                        Map.entry(".illoFixed3", R.color.settingslib_materialColorOnTertiaryFixed),
+                        Map.entry(
+                                ".illoSkinTone1",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_skin_tone_1),
+                        Map.entry(
+                                ".illoSkinTone2",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_skin_tone_2),
+                        Map.entry(
+                                ".illoSkinTone3",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_skin_tone_3),
+                        Map.entry(
+                                ".illoSkinTone4",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_skin_tone_4),
+                        Map.entry(
+                                ".illoSkinTone5",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_skin_tone_5),
+                        Map.entry(
+                                ".illoSkinTone6",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_skin_tone_6),
+                        Map.entry(
+                                ".illoFixedBlack",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_fixed_black),
+                        Map.entry(
+                                ".illoFixedWhite",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_fixed_white),
+                        Map.entry(
+                                ".illoInverseBlack",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_inverse_black),
+                        Map.entry(
+                                ".illoInverseWhite",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_inverse_white),
+                        Map.entry(
+                                ".illoError1",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_error_1),
+                        Map.entry(
+                                ".illoError2",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_error_2),
+                        Map.entry(
+                                ".illoError3",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_error_3),
+                        Map.entry(
+                                ".illoWarning1",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_warning_1),
+                        Map.entry(
+                                ".illoWarning2",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_warning_2),
+                        Map.entry(
+                                ".illoWarning3",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_warning_3),
+                        Map.entry(
+                                ".illoPositive1",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_positive_1),
+                        Map.entry(
+                                ".illoPositive2",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_positive_2),
+                        Map.entry(
+                                ".illoPositive3",
+                                com.android.settingslib.widget.preference.illustration.R.color
+                                        .illo_positive_3));
     }
 
     private LottieColorUtils() {
@@ -164,6 +310,18 @@ public class LottieColorUtils {
             @NonNull LottieAnimationView lottieAnimationView) {
         for (String key : MATERIAL_COLOR_MAP.keySet()) {
             final int color = context.getColor(MATERIAL_COLOR_MAP.get(key));
+            lottieAnimationView.addValueCallback(
+                    new KeyPath("**", key, "**"),
+                    LottieProperty.COLOR_FILTER,
+                    frameInfo -> new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_ATOP));
+        }
+    }
+
+    /** Applies illo colors palette. */
+    public static void applyIlloColors(
+            @NonNull Context context, @NonNull LottieAnimationView lottieAnimationView) {
+        for (String key : ILLO_COLOR_MAP.keySet()) {
+            final int color = context.getColor(ILLO_COLOR_MAP.get(key));
             lottieAnimationView.addValueCallback(
                     new KeyPath("**", key, "**"),
                     LottieProperty.COLOR_FILTER,

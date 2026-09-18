@@ -50,7 +50,7 @@ public class TestInjector implements Injector {
         mDeviceStationaryHelper = new FakeDeviceStationaryHelper();
         mDeviceIdleHelper = new FakeDeviceIdleHelper();
         mEmergencyHelper = new FakeEmergencyHelper();
-        mLocationUsageLogger = new LocationUsageLogger();
+        mLocationUsageLogger = new LocationUsageLogger(context);
         mPackageResetHelper = new FakePackageResetHelper();
     }
 

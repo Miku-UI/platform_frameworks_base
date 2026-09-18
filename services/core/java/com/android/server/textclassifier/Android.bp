@@ -1,0 +1,13 @@
+aconfig_declarations {
+    name: "textclassifier_aconfig_declaration",
+    package: "com.android.server.textclassifier",
+    container: "system",
+    srcs: [
+        "*.aconfig",
+    ],
+}
+
+java_aconfig_library {
+    name: "textclassifier_flags_lib",
+    aconfig_declarations: "textclassifier_aconfig_declaration",
+}

@@ -19,7 +19,11 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="usb_authorization_message_untrusted" msgid="4407977362840907960">"L\'appareil suivant était connecté à votre <xliff:g id="NAME">%1$s</xliff:g>. Cet appareil ne sera approuvé qu\'une fois que vous vous serez connecté·e."</string>
+    <string name="usb_authorization_message_multi_untrusted" msgid="85055448435495205">"Les appareils suivants étaient connectés à votre <xliff:g id="NAME">%1$s</xliff:g>. Ces appareils ne seront approuvés qu\'une fois que vous vous serez connecté·e."</string>
+    <string name="accessibility_cast_name" msgid="7344437925388773685">"Connecté·e à <xliff:g id="CAST">%s</xliff:g>."</string>
     <string name="zen_priority_introduction" msgid="3159291973383796646">"Vous ne serez pas dérangé·e par des sons ou des vibrations, hormis ceux des alarmes, des rappels, des événements et des appelants de votre choix. Vous entendrez encore les sons que vous choisirez de jouer, notamment la musique, les vidéos et les jeux."</string>
     <string name="zen_alarms_introduction" msgid="3987266042682300470">"Vous ne serez pas dérangé·e par des sons ou des vibrations, hormis ceux des alarmes. Vous entendrez encore les sons que vous choisirez de jouer, comme la musique, les vidéos et les jeux."</string>
     <string name="guest_wipe_session_title" msgid="7147965814683990944">"Heureux de vous revoir, Invité·e"</string>
+    <string name="accessibility_quick_settings_user" msgid="505821942882668619">"Connecté·e en tant que <xliff:g id="ID_1">%s</xliff:g>"</string>
 </resources>

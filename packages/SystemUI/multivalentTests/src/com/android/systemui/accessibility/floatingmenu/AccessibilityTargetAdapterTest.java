@@ -17,13 +17,17 @@
 package com.android.systemui.accessibility.floatingmenu;
 
 import static com.android.internal.accessibility.AccessibilityShortcutController.ACCESSIBILITY_HEARING_AIDS_COMPONENT_NAME;
+import static com.android.internal.accessibility.AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.content.ComponentName;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.InsetDrawable;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.view.LayoutInflater;
@@ -34,7 +38,9 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.accessibility.dialog.AccessibilityTarget;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager.ConnectionStatus;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.accessibility.Magnification;
 import com.android.systemui.accessibility.floatingmenu.AccessibilityTargetAdapter.ViewHolder;
 import com.android.systemui.res.R;
 
@@ -66,6 +72,8 @@ public class AccessibilityTargetAdapterTest extends SysuiTestCase {
     private Drawable mIcon;
     @Mock
     private Drawable.ConstantState mConstantState;
+    @Mock
+    private Magnification mMagnification;
     private ViewHolder mViewHolder;
     private AccessibilityTargetAdapter mAdapter;
     private final List<AccessibilityTarget> mTargets = new ArrayList<>();
@@ -80,7 +88,7 @@ public class AccessibilityTargetAdapterTest extends SysuiTestCase {
         when(mIcon.getConstantState()).thenReturn(mConstantState);
 
         mTargets.add(mAccessibilityTarget);
-        mAdapter = new AccessibilityTargetAdapter(mTargets);
+        mAdapter = new AccessibilityTargetAdapter(mTargets, mContext, mMagnification);
     }
 
     @Test
@@ -188,5 +196,91 @@ public class AccessibilityTargetAdapterTest extends SysuiTestCase {
 
         assertThat(mViewHolder.mRightBadgeView.getVisibility()).isEqualTo(View.INVISIBLE);
         assertThat(mViewHolder.mLeftBadgeView.getVisibility()).isEqualTo(View.VISIBLE);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void magnificationActivated_flagOff_magnificationTargetStateDescriptionUnchanged() {
+        when(mAccessibilityTarget.getId())
+                .thenReturn(MAGNIFICATION_CONTROLLER_NAME);
+        when(mMagnification.isAnyMagnificationActivated(
+                mContext.getDisplayId())).thenReturn(true);
+
+        mAdapter.onBindViewHolder(mViewHolder, 0);
+
+        assertThat(mViewHolder.itemView.getStateDescription()).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void magnificationActivated_magnificationTargetMatchesStateDescription() {
+        when(mAccessibilityTarget.getId())
+                .thenReturn(MAGNIFICATION_CONTROLLER_NAME);
+        when(mMagnification.isAnyMagnificationActivated(
+                mContext.getDisplayId())).thenReturn(true);
+
+        mAdapter.onBindViewHolder(mViewHolder, 0);
+
+        assertThat(mViewHolder.itemView.getStateDescription()).isNotNull();
+        assertThat(mViewHolder.itemView.getStateDescription().toString()).isEqualTo(
+                getStateDescriptionForEnabledStatus(true));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void magnificationDeactivated_magnificationTargetMatchesStateDescription() {
+        when(mAccessibilityTarget.getId())
+                .thenReturn(MAGNIFICATION_CONTROLLER_NAME);
+        when(mMagnification.isAnyMagnificationActivated(
+                mContext.getDisplayId())).thenReturn(false);
+
+        mAdapter.onBindViewHolder(mViewHolder, 0);
+
+        assertThat(mViewHolder.itemView.getStateDescription()).isNotNull();
+        assertThat(mViewHolder.itemView.getStateDescription().toString()).isEqualTo(
+                getStateDescriptionForEnabledStatus(false));
+    }
+
+    private String getStateDescriptionForEnabledStatus(boolean enabled) {
+        final int statusResId = enabled
+                        ? com.android.internal.R.string.accessibility_shortcut_menu_item_status_on
+                        : com.android.internal.R.string.accessibility_shortcut_menu_item_status_off;
+        return mContext.getString(statusResId);
+    }
+
+    @Test
+    public void onBindViewHolder_moreOptionsTarget_largeSize_usesInsetDrawable() {
+        final MoreOptionsTarget moreOptionsTarget = mock(MoreOptionsTarget.class);
+        when(moreOptionsTarget.getIcon()).thenReturn(mIcon);
+        when(mIcon.getIntrinsicWidth()).thenReturn(24);
+        mTargets.clear();
+        mTargets.add(moreOptionsTarget);
+        mAdapter.setIconWidthHeight(56);
+
+        mAdapter.onBindViewHolder(mViewHolder, 0);
+
+        assertThat(mViewHolder.mIconView.getBackground()).isInstanceOf(InsetDrawable.class);
+    }
+
+    @Test
+    public void onBindViewHolder_moreOptionsTarget_smallSize_noInsetDrawableIfEqual() {
+        final MoreOptionsTarget moreOptionsTarget = mock(MoreOptionsTarget.class);
+        when(moreOptionsTarget.getIcon()).thenReturn(mIcon);
+        when(mIcon.getIntrinsicWidth()).thenReturn(24);
+        mTargets.clear();
+        mTargets.add(moreOptionsTarget);
+        mAdapter.setIconWidthHeight(24);
+
+        mAdapter.onBindViewHolder(mViewHolder, 0);
+
+        assertThat(mViewHolder.mIconView.getBackground()).isEqualTo(mIcon);
+    }
+
+    @Test
+    public void onBindViewHolder_regularTarget_doesNotUseInsetDrawable() {
+        mAdapter.setIconWidthHeight(56);
+        mAdapter.onBindViewHolder(mViewHolder, 0);
+
+        assertThat(mViewHolder.mIconView.getBackground()).isEqualTo(mIcon);
     }
 }

@@ -28,17 +28,30 @@ import android.os.Parcelable
  * @property className The class name for service binding.
  * @property intentAction The intent action for service binding.
  * @property preferenceKey The preference key if it's a built-in preference.
+ * @property highlighted Whether the item should be highlighted in the UI.
+ * @property groupIndex The index of the group(in [DeviceSettingsConfig.settingGroups]) the item
+ *   belongs to.
+ * @property isOptional Whether the item is optional.
  * @property extras Extra bundle
  */
 data class DeviceSettingItem(
-    @DeviceSettingId val settingId: Int,
+    @param:DeviceSettingId val settingId: Int,
     val packageName: String? = null,
     val className: String? = null,
     val intentAction: String? = null,
     val preferenceKey: String? = null,
     val highlighted: Boolean = false,
+    val groupIndex: Int? = null,
+    val isOptional: Boolean = false,
     val extras: Bundle = Bundle.EMPTY,
 ) : Parcelable {
+    private val processedExtras: Bundle =
+        Bundle(extras).apply {
+            if (groupIndex != null) {
+                putInt(GROUP_INDEX_KEY, groupIndex)
+            }
+            putBoolean(IS_OPTIONAL_KEY, isOptional)
+        }
 
     override fun describeContents(): Int = 0
 
@@ -50,24 +63,39 @@ data class DeviceSettingItem(
             writeString(intentAction)
             writeBoolean(highlighted)
             writeString(preferenceKey)
-            writeBundle(extras)
+            writeBundle(processedExtras)
         }
     }
 
     companion object {
+        private const val GROUP_INDEX_KEY = "groupIndex"
+        private const val IS_OPTIONAL_KEY = "isOptional"
+
         @JvmField
         val CREATOR: Parcelable.Creator<DeviceSettingItem> =
             object : Parcelable.Creator<DeviceSettingItem> {
                 override fun createFromParcel(parcel: Parcel) =
                     parcel.run {
+                        val settingId = readInt()
+                        val packageName = readString()
+                        val className = readString()
+                        val intentAction = readString()
+                        val highlighted = readBoolean()
+                        val preferenceKey = readString()
+                        val extras = readBundle((Bundle::class.java.classLoader)) ?: Bundle.EMPTY
+                        val groupIndex = extras.getInt(GROUP_INDEX_KEY, -1).let { if (it == -1) null else it }
+                        val isOptional = extras.getBoolean(IS_OPTIONAL_KEY, false)
+
                         DeviceSettingItem(
-                            settingId = readInt(),
-                            packageName = readString(),
-                            className = readString(),
-                            intentAction = readString(),
-                            highlighted = readBoolean(),
-                            preferenceKey = readString(),
-                            extras = readBundle((Bundle::class.java.classLoader)) ?: Bundle.EMPTY,
+                            settingId = settingId,
+                            packageName = packageName,
+                            className = className,
+                            intentAction = intentAction,
+                            preferenceKey = preferenceKey,
+                            highlighted = highlighted,
+                            groupIndex = groupIndex,
+                            isOptional = isOptional,
+                            extras = extras,
                         )
                     }
 

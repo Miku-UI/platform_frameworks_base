@@ -42,7 +42,6 @@ import com.android.systemui.statusbar.RankingBuilder;
 import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider;
 import com.android.systemui.statusbar.notification.collection.render.GroupMembershipManager;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -217,21 +216,6 @@ public class HighPriorityProviderTest extends SysuiTestCase {
         assertFalse(mHighPriorityProvider.isHighPriority(entry));
     }
 
-    @Test
-    @DisableFlags(NotificationBundleUi.FLAG_NAME)
-    public void testIsHighPriority_checkChildrenToCalculatePriority_legacy() {
-        // GIVEN: a summary with low priority has a highPriorityChild and a lowPriorityChild
-        final NotificationEntry summary = createNotifEntry(false);
-        final NotificationEntry lowPriorityChild = createNotifEntry(false);
-        final NotificationEntry highPriorityChild = createNotifEntry(true);
-        when(mGroupMembershipManager.isGroupSummary(summary)).thenReturn(true);
-        when(mGroupMembershipManager.getChildren(summary)).thenReturn(
-                new ArrayList<>(Arrays.asList(lowPriorityChild, highPriorityChild)));
-
-        // THEN the summary is high priority since it has a high priority child
-        assertTrue(mHighPriorityProvider.isHighPriority(summary));
-    }
-
     // Tests below here are only relevant to the NEW notification pipeline which uses GroupEntry
 
     @Test
@@ -267,7 +251,6 @@ public class HighPriorityProviderTest extends SysuiTestCase {
                 .setSummary(lowPrioritySummary)
                 .setChildren(children)
                 .build();
-        when(mGroupMembershipManager.getChildren(parentEntry)).thenReturn(children);
 
         // THEN the GroupEntry parentEntry is high priority since it has a high priority child
         assertTrue(mHighPriorityProvider.isHighPriority(parentEntry));
@@ -284,8 +267,6 @@ public class HighPriorityProviderTest extends SysuiTestCase {
                 .setSummary(lowPrioritySummary)
                 .setChildren(List.of(lowPriorityChild))
                 .build();
-        when(mGroupMembershipManager.getChildren(parentEntry)).thenReturn(
-                new ArrayList<>(List.of(lowPriorityChild)));
 
         // WHEN the child entry ranking changes to high priority
         lowPriorityChild.setRanking(

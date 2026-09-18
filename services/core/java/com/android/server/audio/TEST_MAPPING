@@ -29,7 +29,7 @@
             ]
         },
         {
-            "name": "FrameworksServicesTests_android_server_audio"
+            "name": "AudioServiceTests"
         }
     ]
 }

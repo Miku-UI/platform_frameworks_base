@@ -34,6 +34,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -55,6 +56,8 @@ interface ZenModeRepository {
 
     /** A list of all existing priority modes. */
     val modes: StateFlow<List<ZenMode>>
+
+    val hasNextAlarm: MutableStateFlow<Boolean>
 
     fun getModes(): List<ZenMode>
 
@@ -163,6 +166,8 @@ class ZenModeRepositoryImpl(
                 started = SharingStarted.Eagerly,
                 initialValue = backend.modes,
             )
+
+    override val hasNextAlarm: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     /**
      * Gets the current list of [ZenMode] instances according to the backend.

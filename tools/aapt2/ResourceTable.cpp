@@ -257,7 +257,10 @@ ResourceConfigValue* ResourceEntry::FindOrCreateFlagDisabledValue(
 ResourceConfigValue* ResourceEntry::FindOrCreateReadWriteFlagValue(
     const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
     android::StringPiece product) {
-  return FindOrPossiblyCreateFlaggedValue(readwrite_flag_values, flag, config, product, true);
+  auto* value =
+      FindOrPossiblyCreateFlaggedValue(readwrite_flag_values, flag, config, product, true);
+  value->uses_readwrite_feature_flags = true;
+  return value;
 }
 
 ResourceConfigValue* ResourceEntry::FindFlagDisabledValue(const FeatureFlagAttribute& flag,
@@ -752,13 +755,14 @@ bool ResourceTable::AddResource(NewResource&& res, android::IDiagnostics* diag) 
       config_value->value = std::move(res.value);
       config_value->uses_readwrite_feature_flags = res.uses_readwrite_feature_flags;
     } else {
-      // When validation is enabled, ensure that a resource cannot have multiple values defined for
-      // the same configuration unless protected by flags.
-      auto result = validate ? ResolveFlagCollision(config_value->value->GetFlagStatus(),
-                                                    res.value->GetFlagStatus())
-                             : CollisionResult::kKeepBoth;
+      // Always resolve flag collisions, even when validation is disabled, to ensure the correct
+      // value is selected based on flag status.
+      auto result =
+          ResolveFlagCollision(config_value->value->GetFlagStatus(), res.value->GetFlagStatus());
       if (result == CollisionResult::kConflict) {
-        result = ResolveValueCollision(config_value->value.get(), res.value.get());
+        // If there's still a conflict, resolve value collisions only when validation is enabled.
+        result = validate ? ResolveValueCollision(config_value->value.get(), res.value.get())
+                          : CollisionResult::kKeepBoth;
       }
       switch (result) {
         case CollisionResult::kKeepBoth: {

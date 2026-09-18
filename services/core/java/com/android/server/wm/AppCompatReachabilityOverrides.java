@@ -30,6 +30,7 @@ import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_HORIZONTAL_
 import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_VERTICAL_REACHABILITY_POSITION_BOTTOM;
 import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_VERTICAL_REACHABILITY_POSITION_CENTER;
 import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_VERTICAL_REACHABILITY_POSITION_TOP;
+import static com.android.server.wm.AppCompatSandboxingPolicy.ConfigOverrideHint;
 
 import android.annotation.NonNull;
 import android.content.res.Configuration;
@@ -270,9 +271,9 @@ class AppCompatReachabilityOverrides {
         if (!allowHorizontalReachabilityForThinLetterbox()) {
             return false;
         }
-        final Rect parentAppBoundsOverride = mActivityRecord.getParentAppBoundsOverride();
-        final Rect parentAppBounds = parentAppBoundsOverride != null
-                ? parentAppBoundsOverride : parentConfiguration.windowConfiguration.getAppBounds();
+        final Rect parentAppBoundsOverride = getConfigOverrideHint().getParentAppBoundsOverride();
+        final Rect parentAppBounds = parentAppBoundsOverride.isEmpty()
+                ? parentConfiguration.windowConfiguration.getAppBounds() : parentAppBoundsOverride;
         // Use screen resolved bounds which uses resolved bounds or size compat bounds
         // as activity bounds can sometimes be empty
         final Rect opaqueActivityBounds = mActivityRecord.mAppCompatController
@@ -301,9 +302,9 @@ class AppCompatReachabilityOverrides {
         if (!allowVerticalReachabilityForThinLetterbox()) {
             return false;
         }
-        final Rect parentAppBoundsOverride = mActivityRecord.getParentAppBoundsOverride();
-        final Rect parentAppBounds = parentAppBoundsOverride != null
-                ? parentAppBoundsOverride : parentConfiguration.windowConfiguration.getAppBounds();
+        final Rect parentAppBoundsOverride = getConfigOverrideHint().getParentAppBoundsOverride();
+        final Rect parentAppBounds = parentAppBoundsOverride.isEmpty()
+                ? parentConfiguration.windowConfiguration.getAppBounds() : parentAppBoundsOverride;
         // Use screen resolved bounds which uses resolved bounds or size compat bounds
         // as activity bounds can sometimes be empty.
         final Rect opaqueActivityBounds = mActivityRecord.mAppCompatController
@@ -316,6 +317,11 @@ class AppCompatReachabilityOverrides {
                 // Check whether the activity fills the parent horizontally.
                 && parentAppBounds.width() <= opaqueActivityBounds.width()
                 && parentAppBounds.height() > opaqueActivityBounds.height();
+    }
+
+    @NonNull
+    private ConfigOverrideHint getConfigOverrideHint() {
+        return mActivityRecord.mAppCompatController.getSandboxingPolicy().getResolveConfigHint();
     }
 
     private static class ReachabilityState {

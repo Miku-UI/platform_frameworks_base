@@ -27,43 +27,45 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * A service module such as MediaSessionService, VOIP, Camera, Microphone, Location can ask
  * ActivityManagerService to start a foreground service delegate on behalf of the actual app,
- * by which the client app's process state can be promoted to FOREGROUND_SERVICE process state which
- * is higher than the app's actual process state if the app is in the background. This can help to
- * keep the app in the memory and extra run-time.
- * The app does not need to define an actual service component nor add it into manifest file.
+ * by which the client app's process state can be promoted to a higher process state, equivalent to
+ * that of a foreground service, which may be higher than the app's actual process state if the app
+ * is in the background. This can help keep the app in memory and potentially give it extra
+ * run-time. The app does not need to define an actual service component nor add it to their
+ * manifest file.
  *
  * @hide
  */
 public class ForegroundServiceDelegationOptions {
 
+    /**
+     * Used mainly for internal logging when a better type is not available or applicable.
+     */
     public static final int DELEGATION_SERVICE_DEFAULT = 0;
-    public static final int DELEGATION_SERVICE_DATA_SYNC = 1;
-    public static final int DELEGATION_SERVICE_MEDIA_PLAYBACK = 2;
-    public static final int DELEGATION_SERVICE_PHONE_CALL = 3;
-    public static final int DELEGATION_SERVICE_LOCATION = 4;
-    public static final int DELEGATION_SERVICE_CONNECTED_DEVICE = 5;
-    public static final int DELEGATION_SERVICE_MEDIA_PROJECTION = 6;
-    public static final int DELEGATION_SERVICE_CAMERA = 7;
-    public static final int DELEGATION_SERVICE_MICROPHONE = 8;
-    public static final int DELEGATION_SERVICE_HEALTH = 9;
-    public static final int DELEGATION_SERVICE_REMOTE_MESSAGING = 10;
-    public static final int DELEGATION_SERVICE_SYSTEM_EXEMPTED = 11;
-    public static final int DELEGATION_SERVICE_SPECIAL_USE = 12;
+
+    /**
+     * Used when called through Shell Command.
+     */
+    public static final int DELEGATION_SERVICE_SPECIAL_USE = 1;
+
+    /**
+     * Used to identify delegation service related to a phone call.
+     * @see #DELEGATION_SERVICE_VOIP
+     * @deprecated Use a more specific type instead.
+     */
+    @Deprecated
+    public static final int DELEGATION_SERVICE_PHONE_CALL = 2;
+
+    /**
+     * Used to identify delegation service related to a voip call.
+     */
+    public static final int DELEGATION_SERVICE_VOIP = 3;
+
 
     @IntDef(flag = false, prefix = { "DELEGATION_SERVICE_" }, value = {
             DELEGATION_SERVICE_DEFAULT,
-            DELEGATION_SERVICE_DATA_SYNC,
-            DELEGATION_SERVICE_MEDIA_PLAYBACK,
-            DELEGATION_SERVICE_PHONE_CALL,
-            DELEGATION_SERVICE_LOCATION,
-            DELEGATION_SERVICE_CONNECTED_DEVICE,
-            DELEGATION_SERVICE_MEDIA_PROJECTION,
-            DELEGATION_SERVICE_CAMERA,
-            DELEGATION_SERVICE_MICROPHONE,
-            DELEGATION_SERVICE_HEALTH,
-            DELEGATION_SERVICE_REMOTE_MESSAGING,
-            DELEGATION_SERVICE_SYSTEM_EXEMPTED,
             DELEGATION_SERVICE_SPECIAL_USE,
+            DELEGATION_SERVICE_PHONE_CALL,
+            DELEGATION_SERVICE_VOIP,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface DelegationService {}
@@ -125,6 +127,11 @@ public class ForegroundServiceDelegationOptions {
             @DelegationService int delegationService,
             int clientNotificationId,
             @Nullable Notification clientNotification) {
+        if (delegationService == DELEGATION_SERVICE_DEFAULT) {
+            throw new IllegalArgumentException(
+                "Default is not allowed to be passed in. "
+                + "Use a more specific Delegation Service Identifier!");
+        }
         mClientPid = clientPid;
         mClientUid = clientUid;
         mClientPackageName = clientPackageName;
@@ -190,30 +197,12 @@ public class ForegroundServiceDelegationOptions {
         switch (serviceCode) {
             case DELEGATION_SERVICE_DEFAULT:
                 return "DEFAULT";
-            case DELEGATION_SERVICE_DATA_SYNC:
-                return "DATA_SYNC";
-            case DELEGATION_SERVICE_MEDIA_PLAYBACK:
-                return "MEDIA_PLAYBACK";
-            case DELEGATION_SERVICE_PHONE_CALL:
-                return "PHONE_CALL";
-            case DELEGATION_SERVICE_LOCATION:
-                return "LOCATION";
-            case DELEGATION_SERVICE_CONNECTED_DEVICE:
-                return "CONNECTED_DEVICE";
-            case DELEGATION_SERVICE_MEDIA_PROJECTION:
-                return "MEDIA_PROJECTION";
-            case DELEGATION_SERVICE_CAMERA:
-                return "CAMERA";
-            case DELEGATION_SERVICE_MICROPHONE:
-                return "MICROPHONE";
-            case DELEGATION_SERVICE_HEALTH:
-                return "HEALTH";
-            case DELEGATION_SERVICE_REMOTE_MESSAGING:
-                return "REMOTE_MESSAGING";
-            case DELEGATION_SERVICE_SYSTEM_EXEMPTED:
-                return "SYSTEM_EXEMPTED";
             case DELEGATION_SERVICE_SPECIAL_USE:
                 return "SPECIAL_USE";
+            case DELEGATION_SERVICE_PHONE_CALL:
+                return "PHONE_CALL";
+            case DELEGATION_SERVICE_VOIP:
+                return "VOIP";
             default:
                 return "(unknown:" + serviceCode + ")";
         }

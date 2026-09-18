@@ -20,6 +20,7 @@ import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
 
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.ElapsedRealtimeLong;
+import android.util.Pair;
 
 import com.android.server.SystemTimeZone;
 
@@ -27,14 +28,13 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A partially implemented, fake implementation of Environment for tests.
- */
+/** A partially implemented, fake implementation of Environment for tests. */
 public class FakeEnvironment implements Environment {
 
     private final TestState<String> mTimeZoneId = new TestState<>();
     private final TestState<Integer> mTimeZoneConfidence = new TestState<>();
     private final List<Runnable> mAsyncRunnables = new ArrayList<>();
+    private final List<Pair<Long, Runnable>> mDelayedRunnables = new ArrayList<>();
     private @ElapsedRealtimeLong long mElapsedRealtimeMillis;
     private @CurrentTimeMillisLong long mInitializationTimeMillis;
 
@@ -43,20 +43,25 @@ public class FakeEnvironment implements Environment {
         initializeTimeZoneSetting("", TIME_ZONE_CONFIDENCE_LOW);
     }
 
-    void initializeClock(@CurrentTimeMillisLong long currentTimeMillis,
+    void initializeClock(
+            @CurrentTimeMillisLong long currentTimeMillis,
             @ElapsedRealtimeLong long elapsedRealtimeMillis) {
         mInitializationTimeMillis = currentTimeMillis - elapsedRealtimeMillis;
         mElapsedRealtimeMillis = elapsedRealtimeMillis;
     }
 
-    void initializeTimeZoneSetting(String zoneId,
-            @SystemTimeZone.TimeZoneConfidence int timeZoneConfidence) {
+    void initializeTimeZoneSetting(
+            String zoneId, @SystemTimeZone.TimeZoneConfidence int timeZoneConfidence) {
         mTimeZoneId.init(zoneId);
         mTimeZoneConfidence.init(timeZoneConfidence);
     }
 
     void incrementClock() {
         mElapsedRealtimeMillis++;
+    }
+
+    void advanceClock(@ElapsedRealtimeLong long durationMillis) {
+        mElapsedRealtimeMillis += durationMillis;
     }
 
     @Override
@@ -81,8 +86,8 @@ public class FakeEnvironment implements Environment {
         mTimeZoneConfidence.assertHasNotBeenSet();
     }
 
-    void assertTimeZoneChangedTo(String timeZoneId,
-            @SystemTimeZone.TimeZoneConfidence int confidence) {
+    void assertTimeZoneChangedTo(
+            String timeZoneId, @SystemTimeZone.TimeZoneConfidence int confidence) {
         mTimeZoneId.assertHasBeenSet();
         mTimeZoneId.assertChangeCount(1);
         mTimeZoneId.assertLatestEquals(timeZoneId);
@@ -137,5 +142,43 @@ public class FakeEnvironment implements Environment {
             runnable.run();
         }
         mAsyncRunnables.clear();
+    }
+
+    @Override
+    public void postDelayed(Runnable runnable, long delayMillis) {
+        removePendingRunnable(runnable);
+        mDelayedRunnables.add(new Pair<>(delayMillis + elapsedRealtimeMillis(), runnable));
+    }
+
+    /**
+     * Checks if there are any delayed runnables that have been supplied to {@code #postDelayed} and
+     * runs them if time is up.
+     */
+    public void runDelayedRunnables() {
+        ArrayList<Pair<Long, Runnable>> runnablesToRun = new ArrayList<>(mDelayedRunnables);
+        mDelayedRunnables.clear();
+        for (Pair<Long, Runnable> pair : runnablesToRun) {
+            if (pair.first > elapsedRealtimeMillis()) {
+                mDelayedRunnables.add(new Pair<>(pair.first, pair.second));
+                continue;
+            }
+            pair.second.run();
+        }
+    }
+
+    @Override
+    public void removePendingRunnable(Runnable runnable) {
+        ArrayList<Pair<Long, Runnable>> runnablesToRun = new ArrayList<>(mDelayedRunnables);
+        mDelayedRunnables.clear();
+        for (Pair<Long, Runnable> pair : runnablesToRun) {
+            if (pair.second == runnable) {
+                continue;
+            }
+            mDelayedRunnables.add(new Pair<>(pair.first, pair.second));
+        }
+    }
+
+    public int getDelayedRunnableCount() {
+        return mDelayedRunnables.size();
     }
 }

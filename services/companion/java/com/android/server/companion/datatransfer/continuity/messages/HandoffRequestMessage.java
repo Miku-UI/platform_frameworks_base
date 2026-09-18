@@ -16,36 +16,42 @@
 
 package com.android.server.companion.datatransfer.continuity.messages;
 
+import android.annotation.NonNull;
 import android.util.proto.ProtoInputStream;
 import android.util.proto.ProtoOutputStream;
-
 import java.io.IOException;
+import java.util.Objects;
 
-/**
- * Deserialized version of the HandoffRequestMessage proto.
- */
-public record HandoffRequestMessage(int taskId) implements TaskContinuityMessage {
+/** Deserialized version of the HandoffRequestMessage proto. */
+public record HandoffRequestMessage(int taskId) implements Proto {
 
-    public static HandoffRequestMessage readFromProto(ProtoInputStream pis) throws IOException {
-        int taskId = 0;
-        while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
-            switch (pis.getFieldNumber()) {
-                case (int) android.companion.HandoffRequestMessage.TASK_ID:
-                    taskId = pis.readInt(android.companion.HandoffRequestMessage.TASK_ID);
-                    break;
+    public static class Builder extends Proto.Builder<HandoffRequestMessage> {
+        private int taskId = 0;
+
+        @NonNull
+        public Builder setTaskId(int taskId) {
+            this.taskId = taskId;
+            return this;
+        }
+
+        @Override
+        protected void processField(@NonNull ProtoInputStream pis, int fieldNumber)
+                throws IOException {
+            switch (fieldNumber) {
+                case (int) android.companion.HandoffRequestMessage.TASK_ID ->
+                        setTaskId(pis.readInt(android.companion.HandoffRequestMessage.TASK_ID));
             }
         }
 
-        return new HandoffRequestMessage(taskId);
+        @Override
+        public HandoffRequestMessage build() {
+            return new HandoffRequestMessage(taskId);
+        }
     }
 
     @Override
-    public long getFieldNumber() {
-        return android.companion.TaskContinuityMessage.HANDOFF_REQUEST;
-    }
-
-    @Override
-    public void writeToProto(ProtoOutputStream pos) {
-        pos.write(android.companion.HandoffRequestMessage.TASK_ID, taskId());
+    public void write(@NonNull ProtoOutputStream pos) throws IOException {
+        Objects.requireNonNull(pos)
+                .write(android.companion.HandoffRequestMessage.TASK_ID, taskId());
     }
 }

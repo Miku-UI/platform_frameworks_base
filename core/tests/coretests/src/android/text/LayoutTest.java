@@ -19,8 +19,6 @@ package android.text;
 import static android.text.Layout.HIGH_CONTRAST_TEXT_BACKGROUND_CORNER_RADIUS_FACTOR;
 import static android.text.Layout.HIGH_CONTRAST_TEXT_BACKGROUND_CORNER_RADIUS_MIN_DP;
 
-import static com.android.graphics.hwui.flags.Flags.FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT;
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -37,8 +35,6 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.text.Layout.Alignment;
@@ -664,7 +660,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testDrawSelectionAndHighlight_drawsHighContrastSelectionAndHighlight() {
         Layout layout = new StaticLayout(LAYOUT_TEXT, mTextPaint, mWidth,
                 mAlign, mSpacingMult, mSpacingAdd, /* includePad= */ false);
@@ -717,7 +712,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testDrawHighlight_drawsHighContrastHighlight() {
         Layout layout = new StaticLayout(LAYOUT_TEXT, mTextPaint, mWidth,
                 mAlign, mSpacingMult, mSpacingAdd, /* includePad= */ false);
@@ -770,7 +764,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextDisabledByDefault_testDrawHighlight_drawsNormalHighlightBehind() {
         Layout layout = new StaticLayout(LAYOUT_TEXT, mTextPaint, mWidth,
                 mAlign, mSpacingMult, mSpacingAdd, /* includePad= */ false);
@@ -822,59 +815,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsDisabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
-    public void highContrastTextEnabledButFlagOff_testDrawHighlight_drawsNormalHighlightBehind() {
-        Layout layout = new StaticLayout(LAYOUT_TEXT, mTextPaint, mWidth,
-                mAlign, mSpacingMult, mSpacingAdd, /* includePad= */ false);
-
-        List<Path> highlightPaths = new ArrayList<>();
-        List<Paint> highlightPaints = new ArrayList<>();
-
-        Path selectionPath = new Path();
-        RectF selectionRect = new RectF(0f, 0f, mWidth / 2f, LINE_HEIGHT);
-        selectionPath.addRect(selectionRect, Path.Direction.CW);
-        highlightPaths.add(selectionPath);
-
-        Paint selectionPaint = new Paint();
-        selectionPaint.setColor(Color.CYAN);
-        highlightPaints.add(selectionPaint);
-
-        final int width = 256;
-        final int height = 256;
-        MockCanvas c = new MockCanvas(width, height);
-        c.setHighContrastTextEnabled(true);
-        layout.draw(c, highlightPaths, highlightPaints, /* selectionPath= */ null,
-                /* selectionPaint= */ null, /* cursorOffsetVertical= */ 0);
-        List<MockCanvas.DrawCommand> drawCommands = c.getDrawCommands();
-        var textsDrawn = STATIC_LINE_COUNT;
-        var highlightsDrawn = 1;
-        var backgroundRectsDrawn = 0;
-        expect.withMessage("wrong number of drawCommands: " + drawCommands)
-                .that(drawCommands.size())
-                .isEqualTo(textsDrawn + backgroundRectsDrawn + highlightsDrawn);
-
-        var highlightsFound = 0;
-        var curLineIndex = 0;
-        for (int i = 0; i < drawCommands.size(); i++) {
-            MockCanvas.DrawCommand drawCommand = drawCommands.get(i);
-
-            if (drawCommand.path != null) {
-                expect.that(drawCommand.path).isEqualTo(selectionPath);
-                expect.that(removeAlpha(drawCommand.paint.getColor())).isEqualTo(Color.CYAN);
-                expect.that(drawCommand.paint.getBlendMode()).isNull();
-                highlightsFound++;
-            } else if (drawCommand.text != null) {
-                curLineIndex++;
-
-                expect.withMessage("highlight is drawn behind text")
-                        .that(highlightsFound).isGreaterThan(0);
-            }
-        }
-
-        expect.that(highlightsFound).isEqualTo(1);
-    }
-
-    @Test
     public void mockCanvasHighContrastOverridesCorrectly() {
         var canvas = new MockCanvas(100, 100);
 
@@ -886,7 +826,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testDrawLightText_drawsBlackBackgroundRects() {
         mTextPaint.setColor(Color.parseColor("#CCAA33"));
         Layout layout = new StaticLayout(LAYOUT_TEXT, mTextPaint, mWidth,
@@ -941,7 +880,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testDrawMulticolorText_drawsBlackAndWhiteBackgrounds() {
         /*
         Here's what the final render should look like:
@@ -1029,35 +967,30 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testWhiteSpaceWithinText_drawsSameBackgroundswithText() {
         SpannableString spannedText = new SpannableString("Hello\tWorld !");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testWhiteSpaceAtStart_drawsCorrectBackgroundsOnText() {
         SpannableString spannedText = new SpannableString(" HelloWorld!");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testSingleEmoji_drawsSameBackgrounds() {
         SpannableString spannedText = new SpannableString(" 😀 ");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testTwoEmojis_drawsSameBackgrounds() {
         SpannableString spannedText = new SpannableString(" 😀😀 ");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testSingleTextBetweenEmoji_drawsCorrectBackgroundsOnText() {
         // TODO(b/405847642): Find a way to verify emojis at the beginning and end of a string are
         // rendered without rectangles.
@@ -1066,49 +999,42 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testEmojiWithinText_drawsSameBackgroundswithText() {
         SpannableString spannedText = new SpannableString("Hello😀World");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testEmojiWithinTextWithSpace_drawsSameBackgrounds() {
         SpannableString spannedText = new SpannableString("Hello 😀 World");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testEmojiAtStart_drawsCorrectBackgroundsOnText() {
         SpannableString spannedText = new SpannableString("😀HelloWorld");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testLeadingEmojiWithSpace_drawsCorrectBackgroundsOnText() {
         SpannableString spannedText = new SpannableString("😀 HelloWorld");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testEmojiAtEnd_drawsCorrectBackgroundsOnText() {
         SpannableString spannedText = new SpannableString("HelloWorld😀");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testEmojiAtEndWithSpace_drawsCorrectBackgroundsOnText() {
         SpannableString spannedText = new SpannableString("HelloWorld 😀");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testRoundedRectSize_belowMinimum_usesMinimumValue() {
         mTextPaint.setColor(Color.BLACK);
         mTextPaint.setTextSize(8); // Value chosen so that N * RADIUS_FACTOR < RADIUS_MIN_DP
@@ -1139,7 +1065,6 @@ public class LayoutTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testRoundedRectSize_aboveMinimum_usesScaledValue() {
         mTextPaint.setColor(Color.BLACK);
         mTextPaint.setTextSize(50); // Value chosen so that N * RADIUS_FACTOR > RADIUS_MIN_DP

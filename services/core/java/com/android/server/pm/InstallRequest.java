@@ -151,6 +151,8 @@ final class InstallRequest {
 
     private int mDexoptStatus;
 
+    private int mAppImportance;
+
     @NonNull
     private int[] mFirstTimeBroadcastUserIds = EMPTY_INT_ARRAY;
     @NonNull
@@ -225,7 +227,8 @@ final class InstallRequest {
 
     // addForInit
     InstallRequest(ParsedPackage parsedPackage, int parseFlags, int scanFlags,
-            @Nullable UserHandle user, ScanResult scanResult, PackageSetting disabledPs) {
+            @Nullable UserHandle user, ScanResult scanResult, PackageSetting disabledPs,
+            @Nullable String apexModuleName, boolean replaceSystem) {
         if (user != null) {
             mUserId = user.getIdentifier();
         } else {
@@ -242,6 +245,10 @@ final class InstallRequest {
         mSessionId = -1;
         mRequireUserAction = USER_ACTION_UNSPECIFIED;
         mDisabledPs = disabledPs;
+        mApexModuleName = apexModuleName;
+        mReplace = replaceSystem;
+        // TODO(b/465115937): Set this unconditionally.
+        mSystem = replaceSystem;
         mHasAppMetadataFileFromInstaller = false;
         mDependencyInstallerEnabled = false;
         mMissingSharedLibraryCount = 0;
@@ -691,6 +698,10 @@ final class InstallRequest {
         return mDexoptStatus;
     }
 
+    public int getAppImportance() {
+        return mAppImportance;
+    }
+
     public boolean isAllNewUsers() {
         return mOrigUsers == null || mOrigUsers.length == 0;
     }
@@ -800,6 +811,10 @@ final class InstallRequest {
 
     public void setAppId(int appId) {
         mAppId = appId;
+    }
+
+    public void setAppImportance(int importance) {
+        mAppImportance = importance;
     }
 
     public void setNewUsers(int[] newUsers) {
@@ -1056,6 +1071,18 @@ final class InstallRequest {
                 }
                 mPackageMetrics.onStepFinished(PackageMetrics.STEP_DEXOPT, durationMillis);
             }
+        }
+    }
+
+    public void onStopAndKillStarted() {
+        if (mPackageMetrics != null) {
+            mPackageMetrics.onStepStarted(PackageMetrics.STEP_FREEZE_INSTALL_STOP_AND_KILL);
+        }
+    }
+
+    public void onStopAndKillFinished() {
+        if (mPackageMetrics != null) {
+            mPackageMetrics.onStepFinished(PackageMetrics.STEP_FREEZE_INSTALL_STOP_AND_KILL);
         }
     }
 

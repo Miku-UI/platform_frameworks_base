@@ -19,6 +19,12 @@ package android.media.metrics;
 import android.annotation.NonNull;
 import android.annotation.SystemService;
 import android.content.Context;
+import android.media.metrics.reported.ReportedEditingEndedEvent;
+import android.media.metrics.reported.ReportedNetworkEvent;
+import android.media.metrics.reported.ReportedPlaybackErrorEvent;
+import android.media.metrics.reported.ReportedPlaybackMetrics;
+import android.media.metrics.reported.ReportedPlaybackStateEvent;
+import android.media.metrics.reported.ReportedTrackChangeEvent;
 import android.os.PersistableBundle;
 import android.os.RemoteException;
 
@@ -46,9 +52,11 @@ public final class MediaMetricsManager {
      * Reports playback metrics.
      * @hide
      */
-    public void reportPlaybackMetrics(@NonNull String sessionId, PlaybackMetrics metrics) {
+    public void reportPlaybackMetrics(@NonNull String sessionId, PlaybackMetrics event) {
         try {
-            mService.reportPlaybackMetrics(sessionId, metrics, mUserId);
+            ReportedPlaybackMetrics reportable = event.toReportable();
+
+            mService.reportPlaybackMetrics(sessionId, reportable, mUserId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -70,7 +78,11 @@ public final class MediaMetricsManager {
      */
     public void reportNetworkEvent(@NonNull String sessionId, NetworkEvent event) {
         try {
-            mService.reportNetworkEvent(sessionId, event, mUserId);
+            ReportedNetworkEvent reportable = new ReportedNetworkEvent();
+            reportable.networkType = event.getNetworkType();
+            reportable.timeSinceCreatedMillis = event.getTimeSinceCreatedMillis();
+
+            mService.reportNetworkEvent(sessionId, reportable, mUserId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -82,7 +94,11 @@ public final class MediaMetricsManager {
      */
     public void reportPlaybackStateEvent(@NonNull String sessionId, PlaybackStateEvent event) {
         try {
-            mService.reportPlaybackStateEvent(sessionId, event, mUserId);
+            ReportedPlaybackStateEvent reportable = new ReportedPlaybackStateEvent();
+            reportable.state = event.getState();
+            reportable.timeSinceCreatedMillis = event.getTimeSinceCreatedMillis();
+
+            mService.reportPlaybackStateEvent(sessionId, reportable, mUserId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -94,7 +110,9 @@ public final class MediaMetricsManager {
      */
     public void reportTrackChangeEvent(@NonNull String sessionId, TrackChangeEvent event) {
         try {
-            mService.reportTrackChangeEvent(sessionId, event, mUserId);
+            ReportedTrackChangeEvent reportable = event.toReportable();
+
+            mService.reportTrackChangeEvent(sessionId, reportable, mUserId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -188,7 +206,14 @@ public final class MediaMetricsManager {
      */
     public void reportPlaybackErrorEvent(@NonNull String sessionId, PlaybackErrorEvent event) {
         try {
-            mService.reportPlaybackErrorEvent(sessionId, event, mUserId);
+            ReportedPlaybackErrorEvent reportable = new ReportedPlaybackErrorEvent();
+
+            reportable.exceptionStack = event.getExceptionStack();
+            reportable.errorCode = event.getErrorCode();
+            reportable.subErrorCode = event.getSubErrorCode();
+            reportable.timeSinceCreatedMillis = event.getTimeSinceCreatedMillis();
+
+            mService.reportPlaybackErrorEvent(sessionId, reportable, mUserId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -200,9 +225,11 @@ public final class MediaMetricsManager {
      * @hide
      */
     public void reportEditingEndedEvent(
-            @NonNull String sessionId, EditingEndedEvent editingEndedEvent) {
+            @NonNull String sessionId, EditingEndedEvent event) {
         try {
-            mService.reportEditingEndedEvent(sessionId, editingEndedEvent, mUserId);
+            ReportedEditingEndedEvent reportable = event.toReportable();
+
+            mService.reportEditingEndedEvent(sessionId, reportable, mUserId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

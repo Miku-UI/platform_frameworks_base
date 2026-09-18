@@ -53,8 +53,8 @@ public final class LauncherUserInfo implements Parcelable {
 
     /**
      * Returns type of the user as defined in {@link UserManager}. e.g.,
-     * {@link UserManager.USER_TYPE_PROFILE_MANAGED} or {@link UserManager.USER_TYPE_PROFILE_ClONE}
-     * or {@link UserManager.USER_TYPE_PROFILE_PRIVATE}
+     * {@link UserManager#USER_TYPE_PROFILE_MANAGED} or {@link UserManager#USER_TYPE_PROFILE_CLONE}
+     * or {@link UserManager#USER_TYPE_PROFILE_PRIVATE}
      *
      * @return the userType for the user whose LauncherUserInfo this is
      */

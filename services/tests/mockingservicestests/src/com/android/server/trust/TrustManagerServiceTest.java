@@ -16,6 +16,7 @@
 
 package com.android.server.trust;
 
+import static android.app.admin.flags.Flags.FLAG_INCREASE_WATCH_STRONG_AUTH_TIMEOUT;
 import static android.security.Flags.FLAG_SHOULD_TRUST_MANAGER_LISTEN_FOR_PRIMARY_AUTH;
 import static android.security.Flags.shouldTrustManagerListenForPrimaryAuth;
 import static android.service.trust.TrustAgentService.FLAG_GRANT_TRUST_TEMPORARY_AND_RENEWABLE;
@@ -73,8 +74,10 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
@@ -154,6 +157,7 @@ public class TrustManagerServiceTest {
     private static final long[] PARENT_BIOMETRIC_SIDS = new long[] { 600L, 601L };
     private static final long[] PROFILE_BIOMETRIC_SIDS = new long[] { 700L, 701L };
     private static final long RENEWABLE_TRUST_DURATION = 10000L;
+    private static final long TEST_TRUST_USUALLY_MANAGED_FLUSH_DELAY = 1000L;
     private static final String GRANT_TRUST_MESSAGE = "granted";
     private static final String TAG = "TrustManagerServiceTest";
 
@@ -177,6 +181,7 @@ public class TrustManagerServiceTest {
     private @Mock UserManager mUserManager;
     private @Mock IWindowManager mWindowManager;
     private @Mock ITrustListener mTrustListener;
+    private boolean mIsWatch = false;
 
     private HandlerThread mHandlerThread;
     private TrustManagerService mService;
@@ -285,6 +290,16 @@ public class TrustManagerServiceTest {
         @Override
         Looper getLooper() {
             return mHandlerThread.getLooper();
+        }
+
+        @Override
+        boolean isWatch() {
+            return mIsWatch;
+        }
+
+        @Override
+        long getTrustUsuallyManagedMessageFlushDelayMillis() {
+            return TEST_TRUST_USUALLY_MANAGED_FLUSH_DELAY;
         }
     }
 
@@ -554,6 +569,65 @@ public class TrustManagerServiceTest {
                         anyString(),
                         any(AlarmManager.OnAlarmListener.class),
                         any(Handler.class));
+    }
+
+    @Test
+    // TODO(b/37059253): Remove EnableFlags annotation as soon as the flag is promoted to Prod.
+    @EnableFlags(FLAG_INCREASE_WATCH_STRONG_AUTH_TIMEOUT)
+    public void updateTrust_forWatchWithManagingAgent_refreshesStrongAuthTimeout()
+            throws Exception {
+        // This test verifies that when trust becomes "usually managed" on a watch, a "push"
+        // notification is sent to LockSettings to refresh the strong auth timeout.
+        mIsWatch = true;
+        ComponentName trustAgentName =
+                ComponentName.unflattenFromString("com.android/.SystemTrustAgent");
+        setUpTrustAgentWithStrongAuthRequired(trustAgentName, STRONG_AUTH_NOT_REQUIRED);
+        ITrustAgentServiceCallback callback = getCallback(
+                getOrCreateMockTrustAgent(trustAgentName));
+
+        // This triggers updateTrust(), which in turn calls updateTrustUsuallyManaged()
+        callback.setManagingTrust(true);
+        mService.waitForIdle();
+
+        // Verify that the refresh method was called on the LockSettings mock.
+        verify(mLockSettingsInternal,
+                Mockito.timeout(TEST_TRUST_USUALLY_MANAGED_FLUSH_DELAY + 100))
+                .refreshStrongAuthTimeout(eq(TEST_USER_ID));
+    }
+
+    @Test
+    // TODO(b/37059253): Remove EnableFlags annotation as soon as the flag is promoted to Prod.
+    @EnableFlags(FLAG_INCREASE_WATCH_STRONG_AUTH_TIMEOUT)
+    public void grantTrust_forWatchWithManagingAgent_schedulesWatchHardTimeoutOnly()
+            throws Exception {
+        // This test verifies that for a watch, only the 14-day hard timeout is scheduled,
+        // and the idle timeout is not.
+        mIsWatch = true;
+        ComponentName trustAgentName =
+                ComponentName.unflattenFromString("com.android/.SystemTrustAgent");
+        ITrustAgentService trustAgent =
+                setUpTrustAgentWithStrongAuthRequired(trustAgentName, STRONG_AUTH_NOT_REQUIRED);
+
+        setUpRenewableTrust(trustAgent);
+        attemptSuccessfulUnlock(TEST_USER_ID);
+        mService.waitForIdle();
+
+        ArgumentCaptor<Long> whenCaptor = ArgumentCaptor.forClass(Long.class);
+        long expectedHardTimeout = SystemClock.elapsedRealtime()
+                + DevicePolicyManager.DEFAULT_STRONG_AUTH_WATCH_TIMEOUT_MS;
+        // Verify that setExact is called only ONCE, to check that the idle timeout was not set.
+        verify(mAlarmManager, times(1)).setExact(
+                eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                whenCaptor.capture(),
+                eq(TrustManagerService.TRUST_TIMEOUT_ALARM_TAG),
+                any(AlarmManager.OnAlarmListener.class),
+                any(Handler.class));
+
+        // Verify that the single alarm that WAS set has the 14-day timeout.
+        //    This proves it was the hard timeout and not the idle one.
+        long actualWhen = whenCaptor.getValue();
+        assertThat(actualWhen).isAtLeast(expectedHardTimeout - 1000L);
+        assertThat(actualWhen).isAtMost(expectedHardTimeout + 1000L);
     }
 
     @Test

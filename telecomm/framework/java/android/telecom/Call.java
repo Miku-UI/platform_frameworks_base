@@ -25,6 +25,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.BadParcelableException;
@@ -167,16 +168,16 @@ public final class Call {
     public @interface CallState {};
 
     /**  The audio processing use case is unknown. */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public static final int AUDIO_PROCESSING_USE_CASE_UNKNOWN = 0;
     /**  The audio processing use case is voice mail. */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public static final int AUDIO_PROCESSING_USE_CASE_VOICEMAIL = 1;
     /**  The audio processing is done for spam detection. */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public static final int AUDIO_PROCESSING_USE_CASE_CALL_SCREENING = 2;
     /**  The audio processing is done when the user asks to hold. */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public static final int AUDIO_PROCESSING_USE_CASE_ASK_TO_HOLD = 3;
 
     /**
@@ -191,6 +192,86 @@ public final class Call {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AudioProcessingUseCase {}
+
+    /**
+     * @hide
+     */
+    @IntDef(prefix = "CRS_MEDIA_TYPE_", value = {
+            CRS_MEDIA_TYPE_NONE,
+            CRS_MEDIA_TYPE_AUDIO,
+            CRS_MEDIA_TYPE_VIDEO
+    })
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public @interface CrsMediaType {
+    }
+
+    /** Indicates not a CRS call */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final int CRS_MEDIA_TYPE_NONE = 0;
+    /** Indicates CRS contains audio */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final int CRS_MEDIA_TYPE_AUDIO = 1 << 0;
+    /** Indicates CRS contains video */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final int CRS_MEDIA_TYPE_VIDEO = 1 << 1;
+
+    /**
+     * Extra key to indicate the type of media a Customized Ringing Signal (CRS) call contains.
+     * The CRS is an operator-specific feature that allows a subscriber to customize the media
+     * played to the called party during the establishment of an incoming call. When the MT call is
+     * received, the device will present the CRS media instead of its standard ringtone. This CRS
+     * media can consist of audio, video, or any combination thereof.
+     * <p>
+     * To maintain compatibility with third-party dialer applications that are not CRS-aware, the
+     * public video state of the call (see {@link Details#getVideoState()}) will remain
+     * {@link android.telecom.VideoProfile#STATE_AUDIO_ONLY} even if the CRS call contains video.
+     * <p>
+     * A CRS-aware dialer should check for the presence of this extra. If the value includes the
+     * {@link #CRS_MEDIA_TYPE_VIDEO} bit, the dialer is responsible for displaying the video to the
+     * user. The dialer can accomplish this by:
+     * <ol>
+     *   <li>Obtaining the {@link android.telecom.InCallService.VideoCall} instance from this call
+     *       via {@link #getVideoCall()}.</li>
+     *   <li>Creating a {@link android.view.Surface} for video rendering.</li>
+     *   <li>Passing the surface to the framework using
+     *       {@link android.telecom.InCallService.VideoCall#setDisplaySurface(Surface)}.</li>
+     * </ol>
+     * The underlying IMS stack then handles the video streaming and rendering on the provided
+     * Surface.
+     * <p>
+     * The value associated with this key should be an integer bitmask of the following values:
+     * <ul>
+     *   <li>{@link Call#CRS_MEDIA_TYPE_AUDIO}</li>
+     *   <li>{@link Call#CRS_MEDIA_TYPE_VIDEO}</li>
+     * </ul>
+     * {@link Connection#setExtras(Bundle)} or
+     * {@link Connection#putExtras(Bundle)} should be used to notify Telecom that this extra has
+     * been set.
+     */
+
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final String EXTRA_CRS_MEDIA_TYPE = "android.telecom.extra.CRS_MEDIA_TYPE";
+
+    /**
+     * Extra key to indicate the audio mode that should be set for playing the network-provided
+     * Customized Ringing Signal (CRS).
+     * <p>
+     * Legacy OEM implementations may use {@link android.media.AudioManager#MODE_IN_CALL} due to HAL
+     * implementation internals, where newer implementations are expected to use
+     * {@link android.media.AudioManager#MODE_RINGTONE}.
+     * <p>
+     * The value associated with this key should be one of the following constants from
+     * {@link android.media.AudioManager}:
+     * <ul>
+     *   <li>{@link android.media.AudioManager#MODE_RINGTONE}</li>
+     *   <li>{@link android.media.AudioManager#MODE_IN_CALL}</li>
+     * </ul>
+     * {@link Connection#setExtras(Bundle)} or
+     * {@link Connection#putExtras(Bundle)} should be used to notify
+     * Telecom this extra has been set.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final String EXTRA_CRS_AUDIO_MODE = "android.telecom.extra.CRS_AUDIO_MODE";
 
     /**
      * The key to retrieve the optional {@code PhoneAccount}s Telecom can bundle with its Call
@@ -239,6 +320,15 @@ public final class Call {
      */
     public static final String EXTRA_SILENT_RINGING_REQUESTED =
             "android.telecom.extra.SILENT_RINGING_REQUESTED";
+
+    /**
+     * Connection event used to notify InCallService of phoneaccount changes.
+     * Dialer uses phone account capability to decide whether to enable
+     * some options like RTT. This event will be used for such cases.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_PHONE_ACCOUNT_CHANGED)
+    public static final String EVENT_PHONE_ACCOUNT_CHANGED =
+            "android.telecom.event.PHONE_ACCOUNT_CHANGED";
 
     /**
      * Event reported from the Telecom stack to report an in-call diagnostic message which the
@@ -326,9 +416,19 @@ public final class Call {
      * {@link Connection#putExtras(Bundle)} should be used to notify
      * Telecom this extra has been set.
      */
-    @FlaggedApi(Flags.FLAG_IS_USING_VIDEO_RINGBACK)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_VIDEO_RINGBACK)
     public static final String EXTRA_IS_USING_VIDEO_RINGBACK =
-                      "android.telecom.extra.IS_USING_VIDEO_RINGBACK";
+            "android.telecom.extra.IS_USING_VIDEO_RINGBACK";
+
+    /**
+     * Boolean indicating that the call is a unidirectional
+     * video service call. {@link Connection#setExtras(Bundle)} or
+     * {@link Connection#putExtras(Bundle)} should be used to notify
+     * Telecom this extra has been set.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE)
+    public static final String EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE =
+            "android.telecom.extra.IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE";
 
     /**
      * Reject reason used with {@link #reject(int)} to indicate that the user is rejecting this
@@ -701,7 +801,7 @@ public final class Call {
          * <p>
          * This property is specific to IMS conference calls originating in Telephony.
          */
-        @FlaggedApi(Flags.FLAG_REMOTELY_HOSTED_PROPERTY)
+        @FlaggedApi(android.telecom.flags.Flags.FLAG_REMOTELY_HOSTED_PROPERTY)
         public static final int PROPERTY_REMOTELY_HOSTED = 0x00010000;
 
         //******************************************************************************************
@@ -728,7 +828,7 @@ public final class Call {
         private final long mCreationTimeMillis;
         private final String mContactDisplayName;
         private final @CallDirection int mCallDirection;
-        private final @Connection.VerificationStatus int mCallerNumberVerificationStatus;
+        private final @Annotation.VerificationStatus int mCallerNumberVerificationStatus;
         private final Uri mContactPhotoUri;
         private final UserHandle mAssociatedUser;
 
@@ -803,6 +903,12 @@ public final class Call {
             }
             if (can(capabilities, CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL)) {
                 builder.append(" CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL");
+            }
+            if (can(capabilities, CAPABILITY_SEPARATE_FROM_CONFERENCE)) {
+                builder.append(" CAPABILITY_SEPARATE_FROM_CONFERENCE");
+            }
+            if (can(capabilities, CAPABILITY_DISCONNECT_FROM_CONFERENCE)) {
+                builder.append(" CAPABILITY_DISCONNECT_FROM_CONFERENCE");
             }
             if (can(capabilities, CAPABILITY_SPEED_UP_MT_AUDIO)) {
                 builder.append(" CAPABILITY_SPEED_UP_MT_AUDIO");
@@ -1131,7 +1237,7 @@ public final class Call {
          * potentially impersonated numbers.
          * @return the verification status.
          */
-        public @Connection.VerificationStatus int getCallerNumberVerificationStatus() {
+        public @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
             return mCallerNumberVerificationStatus;
         }
 
@@ -1140,7 +1246,7 @@ public final class Call {
          * @return The user
          *
          */
-        @FlaggedApi(Flags.FLAG_CALL_DETAILS_GET_ASSOCIATED_USER_API)
+        @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_DETAILS_GET_ASSOCIATED_USER_API2)
         public @NonNull UserHandle getAssociatedUser() {
             return mAssociatedUser;
         }
@@ -1641,7 +1747,7 @@ public final class Call {
         }
 
         /**
-         * Writes the string {@param input} into the outgoing text stream for this RTT call. Since
+         * Writes the string {@code input} into the outgoing text stream for this RTT call. Since
          * RTT transmits text in real-time, this method should be called once for each user action.
          * For example, when the user enters text as discrete characters using the keyboard, this
          * method should be called once for each character. However, if the user enters text by
@@ -1800,11 +1906,11 @@ public final class Call {
      * Instructs this {@code Call} to be transferred to another number.
      *
      * @param targetNumber The address to which the call will be transferred.
-     * @param isConfirmationRequired if {@code true} it will initiate a confirmed transfer,
-     * if {@code false}, it will initiate an unconfirmed transfer.
-     *
-     * @hide
+     * @param isConfirmationRequired if {@code true} it will initiate a confirmed(assured) transfer,
+     * if {@code false}, it will initiate an unconfirmed(blind) transfer.
+     * See 3GPP TS 24.629 for more details.
      */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_EXPLICIT_CALL_TRANSFER)
     public void transfer(@NonNull Uri targetNumber, boolean isConfirmationRequired) {
         mInCallAdapter.transferCall(mTelecomCallId, targetNumber, isConfirmationRequired);
     }
@@ -1813,9 +1919,9 @@ public final class Call {
      * Instructs this {@code Call} to be transferred to another ongoing call.
      * This will initiate CONSULTATIVE transfer.
      * @param toCall The other ongoing {@code Call} to which this call will be transferred.
-     *
-     * @hide
+     * See 3GPP TS 24.629 for more details.
      */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_EXPLICIT_CALL_TRANSFER)
     public void transfer(@NonNull android.telecom.Call toCall) {
         mInCallAdapter.transferCall(mTelecomCallId, toCall.mTelecomCallId);
     }
@@ -1863,7 +1969,7 @@ public final class Call {
      */
     @SystemApi
     @Deprecated
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public void enterBackgroundAudioProcessing() {
         if (mState != STATE_ACTIVE && mState != STATE_RINGING) {
             throw new IllegalStateException("Call must be active or ringing");
@@ -1895,7 +2001,7 @@ public final class Call {
     @SystemApi
     @RequiresPermission(allOf = {Manifest.permission.CAPTURE_AUDIO_OUTPUT,
         Manifest.permission.MODIFY_AUDIO_ROUTING})
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public void enterBackgroundAudioProcessing(@AudioProcessingUseCase int useCase) {
         if (mState != STATE_ACTIVE && mState != STATE_RINGING) {
             throw new IllegalStateException("Call must be active or ringing");
@@ -1930,7 +2036,7 @@ public final class Call {
      * @return the audio processing use case for {@link AudioProcessingUseCase}
      * @throws IllegalStateException if the call is not in {@link #STATE_AUDIO_PROCESSING}
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public int getAudioProcessingUseCase() {
         if (mState != STATE_AUDIO_PROCESSING) {
             throw new IllegalStateException("Call is not in state AUDIO_PROCESSING");
@@ -2555,7 +2661,7 @@ public final class Call {
         mState = STATE_NEW;
         mCallingPackage = callingPackage;
         mTargetSdkVersion = targetSdkVersion;
-        if (Flags.enableAudioProcessingUseCase()) {
+        if (android.telecom.flags.Flags.enableAudioProcessingUseCase()) {
             mAudioProcessingUseCase = AUDIO_PROCESSING_USE_CASE_UNKNOWN;
         }
     }
@@ -2569,7 +2675,7 @@ public final class Call {
         mState = state;
         mCallingPackage = callingPackage;
         mTargetSdkVersion = targetSdkVersion;
-        if (Flags.enableAudioProcessingUseCase()) {
+        if (android.telecom.flags.Flags.enableAudioProcessingUseCase()) {
             mAudioProcessingUseCase = AUDIO_PROCESSING_USE_CASE_UNKNOWN;
         }
     }
@@ -2906,7 +3012,7 @@ public final class Call {
     }
 
     private void fireCallDestroyed() {
-        /**
+        /*
          * To preserve the ordering of the Call's onCallDestroyed callback and Phone's
          * onCallRemoved callback, we remove this call from the Phone's record
          * only once all of the registered onCallDestroyed callbacks are executed.
@@ -3033,8 +3139,22 @@ public final class Call {
                     try {
                         final Object value = bundle.get(key);
                         final Object newValue = newBundle.get(key);
+                        // Intent class does not override equals API so leverage
+                        // Intent.filterEquals instead:
+                        if (value instanceof Intent intentValue &&
+                                newValue instanceof Intent newIntentValue) {
+                            if (intentValue.filterEquals(newIntentValue)) {
+                                continue;
+                            } else {
+                                Log.d("Call", "areBundlesEqual Intents are not equal");
+                                return false;
+                            }
+                        }
                         if (value instanceof Bundle && newValue instanceof Bundle) {
-                            if (!areBundlesEqual((Bundle) value, (Bundle) newValue)) {
+                            if (areBundlesEqual((Bundle) value, (Bundle) newValue)) {
+                                continue;
+                            } else {
+                                Log.d("Call", "areBundlesEqual Bundles are not equal");
                                 return false;
                             }
                         }

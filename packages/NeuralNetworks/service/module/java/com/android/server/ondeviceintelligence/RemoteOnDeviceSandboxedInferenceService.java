@@ -20,14 +20,13 @@ import static android.app.ondeviceintelligence.OnDeviceIntelligenceManager.ON_DE
 import static android.content.Context.BIND_FOREGROUND_SERVICE;
 import static android.content.Context.BIND_INCLUDE_CAPABILITIES;
 
+import android.annotation.NonNull;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 import android.service.ondeviceintelligence.IOnDeviceSandboxedInferenceService;
 import android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService;
-
-import com.android.modules.utils.ServiceConnector;
 
 import java.util.concurrent.TimeUnit;
 
@@ -54,9 +53,15 @@ public class RemoteOnDeviceSandboxedInferenceService extends
      */
     RemoteOnDeviceSandboxedInferenceService(Context context, ComponentName serviceName,
             int userId) {
+        this(context, serviceName, userId,
+                BIND_FOREGROUND_SERVICE | BIND_INCLUDE_CAPABILITIES);
+    }
+
+    RemoteOnDeviceSandboxedInferenceService(Context context, ComponentName serviceName,
+            int userId, int bindingFlags) {
         super(context, new Intent(
                         OnDeviceSandboxedInferenceService.SERVICE_INTERFACE).setComponent(serviceName),
-                BIND_FOREGROUND_SERVICE | BIND_INCLUDE_CAPABILITIES, userId,
+                bindingFlags, userId,
                 IOnDeviceSandboxedInferenceService.Stub::asInterface);
 
         // Bind right away
@@ -67,6 +72,7 @@ public class RemoteOnDeviceSandboxedInferenceService extends
     protected long getRequestTimeoutMs() {
         return LONG_TIMEOUT;
     }
+
 
     // Using #getLong here as the timeout settings are only applicable to the services running in
     // SYSTEM user only.

@@ -58,8 +58,6 @@ constructor(
     /** All potential cards. */
     val allWalletCards: StateFlow<List<WalletCard>> =
         if (featureFlags.isEnabled(Flags.ENABLE_WALLET_CONTEXTUAL_LOYALTY_CARDS)) {
-            // TODO(b/237409756) determine if we should debounce this so we don't call the service
-            // too frequently. Also check if the list actually changed before calling callbacks.
             broadcastDispatcher
                 .broadcastFlow(IntentFilter(Intent.ACTION_SCREEN_ON))
                 .flatMapLatest {

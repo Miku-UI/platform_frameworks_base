@@ -28,6 +28,14 @@ import java.util.Objects;
  */
 public final class BundlePolicyValue extends PolicyValue<Bundle> {
 
+    /**
+     * Creates a BundlePolicyValue unless the input is null or empty, in which case
+     * this method returns null.
+     */
+    public static @Nullable BundlePolicyValue createIfNotNullOrEmpty(@Nullable Bundle bundle) {
+        return (bundle == null || bundle.isEmpty()) ? null : new BundlePolicyValue(bundle);
+    }
+
     public BundlePolicyValue(Bundle value) {
         super(value);
         PolicySizeVerifier.enforceMaxBundleFieldsLength(value);

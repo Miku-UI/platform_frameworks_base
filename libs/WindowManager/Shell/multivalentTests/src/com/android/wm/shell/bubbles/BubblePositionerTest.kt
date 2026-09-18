@@ -33,7 +33,6 @@ import com.android.wm.shell.bubbles.BubblePositioner.MAX_HEIGHT
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation
 import com.android.wm.shell.shared.bubbles.DeviceConfig
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.MoreExecutors.directExecutor
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,7 +54,7 @@ class BubblePositionerTest {
             isSmallTablet = false,
             isLandscape = false,
             isRtl = false,
-            insets = Insets.of(0, 0, 0, 0)
+            insets = Insets.of(0, 0, 0, 0),
         )
 
     @Before
@@ -217,7 +216,7 @@ class BubblePositionerTest {
                 isLandscape = false,
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
 
         positioner.setShowingInBubbleBar(true)
@@ -244,7 +243,7 @@ class BubblePositionerTest {
                 isLandscape = false,
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, screenWidth, 2600)
+                windowBounds = Rect(0, 0, screenWidth, 2600),
             )
         positioner.setShowingInBubbleBar(true)
         positioner.update(deviceConfig)
@@ -265,12 +264,11 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         assertThat(positioner.getExpandedViewHeight(bubble)).isEqualTo(MAX_HEIGHT)
     }
@@ -281,7 +279,7 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
         val minHeight =
@@ -295,9 +293,7 @@ class BubblePositionerTest {
                 "title",
                 0 /* taskId */,
                 null /* locus */,
-                true /* isDismissable */,
-                directExecutor(),
-                directExecutor()
+                true, /* isDismissable */
             ) {}
 
         // Ensure the height is the same as the desired value
@@ -311,7 +307,7 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -324,9 +320,7 @@ class BubblePositionerTest {
                 "title",
                 0 /* taskId */,
                 null /* locus */,
-                true /* isDismissable */,
-                directExecutor(),
-                directExecutor()
+                true, /* isDismissable */
             ) {}
 
         // Ensure the height is the same as the desired value
@@ -341,7 +335,7 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -362,7 +356,7 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -376,7 +370,7 @@ class BubblePositionerTest {
                 isLargeScreen = true,
                 isLandscape = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -390,7 +384,7 @@ class BubblePositionerTest {
                 isLargeScreen = true,
                 isSmallTablet = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -402,7 +396,7 @@ class BubblePositionerTest {
         val deviceConfig =
             defaultDeviceConfig.copy(
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -415,13 +409,12 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLandscape = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         // This bubble will have max height so it'll always be top aligned
         assertThat(positioner.getExpandedViewY(bubble, 0f /* bubblePosition */))
@@ -433,13 +426,12 @@ class BubblePositionerTest {
         val deviceConfig =
             defaultDeviceConfig.copy(
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         // Always top aligned in phone portrait
         assertThat(positioner.getExpandedViewY(bubble, 0f /* bubblePosition */))
@@ -453,13 +445,12 @@ class BubblePositionerTest {
                 isSmallTablet = true,
                 isLandscape = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         // This bubble will have max height which is always top aligned on small tablets
         assertThat(positioner.getExpandedViewY(bubble, 0f /* bubblePosition */))
@@ -472,13 +463,12 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isSmallTablet = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         // This bubble will have max height which is always top aligned on small tablets
         assertThat(positioner.getExpandedViewY(bubble, 0f /* bubblePosition */))
@@ -492,13 +482,12 @@ class BubblePositionerTest {
                 isLargeScreen = true,
                 isLandscape = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         // This bubble will have max height which is always top aligned on landscape, large tablet
         assertThat(positioner.getExpandedViewY(bubble, 0f /* bubblePosition */))
@@ -511,13 +500,12 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 isLargeScreen = true,
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
         val intent = Intent(Intent.ACTION_VIEW).setPackage(context.packageName)
-        val bubble =
-            Bubble.createAppBubble(intent, UserHandle(1), null, directExecutor(), directExecutor())
+        val bubble = Bubble.createAppBubble(intent, UserHandle(1), null)
 
         val manageButtonHeight =
             context.resources.getDimensionPixelSize(R.dimen.bubble_manage_button_height)
@@ -608,7 +596,7 @@ class BubblePositionerTest {
         val deviceConfig =
             defaultDeviceConfig.copy(
                 insets = Insets.of(10, 20, 5, 15),
-                windowBounds = Rect(0, 0, 1800, 2600)
+                windowBounds = Rect(0, 0, 1800, 2600),
             )
         positioner.update(deviceConfig)
 
@@ -625,24 +613,24 @@ class BubblePositionerTest {
 
     @Test
     fun getExpandedViewContainerPadding_largeScreen_fitsMaxViewWidth() {
-        val expandedViewWidth = context.resources.getDimensionPixelSize(
-            R.dimen.bubble_expanded_view_largescreen_width
-        )
+        val expandedViewWidth =
+            context.resources.getDimensionPixelSize(R.dimen.bubble_expanded_view_largescreen_width)
         // set the screen size so that it is wide enough to fit the maximum width size
         val screenWidth = expandedViewWidth * 2
         positioner.update(
             defaultDeviceConfig.copy(
                 windowBounds = Rect(0, 0, screenWidth, 2000),
                 isLargeScreen = true,
-                isLandscape = false
+                isLandscape = false,
             )
         )
         val paddings =
             positioner.getExpandedViewContainerPadding(/* onLeft= */ true, /* isOverflow= */ false)
 
-        val padding = context.resources.getDimensionPixelSize(
-            R.dimen.bubble_expanded_view_largescreen_landscape_padding
-        )
+        val padding =
+            context.resources.getDimensionPixelSize(
+                R.dimen.bubble_expanded_view_largescreen_landscape_padding
+            )
         val right = screenWidth - expandedViewWidth - padding
         assertThat(paddings).isEqualTo(intArrayOf(padding - positioner.pointerSize, 0, right, 0))
     }
@@ -653,15 +641,16 @@ class BubblePositionerTest {
             defaultDeviceConfig.copy(
                 windowBounds = Rect(0, 0, 600, 2000),
                 isLargeScreen = true,
-                isLandscape = false
+                isLandscape = false,
             )
         )
         val paddings =
             positioner.getExpandedViewContainerPadding(/* onLeft= */ true, /* isOverflow= */ false)
 
-        val padding = context.resources.getDimensionPixelSize(
-            R.dimen.bubble_expanded_view_largescreen_landscape_padding
-        )
+        val padding =
+            context.resources.getDimensionPixelSize(
+                R.dimen.bubble_expanded_view_largescreen_landscape_padding
+            )
         // the screen is not wide enough to fit the maximum width size, so the view fills the screen
         // minus left and right padding
         assertThat(paddings).isEqualTo(intArrayOf(padding - positioner.pointerSize, 0, padding, 0))
@@ -675,7 +664,7 @@ class BubblePositionerTest {
                 windowBounds = Rect(0, 0, screenWidth, 2000),
                 isLargeScreen = true,
                 isSmallTablet = true,
-                isLandscape = false
+                isLandscape = false,
             )
         )
         val paddings =
@@ -687,13 +676,69 @@ class BubblePositionerTest {
         assertThat(paddings).isEqualTo(intArrayOf(padding - positioner.pointerSize, 0, padding, 0))
     }
 
+    @Test
+    fun update_showingAsFloating_shouldNotBePendingBubbleBarTopOnScreen() {
+        positioner.isShowingInBubbleBar = false
+        positioner.update(defaultDeviceConfig)
+
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isFalse()
+    }
+
+    @Test
+    fun update_showingAsBubbleBar_shouldBePendingBubbleBarTopOnScreen() {
+        positioner.isShowingInBubbleBar = true
+        positioner.update(defaultDeviceConfig)
+
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isTrue()
+    }
+
+    @Test
+    fun updateBubbleBarTopOnScreen_shouldResetPendingSignal() {
+        positioner.isShowingInBubbleBar = true
+        positioner.update(defaultDeviceConfig)
+        positioner.updateBubbleBarTopOnScreen(200)
+
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isFalse()
+    }
+
+    @Test
+    fun update_showingAsBubbleBar_switchToFloating_shouldNotBePendingBubbleBarTopOnScreen() {
+        positioner.isShowingInBubbleBar = true
+        positioner.update(defaultDeviceConfig)
+
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isTrue()
+
+        positioner.isShowingInBubbleBar = false
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isFalse()
+    }
+
+    @Test
+    fun updateInBubbleBar_thenUpdateInFloating_shouldNotBePendingBubbleBarTopOnScreen() {
+        positioner.isShowingInBubbleBar = true
+        positioner.update(defaultDeviceConfig)
+
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isTrue()
+
+        positioner.isShowingInBubbleBar = false
+        positioner.update(defaultDeviceConfig)
+
+        assertThat(positioner.isPendingBubbleBarTopOnScreenUpdate).isFalse()
+    }
+
+    @Test
+    fun largestAvailableRectOffset() {
+        positioner.update(defaultDeviceConfig.copy(insets = Insets.of(100, 200, 300, 250)))
+        assertThat(positioner.largestAvailableRectOffset).isEqualTo(300)
+    }
+
     private fun verifyGetBubbleBarExpandedViewBounds(onLeft: Boolean, isOverflow: Boolean) {
         positioner.isShowingInBubbleBar = true
-        positioner.bubbleBarLocation = if (onLeft) {
-            BubbleBarLocation.LEFT
-        } else {
-            BubbleBarLocation.RIGHT
-        }
+        positioner.bubbleBarLocation =
+            if (onLeft) {
+                BubbleBarLocation.LEFT
+            } else {
+                BubbleBarLocation.RIGHT
+            }
         val windowBounds = Rect(0, 0, 2000, 2600)
         val insets = Insets.of(10, 20, 5, 15)
         val deviceConfig =
@@ -701,7 +746,7 @@ class BubblePositionerTest {
                 isLargeScreen = true,
                 isLandscape = true,
                 insets = insets,
-                windowBounds = windowBounds
+                windowBounds = windowBounds,
             )
         positioner.update(deviceConfig)
 

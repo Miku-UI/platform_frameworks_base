@@ -2,4 +2,4 @@ include /services/core/java/com/android/server/net/OWNERS
 
 per-file SSL*,Url* = file:platform/libcore:main:/OWNERS_net_tests
 per-file SntpClient* = file:/services/core/java/com/android/server/timedetector/OWNERS
-per-file Uri* = varunshah@google.com
+per-file Uri* = file:/services/core/java/com/android/server/uri/OWNERS

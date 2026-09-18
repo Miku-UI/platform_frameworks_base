@@ -16,6 +16,8 @@
 
 package com.android.keyguard;
 
+import static android.security.Flags.lockscreenIndicateDuplicateGuesses;
+
 import static com.android.internal.util.LatencyTracker.ACTION_CHECK_CREDENTIAL;
 import static com.android.internal.util.LatencyTracker.ACTION_CHECK_CREDENTIAL_UNLOCKED;
 import static com.android.systemui.flags.Flags.LOCKSCREEN_ENABLE_LANDSCAPE;
@@ -24,6 +26,7 @@ import android.content.res.ColorStateList;
 import android.os.AsyncTask;
 import android.os.CountDownTimer;
 import android.os.SystemClock;
+import android.uilatencystats.UiLatencyStatsManager;
 import android.util.Log;
 import android.util.PluralsMessageFormatter;
 import android.view.MotionEvent;
@@ -35,9 +38,13 @@ import com.android.internal.widget.LockPatternUtils;
 import com.android.internal.widget.LockPatternView;
 import com.android.internal.widget.LockPatternView.Cell;
 import com.android.internal.widget.LockscreenCredential;
+import com.android.internal.widget.VerifyCredentialResponse;
 import com.android.keyguard.EmergencyButtonController.EmergencyButtonCallback;
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
 import com.android.systemui.Flags;
+import com.android.systemui.authentication.shared.model.AuthenticationMethodModel;
+import com.android.systemui.bouncer.shared.model.BouncerMessageStrings;
+import com.android.systemui.bouncer.shared.model.LockoutMessageModel;
 import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer;
 import com.android.systemui.classifier.FalsingClassifier;
 import com.android.systemui.classifier.FalsingCollector;
@@ -46,9 +53,9 @@ import com.android.systemui.res.R;
 import com.android.systemui.statusbar.policy.DevicePostureController;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 
-import java.util.HashMap;
+import java.time.Duration;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 public class KeyguardPatternViewController
         extends KeyguardInputViewController<KeyguardPatternView> {
@@ -64,6 +71,7 @@ public class KeyguardPatternViewController
     private final LatencyTracker mLatencyTracker;
     private final FalsingCollector mFalsingCollector;
     private final EmergencyButtonController mEmergencyButtonController;
+    private final Optional<UiLatencyStatsManager> mUiLatencyStatsManager;
     private final DevicePostureController mPostureController;
     private final DevicePostureController.Callback mPostureCallback =
             posture -> mView.onDevicePostureChanged(posture);
@@ -79,9 +87,8 @@ public class KeyguardPatternViewController
         }
     };
 
-    private final LockPatternView.ExternalHapticsPlayer mExternalHapticsPlayer = () -> {
-        mBouncerHapticPlayer.playPatternDotFeedback(mView);
-    };
+    private final LockPatternView.ExternalHapticsPlayer mExternalHapticsPlayer =
+            mBouncerHapticPlayer::playPatternDotFeedback;
 
     /**
      * Useful for clearing out the wrong pattern after a delay
@@ -127,7 +134,8 @@ public class KeyguardPatternViewController
                             0.7, getClass().getSimpleName(), "empty pattern input"));
                 }
                 mLockPatternView.enableInput();
-                onPatternChecked(userId, false, 0, false /* not valid - too short */);
+                onPatternChecked(userId, false, Duration.ZERO,
+                        false /* not valid - too short */, false /* isDuplicate */);
                 return;
             }
 
@@ -142,18 +150,30 @@ public class KeyguardPatternViewController
                         @Override
                         public void onEarlyMatched() {
                             mLatencyTracker.onActionEnd(ACTION_CHECK_CREDENTIAL);
-                            onPatternChecked(userId, true /* matched */, 0 /* timeoutMs */,
-                                    true /* isValidPattern */);
+                            onPatternChecked(
+                                    userId,
+                                    true /* matched */,
+                                    Duration.ZERO /* timeout */,
+                                    true /* isValidPattern */,
+                                    false /* isDuplicate */);
                         }
 
                         @Override
-                        public void onChecked(boolean matched, int timeoutMs) {
+                        public void onChecked(VerifyCredentialResponse response) {
+                            boolean matched = response.isMatched();
+                            Duration timeout = response.getTimeout();
+                            boolean isDuplicate = lockscreenIndicateDuplicateGuesses()
+                                    && response.isCredAlreadyTried();
                             mLatencyTracker.onActionEnd(ACTION_CHECK_CREDENTIAL_UNLOCKED);
                             mLockPatternView.enableInput();
                             mPendingLockCheck = null;
                             if (!matched) {
-                                onPatternChecked(userId, false /* matched */, timeoutMs,
-                                        true /* isValidPattern */);
+                                onPatternChecked(
+                                        userId,
+                                        false /* matched */,
+                                        timeout,
+                                        true /* isValidPattern */,
+                                        isDuplicate);
                             }
                         }
 
@@ -170,17 +190,21 @@ public class KeyguardPatternViewController
             }
         }
 
-        private void onPatternChecked(int userId, boolean matched, int timeoutMs,
-                boolean isValidPattern) {
+        private void onPatternChecked(int userId, boolean matched, Duration timeout,
+                boolean isValidPattern, boolean isDuplicate) {
             boolean dismissKeyguard = mSelectedUserInteractor.getSelectedUserId() == userId;
             if (matched) {
                 mBouncerHapticPlayer.playAuthenticationFeedback(
                         /* authenticationSucceeded= */true
                 );
-                getKeyguardSecurityCallback().reportUnlockAttempt(userId, true, 0);
+                getKeyguardSecurityCallback().reportUnlockAttempt(userId, true,
+                        Duration.ZERO, isDuplicate);
                 if (dismissKeyguard) {
                     mLockPatternView.setDisplayMode(LockPatternView.DisplayMode.Correct);
                     mLatencyTracker.onActionStart(LatencyTracker.ACTION_LOCKSCREEN_UNLOCK);
+                    mUiLatencyStatsManager.ifPresent(m -> m.reportEvent(
+                            UiLatencyStatsManager.EVENT_LOCK_SCREEN_UNLOCK_START,
+                            SystemClock.elapsedRealtime()));
                     Log.i(TAG,
                             "StartUnlock. "
                             + "User: " + userId
@@ -194,15 +218,19 @@ public class KeyguardPatternViewController
                 );
                 mLockPatternView.setDisplayMode(LockPatternView.DisplayMode.Wrong);
                 if (isValidPattern) {
-                    getKeyguardSecurityCallback().reportUnlockAttempt(userId, false, timeoutMs);
-                    if (timeoutMs > 0) {
-                        long deadline = mLockPatternUtils.setLockoutAttemptDeadline(
-                                userId, timeoutMs);
-                        handleAttemptLockout(deadline);
+                    getKeyguardSecurityCallback()
+                            .reportUnlockAttempt(userId, false, timeout, isDuplicate);
+                    if (timeout.isPositive()) {
+                        Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(userId);
+                        handleAttemptLockout(lockoutEndTime);
                     }
                 }
-                if (timeoutMs == 0) {
-                    mMessageAreaController.setMessage(R.string.kg_wrong_pattern);
+                if (timeout.isZero()) {
+                    int wrongPatternStringId =
+                            isDuplicate
+                                    ? R.string.kg_primary_auth_duplicate_guess_pattern
+                                    : R.string.kg_wrong_pattern;
+                    mMessageAreaController.setMessage(wrongPatternStringId);
                     mLockPatternView.postDelayed(mCancelPatternRunnable, PATTERN_CLEAR_TIMEOUT_MS);
                 }
             }
@@ -219,7 +247,8 @@ public class KeyguardPatternViewController
             EmergencyButtonController emergencyButtonController,
             KeyguardMessageAreaController.Factory messageAreaControllerFactory,
             DevicePostureController postureController, FeatureFlags featureFlags,
-            SelectedUserInteractor selectedUserInteractor, BouncerHapticPlayer bouncerHapticPlayer
+            SelectedUserInteractor selectedUserInteractor, BouncerHapticPlayer bouncerHapticPlayer,
+            Optional<UiLatencyStatsManager> uiLatencyStatsManager
     ) {
         super(view, securityMode, keyguardSecurityCallback, emergencyButtonController,
                 messageAreaControllerFactory, featureFlags, selectedUserInteractor,
@@ -233,6 +262,7 @@ public class KeyguardPatternViewController
                 featureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE));
         mLockPatternView = mView.findViewById(R.id.lockPatternView);
         mPostureController = postureController;
+        mUiLatencyStatsManager = uiLatencyStatsManager;
     }
 
     @Override
@@ -269,10 +299,10 @@ public class KeyguardPatternViewController
         mView.onDevicePostureChanged(mPostureController.getDevicePosture());
         mPostureController.addCallback(mPostureCallback);
         // if the user is currently locked out, enforce it.
-        long deadline = mLockPatternUtils.getLockoutAttemptDeadline(
+        Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(
                 mSelectedUserInteractor.getSelectedUserId());
-        if (deadline != 0) {
-            handleAttemptLockout(deadline);
+        if (!lockoutEndTime.isZero()) {
+            handleAttemptLockout(lockoutEndTime);
         }
         mLockPatternView.setExternalHapticsPlayer(mExternalHapticsPlayer);
     }
@@ -398,26 +428,26 @@ public class KeyguardPatternViewController
         mMessageAreaController.setMessage(getInitialMessageResId());
     }
 
-    private void handleAttemptLockout(long elapsedRealtimeDeadline) {
+    private void handleAttemptLockout(Duration lockoutEndTime) {
         mLockPatternView.clearPattern();
         mLockPatternView.setEnabled(false);
         final long elapsedRealtime = SystemClock.elapsedRealtime();
         final long secondsInFuture = (long) Math.ceil(
-                (elapsedRealtimeDeadline - elapsedRealtime) / 1000.0);
+                (lockoutEndTime.toMillis() - elapsedRealtime) / 1000.0);
         getKeyguardSecurityCallback().onAttemptLockoutStart(secondsInFuture);
         mCountdownTimer = new CountDownTimer(secondsInFuture * 1000, 1000) {
 
             @Override
             public void onTick(long millisUntilFinished) {
-                final int secondsRemaining = (int) Math.round(millisUntilFinished / 1000.0);
-                Map<String, Object> arguments = new HashMap<>();
-                arguments.put("count", secondsRemaining);
-
+                final long secondsRemaining = Math.round(millisUntilFinished / 1000.0);
+                LockoutMessageModel lockoutMessageModel =
+                        BouncerMessageStrings.INSTANCE.primaryAuthLockedOut(
+                                AuthenticationMethodModel.Pattern.INSTANCE, secondsRemaining);
                 mMessageAreaController.setMessage(
                         PluralsMessageFormatter.format(
-                            mView.getResources(),
-                            arguments,
-                            R.string.kg_too_many_failed_attempts_countdown),
+                                mView.getResources(),
+                                lockoutMessageModel.primaryFormatterArgs(),
+                                lockoutMessageModel.getPrimaryMessage()),
                         /* animate= */ false
                 );
             }

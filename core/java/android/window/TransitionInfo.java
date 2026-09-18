@@ -172,8 +172,14 @@ public final class TransitionInfo implements Parcelable {
     /** This change represents one of a Task Display Area. */
     public static final int FLAG_IS_TASK_DISPLAY_AREA = 1 << 23;
 
+    /** This change represents that the task has changes always on top state. */
+    public static final int FLAG_ALWAYS_ON_TOP = 1 << 24;
+
+    /** This change represents that the task has changes always on top state. */
+    public static final int FLAG_CHANGED_INTERACTIVE = 1 << 25;
+
     /** The first unused bit. This can be used by remotes to attach custom flags to this change. */
-    public static final int FLAG_FIRST_CUSTOM = 1 << 24;
+    public static final int FLAG_FIRST_CUSTOM = 1 << 26;
 
     /** The change belongs to a window that won't contain activities. */
     public static final int FLAGS_IS_NON_APP_WINDOW =
@@ -184,7 +190,7 @@ public final class TransitionInfo implements Parcelable {
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
-    @IntDef(prefix = { "FLAG_" }, flag = true, value = {
+    @IntDef(prefix = {"FLAG_"}, flag = true, value = {
             FLAG_NONE,
             FLAG_SHOW_WALLPAPER,
             FLAG_IS_WALLPAPER,
@@ -209,6 +215,8 @@ public final class TransitionInfo implements Parcelable {
             FLAG_SYNC,
             FLAG_CONFIG_AT_END,
             FLAG_IS_TASK_DISPLAY_AREA,
+            FLAG_ALWAYS_ON_TOP,
+            FLAG_CHANGED_INTERACTIVE,
             FLAG_FIRST_CUSTOM
     })
     public @interface ChangeFlags {}
@@ -237,8 +245,8 @@ public final class TransitionInfo implements Parcelable {
         mTrack = in.readInt();
     }
 
-    @Override
     /** @hide */
+    @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mType);
         dest.writeInt(mFlags);
@@ -262,8 +270,8 @@ public final class TransitionInfo implements Parcelable {
                 }
             };
 
-    @Override
     /** @hide */
+    @Override
     public int describeContents() {
         return 0;
     }
@@ -368,6 +376,21 @@ public final class TransitionInfo implements Parcelable {
      */
     public void addChange(@NonNull Change change) {
         mChanges.add(change);
+    }
+
+    /**
+     * Removes the Change describing a particular container.
+     *
+     * @return the Change that was removed or {@code null} if there was no Change.
+     */
+    @Nullable
+    public Change removeChangeFor(@NonNull WindowContainerToken token) {
+        for (int i = mChanges.size() - 1; i >= 0; --i) {
+            if (token.equals(mChanges.get(i).mContainer)) {
+                return mChanges.remove(i);
+            }
+        }
+        return null;
     }
 
     /**
@@ -530,6 +553,12 @@ public final class TransitionInfo implements Parcelable {
         if ((flags & FLAG_IS_TASK_DISPLAY_AREA) != 0) {
             sb.append(sb.length() == 0 ? "" : "|").append("FLAG_IS_TASK_DISPLAY_AREA");
         }
+        if ((flags & FLAG_ALWAYS_ON_TOP) != 0) {
+            sb.append(sb.length() == 0 ? "" : "|").append("FLAG_ALWAYS_ON_TOP");
+        }
+        if ((flags & FLAG_CHANGED_INTERACTIVE) != 0) {
+            sb.append(sb.length() == 0 ? "" : "|").append("FLAG_CHANGED_INTERACTIVE");
+        }
         return sb.toString();
     }
 
@@ -594,7 +623,12 @@ public final class TransitionInfo implements Parcelable {
     public void releaseAllSurfaces() {
         releaseAnimSurfaces();
         for (int i = mChanges.size() - 1; i >= 0; --i) {
-            mChanges.get(i).getLeash().release();
+            final Change c = mChanges.get(i);
+            c.getLeash().release();
+            if (c.mTopCompatActivityLeash != null) {
+                c.mTopCompatActivityLeash.release();
+                c.mTopCompatActivityLeash = null;
+            }
         }
     }
 
@@ -628,6 +662,16 @@ public final class TransitionInfo implements Parcelable {
         return out;
     }
 
+    /**
+     * Returns {@code true} if the startDisplayId and endDisplayId are different and if no apps
+     * are starting causing the startDisplayId to be invalid.
+     */
+    public static boolean isCrossDisplay(int startDisplayId, int endDisplayId) {
+        return startDisplayId != INVALID_DISPLAY && endDisplayId != INVALID_DISPLAY
+                && startDisplayId != endDisplayId;
+    }
+
+
     /** Represents the change a WindowContainer undergoes during a transition */
     public static final class Change implements Parcelable {
         private final WindowContainerToken mContainer;
@@ -656,6 +700,12 @@ public final class TransitionInfo implements Parcelable {
         private SurfaceControl mSnapshot = null;
         private float mSnapshotLuma;
         private ActivityTransitionInfo mActivityTransitionInfo = null;
+        /**
+         * This is not null if the change is not activity level and it's required by some
+         * app compat treatment (e.g. Letterboxing in Shell)
+         */
+        @Nullable
+        private SurfaceControl mTopCompatActivityLeash = null;
         private AnimationOptions mAnimationOptions = null;
         private IBinder mTaskFragmentToken = null;
 
@@ -688,6 +738,7 @@ public final class TransitionInfo implements Parcelable {
             mSnapshot = in.readTypedObject(SurfaceControl.CREATOR);
             mSnapshotLuma = in.readFloat();
             mActivityTransitionInfo = in.readTypedObject(ActivityTransitionInfo.CREATOR);
+            mTopCompatActivityLeash = in.readTypedObject(SurfaceControl.CREATOR);
             mAnimationOptions = in.readTypedObject(AnimationOptions.CREATOR);
             mTaskFragmentToken = in.readStrongBinder();
         }
@@ -716,6 +767,7 @@ public final class TransitionInfo implements Parcelable {
             if (mActivityTransitionInfo != null) {
                 out.mActivityTransitionInfo = new ActivityTransitionInfo(mActivityTransitionInfo);
             }
+            out.mTopCompatActivityLeash = mTopCompatActivityLeash;
             out.mAnimationOptions = mAnimationOptions;
             out.mTaskFragmentToken = mTaskFragmentToken;
             return out;
@@ -826,6 +878,13 @@ public final class TransitionInfo implements Parcelable {
         }
 
         /**
+         * Sets the app compat activity-specific leash.
+         */
+        public void setTopCompatActivityLeash(@Nullable SurfaceControl topCompatActivityLeash) {
+            mTopCompatActivityLeash = topCompatActivityLeash;
+        }
+
+        /**
          * Sets {@link AnimationOptions} to override animation.
          */
         public void setAnimationOptions(@Nullable AnimationOptions options) {
@@ -840,7 +899,7 @@ public final class TransitionInfo implements Parcelable {
             mTaskFragmentToken = token;
         }
 
-        /** @return the container that is changing. May be null if non-remotable (eg. activity) */
+        /** @return the container that is changing. */
         @Nullable
         public WindowContainerToken getContainer() {
             return mContainer;
@@ -997,11 +1056,28 @@ public final class TransitionInfo implements Parcelable {
         }
 
         /**
+         * @return the app compat activity-specific leash, or {@code null} if this container is
+         * not a Task.
+         */
+        @Nullable
+        public SurfaceControl getTopCompatActivityLeash() {
+            return mTopCompatActivityLeash;
+        }
+
+        /**
          * Returns the {@link AnimationOptions}.
          */
         @Nullable
         public AnimationOptions getAnimationOptions() {
             return mAnimationOptions;
+        }
+
+        /**
+         * Returns {@code true} if the start and end display ids are different and if no apps
+         * are starting causing the startDisplayId to be invalid.
+         */
+        public boolean isCrossDisplay() {
+            return TransitionInfo.isCrossDisplay(mStartDisplayId, mEndDisplayId);
         }
 
         /**
@@ -1038,6 +1114,7 @@ public final class TransitionInfo implements Parcelable {
             dest.writeTypedObject(mSnapshot, flags);
             dest.writeFloat(mSnapshotLuma);
             dest.writeTypedObject(mActivityTransitionInfo, flags);
+            dest.writeTypedObject(mTopCompatActivityLeash, flags);
             dest.writeTypedObject(mAnimationOptions, flags);
             dest.writeStrongBinder(mTaskFragmentToken);
         }
@@ -1111,6 +1188,9 @@ public final class TransitionInfo implements Parcelable {
             }
             if (mActivityTransitionInfo != null) {
                 sb.append(" activity=").append(mActivityTransitionInfo);
+            }
+            if (mTopCompatActivityLeash != null) {
+                sb.append(" topCompatActivityLeash=").append(mTopCompatActivityLeash);
             }
             if (mTaskInfo != null) {
                 sb.append(" taskParent=");

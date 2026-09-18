@@ -17,9 +17,11 @@
 package com.android.systemui.touchpad.tutorial.ui.viewmodel
 
 import android.content.res.mockResources
+import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.inputdevice.tutorial.inputDeviceTutorialLogger
@@ -46,12 +48,13 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
 class RecentAppsGestureScreenViewModelTest : SysuiTestCase() {
 
     companion object {
         const val GESTURE_VELOCITY = 1f
-        const val VELOCITY_THRESHOLD = GESTURE_VELOCITY + 0.01f
-        const val TOO_LOW_VELOCITY_THRESHOLD = GESTURE_VELOCITY - 0.01f
+        const val VELOCITY_THRESHOLD = GESTURE_VELOCITY - 0.01f
+        const val TOO_HIGH_VELOCITY_THRESHOLD = GESTURE_VELOCITY + 0.01f
     }
 
     private val kosmos = testKosmos()
@@ -90,7 +93,7 @@ class RecentAppsGestureScreenViewModelTest : SysuiTestCase() {
                     InProgress(
                         progress = 1f,
                         startMarker = "drag with gesture",
-                        endMarker = "onPause",
+                        endMarker = "release playback realtime",
                     ),
             )
         }
@@ -128,7 +131,7 @@ class RecentAppsGestureScreenViewModelTest : SysuiTestCase() {
             performRecentAppsGesture()
             assertThat(state).isInstanceOf(Finished::class.java)
 
-            setVelocityThreshold(TOO_LOW_VELOCITY_THRESHOLD)
+            setVelocityThreshold(TOO_HIGH_VELOCITY_THRESHOLD)
             performRecentAppsGesture()
 
             assertThat(state).isInstanceOf(Error::class.java)
@@ -145,7 +148,7 @@ class RecentAppsGestureScreenViewModelTest : SysuiTestCase() {
     }
 
     private fun setVelocityThreshold(threshold: Float) {
-        whenever(resources.getDimension(R.dimen.touchpad_recent_apps_gesture_velocity_threshold))
+        whenever(resources.getDimension(R.dimen.touchpad_home_gesture_velocity_threshold))
             .thenReturn(threshold)
         fakeConfigRepository.onAnyConfigurationChange()
     }

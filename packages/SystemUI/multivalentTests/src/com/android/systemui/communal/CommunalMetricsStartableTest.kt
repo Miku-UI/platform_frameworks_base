@@ -21,10 +21,12 @@ import android.app.StatsManager.StatsPullAtomCallback
 import android.content.pm.UserInfo
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.util.StatsEvent
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
+import com.android.systemui.Flags.FLAG_DO_NOT_USE_RUN_BLOCKING
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.data.repository.fakeCommunalWidgetRepository
 import com.android.systemui.communal.domain.interactor.communalInteractor
@@ -35,6 +37,7 @@ import com.android.systemui.flags.Flags.COMMUNAL_SERVICE_ENABLED
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.settings.fakeUserTracker
 import com.android.systemui.shared.system.SysUiStatsLog
 import com.android.systemui.testKosmos
@@ -51,12 +54,14 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
 @EnableFlags(Flags.FLAG_COMMUNAL_HUB)
-@RunWith(AndroidJUnit4::class)
-class CommunalMetricsStartableTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
+@RunWith(ParameterizedAndroidJunit4::class)
+class CommunalMetricsStartableTest(flags: FlagsParameterization) : SysuiTestCase() {
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val testScope = kosmos.testScope
 
     private val metricsLogger = mock<CommunalMetricsLogger>()
@@ -69,6 +74,18 @@ class CommunalMetricsStartableTest : SysuiTestCase() {
     private val widgetsRepository = kosmos.fakeCommunalWidgetRepository
 
     private lateinit var underTest: CommunalMetricsStartable
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return allCombinationsOf(FLAG_DO_NOT_USE_RUN_BLOCKING)
+        }
+    }
 
     @Before
     fun setUp() {

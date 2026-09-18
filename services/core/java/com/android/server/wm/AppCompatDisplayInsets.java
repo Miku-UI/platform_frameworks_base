@@ -128,14 +128,11 @@ class AppCompatDisplayInsets {
             final boolean rotated = (rotation == ROTATION_90 || rotation == ROTATION_270);
             final int dw = rotated ? display.mBaseDisplayHeight : display.mBaseDisplayWidth;
             final int dh = rotated ? display.mBaseDisplayWidth : display.mBaseDisplayHeight;
-            final DisplayPolicy.DecorInsets.Info decorInfo =
-                    policy.getDecorInsetsInfo(rotation, dw, dh);
             if (useOverrideInsets) {
+                final DisplayPolicy.DecorInsets.Info decorInfo =
+                        policy.getDecorInsetsInfo(rotation, dw, dh);
                 mStableInsets[rotation].set(decorInfo.mOverrideConfigInsets);
                 mNonDecorInsets[rotation].set(decorInfo.mOverrideNonDecorInsets);
-            } else {
-                mStableInsets[rotation].set(decorInfo.mConfigInsets);
-                mNonDecorInsets[rotation].set(decorInfo.mNonDecorInsets);
             }
 
             if (unfilledContainerBounds == null) {

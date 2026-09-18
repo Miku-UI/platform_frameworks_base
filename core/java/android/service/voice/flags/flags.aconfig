@@ -31,3 +31,11 @@ flag {
     description: "This flag enabled the api to enable the voice interaction session invocation effect."
     bug: "416136399"
 }
+
+flag {
+    name: "enable_assist_resource_attributes"
+    is_exported: true
+    namespace: "permissions"
+    description: "This flag enables the use of voice interaction session resource attributes to configure the use of assist data."
+    bug: "444406480"
+}

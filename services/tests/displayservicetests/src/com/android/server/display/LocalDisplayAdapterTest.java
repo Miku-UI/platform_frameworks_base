@@ -42,6 +42,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
@@ -51,6 +52,7 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Spline;
@@ -65,8 +67,9 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.dx.mockito.inline.extended.StaticMockitoSession;
+import com.android.graphics.surfaceflinger.flags.Flags;
 import com.android.internal.R;
-import com.android.server.LocalServices;
+import com.android.internal.util.test.LocalServiceKeeperRule;
 import com.android.server.display.LocalDisplayAdapter.BacklightAdapter;
 import com.android.server.display.color.ColorDisplayService;
 import com.android.server.display.feature.DisplayManagerFlags;
@@ -149,6 +152,8 @@ public class LocalDisplayAdapterTest {
     private DisplayDeviceConfig mMockDisplayDeviceConfig;
     @Mock
     private BacklightAdapter mMockBacklightAdapter;
+    @Mock
+    private ModeRequestManager mModeRequestManager;
 
     @Mock
     private LocalDisplayAdapter.SurfaceControlProxy mSurfaceControlProxy;
@@ -160,6 +165,8 @@ public class LocalDisplayAdapterTest {
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule
+    public LocalServiceKeeperRule mLocalServiceKeeperRule = new LocalServiceKeeperRule();
 
     @Before
     public void setUp() throws Exception {
@@ -169,15 +176,15 @@ public class LocalDisplayAdapterTest {
                 .startMocking();
         mHandler = new Handler(Looper.getMainLooper());
         doReturn(mMockedResources).when(mMockedContext).getResources();
-        LocalServices.removeServiceForTest(LightsManager.class);
-        LocalServices.addService(LightsManager.class, mMockedLightsManager);
-        LocalServices.removeServiceForTest(ColorDisplayService.ColorDisplayServiceInternal.class);
-        LocalServices.addService(ColorDisplayService.ColorDisplayServiceInternal.class,
+        mLocalServiceKeeperRule.overrideLocalService(LightsManager.class, mMockedLightsManager);
+        mLocalServiceKeeperRule.overrideLocalService(
+                ColorDisplayService.ColorDisplayServiceInternal.class,
                 mMockedColorDisplayServiceInternal);
         mInjector = new Injector();
         when(mSurfaceControlProxy.getBootDisplayModeSupport()).thenReturn(true);
         mAdapter = new LocalDisplayAdapter(mMockedSyncRoot, mMockedContext, mHandler,
-                mListener, mFlags, mMockedDisplayNotificationManager, mInjector);
+                mListener, mFlags, mMockedDisplayNotificationManager, mInjector, false,
+                mModeRequestManager);
         spyOn(mAdapter);
         doReturn(mMockedContext).when(mAdapter).getOverlayContext();
 
@@ -235,6 +242,7 @@ public class LocalDisplayAdapterTest {
         when(mMockedResources.getIntArray(
                 com.android.internal.R.array.config_autoBrightnessLcdBacklightValues))
                 .thenReturn(new int[]{});
+        when(mMockedResources.getConfiguration()).thenReturn(new Configuration());
 
         when(mMockedColorDisplayServiceInternal.fetchEvenDimmerSpline(3)).thenReturn(
                 new Spline.LinearSpline(
@@ -242,8 +250,6 @@ public class LocalDisplayAdapterTest {
                         new float[]{100, 0, 0, 0}));
         when(mMockDisplayDeviceConfig.isEvenDimmerAvailable()).thenReturn(true);
 
-        doReturn(true).when(mFlags).isDisplayOffloadEnabled();
-        doReturn(true).when(mFlags).isEvenDimmerEnabled();
         doReturn(true).when(mFlags).isDisplayContentModeManagementEnabled();
         initDisplayOffloadSession();
     }
@@ -459,6 +465,40 @@ public class LocalDisplayAdapterTest {
         assertArrayEquals(new int[]{2, 3}, supportedModes[0].getSupportedHdrTypes());
     }
 
+    @Test
+    public void testSupportedDisplayModesUpdate_sfModeIdChanges()
+            throws InterruptedException {
+        SurfaceControl.DisplayMode displayMode = createFakeDisplayMode(0, 1920, 1080, 0);
+        FakeDisplay display = new FakeDisplay(PORT_A, new SurfaceControl.DisplayMode[]{displayMode},
+                0, 0);
+        setUpDisplay(display);
+        updateAvailableDisplays();
+        mAdapter.registerLocked();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+
+        DisplayDevice displayDevice = mListener.addedDisplays.get(0);
+        displayDevice.applyPendingDisplayDeviceInfoChangesLocked();
+        Display.Mode[] supportedModes = displayDevice.getDisplayDeviceInfoLocked().supportedModes;
+        Assert.assertEquals(1, supportedModes.length);
+        Assert.assertEquals(0, supportedModes[0].getSfModeId());
+
+        // Create a new display with the same mode properties but with a new SF mode id (0 -> 99)
+        SurfaceControl.DisplayMode newDisplayMode = createFakeDisplayMode(99, 1920, 1080, 0);
+        display.dynamicInfo.supportedDisplayModes =
+                        new SurfaceControl.DisplayMode[]{newDisplayMode};
+        display.dynamicInfo.activeDisplayModeId = 99;
+        setUpDisplay(display);
+        mInjector.getTransmitter().sendHotplug(display, true);
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+
+        displayDevice = mListener.changedDisplays.get(0);
+        displayDevice.applyPendingDisplayDeviceInfoChangesLocked();
+        supportedModes = displayDevice.getDisplayDeviceInfoLocked().supportedModes;
+
+        Assert.assertEquals(1, supportedModes.length);
+        Assert.assertEquals(99, supportedModes[0].getSfModeId());
+    }
+
     /**
      * Confirm that all local displays are public when config_localPrivateDisplayPorts is empty.
      */
@@ -529,29 +569,10 @@ public class LocalDisplayAdapterTest {
     /**
      * Confirm that external display uses physical density.
      */
-    @Test
-    public void testDpiValues_baseDensityForExternalDisplaysDisabled() throws Exception {
-        // needs default one always
-        doReturn(false).when(mFlags).isBaseDensityForExternalDisplaysEnabled();
-        setUpDisplay(new FakeDisplay(PORT_A));
-        setUpDisplay(new FakeDisplay(PORT_B));
-        updateAvailableDisplays();
-        mAdapter.registerLocked();
-
-        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
-
-        assertDisplayDpi(
-                mListener.addedDisplays.get(0).getDisplayDeviceInfoLocked(), PORT_A, 100, 100,
-                16000);
-        assertDisplayDpi(
-                mListener.addedDisplays.get(1).getDisplayDeviceInfoLocked(), PORT_B, 100, 100,
-                16000);
-    }
 
     @Test
     public void testDpiValues_baseDensityForExternalDisplaysEnabled() throws Exception {
         // needs default one always
-        doReturn(true).when(mFlags).isBaseDensityForExternalDisplaysEnabled();
         setUpDisplay(new FakeDisplay(PORT_A));
         setUpDisplay(new FakeDisplay(PORT_B));
         updateAvailableDisplays();
@@ -902,9 +923,7 @@ public class LocalDisplayAdapterTest {
     }
 
     @Test
-    @EnableFlags(com.android.graphics.surfaceflinger.flags.Flags.FLAG_SUPPORTED_REFRESH_RATE_UPDATE)
     public void testOnModeAndFrameRateOverridesChanged() throws Exception {
-        doReturn(true).when(mFlags).isSingleAppEventForModeAndFrameRateOverrideEnabled();
         long appVsyncOffsetNanosMode1 = 100;
         long presentationDeadlineNanosMode1 = 200;
         long appVsyncOffsetNanosMode2 = 101;
@@ -1165,15 +1184,18 @@ public class LocalDisplayAdapterTest {
                 new DisplayModeDirector.DesiredDisplayModeSpecs(
                         /*baseModeId*/ baseModeId,
                         /*allowGroupSwitching*/ false,
-                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig
+                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig, null
                 ));
         waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
-        verify(mSurfaceControlProxy).setDesiredDisplayModeSpecs(display.token,
+        verify(mSurfaceControlProxy).setDesiredDisplayModeSpecs(
+                any(IBinder.class),
+                eq(new SurfaceControl.DesiredDisplayModeSpecs[] {
                 new SurfaceControl.DesiredDisplayModeSpecs(
+                        display.token,
                         /* baseModeId */ 0,
                         /* allowGroupSwitching */ false,
-                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig
-                ));
+                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig, null
+                )}));
 
         // Change the display
         display.dynamicInfo.supportedDisplayModes = new SurfaceControl.DisplayMode[]{
@@ -1199,18 +1221,21 @@ public class LocalDisplayAdapterTest {
                 new DisplayModeDirector.DesiredDisplayModeSpecs(
                         /*baseModeId*/ baseModeId,
                         /*allowGroupSwitching*/ false,
-                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig
+                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig, null
                 ));
 
         waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
 
         // Verify that this will reapply the desired modes.
-        verify(mSurfaceControlProxy).setDesiredDisplayModeSpecs(display.token,
+        verify(mSurfaceControlProxy).setDesiredDisplayModeSpecs(
+                any(IBinder.class),
+                eq(new SurfaceControl.DesiredDisplayModeSpecs[] {
                 new SurfaceControl.DesiredDisplayModeSpecs(
+                        display.token,
                         /* baseModeId */ 2,
                         /* allowGroupSwitching */ false,
-                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig
-                ));
+                        REFRESH_RATE_RANGES, REFRESH_RATE_RANGES, idleScreenRefreshRateConfig, null
+                )}));
     }
 
     @Test
@@ -1271,6 +1296,7 @@ public class LocalDisplayAdapterTest {
         SurfaceControl.DisplayMode[] modes =
                 new SurfaceControl.DisplayMode[]{displayMode1, displayMode2, displayMode3};
         FakeDisplay display = new FakeDisplay(PORT_A, modes, 0, 1);
+        display.info.isInternal = true;
         setUpDisplay(display);
         updateAvailableDisplays();
         mAdapter.registerLocked();
@@ -1549,7 +1575,8 @@ public class LocalDisplayAdapterTest {
             changeStateRunnable.run();
         }
 
-        verify(mDisplayOffloader, times(mDisplayOffloadSupportedStates.size())).startOffload();
+        verify(mDisplayOffloader, times(mDisplayOffloadSupportedStates.size()))
+                .startOffload(anyInt());
         assertTrue(mDisplayOffloadSession.isActive());
     }
 
@@ -1572,7 +1599,7 @@ public class LocalDisplayAdapterTest {
         changeStateToDozeSuspendRunnable.run();
         changeStateToDozeRunnable.run();
 
-        verify(mDisplayOffloader).stopOffload();
+        verify(mDisplayOffloader).stopOffload(Display.STATE_DOZE);
         assertFalse(mDisplayOffloadSession.isActive());
     }
 
@@ -1726,8 +1753,169 @@ public class LocalDisplayAdapterTest {
         assertEquals(displayName, displayDevice.getNameLocked());
     }
 
+
+    @Test
+    public void testDefaultDisplayMode_withArrRenderFlag_defaultModeChanges()
+            throws Exception {
+        SurfaceControl.DisplayMode displayMode1 = createFakeDisplayMode(0, 1920, 1080, 100f, 60f);
+        // system preferred mode
+        SurfaceControl.DisplayMode displayMode2 = createFakeDisplayMode(1, 3840, 2160, 100f, 60f);
+        // user preferred mode
+        SurfaceControl.DisplayMode displayMode3 = createFakeDisplayMode(2, 1920, 1440, 100f, 60f);
+
+        SurfaceControl.DisplayMode[] modes =
+                new SurfaceControl.DisplayMode[]{displayMode1, displayMode2, displayMode3};
+        FakeDisplay display = new FakeDisplay(PORT_A, modes, 0, 1);
+        setUpDisplay(display);
+        display.info.isInternal = true;
+        display.dynamicInfo.hasArrSupport = true;
+        updateAvailableDisplays();
+        mAdapter.registerLocked();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+
+        assertThat(mListener.addedDisplays.size()).isEqualTo(1);
+        assertThat(mListener.changedDisplays).isEmpty();
+
+        DisplayDeviceInfo displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        Display.Mode defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode1)).isTrue();
+
+        // Set the user preferred display mode
+        mListener.addedDisplays.get(0).setUserPreferredDisplayModeLocked(
+                new Display.Mode(
+                        displayMode3.width, displayMode3.height, displayMode3.peakRefreshRate));
+        updateAvailableDisplays();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+        displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode3)).isTrue();
+    }
+
+
+    @Test
+    @DisableFlags(Flags.FLAG_SYNCED_RESOLUTION_SWITCH)
+    public void testDefaultDisplayMode_sizeOverride_defaultModeDoesNotChange()
+            throws Exception {
+        SurfaceControl.DisplayMode displayMode1 = createFakeDisplayMode(0, 1920, 1080, 60f);
+        // system preferred mode
+        SurfaceControl.DisplayMode displayMode2 = createFakeDisplayMode(1, 3840, 2160, 60f);
+        // user preferred mode
+        SurfaceControl.DisplayMode displayMode3 = createFakeDisplayMode(2, 1920, 1080, 30f);
+
+        SurfaceControl.DisplayMode[] modes =
+                new SurfaceControl.DisplayMode[]{displayMode1, displayMode2, displayMode3};
+        FakeDisplay display = new FakeDisplay(PORT_A, modes, 0, 1);
+        setUpDisplay(display);
+        display.info.isInternal = false;
+        updateAvailableDisplays();
+        mAdapter.registerLocked();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+
+        assertThat(mListener.addedDisplays.size()).isEqualTo(1);
+        assertThat(mListener.changedDisplays).isEmpty();
+
+        DisplayDeviceInfo displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        assertThat(displayDeviceInfo.supportedModes.length).isEqualTo(modes.length);
+        Display.Mode defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode1)).isTrue();
+
+        // Set the user preferred display mode
+        mListener.addedDisplays.get(0).setUserPreferredDisplayModeLocked(
+                new Display.Mode(
+                        displayMode3.width, displayMode3.height, displayMode3.peakRefreshRate));
+        updateAvailableDisplays();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+        displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode1)).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCED_RESOLUTION_SWITCH)
+    public void testDefaultDisplayMode_defaultModeChanges()
+            throws Exception {
+        SurfaceControl.DisplayMode displayMode1 = createFakeDisplayMode(0, 1920, 1080, 60f);
+        // system preferred mode
+        SurfaceControl.DisplayMode displayMode2 = createFakeDisplayMode(1, 3840, 2160, 60f);
+        // user preferred mode
+        SurfaceControl.DisplayMode displayMode3 = createFakeDisplayMode(2, 1920, 1080, 30f);
+
+        SurfaceControl.DisplayMode[] modes =
+                new SurfaceControl.DisplayMode[]{displayMode1, displayMode2, displayMode3};
+        FakeDisplay display = new FakeDisplay(PORT_A, modes, 0, 1);
+        setUpDisplay(display);
+        display.info.isInternal = false;
+        updateAvailableDisplays();
+        mAdapter.registerLocked();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+
+        assertThat(mListener.addedDisplays.size()).isEqualTo(1);
+        assertThat(mListener.changedDisplays).isEmpty();
+
+        DisplayDeviceInfo displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        assertThat(displayDeviceInfo.supportedModes.length).isEqualTo(modes.length);
+        Display.Mode defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode1)).isTrue();
+
+        // Set the user preferred display mode
+        mListener.addedDisplays.get(0).setUserPreferredDisplayModeLocked(
+                new Display.Mode(
+                        displayMode3.width, displayMode3.height, displayMode3.peakRefreshRate));
+        updateAvailableDisplays();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+        displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode3)).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCED_RESOLUTION_SWITCH)
+    public void testDefaultDisplayMode_anisotropyCorrected_defaultModeChanges()
+            throws Exception {
+        SurfaceControl.DisplayMode displayMode1 = createFakeDisplayMode(0, 1920, 1080, 60f);
+        // system preferred mode
+        SurfaceControl.DisplayMode displayMode2 = createFakeDisplayMode(1, 3840, 2160, 60f);
+        // anisotropic mode, corresponding isotropic (upscaled) (200 x 100)@60
+        SurfaceControl.DisplayMode displayMode3 = TestUtilsKt
+                .createSfDisplayMode(2, 100, 100, 1f, 2f, 60f);
+
+        SurfaceControl.DisplayMode[] modes =
+                new SurfaceControl.DisplayMode[]{displayMode1, displayMode2, displayMode3};
+        FakeDisplay display = new FakeDisplay(PORT_A, modes, 0, 1);
+        setUpDisplay(display);
+        display.info.isInternal = false;
+        updateAvailableDisplays();
+        mAdapter.registerLocked();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+
+        assertThat(mListener.addedDisplays.size()).isEqualTo(1);
+        assertThat(mListener.changedDisplays).isEmpty();
+
+        DisplayDeviceInfo displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        assertThat(displayDeviceInfo.supportedModes.length).isEqualTo(modes.length + 1);
+        Display.Mode defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode1)).isTrue();
+
+        // Set the user preferred display mode
+        mListener.addedDisplays.get(0).setUserPreferredDisplayModeLocked(
+                new Display.Mode(200, 100, 60f));
+        updateAvailableDisplays();
+        waitForHandlerToComplete(mHandler, HANDLER_WAIT_MS);
+        displayDeviceInfo = mListener.addedDisplays.get(
+                0).getDisplayDeviceInfoLocked();
+        defaultMode = getModeById(displayDeviceInfo, displayDeviceInfo.defaultModeId);
+        assertThat(matches(defaultMode, displayMode3)).isTrue();
+    }
+
     private void initDisplayOffloadSession() {
-        when(mDisplayOffloader.startOffload()).thenReturn(true);
+        when(mDisplayOffloader.startOffload(Display.STATE_DOZE_SUSPEND)).thenReturn(true);
         when(mDisplayOffloader.allowAutoBrightnessInDoze()).thenReturn(true);
         mDisplayOffloadSession = new DisplayOffloadSessionImpl(mDisplayOffloader,
                 mMockedDisplayPowerController);
@@ -1802,10 +1990,11 @@ public class LocalDisplayAdapterTest {
 
         public SurfaceControl.DesiredDisplayModeSpecs desiredDisplayModeSpecs =
                 new SurfaceControl.DesiredDisplayModeSpecs(
+                        token,
                         /* defaultMode */ 0,
                         /* allowGroupSwitching */ false,
                         REFRESH_RATE_RANGES, REFRESH_RATE_RANGES,
-                        new IdleScreenRefreshRateConfig(100)
+                        new IdleScreenRefreshRateConfig(100), null
                 );
 
         private FakeDisplay(int port) {
@@ -1967,7 +2156,8 @@ public class LocalDisplayAdapterTest {
 
         @Override
         public DisplayDeviceConfig createDisplayDeviceConfig(Context context,
-                long physicalDisplayId, boolean isFirstDisplay, DisplayManagerFlags flags) {
+                long physicalDisplayId, int port, boolean isFirstDisplay,
+                DisplayManagerFlags flags) {
             return mMockDisplayDeviceConfig;
         }
 

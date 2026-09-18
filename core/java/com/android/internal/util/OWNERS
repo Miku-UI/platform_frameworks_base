@@ -7,8 +7,10 @@ per-file State* = jchalard@google.com, lorenzo@google.com, larsberg@google.com
 per-file *Dump* = file:/core/java/com/android/internal/util/dump/OWNERS
 per-file *Screenshot* = file:/packages/SystemUI/src/com/android/systemui/screenshot/OWNERS
 per-file *LatencyTracker* = file:/core/java/com/android/internal/util/LATENCY_TRACKER_OWNERS
+per-file ClientListenerMultiplexer.java = file:/services/core/java/com/android/server/dreams/OWNERS
 # Haptics
 per-file *Vibrat*.java = file:/services/core/java/com/android/server/vibrator/OWNERS
+per-file MemInfoReader.java = file:/MEMORY_OWNERS
 
-# Performance
-per-file StringCache.java = file:/PERFORMANCE_OWNERS
+# Perfetto
+per-file Perfetto*.java = file:/PERFETTO_OWNERS

@@ -16,3 +16,13 @@ flag {
     description: "Enables restrictions to PiP entry on TV for setAutoEnterEnabled and lifecycle methods"
     bug: "283115999"
 }
+
+flag {
+     namespace: "car_framework"
+     name: "enable_dynamic_display_retrieval"
+     description: "Return the display id based on the user visibility settings"
+     bug: "485292494"
+     metadata {
+         purpose: PURPOSE_BUGFIX
+     }
+}

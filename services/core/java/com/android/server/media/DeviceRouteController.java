@@ -32,8 +32,6 @@ import android.os.Looper;
 import android.os.ServiceManager;
 import android.os.UserHandle;
 
-import com.android.media.flags.Flags;
-
 import java.util.List;
 
 /**
@@ -81,11 +79,6 @@ import java.util.List;
     /** Returns device route availability status. */
     @MediaRoute2Info.SuitabilityStatus
     static int getBuiltInSpeakerSuitabilityStatus(@NonNull Context context) {
-        if (!Flags.enableBuiltInSpeakerRouteSuitabilityStatuses()) {
-            // Route is always suitable if the flag is disabled.
-            return MediaRoute2Info.SUITABILITY_STATUS_SUITABLE_FOR_DEFAULT_TRANSFER;
-        }
-
         int availabilityStatus =
                 context.getResources()
                         .getInteger(

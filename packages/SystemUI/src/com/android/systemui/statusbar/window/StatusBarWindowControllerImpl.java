@@ -52,14 +52,10 @@ import androidx.annotation.NonNull;
 import com.android.internal.policy.SystemBarUtils;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.animation.DelegateTransitionAnimatorController;
-import com.android.systemui.dagger.qualifiers.Main;
-import com.android.systemui.fragments.FragmentHostManager;
-import com.android.systemui.fragments.FragmentService;
 import com.android.systemui.log.LogBuffer;
+import com.android.systemui.log.MultiDisplayStatusBarLogger;
 import com.android.systemui.log.core.LogLevel;
 import com.android.systemui.res.R;
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays;
-import com.android.systemui.statusbar.core.StatusBarRootModernization;
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController;
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider;
 import com.android.systemui.statusbar.policy.ConfigurationController;
@@ -72,7 +68,6 @@ import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 
 import java.util.Optional;
-import java.util.concurrent.Executor;
 
 /**
  * Encapsulates all logic for the status bar window state management.
@@ -86,15 +81,14 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     private final StatusBarConfigurationController mStatusBarConfigurationController;
     private final IWindowManager mIWindowManager;
     private final StatusBarContentInsetsProvider mContentInsetsProvider;
-    private final Executor mMainExecutor;
     private final LogBuffer mLogBuffer;
+    private final MultiDisplayStatusBarLogger mMultiDisplayLogger;
     private final int mDisplayId;
     private int mBarHeight = -1;
     private final State mCurrentState = new State();
     private boolean mIsAttached;
 
     private final StatusBarWindowView mStatusBarWindowView;
-    private final FragmentService mFragmentService;
     // The container in which we should run launch animations started from the status bar and
     //   expanding into the opening window.
     private final ViewGroup mLaunchAnimationContainer;
@@ -118,21 +112,19 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
             @Assisted StatusBarConfigurationController statusBarConfigurationController,
             IWindowManager iWindowManager,
             @Assisted StatusBarContentInsetsProvider contentInsetsProvider,
-            FragmentService fragmentService,
             Optional<UnfoldTransitionProgressProvider> unfoldTransitionProgressProvider,
-            @Main Executor mainExecutor,
             @StatusBarWindowLog LogBuffer logBuffer,
-            @Assisted int displayId) {
+            @Assisted int displayId,
+            MultiDisplayStatusBarLogger multiDisplayLogger) {
         mContext = context;
         mDisplayId = displayId;
         mWindowManager = windowManager;
         mStatusBarConfigurationController = statusBarConfigurationController;
         mIWindowManager = iWindowManager;
         mContentInsetsProvider = contentInsetsProvider;
-        mMainExecutor = mainExecutor;
         mLogBuffer = logBuffer;
+        mMultiDisplayLogger = multiDisplayLogger;
         mStatusBarWindowView = statusBarWindowViewInflater.inflate(context);
-        mFragmentService = fragmentService;
         mLaunchAnimationContainer = mStatusBarWindowView.findViewById(
                 R.id.status_bar_launch_animation_container);
         mLpChanged = new WindowManager.LayoutParams();
@@ -170,10 +162,7 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
 
     @Override
     public void attach() {
-        if (StatusBarConnectedDisplays.isEnabled()) {
-            mStatusBarWindowView.setStatusBarConfigurationController(
-                    mStatusBarConfigurationController);
-        }
+        mStatusBarWindowView.setStatusBarConfigurationController(mStatusBarConfigurationController);
         // Now that the status bar window encompasses the sliding panel and its
         // translucent backdrop, the entire thing is made TRANSLUCENT and is
         // hardware-accelerated.
@@ -183,7 +172,9 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
 
         try {
             mWindowManager.addView(mStatusBarWindowView, mLp);
+            mMultiDisplayLogger.logStatusBarWindowAdded(mDisplayId);
         } catch (WindowManager.InvalidDisplayException e) {
+            mMultiDisplayLogger.logStatusBarWindowAddFailure(mDisplayId);
             // Wrapping this in a try/catch to avoid crashes when a display is instantly removed
             // after being added, and initialization hasn't finished yet.
             Log.e(
@@ -193,10 +184,8 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
                             + " doesn't exist anymore.",
                     e);
         }
-        if (StatusBarConnectedDisplays.isEnabled()) {
-            mStatusBarConfigurationController.addCallback(mConfigurationListener);
-            refreshStatusBarHeight();
-        }
+        mStatusBarConfigurationController.addCallback(mConfigurationListener);
+        refreshStatusBarHeight();
         mLpChanged.copyFrom(mLp);
 
         mContentInsetsProvider.addCallback(this::calculateStatusBarLocationsForAllRotations);
@@ -207,11 +196,11 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
 
     @Override
     public void stop() {
-        StatusBarConnectedDisplays.unsafeAssertInNewMode();
-
         try {
             mWindowManager.removeView(mStatusBarWindowView);
+            mMultiDisplayLogger.logStatusBarWindowRemoved(mDisplayId);
         } catch (IllegalArgumentException e) {
+            mMultiDisplayLogger.logStatusBarWindowRemoveFailure(mDisplayId);
             // Wrapping this in a try/catch to avoid crashes when a display is instantly removed
             // after being added, and initialization hasn't finished yet.
             // When that happens, adding the View to WindowManager fails, and therefore removing
@@ -219,11 +208,6 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
             Log.e(TAG, "Failed to remove View from WindowManager. View was not attached", e);
         }
         mStatusBarConfigurationController.removeCallback(mConfigurationListener);
-        if (StatusBarRootModernization.isEnabled()) {
-            return;
-        }
-        // Fragment transactions need to happen on the main thread.
-        mMainExecutor.execute(() -> mFragmentService.removeAndDestroy(mStatusBarWindowView));
     }
 
     @Override
@@ -235,12 +219,6 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     @Override
     public View getBackgroundView() {
         return mStatusBarWindowView.findViewById(R.id.status_bar_container);
-    }
-
-    @NonNull
-    @Override
-    public FragmentHostManager getFragmentHostManager() {
-        return mFragmentService.getFragmentHostManager(mStatusBarWindowView);
     }
 
     @NonNull

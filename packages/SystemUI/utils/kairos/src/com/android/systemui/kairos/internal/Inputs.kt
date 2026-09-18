@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class InputNode<A>(
     val nameData: NameData,
     private val activate: EvalScope.() -> Unit = {},
-    private val deactivate: () -> Unit = {},
+    private val deactivate: EvalScope.() -> Unit = {},
 ) : PushNode<A> {
 
     init {
@@ -55,9 +55,9 @@ internal class InputNode<A>(
         downstreamSet.remove(downstream)
     }
 
-    override fun deactivateIfNeeded() {
+    override fun deactivateIfNeeded(evalScope: EvalScope) {
         if (downstreamSet.isEmpty() && activated.getAndSet(false)) {
-            deactivate()
+            deactivate(evalScope)
         }
     }
 
@@ -82,12 +82,12 @@ internal class InputNode<A>(
         }
     }
 
-    override fun removeDownstreamAndDeactivateIfNeeded(downstream: Schedulable) {
-        downstreamSet.remove(downstream)
-        val needsDeactivation = downstreamSet.isEmpty() && activated.getAndSet(false)
-        if (needsDeactivation) {
-            deactivate()
-        }
+    override fun removeDownstreamAndDeactivateIfNeeded(
+        downstream: Schedulable,
+        evalScope: EvalScope,
+    ) {
+        removeDownstream(downstream)
+        deactivateIfNeeded(evalScope)
     }
 
     override fun getPushEvent(logIndent: Int, evalScope: EvalScope): A =
@@ -116,14 +116,16 @@ internal data object AlwaysNode : PushNode<Unit> {
 
     override fun removeDownstream(downstream: Schedulable) {}
 
-    override fun deactivateIfNeeded() {}
+    override fun deactivateIfNeeded(evalScope: EvalScope) {}
 
     override fun scheduleDeactivationIfNeeded(evalScope: EvalScope) {}
 
     override fun addDownstream(downstream: Schedulable) {}
 
-    override fun removeDownstreamAndDeactivateIfNeeded(downstream: Schedulable) {}
+    override fun removeDownstreamAndDeactivateIfNeeded(
+        downstream: Schedulable,
+        evalScope: EvalScope,
+    ) {}
 
-    override fun getPushEvent(logIndent: Int, evalScope: EvalScope) =
-        logDuration(logIndent, { "Always.getPushEvent" }, false) { Unit }
+    override fun getPushEvent(logIndent: Int, evalScope: EvalScope) = Unit
 }

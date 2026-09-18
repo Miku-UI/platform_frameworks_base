@@ -16,14 +16,24 @@ use crate::common::{PolicySourceData, TunnelControl, UserId};
 use crate::sysfs::SysfsUtils;
 use anyhow::Result;
 use kobject_uevent::ActionType;
-use log::{error, info};
-use std::path::Path;
-use std::sync::Arc;
+use log::{debug, error, info};
+use std::error::Error;
+use std::io::ErrorKind;
 use tokio::sync::mpsc;
+use tokio::time::{sleep, Duration};
 use uevent::netlink::{AsyncNetlinkKObjectUEventSocket, AsyncUEventSocket};
 
 /// Message queue size.
 const MESSAGE_QUEUE_SIZE: usize = 10;
+
+/// Delay for attempting authorization to account for ueventd processing time.
+const DELAY_FOR_UEVENTD: Duration = Duration::from_millis(200);
+
+/// Number of tries to process a uevent for PermissionDenied.
+const UEVENT_PERMISSION_DENIED_RETRIES: u8 = 3;
+
+/// Number of tries to authorize all pci tunnels for PermissionDenied.
+const AUTHORIZE_ALL_PERMISSION_DENIED_RETRIES: u8 = 3;
 
 /// Enum for the PCI authorization state machine.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -43,14 +53,30 @@ pub enum PciAuthState {
 enum PciServiceEvent {
     EnablePciTunnels(bool),
     UpdateLockState(bool),
-    UpdateLoggedInState { logged_in: bool, user_id: UserId },
+    UpdateLoggedInState {
+        logged_in: bool,
+        user_id: UserId,
+    },
     Shutdown,
+
+    /// Delayed handling of a uevent to account for ueventd processing time.
+    DelayedUeventHandler {
+        uevent: kobject_uevent::UEvent,
+        retries: u8,
+    },
+
+    /// Retry setting authorized on all tunnels due to permission error.
+    RetrySetAllAuthorized {
+        authorized: bool,
+        retries: u8,
+    },
 }
 
 /// Internal service that runs an async event loop for uevents and policy updates.
 struct PciAuthorizerTask {
-    uevent_socket: Arc<dyn AsyncUEventSocket>,
+    uevent_socket: Box<dyn AsyncUEventSocket>,
     event_receiver: mpsc::Receiver<PciServiceEvent>,
+    event_sender: mpsc::Sender<PciServiceEvent>,
     sysfs_utils: SysfsUtils,
     policy_data: PolicySourceData,
     current_pci_auth_state: PciAuthState,
@@ -72,7 +98,7 @@ impl PciAuthorizerTask {
     }
 
     /// Handles a received uevent.
-    fn handle_uevent_result(&mut self, uevent_result: Result<kobject_uevent::UEvent>) {
+    fn handle_uevent_result(&mut self, uevent_result: Result<kobject_uevent::UEvent>, retries: u8) {
         match uevent_result {
             Ok(uevent) => {
                 if self.current_pci_auth_state == PciAuthState::Authorized
@@ -81,9 +107,38 @@ impl PciAuthorizerTask {
                 {
                     let path = uevent.devpath.as_path();
                     let relative_path = path.strip_prefix("/").unwrap();
-                    let full_path = Path::new("/sys/").join(relative_path);
+                    let full_path = self.sysfs_utils.add_sysfs_prefix(relative_path);
+
+                    debug!("Authorizing dev for uevent path: {}", full_path.display());
+
                     if let Err(e) = self.sysfs_utils.authorize_thunderbolt_dev(full_path.as_path())
                     {
+                        // We may be racing with ueventd permission setting. If
+                        // we have retries remaining, try again with a delay.
+                        if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                            if io_err.kind() == ErrorKind::PermissionDenied && retries > 0 {
+                                let tx = self.event_sender.clone();
+                                let event = PciServiceEvent::DelayedUeventHandler {
+                                    uevent: uevent.clone(),
+                                    retries: retries - 1,
+                                };
+                                tokio::spawn(async move {
+                                    sleep(DELAY_FOR_UEVENTD).await;
+                                    if tx.send(event).await.is_err() {
+                                        debug!("receiver dropped; not processing delayed uevent");
+                                    }
+                                });
+
+                                debug!(
+                                    "No permission to authorize on uevent {}. Retries left: {}",
+                                    full_path.display(),
+                                    retries
+                                );
+
+                                return;
+                            }
+                        }
+
                         error!(
                             "Failed to authorize device on uevent {}: {}",
                             full_path.display(),
@@ -93,31 +148,46 @@ impl PciAuthorizerTask {
                 }
             }
             Err(e) => {
-                error!("Error reading uevent: {}. Uevent listener might stop if this persists.", e);
+                debug!("Error reading uevent: {}. Uevent listener might stop if this persists.", e);
             }
         }
     }
 
-    /// Handles a received service event. Returns true if the service should continue running.
-    fn handle_service_event(&mut self, service_event: PciServiceEvent) -> bool {
-        match service_event {
-            PciServiceEvent::EnablePciTunnels(enable) => {
-                self.policy_data.pci_tunnels_enabled = enable;
-            }
-            PciServiceEvent::UpdateLockState(locked) => {
-                self.policy_data.is_locked = locked;
-            }
-            PciServiceEvent::UpdateLoggedInState { logged_in, user_id } => {
-                if logged_in {
-                    self.policy_data.logged_in_users.insert(user_id);
-                } else {
-                    self.policy_data.logged_in_users.remove(&user_id);
-                }
-            }
-            PciServiceEvent::Shutdown => {
-                return false; // Signal to stop the loop
+    // Clippy: Underlying error type can't be correctly sized at compile time. Reference to box is
+    // cleaner.
+    #[allow(clippy::borrowed_box)]
+    fn retry_authorize_all_on_err(
+        err: &Box<dyn Error>,
+        tx: mpsc::Sender<PciServiceEvent>,
+        authorized: bool,
+        retries: u8,
+    ) -> bool {
+        if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+            if io_err.kind() == ErrorKind::PermissionDenied && retries > 0 {
+                let event =
+                    PciServiceEvent::RetrySetAllAuthorized { authorized, retries: retries - 1 };
+                tokio::spawn(async move {
+                    sleep(DELAY_FOR_UEVENTD).await;
+                    if tx.send(event).await.is_err() {
+                        debug!("receiver dropped; not processing retry bulk authorization");
+                    }
+                });
+
+                debug!(
+                    "No permission to {} all. Retries left: {}",
+                    if authorized { "authorize" } else { "deauthorize" },
+                    retries
+                );
+
+                return true;
             }
         }
+
+        false
+    }
+
+    // Recalculate states and conduct actions for a state transition.
+    fn do_state_transition(&mut self) -> bool {
         // After any policy update, recalculate and handle state transition
         let old_state = self.current_pci_auth_state;
         let new_state = Self::calculate_auth_state(&self.policy_data);
@@ -126,13 +196,22 @@ impl PciAuthorizerTask {
             return true;
         }
 
-        info!("State transition: {:?} -> {:?}", old_state, new_state);
+        debug!("State transition: {:?} -> {:?}", old_state, new_state);
         self.current_pci_auth_state = new_state;
 
         match (old_state, new_state) {
             (_, PciAuthState::Authorized) => {
-                if let Err(e) = self.sysfs_utils.authorize_all_devices() {
-                    error!("Failed to authorize all devices: {}", e);
+                if let Err(e) =
+                    self.sysfs_utils.authorize_all_devices(AUTHORIZE_ALL_PERMISSION_DENIED_RETRIES)
+                {
+                    if !Self::retry_authorize_all_on_err(
+                        &e,
+                        self.event_sender.clone(),
+                        true,
+                        AUTHORIZE_ALL_PERMISSION_DENIED_RETRIES,
+                    ) {
+                        error!("Failed to authorize all devices: {}", e);
+                    }
                 }
             }
             (_, PciAuthState::DenyNoUser) | (_, PciAuthState::Disabled) => {
@@ -142,7 +221,75 @@ impl PciAuthorizerTask {
             }
             _ => { /* Other transitions require no immediate bulk action. */ }
         }
+
         true // Keep running
+    }
+
+    /// Handles a received service event. Returns true if the service should continue running.
+    fn handle_service_event(&mut self, service_event: PciServiceEvent) -> bool {
+        match service_event {
+            PciServiceEvent::Shutdown => {
+                // Signal to stop the loop
+                false
+            }
+
+            // Handle the uevent and immediately return.
+            PciServiceEvent::DelayedUeventHandler { uevent, retries } => {
+                self.handle_uevent_result(Ok(uevent), retries);
+                true
+            }
+
+            PciServiceEvent::RetrySetAllAuthorized { authorized, retries } => {
+                // If the target authorized state doesn't match the desired policy, drop the
+                // retry entirely to avoid messing up the state machine.
+                match (authorized, self.current_pci_auth_state) {
+                    (true, PciAuthState::Authorized) => (),
+                    (false, PciAuthState::Disabled) | (false, PciAuthState::DenyNoUser) => (),
+                    (_, _) => {
+                        return true;
+                    }
+                }
+
+                let result = if authorized {
+                    self.sysfs_utils.authorize_all_devices(retries)
+                } else {
+                    self.sysfs_utils.deauthorize_all_devices()
+                };
+
+                if let Err(e) = result {
+                    if !Self::retry_authorize_all_on_err(
+                        &e,
+                        self.event_sender.clone(),
+                        authorized,
+                        retries,
+                    ) {
+                        error!("Failed to authorize all devices: {}", e);
+                    }
+                }
+
+                true
+            }
+
+            PciServiceEvent::EnablePciTunnels(enable) => {
+                self.policy_data.pci_tunnels_enabled = enable;
+
+                self.do_state_transition()
+            }
+            PciServiceEvent::UpdateLockState(locked) => {
+                self.policy_data.is_locked = locked;
+
+                self.do_state_transition()
+            }
+            PciServiceEvent::UpdateLoggedInState { logged_in, user_id } => {
+                if logged_in {
+                    self.policy_data.logged_in_users.insert(user_id);
+                } else {
+                    self.policy_data.logged_in_users.remove(&user_id);
+                }
+
+                self.do_state_transition()
+            }
+        }
     }
 
     /// Runs the event loop.
@@ -151,16 +298,16 @@ impl PciAuthorizerTask {
         loop {
             tokio::select! {
                 uevent_result = self.uevent_socket.read() => {
-                    self.handle_uevent_result(uevent_result);
+                    self.handle_uevent_result(uevent_result, UEVENT_PERMISSION_DENIED_RETRIES);
                 }
                 Some(service_event) = self.event_receiver.recv() => {
                     if !self.handle_service_event(service_event) {
-                        info!("Shutdown event received.");
+                        debug!("Shutdown event received.");
                         break;
                     }
                 }
                 else => {
-                    info!("Event channel closed. Shutting down.");
+                    debug!("Event channel closed. Shutting down.");
                     break;
                 }
             }
@@ -176,7 +323,7 @@ pub struct PciAuthorizer {
 
 impl PciAuthorizer {
     /// Creates a new PciAuthorizer.
-    pub fn new(sysfs_utils: SysfsUtils, uevent_socket: Arc<dyn AsyncUEventSocket>) -> Self {
+    pub fn new(sysfs_utils: SysfsUtils, uevent_socket: Box<dyn AsyncUEventSocket>) -> Self {
         let (tx, rx) = mpsc::channel(MESSAGE_QUEUE_SIZE);
 
         let service_policy_data = PolicySourceData::default();
@@ -185,6 +332,7 @@ impl PciAuthorizer {
         let service = PciAuthorizerTask {
             uevent_socket,
             event_receiver: rx,
+            event_sender: tx.clone(),
             sysfs_utils,
             policy_data: service_policy_data,
             current_pci_auth_state: initial_auth_state,
@@ -212,10 +360,10 @@ impl Default for PciAuthorizer {
     fn default() -> Self {
         let sysfs_utils = SysfsUtils::default();
         let uevent_socket_concrete =
-            Arc::new(AsyncNetlinkKObjectUEventSocket::create().expect(
+            Box::new(AsyncNetlinkKObjectUEventSocket::create().expect(
                 "Failed to create AsyncNetlinkKObjectUEventSocket in PciAuthorizer default",
             ));
-        let uevent_socket_trait: Arc<dyn AsyncUEventSocket> = uevent_socket_concrete;
+        let uevent_socket_trait: Box<dyn AsyncUEventSocket> = uevent_socket_concrete;
         Self::new(sysfs_utils, uevent_socket_trait)
     }
 }
@@ -243,7 +391,7 @@ impl Drop for PciAuthorizer {
         }
 
         if let Some(_handle) = self.service_task_handle.take() {
-            info!("PciAuthorizerTask shutdown initiated. The task will be managed by the Tokio runtime.");
+            debug!("PciAuthorizerTask shutdown initiated. The task will be managed by the Tokio runtime.");
         }
     }
 }

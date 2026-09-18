@@ -17,10 +17,10 @@
 package com.android.wm.shell.flicker.splitscreen.benchmark
 
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.filters.RequiresDevice
 import androidx.test.uiautomator.UiDevice
@@ -48,7 +48,7 @@ abstract class SwitchAppByDoubleTapDividerBenchmark(override val flicker: Flicke
                     device,
                     primaryApp,
                     secondaryApp,
-                    flicker.scenario.startRotation
+                    flicker.scenario.startRotation,
                 )
             }
             transitions {
@@ -67,16 +67,19 @@ abstract class SwitchAppByDoubleTapDividerBenchmark(override val flicker: Flicke
                 val primaryAppWindow =
                     it.wmState.visibleWindows.firstOrNull { window ->
                         primaryApp.windowMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
                 val secondaryAppWindow =
                     it.wmState.visibleWindows.firstOrNull { window ->
                         secondaryApp.windowMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
 
-                if (isLeftRightSplit(instrumentation.context, flicker.scenario.endRotation,
-                        device.displaySizeDp)) {
+                if (
+                    isLeftRightSplit(
+                        instrumentation.context,
+                        flicker.scenario.endRotation,
+                        device.displaySizeDp,
+                    )
+                ) {
                     return@add if (flicker.scenario.isTablet) {
                         secondaryAppWindow.frame.right <= primaryAppWindow.frame.left
                     } else {
@@ -100,20 +103,23 @@ abstract class SwitchAppByDoubleTapDividerBenchmark(override val flicker: Flicke
                 val primaryAppLayer =
                     it.layerState.visibleLayers.firstOrNull { window ->
                         primaryApp.layerMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
                 val secondaryAppLayer =
                     it.layerState.visibleLayers.firstOrNull { window ->
                         secondaryApp.layerMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
 
                 val primaryVisibleRegion = primaryAppLayer.visibleRegion?.bounds ?: return@add false
                 val secondaryVisibleRegion =
                     secondaryAppLayer.visibleRegion?.bounds ?: return@add false
 
-                if (isLeftRightSplit(instrumentation.context, flicker.scenario.endRotation,
-                        device.displaySizeDp)) {
+                if (
+                    isLeftRightSplit(
+                        instrumentation.context,
+                        flicker.scenario.endRotation,
+                        device.displaySizeDp,
+                    )
+                ) {
                     return@add if (flicker.scenario.isTablet) {
                         secondaryVisibleRegion.right <= primaryVisibleRegion.left
                     } else {

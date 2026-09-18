@@ -16,8 +16,6 @@
 
 package com.android.internal.view;
 
-import static android.view.flags.Flags.FLAG_SCROLL_CAPTURE_RELAX_SCROLL_VIEW_CRITERIA;
-
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import static com.android.internal.view.ScrollCaptureInternal.TYPE_FIXED;
@@ -30,7 +28,6 @@ import static org.junit.Assert.assertEquals;
 
 import android.content.Context;
 import android.graphics.Rect;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.AndroidTestingRunner;
@@ -112,7 +109,6 @@ public class ScrollCaptureInternalTest {
     }
 
     @Test
-    @EnableFlags(FLAG_SCROLL_CAPTURE_RELAX_SCROLL_VIEW_CRITERIA)
     public void testDetectScrollingType_scrolling_multipleChildren() {
         MockScrollable scrollable = new MockScrollable.Builder()
                 .bounds(0, 0, 200, 200)

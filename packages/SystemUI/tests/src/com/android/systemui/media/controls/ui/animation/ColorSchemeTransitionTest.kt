@@ -25,8 +25,8 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.media.controls.ui.view.GutsViewHolder
 import com.android.systemui.media.controls.ui.view.MediaViewHolder
 import com.android.systemui.monet.ColorScheme
-import com.android.systemui.surfaceeffects.ripple.MultiRippleController
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleController
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController
 import junit.framework.Assert.assertEquals
 import org.junit.After
 import org.junit.Before

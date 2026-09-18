@@ -16,6 +16,7 @@
 
 package com.android.systemui.display.domain.interactor
 
+import android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION
 import android.view.WindowManager.LayoutParams.TYPE_NAVIGATION_BAR
 import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR
 import android.view.layoutInflater
@@ -48,6 +49,19 @@ class DisplayWindowPropertiesInteractorImplTest : SysuiTestCase() {
         repo.insert(navBarWindowProperties)
 
         assertThat(underTest.getForStatusBar(displayId)).isEqualTo(statusBarWindowProperties)
+    }
+
+    @Test
+    fun getForBaseApplication_returnsPropertiesWithCorrectWindowType() {
+        val displayId = 123
+        val baseApplicationWindowProperties =
+            createDisplayWindowProperties(displayId, TYPE_BASE_APPLICATION)
+        val navBarWindowProperties = createDisplayWindowProperties(displayId, TYPE_NAVIGATION_BAR)
+        repo.insert(baseApplicationWindowProperties)
+        repo.insert(navBarWindowProperties)
+
+        assertThat(underTest.getForBaseApplication(displayId))
+            .isEqualTo(baseApplicationWindowProperties)
     }
 
     private fun createDisplayWindowProperties(displayId: Int, windowType: Int) =

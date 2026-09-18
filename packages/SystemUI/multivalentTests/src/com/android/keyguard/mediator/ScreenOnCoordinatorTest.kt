@@ -22,7 +22,6 @@ import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.policy.IKeyguardService.SCREEN_TURNING_ON_REASON_UNKNOWN
-import com.android.systemui.Flags
 import com.android.window.flags.Flags as WindowFlags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.shade.display.PendingDisplayChangeController
@@ -87,10 +86,7 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
             createScreenOnCoordinator(unfoldComponent = Optional.of(unfoldComponent))
     }
 
-    @EnableFlags(
-        WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH,
-        Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK
-    )
+    @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
     @Test
     fun testUnfoldTransitionEnabledDrawnTasksReady_onScreenTurningOn_callsDrawnCallback() {
         screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
@@ -104,10 +100,7 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
         verify(runnable).run()
     }
 
-    @EnableFlags(
-        WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH,
-        Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK
-    )
+    @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
     @Test
     fun testPendingDisplayChangeNotReady_onScreenTurningOn_doesNotCallDrawnCallback() {
         screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
@@ -122,7 +115,6 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
     }
 
     @DisableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
-    @EnableFlags(Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK)
     @Test
     fun testEnsureWallpaperDrawnFlagDisabled_pendingDisplayChangeNotReady_onScreenTurningOn_callsDrawnCallback() {
         screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
@@ -137,10 +129,7 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
         verify(runnable).run()
     }
 
-    @EnableFlags(
-        WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH,
-        Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK
-    )
+    @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
     @Test
     fun testTasksReady_onScreenTurningOnAndTurnedOnEventsCalledTogether_callsDrawnCallback() {
         screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
@@ -155,10 +144,7 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
         verify(runnable).run()
     }
 
-    @EnableFlags(
-        WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH,
-        Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK
-    )
+    @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
     @Test
     fun testTasksReady_onScreenTurnedOnAndTurnedOffBeforeCompletion_doesNotCallDrawnCallback() {
         screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
@@ -176,36 +162,6 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
     }
 
     @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
-    @DisableFlags(Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK)
-    @Test
-    fun testUnfoldTransitionDisabledDrawnTasksReady_onScreenTurningOn_callsDrawnCallback() {
-        // Recreate with empty unfoldComponent
-        screenOnCoordinator = createScreenOnCoordinator(unfoldComponent = Optional.empty())
-        screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
-        onPendingDisplayChangeReady()
-        waitHandlerIdle()
-
-        // Should be called when only keyguard drawn
-        verify(runnable).run()
-    }
-
-    @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
-    @DisableFlags(Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK)
-    @Test
-    fun testUnfoldTransitionDisabledDrawnTasksReady_onScreenTurningOn_usesMainHandler() {
-        // Recreate with empty unfoldComponent
-        screenOnCoordinator = createScreenOnCoordinator(unfoldComponent = Optional.empty())
-        screenOnCoordinator.onScreenTurningOn(reason = SCREEN_TURNING_ON_REASON_UNKNOWN, runnable)
-        onPendingDisplayChangeReady()
-
-        // Never called as the main handler didn't schedule it yet.
-        verify(runnable, never()).run()
-    }
-
-    @EnableFlags(
-        Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK,
-        WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH
-    )
     @Test
     fun unfoldTransitionDisabledDrawnTasksReady_onScreenTurningOn_bgCallback_callsDrawnCallback() {
         // Recreate with empty unfoldComponent
@@ -219,10 +175,7 @@ class ScreenOnCoordinatorTest : SysuiTestCase() {
         verify(runnable).run()
     }
 
-    @EnableFlags(
-        Flags.FLAG_ENABLE_BACKGROUND_KEYGUARD_ONDRAWN_CALLBACK,
-        WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH
-    )
+    @EnableFlags(WindowFlags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
     @Test
     fun unfoldTransitionDisabledDrawnTasksNotReady_onScreenTurningOn_bgCallback_doesNotCallDrawnCallback() {
         // Recreate with empty unfoldComponent

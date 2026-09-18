@@ -25,7 +25,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Trace;
 import android.util.Log;
-import android.window.TaskSnapshot;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.SomeArgs;
@@ -40,7 +39,6 @@ public class TaskStackListenerImpl extends TaskStackListener implements Handler.
     private static final String TAG = TaskStackListenerImpl.class.getSimpleName();
 
     private static final int ON_TASK_STACK_CHANGED = 1;
-    private static final int ON_TASK_SNAPSHOT_CHANGED = 2;
     private static final int ON_ACTIVITY_PINNED = 3;
     private static final int ON_ACTIVITY_RESTART_ATTEMPT = 4;
     private static final int ON_ACTIVITY_FORCED_RESIZABLE = 5;
@@ -193,16 +191,6 @@ public class TaskStackListenerImpl extends TaskStackListener implements Handler.
     }
 
     @Override
-    public void onTaskSnapshotChanged(int taskId, TaskSnapshot snapshot) {
-        if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-            // No implementation in TaskStackListenerCallback#onTaskSnapshotChanged
-            return;
-        }
-        mMainHandler.obtainMessage(ON_TASK_SNAPSHOT_CHANGED, taskId, 0, snapshot)
-                .sendToTarget();
-    }
-
-    @Override
     public void onBackPressedOnTaskRoot(ActivityManager.RunningTaskInfo taskInfo) {
         mMainHandler.obtainMessage(ON_BACK_PRESSED_ON_TASK_ROOT, taskInfo).sendToTarget();
     }
@@ -284,25 +272,6 @@ public class TaskStackListenerImpl extends TaskStackListener implements Handler.
                     Trace.beginSection("onTaskStackChanged");
                     for (int i = mTaskStackListeners.size() - 1; i >= 0; i--) {
                         mTaskStackListeners.get(i).onTaskStackChanged();
-                    }
-                    Trace.endSection();
-                    break;
-                }
-                case ON_TASK_SNAPSHOT_CHANGED: {
-                    Trace.beginSection("onTaskSnapshotChanged");
-                    final TaskSnapshot snapshot = (TaskSnapshot) msg.obj;
-                    boolean snapshotConsumed = false;
-                    for (int i = mTaskStackListeners.size() - 1; i >= 0; i--) {
-                        boolean consumed = mTaskStackListeners.get(i).onTaskSnapshotChanged(
-                                msg.arg1, snapshot);
-                        snapshotConsumed |= consumed;
-                    }
-                    if (!snapshotConsumed) {
-                        if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                            snapshot.closeBuffer();
-                        } else if (snapshot.getHardwareBuffer() != null) {
-                            snapshot.getHardwareBuffer().close();
-                        }
                     }
                     Trace.endSection();
                     break;

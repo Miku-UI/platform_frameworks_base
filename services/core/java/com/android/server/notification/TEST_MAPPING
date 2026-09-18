@@ -8,6 +8,12 @@
     },
     {
       "name": "FrameworksUiServicesZenTests"
+    },
+    {
+      "name": "FrameworksServicesTests_contextual_mode"
+    },
+    {
+      "name": "CtsContextualModeManagerTestCases"
     }
   ],
   "hsum-presubmit": [

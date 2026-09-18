@@ -16,8 +16,11 @@
 
 package com.android.systemui.screencapture.common
 
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters
-import com.android.systemui.screencapture.ui.ScreenCaptureUi
+import com.android.systemui.screencapture.domain.interactor.ScreenCaptureOverlayStateInteractor
+import com.android.systemui.screencapture.ui.ScreenCaptureOverlayUi
+import com.android.systemui.screencapture.ui.ScreenCaptureUiDialogFactory
 import dagger.BindsInstance
 import dagger.Subcomponent
 import kotlinx.coroutines.CoroutineScope
@@ -27,12 +30,28 @@ import kotlinx.coroutines.CoroutineScope
  * Capture or the UI is visible.
  */
 @ScreenCaptureScope
-@Subcomponent(modules = [ScreenCaptureUiModule::class])
+@Subcomponent(modules = [ScreenCaptureUiModule::class, ReferenceScreenCaptureCameraModule::class])
 interface ScreenCaptureComponent {
 
     @ScreenCapture fun coroutineScope(): CoroutineScope
 
-    fun screenCaptureUiFactory(): ScreenCaptureUi.Factory
+    fun screenCaptureUiDialogFactory(): ScreenCaptureUiDialogFactory
+
+    fun uiComponentBuilders():
+        Map<
+            @JvmSuppressWildcards
+            ScreenCaptureType,
+            @JvmSuppressWildcards
+            ScreenCaptureUiComponent.Builder,
+        >
+
+    fun screenCaptureOverlayStateInteractor(): ScreenCaptureOverlayStateInteractor
+
+    fun screenRecordOverlayUi(): ScreenCaptureOverlayUi
+
+    fun screenCaptureStartableSet(): Set<ScreenCaptureStartable>
+
+    fun screenCaptureReleasableSet(): Set<ScreenCaptureReleasable>
 
     /**
      * Dagger Subcomponent Builder for [ScreenCaptureComponent].

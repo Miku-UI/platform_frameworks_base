@@ -30,6 +30,7 @@ import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.view.WindowClientTransactionHandler;
 
 import java.util.Objects;
 
@@ -75,6 +76,18 @@ public class WindowStateInsetsControlChangeItem extends WindowStateTransactionIt
         // SurfaceControl.writeToParcel.
         copiedControls.setParcelableFlags(PARCELABLE_WRITE_RETURN_VALUE);
         return copiedControls;
+    }
+
+    @Override
+    public void preExecute(@NonNull WindowClientTransactionHandler client) {
+        client.updatePendingInsetsControls(mInsetsState, mActiveControls);
+    }
+
+    @Override
+    public void execute(@NonNull WindowClientTransactionHandler client) {
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "windowInsetsControlChanged");
+        client.handleInsetsControlChanged();
+        Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
     }
 
     @Override

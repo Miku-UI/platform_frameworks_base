@@ -22,6 +22,9 @@ package {
 // =====================================
 java_sdk_library {
     name: "android.test.runner",
+    defaults: [
+        "android-api-contributor-defaults",
+    ],
 
     srcs: [
         ":android-test-runner-sources",

@@ -150,7 +150,7 @@ public final class PlatformInspectableProcessor extends AbstractProcessor {
     /**
      * Get the nearest enclosing class if there is one.
      *
-     * If {@param element} represents a class, it will be returned wrapped in an optional.
+     * If {@code element} represents a class, it will be returned wrapped in an optional.
      *
      * @param element An element to search from
      * @return A TypeElement of the nearest enclosing class or an empty optional

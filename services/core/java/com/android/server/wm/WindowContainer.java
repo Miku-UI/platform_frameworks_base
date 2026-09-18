@@ -16,7 +16,8 @@
 
 package com.android.server.wm;
 
-import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.FullscreenRequestHandler.REQUEST_ALLOW_MODE_INHERIT;
+import static android.app.FullscreenRequestHandler.REQUEST_ALLOW_MODE_NONE;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_BEHIND;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSET;
@@ -37,11 +38,11 @@ import static android.internal.perfetto.protos.Windowmanagerservice.WindowContai
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowContainerProto.SURFACE_ANIMATOR;
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowContainerProto.SURFACE_CONTROL;
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowContainerProto.VISIBLE;
+import static android.internal.perfetto.protos.Windowmanagerservice.WindowContainerProto.VISIBLE_REQUESTED;
 import static android.os.UserHandle.USER_NULL;
 import static android.view.SurfaceControl.Transaction;
 import static android.view.WindowInsets.Type.InsetsType;
 import static android.view.WindowManager.LayoutParams.INVALID_WINDOW_TYPE;
-import static android.window.DesktopModeFlags.ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_ANIM;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_ORIENTATION;
@@ -57,6 +58,7 @@ import android.annotation.CallSuper;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.FullscreenRequestHandler.RequestAllowMode;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ActivityInfo.ScreenOrientation;
 import android.content.res.Configuration;
@@ -113,7 +115,7 @@ import java.util.function.Predicate;
  * changes are made to this class.
  */
 class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<E>
-        implements Comparable<WindowContainer>, Animatable {
+        implements Comparable<WindowContainer>, Animatable, Identifiable {
 
     private static final String TAG = TAG_WITH_CLASS_NAME ? "WindowContainer" : TAG_WM;
 
@@ -264,6 +266,10 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      */
     private boolean mIsTaskMoveAllowed = false;
 
+    /** The type of request allowed for this container. */
+    @RequestAllowMode
+    private int mFullscreenRequestAllowMode = REQUEST_ALLOW_MODE_NONE;
+
     /** This isn't participating in a sync. */
     public static final int SYNC_STATE_NONE = 0;
 
@@ -327,7 +333,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * @param insetsChangedWindows         The windows which the insets changed have changed for.
      */
     void updateAboveInsetsState(InsetsState aboveInsetsState,
-            SparseArray<InsetsSource> localInsetsSourcesFromParent,
+            @Nullable SparseArray<InsetsSource> localInsetsSourcesFromParent,
             ArraySet<WindowState> insetsChangedWindows) {
         final SparseArray<InsetsSource> mergedLocalInsetsSources =
                 createMergedSparseArray(localInsetsSourcesFromParent, mLocalInsetsSources);
@@ -338,9 +344,13 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
         }
     }
 
+    @Nullable
     static <T> SparseArray<T> createMergedSparseArray(SparseArray<T> sa1, SparseArray<T> sa2) {
         final int size1 = sa1 != null ? sa1.size() : 0;
         final int size2 = sa2 != null ? sa2.size() : 0;
+        if (size1 == 0 && size2 == 0) {
+            return null;
+        }
         final SparseArray<T> mergedArray = new SparseArray<>(size1 + size2);
         if (size1 > 0) {
             for (int i = 0; i < size1; i++) {
@@ -385,10 +395,13 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
             throw new IllegalArgumentException("The local insets source is using an unsupported"
                     + " source: " + provider);
         }
-        source.updateSideHint(getBounds()).setBoundingRects(provider.getBoundingRects());
-        if (ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION.isTrue()) {
-            source.setFlags(provider.getFlags());
+        source.updateSideHint(getBounds());
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            source.setBoundingRects(provider.getInsetsBoundingRects());
+        } else {
+            source.setBoundingRects(provider.getBoundingRects());
         }
+        source.setFlags(provider.getFlags());
         if (mInsetsOwnerDeathRecipientMap == null) {
             mInsetsOwnerDeathRecipientMap = new ArrayMap<>();
         }
@@ -689,7 +702,8 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
     }
 
     void setInitialSurfaceControlProperties(Builder b) {
-        setSurfaceControl(b.setCallsite("WindowContainer.setInitialSurfaceControlProperties").build());
+        setSurfaceControl(
+                b.setCallsite("WindowContainer.setInitialSurfaceControlProperties").build());
         if (showSurfaceOnCreation()) {
             getSyncTransaction().show(mSurfaceControl);
         }
@@ -733,18 +747,27 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
             t.setLayer(mSurfaceControl, mLastLayer);
         }
 
-        for (int i = 0; i < mChildren.size(); i++)  {
-            SurfaceControl sc = mChildren.get(i).getSurfaceControl();
-            if (sc != null) {
-                t.reparent(sc, mSurfaceControl);
-            }
-        }
+        migrateChildrenToNewSurfaceControl(t);
 
         if (mOverlayHost != null) {
             mOverlayHost.setParent(t, mSurfaceControl);
         }
 
         scheduleAnimation();
+    }
+
+    /** Called when {@link #mSurfaceControl} is recreated. */
+    void migrateChildrenToNewSurfaceControl(SurfaceControl.Transaction t) {
+        final boolean useSyncTransaction = t == mSyncTransaction;
+        for (int i = 0; i < mChildren.size(); i++)  {
+            final WindowContainer<?> child = mChildren.get(i);
+            final SurfaceControl sc = child.mSurfaceControl;
+            if (sc != null) {
+                final SurfaceControl.Transaction childT =
+                        useSyncTransaction ? child.getSyncTransaction() : t;
+                childT.reparent(sc, mSurfaceControl);
+            }
+        }
     }
 
     // Temp. holders for a chain of containers we are currently processing.
@@ -1042,7 +1065,10 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
         if (mParent != null) {
             mParent.onDescendantOverrideConfigurationChanged();
         }
+        dispatchBoundsChangeCallbacksIfNeeded(diff);
+    }
 
+    void dispatchBoundsChangeCallbacksIfNeeded(int diff) {
         if (diff == BOUNDS_CHANGE_NONE) {
             return;
         }
@@ -1070,7 +1096,8 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * @param dc The display this container is on after changes.
      */
     void onDisplayChanged(DisplayContent dc) {
-        if (mDisplayContent != null && mDisplayContent != dc) {
+        final boolean displayContentChanged = (mDisplayContent != dc);
+        if (mDisplayContent != null && displayContentChanged) {
             if (asWindowState() == null) {
                 mTransitionController.collect(this);
             }
@@ -1300,7 +1327,8 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
         return setVisibleRequested(newVisReq);
     }
 
-    void writeIdentifierToProto(ProtoOutputStream proto, long fieldId) {
+    @Override
+    public void writeIdentifierToProto(ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         proto.write(HASH_CODE, System.identityHashCode(this));
         proto.write(USER_ID, USER_NULL);
@@ -1653,11 +1681,6 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * TODO b/409417223 - remove this method and replace it with #matchParentBounds
      */
     boolean fillsParentBounds() {
-        if (!com.android.window.flags.Flags.refactorMatchParentBounds()) {
-            final int windowingMode = getWindowingMode();
-            return windowingMode == WINDOWING_MODE_FULLSCREEN
-                    || (windowingMode != WINDOWING_MODE_PINNED && matchParentBounds());
-        }
         return matchParentBounds();
     }
 
@@ -1668,30 +1691,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * translucent.
      */
     boolean hasFillingContent() {
-        final int childCount = getChildCount();
-        if (childCount == 0) {
-            return false;
-        }
-        for (int i = 0; i < childCount; i++) {
-            final WindowContainer<?> child = getChildAt(i);
-            if (child.fillsParentBounds() && child.hasFillingContent()) {
-                // At least one child fills this container and has content filling itself.
-                return true;
-            }
-            if (child.asTaskFragment() != null
-                    && child.asTaskFragment().hasAdjacentTaskFragment()) {
-                // There's at least one child adjacent task fragment. Consider the parent filling
-                // as long as all of the adjacent task fragments have filling content. Whether
-                // or not they fill the parent in union is not important.
-                final boolean allFillingContent = child.hasFillingContent()
-                        && !child.asTaskFragment().forOtherAdjacentTaskFragments(
-                            tf -> !tf.hasFillingContent());
-                if (allFillingContent) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return mWmService.mAtmService.mVisibilityHelper.hasFillingContent(this);
     }
 
     /** Computes LONG, SIZE and COMPAT parts of {@link Configuration#screenLayout}. */
@@ -1797,7 +1797,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * Process all activities in this branch of the tree.
      *
      * @param callback Called for each activity found.
-     * @param boundary We don't return activities via {@param callback} until we get to this node in
+     * @param boundary We don't return activities via {@code callback} until we get to this node in
      *                 the tree.
      * @param includeBoundary If the boundary from be processed to return activities.
      * @param traverseTopToBottom direction to traverse the tree.
@@ -1900,7 +1900,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * Gets an activity in a branch of the tree.
      *
      * @param callback called to test if this is the activity that should be returned.
-     * @param boundary We don't return activities via {@param callback} until we get to this node in
+     * @param boundary We don't return activities via {@code callback} until we get to this node in
      *                 the tree.
      * @param includeBoundary If the boundary from be processed to return activities.
      * @param traverseTopToBottom direction to traverse the tree.
@@ -2010,7 +2010,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
     }
 
     /**
-     * Calls the given {@param callback} for all tasks in depth-first top-down z-order at or below
+     * Calls the given {@code callback} for all tasks in depth-first top-down z-order at or below
      * this container.
      *
      * @param callback Calls the {@link ToBooleanFunction#apply} method for each task found and
@@ -2215,7 +2215,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * Gets an task in a branch of the tree.
      *
      * @param callback called to test if this is the task that should be returned.
-     * @param boundary We don't return tasks via {@param callback} until we get to this node in
+     * @param boundary We don't return tasks via {@code callback} until we get to this node in
      *                 the tree.
      * @param includeBoundary If the boundary from be processed to return tasks.
      * @param traverseTopToBottom direction to traverse the tree.
@@ -2709,13 +2709,13 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
      * @param proto     Stream to write the WindowContainer object to.
      * @param fieldId   Field Id of the WindowContainer as defined in the parent message.
      * @param logLevel  Determines the amount of data to be written to the Protobuf.
-     * @hide
      */
     @CallSuper
     @Override
     public void dumpDebug(ProtoOutputStream proto, long fieldId,
             @WindowTracingLogLevel int logLevel) {
         boolean isVisible = isVisible();
+        // Critical log level logs only visible elements to mitigate performance overheard
         if (logLevel == WindowTracingLogLevel.CRITICAL && !isVisible) {
             return;
         }
@@ -2731,6 +2731,7 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
         if (mSurfaceControl != null) {
             mSurfaceControl.dumpDebug(proto, SURFACE_CONTROL);
         }
+        proto.write(VISIBLE_REQUESTED, isVisibleRequested());
 
         // add children to proto
         for (int i = 0; i < getChildCount(); i++) {
@@ -3243,15 +3244,6 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
         }, true /* traverseTopToBottom */);
     }
 
-    // It is replaced by WindowState#getDimController().
-    @Deprecated
-    Dimmer getDimmer() {
-        if (mParent == null) {
-            return null;
-        }
-        return mParent.getDimmer();
-    }
-
     void setSurfaceControl(SurfaceControl sc) {
         mSurfaceControl = sc;
     }
@@ -3287,6 +3279,12 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
 
     /** Cheap way of doing cast and instanceof. */
     WallpaperWindowToken asWallpaperToken() {
+        return null;
+    }
+
+    /** Cheap way of doing cast and instanceof. */
+    @Nullable
+    ImeWindowToken asImeToken() {
         return null;
     }
 
@@ -3362,6 +3360,14 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
     @Nullable
     static WindowContainer fromBinder(IBinder binder) {
         return RemoteToken.fromBinder(binder).getContainer();
+    }
+
+    @NonNull
+    RemoteToken getOrCreateRemoteToken() {
+        if (mRemoteToken == null) {
+            mRemoteToken = new RemoteToken(this);
+        }
+        return mRemoteToken;
     }
 
     static class RemoteToken extends IWindowContainerToken.Stub {
@@ -3796,8 +3802,31 @@ class WindowContainer<E extends WindowContainer> extends ConfigurationContainer<
         return mIsTaskMoveAllowed;
     }
 
+    /**
+     * Sets the allow mode for fullscreen requests on this container.
+     */
+    void setFullscreenRequestAllowMode(@RequestAllowMode int allowMode) {
+        if (mFullscreenRequestAllowMode == allowMode) return;
+        mFullscreenRequestAllowMode = allowMode;
+    }
+
+    /**
+     * Returns the allow mode for fullscreen requests on this container.
+     */
+    @RequestAllowMode
+    int getFullscreenRequestAllowMode() {
+        if (mFullscreenRequestAllowMode == REQUEST_ALLOW_MODE_INHERIT) {
+            final WindowContainer parent = getParent();
+            if (parent != null) {
+                return parent.getFullscreenRequestAllowMode();
+            }
+            // Default to disallowing requests if unset and can't inherit.
+            return REQUEST_ALLOW_MODE_NONE;
+        }
+        return mFullscreenRequestAllowMode;
+    }
+
     boolean canHoldSelfMovableTasks() {
-        // Is a TaskDisplayArea or a root Task.
-        return (asTaskDisplayArea() != null) || (asTask() != null && asTask().isRootTask());
+        return asTaskDisplayArea() != null;
     }
 }

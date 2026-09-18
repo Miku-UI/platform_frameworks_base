@@ -31,7 +31,7 @@ import android.graphics.Rect
 import android.view.Display.DEFAULT_DISPLAY
 import android.window.IWindowContainerToken
 import android.window.WindowContainerToken
-import com.android.wm.shell.MockToken
+import com.android.testing.wm.util.MockToken
 import com.android.wm.shell.TestRunningTaskInfoBuilder
 import org.mockito.Mockito.mock
 
@@ -84,6 +84,22 @@ object DesktopTestHelpers {
     /** Create a task that has windowing mode set to [WINDOWING_MODE_FULLSCREEN] */
     fun createFullscreenTask(displayId: Int = DEFAULT_DISPLAY): RunningTaskInfo =
         createFullscreenTaskBuilder(displayId).build()
+
+    /**
+     * Create a task that has windowing mode set to [WINDOWING_MODE_FULLSCREEN] with a base
+     * activity.
+     */
+    fun createFullscreenTaskWithBaseActivity(
+        displayId: Int = DEFAULT_DISPLAY,
+        componentName: ComponentName = ComponentName("com.test.dummypackage", "TestClass"),
+    ): RunningTaskInfo =
+        createFullscreenTaskBuilder(displayId).build().apply { baseActivity = componentName }
+
+    /** Create a task with the desktop wallpaper activity in it. */
+    fun createDesktopWallpaperActivityTask(displayId: Int = DEFAULT_DISPLAY): RunningTaskInfo =
+        createFullscreenTaskBuilder(displayId).build().apply {
+            baseActivity = DesktopWallpaperActivity.wallpaperActivityComponent
+        }
 
     fun createRecentTaskInfo(taskId: Int, displayId: Int = DEFAULT_DISPLAY): RecentTaskInfo =
         RecentTaskInfo().apply {

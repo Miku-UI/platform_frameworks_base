@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.notification.collection.notifcollection;
 
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 
 import com.android.systemui.statusbar.notification.collection.NotifCollection;
@@ -61,6 +62,7 @@ public interface NotifLifetimeExtender {
          * Stop extending the lifetime of `entry` with `extender` and then immediately re-evaluates
          * whether to continue lifetime extending this notification or to remove it.
          */
+        @MainThread
         void onEndLifetimeExtension(
                 @NonNull NotifLifetimeExtender extender,
                 @NonNull NotificationEntry entry);

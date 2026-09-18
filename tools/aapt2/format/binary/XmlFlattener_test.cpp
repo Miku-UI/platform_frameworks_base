@@ -553,6 +553,7 @@ TEST_F(XmlFlattenerTest, ProcessFlags) {
       </LinearLayout>)");
   doc->file.uses_readwrite_feature_flags = true;
   doc->file.config.sdkVersion = SDK_BAKLAVA;
+  doc->file.config.minorVersion = 1;
 
   FlaggedXmlVersioner flagged_xml_versioner;
   auto flag_split_resources = flagged_xml_versioner.Process(context_.get(), doc.get());

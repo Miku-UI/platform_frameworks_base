@@ -16,14 +16,15 @@
 
 package com.android.systemui.screencapture.common.domain.interactor
 
+import android.os.UserHandle
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.screencapture.common.data.repository.fakeScreenCaptureAppContentRepository
-import com.android.systemui.screencapture.common.shared.model.castScreenCaptureUiParameters
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters
 
 var Kosmos.screenCaptureAppContentInteractor by
     Kosmos.Fixture {
         ScreenCaptureAppContentInteractor(
             repository = fakeScreenCaptureAppContentRepository,
-            parameters = castScreenCaptureUiParameters,
+            parameters = ScreenCaptureUiParameters.ShareScreen(UserHandle.CURRENT),
         )
     }

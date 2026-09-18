@@ -17,15 +17,18 @@
 package android.media;
 
 import static android.media.audio.Flags.FLAG_IAMF_DEFINITIONS_API;
+import static android.media.codec.Flags.FLAG_AGTM_METADATA;
 import static android.media.codec.Flags.FLAG_APV_SUPPORT;
 import static android.media.codec.Flags.FLAG_AUDIO_MIX_PRESENTATION_SUPPORT;
+import static android.media.codec.Flags.FLAG_FLIP_SUPPORT;
 import static android.media.codec.Flags.FLAG_IN_PROCESS_SW_AUDIO_CODEC;
 import static android.media.codec.Flags.FLAG_NUM_INPUT_SLOTS;
 import static android.media.codec.Flags.FLAG_REGION_OF_INTEREST;
+import static android.media.codec.Flags.FLAG_VVC_SUPPORT;
+import static android.media.codec.Flags.FLAG_TEMPORAL_LAYER_ENCODING;
 import static android.media.tv.flags.Flags.FLAG_APPLY_PICTURE_PROFILES;
 
 import static com.android.media.codec.flags.Flags.FLAG_CODEC_IMPORTANCE;
-import static com.android.media.codec.flags.Flags.FLAG_LARGE_AUDIO_FRAME;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
@@ -67,6 +70,9 @@ import java.util.stream.Collectors;
  * <tr><td>{@link #KEY_PIXEL_ASPECT_RATIO_HEIGHT}</td><td>Integer</td><td>optional, the pixel aspect ratio height</td></tr>
  * <tr><td>{@link #KEY_BIT_RATE}</td><td>Integer</td><td><b>encoder-only</b>, desired bitrate in bits/second</td></tr>
  * <tr><td>{@link #KEY_DURATION}</td><td>long</td><td>the duration of the content (in microseconds)</td></tr>
+ * <tr><td>{@link #KEY_I_FRAME_INTERVAL}</td><td>Integer (or Float)</td><td><b>encoder-only</b>,
+ *         optional for audio encoders, time-interval between key frames.
+ *         Float support added in {@link android.os.Build.VERSION_CODES#N_MR1}</td></tr>
  * </table>
  *
  * Video formats have the following keys:
@@ -79,9 +85,6 @@ import java.util.stream.Collectors;
  * <tr><td>{@link #KEY_FRAME_RATE}</td><td>Integer or Float</td><td>required for <b>encoders</b>,
  *         optional for <b>decoders</b></td></tr>
  * <tr><td>{@link #KEY_CAPTURE_RATE}</td><td>Integer</td><td></td></tr>
- * <tr><td>{@link #KEY_I_FRAME_INTERVAL}</td><td>Integer (or Float)</td><td><b>encoder-only</b>,
- *         time-interval between key frames.
- *         Float support added in {@link android.os.Build.VERSION_CODES#N_MR1}</td></tr>
  * <tr><td>{@link #KEY_INTRA_REFRESH_PERIOD}</td><td>Integer</td><td><b>encoder-only</b>, optional</td></tr>
  * <tr><td>{@link #KEY_LATENCY}</td><td>Integer</td><td><b>encoder-only</b>, optional</td></tr>
  * <tr><td>{@link #KEY_MAX_WIDTH}</td><td>Integer</td><td><b>decoder-only</b>, optional, max-resolution width</td></tr>
@@ -92,6 +95,12 @@ import java.util.stream.Collectors;
  *         to a surface only</b>, optional</td></tr>
  * <tr><td>{@link #KEY_TEMPORAL_LAYERING}</td><td>String</td><td><b>encoder only</b>, optional,
  *         temporal-layering schema</td></tr>
+ * <tr><td>{@link #KEY_VIDEO_BITRATE_LAYERING}</td><td>String</td><td><b>encoder only</b>, optional,
+ *         layering bitrate ratios </td></tr>
+ * <tr><td>{@link #KEY_TEMPORAL_LAYER_ID}</td><td>String</td><td><b>encoder only</b>, optional,
+ *         temporal layer id</td></tr>
+ * <tr><td>{@link #KEY_HORIZONTAL_FLIP}</td><td>Integer</td><td>, optional,
+ *         Set to true to horizontally flip the content</td></tr>
  * </table>
  * Specify both {@link #KEY_MAX_WIDTH} and {@link #KEY_MAX_HEIGHT} to enable
  * adaptive playback (seamless resolution change) for a video decoder that
@@ -138,7 +147,7 @@ import java.util.stream.Collectors;
  * <tr><td>{@link #KEY_BUFFER_BATCH_THRESHOLD_OUTPUT_SIZE}</td><td>Integer</td><td>optional,
  *         used with large audio frame support, specifies threshold output size in bytes.</td></tr>
  * <tr><td>{@link #KEY_AUDIO_PRESENTATION_ID}</td><td>long</td>
- *     <td><b>decoder-only</b>, optional, The ID of an AudioPresentation, MixPresentation,
+ *     <td>optional, The ID of an AudioPresentation, MixPresentation,
  *     or similar audio decoder concept.</td></tr>
  * </table>
  *
@@ -176,6 +185,8 @@ public final class MediaFormat {
     public static final String MIMETYPE_VIDEO_RAW = "video/raw";
     public static final String MIMETYPE_VIDEO_DOLBY_VISION = "video/dolby-vision";
     public static final String MIMETYPE_VIDEO_SCRAMBLED = "video/scrambled";
+    @FlaggedApi(FLAG_VVC_SUPPORT)
+    public static final String MIMETYPE_VIDEO_VVC = "video/vvc";
 
     public static final String MIMETYPE_AUDIO_AMR_NB = "audio/3gpp";
     public static final String MIMETYPE_AUDIO_AMR_WB = "audio/amr-wb";
@@ -243,6 +254,9 @@ public final class MediaFormat {
     /**
      * MIME type for AAC XHE audio stream. Uses the scheme defined by
      * RFC 6381 with OTI of MPEG-4 (40) and AOT of USAC (42) from ISO/IEC 14496-3.
+     * <p>When encoding xHE-AAC, {@link #KEY_AUDIO_PRESENTATION_ID} can be used for
+     * audio encoders to differentiate between different streams with different encoding settings,
+     * and {@link #KEY_I_FRAME_INTERVAL} can be used to specify key frames.
      */
     public static final String MIMETYPE_AUDIO_AAC_XHE = "audio/mp4a.40.42";
     /**
@@ -499,7 +513,6 @@ public final class MediaFormat {
      *
      * @see MediaCodecInfo.CodecCapabilities#FEATURE_MultipleFrames
      */
-    @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
     public static final String KEY_BUFFER_BATCH_MAX_OUTPUT_SIZE = "buffer-batch-max-output-size";
 
     /**
@@ -522,7 +535,6 @@ public final class MediaFormat {
      *
      * @see MediaCodecInfo.CodecCapabilities#FEATURE_MultipleFrames
      */
-    @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
     public static final String KEY_BUFFER_BATCH_THRESHOLD_OUTPUT_SIZE =
             "buffer-batch-threshold-output-size";
 
@@ -548,7 +560,7 @@ public final class MediaFormat {
      * A key describing the hardware AV sync id.
      * The associated value is an integer
      *
-     * @see android.media.tv.tuner.Tuner#getAvSyncHwId.
+     * @see android.media.tv.tuner.Tuner#getAvSyncHwId
      */
     public static final String KEY_HARDWARE_AV_SYNC_ID = "hw-av-sync-id";
 
@@ -742,11 +754,11 @@ public final class MediaFormat {
     /**
      * A key describing the frequency of key frames expressed in seconds between key frames.
      * <p>
-     * This key is used by video encoders.
+     * This key is used by encoders.
      * A negative value means no key frames are requested after the first frame.
      * A zero value means a stream containing all key frames is requested.
      * <p class=note>
-     * Most video encoders will convert this value of the number of non-key-frames between
+     * Most encoders will convert this value of the number of non-key-frames between
      * key-frames, using the {@linkplain #KEY_FRAME_RATE frame rate} information; therefore,
      * if the actual frame rate differs (e.g. input frames are dropped or the frame rate
      * changes), the <strong>time interval</strong> between key frames will not be the
@@ -787,11 +799,16 @@ public final class MediaFormat {
      * that applies only to video encoders.  Use {@link MediaCodec#getOutputFormat}
      * after {@link MediaCodec#configure configure} to query if the encoder supports
      * the desired schema. Supported values are {@code webrtc.vp8.N-layer},
-     * {@code android.generic.N}, {@code android.generic.N+M} and {@code none}, where
-     * {@code N} denotes the total number of non-bidirectional layers (which must be at least 1)
-     * and {@code M} denotes the total number of bidirectional layers (which must be non-negative).
+     * {@code android.generic.N}, {@code android.generic.N+M}, {@code webrtc.svc.l1tN} and
+     * {@code none}, where {@code N} denotes the total number of non-bidirectional layers (which
+     * must be at least 1) and {@code M} denotes the total number of bidirectional layers (which
+     * must be non-negative).
+     * The video encoder for {@code webrtc.svc.* } schema must produce the layer structure that is
+     * compliant with <a href="https://www.w3.org/TR/webrtc-svc">WebRTC-SVC</a>.
      * <p class=note>{@code android.generic.*} schemas have been added in {@link
      * android.os.Build.VERSION_CODES#N_MR1}.
+     * <p class=note>{@code webrtc.svc.l1t*} schemas have been added in {@link
+     * android.os.Build.VERSION_CODES#CINNAMON_BUN}.
      * <p>
      * The encoder may support fewer temporal layers, in which case the output format
      * will contain the configured schema. If the encoder does not support temporal
@@ -799,6 +816,43 @@ public final class MediaFormat {
      * The associated value is a string.
      */
     public static final String KEY_TEMPORAL_LAYERING = "ts-schema";
+
+    /**
+     * Set the bitrate distributions for temporal layering.
+     * <p>
+     * The associated value is a String in the format "ratio1;ratio2;...;ratioN", where N is the
+     * number of temporal layers - 1. Each ratio represents the bitrate allocation for the current
+     * layer and all lower layers combined, as a fraction of the total bitrate. There is no value
+     * for the highest temporal layer because it is always 1.0.
+     * <p>
+     * For example, if there are 3 temporal layers and the total bitrate is 1000kbps, a value
+     * of "0.3;0.6" would mean:
+     * <ul>
+     * <li>Layer 0 (base layer): 30% of total bitrate (300kbps)</li>
+     * <li>Layer 0 + Layer 1: 60% of total bitrate (600kbps), so Layer 1 gets 30% (300kbps)</li>
+     * <li>Layer 0 + Layer 1 + Layer 2: 100% of total bitrate (1000kbps), so Layer 2 gets 40%
+     * (400kbps)</li>
+     * </ul>
+     * <p>
+     * The ratios must be monotonically increasing.
+     *
+     * See {@link MediaCodec#setParameters}
+     */
+    @FlaggedApi(FLAG_TEMPORAL_LAYER_ENCODING)
+    public static final String KEY_VIDEO_BITRATE_LAYERING = "video-bitrate-layering";
+
+    /**
+     * A key describing the index of the temporal layer of the output buffer.
+     * This is an optional parameter that applies only to video encoders.
+     * The key is present in every output buffer only if {@link #KEY_TEMPORAL_LAYERING} is
+     * "webrtc.svc.*" and {@link #KEY_TEMPORAL_LAYER_ID} is configured at
+     * {@link MediaCodec#configure} and the encoder is producing temporal layer encoding.
+     * The associated value is an integer and 0-based. The value 0 represents the base
+     * layer and 1 is the second layer, and thus the value must be less than the number of layers
+     * specified by {@link KEY_TEMPORAL_LAYERING} configured at {@link MediaCodec#configure}.
+     */
+    @FlaggedApi(FLAG_TEMPORAL_LAYER_ENCODING)
+    public static final String KEY_TEMPORAL_LAYER_ID = "temporal-layer-id";
 
     /**
      * A key describing the stride of the video bytebuffer layout.
@@ -956,7 +1010,7 @@ public final class MediaFormat {
      * <li>1 - single rate SBR</li>
      * <li>2 - double rate SBR</li>
      * </ul>
-     * Note: If this key is not defined the default SRB mode for the desired AAC profile will
+     * Note: If this key is not defined the default SBR mode for the desired AAC profile will
      * be used.
      * <p>This key is only used during encoding.
      */
@@ -1280,11 +1334,27 @@ public final class MediaFormat {
     public static final String KEY_OUTPUT_REORDER_DEPTH = "output-reorder-depth";
 
     /**
+     * A key describing the desired horizontal flip on an output surface.
+     * This key is only used when the codec is configured using an output surface.
+     * The associated value is an integer, where non-0 means flipped.
+     * This is an optional field; if not specified, flip defaults to 0.
+     *
+     * Note that if {@link MediaFormat#KEY_ROTATION} is also set,
+     * the flip will be applied before the rotation.
+     *
+     */
+    @FlaggedApi(FLAG_FLIP_SUPPORT)
+    public static final String KEY_HORIZONTAL_FLIP = "horizontal-flip";
+
+    /**
      * A key describing the desired clockwise rotation on an output surface.
      * This key is only used when the codec is configured using an output surface.
      * The associated value is an integer, representing degrees. Supported values
      * are 0, 90, 180 or 270. This is an optional field; if not specified, rotation
      * defaults to 0.
+     *
+     * Note that if {@link MediaFormat#KEY_HORIZONTAL_FLIP} is also set,
+     * the rotation will be applied after the flip.
      *
      * @see MediaCodecInfo.CodecCapabilities#profileLevels
      */
@@ -1627,6 +1697,17 @@ public final class MediaFormat {
      * @see MediaCodec#PARAMETER_KEY_HDR10_PLUS_INFO
      */
     public static final String KEY_HDR10_PLUS_INFO = "hdr10-plus-info";
+
+    /**
+     * An optional key describing the SMPTE ST 2094-50 metadata of the video content.
+     *
+     * The associated value is a ByteBuffer containing the user_data_payload segment of
+     * an ITU-T T.35 SEI message, specifically for SMPTE ST 2094-50.
+     * The buffer's contents must conform to the syntax defined in SMPTE ST 2094-50,
+     * and must not include the initial 5-byte ITU-T T.35 header.
+     */
+    @FlaggedApi(FLAG_AGTM_METADATA)
+    public static final String KEY_HDR_ST2094_50_INFO = "hdr-st2094-50-info";
 
     /**
      * An optional key describing the opto-electronic transfer function

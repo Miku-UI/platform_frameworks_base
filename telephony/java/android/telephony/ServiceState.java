@@ -35,7 +35,6 @@ import android.telephony.NetworkRegistrationInfo.Domain;
 import android.telephony.NetworkRegistrationInfo.NRState;
 import android.text.TextUtils;
 
-import com.android.internal.telephony.flags.Flags;
 import com.android.telephony.Rlog;
 
 import java.lang.annotation.Retention;
@@ -569,22 +568,17 @@ public class ServiceState implements Parcelable {
             return DUPLEX_MODE_UNKNOWN;
         }
 
-        if (!Flags.duplexModeForNgran()) {
-            int band = AccessNetworkUtils.getOperatingBandForEarfcn(mChannelNumber);
-            return AccessNetworkUtils.getDuplexModeForEutranBand(band);
-        } else {
-            return switch (rilDataRadioTechnology) {
-                case RIL_RADIO_TECHNOLOGY_LTE, RIL_RADIO_TECHNOLOGY_LTE_CA -> {
-                    int band = AccessNetworkUtils.getOperatingBandForEarfcn(mChannelNumber);
-                    yield AccessNetworkUtils.getDuplexModeForEutranBand(band);
-                }
-                case RIL_RADIO_TECHNOLOGY_NR -> {
-                    int band = AccessNetworkUtils.getOperatingBandForNrarfcn(mChannelNumber);
-                    yield AccessNetworkUtils.getDuplexModeForNgranBandPCell(band);
-                }
-                default -> DUPLEX_MODE_UNKNOWN;
-            };
-        }
+        return switch (rilDataRadioTechnology) {
+            case RIL_RADIO_TECHNOLOGY_LTE, RIL_RADIO_TECHNOLOGY_LTE_CA -> {
+                int band = AccessNetworkUtils.getOperatingBandForEarfcn(mChannelNumber);
+                yield AccessNetworkUtils.getDuplexModeForEutranBand(band);
+            }
+            case RIL_RADIO_TECHNOLOGY_NR -> {
+                int band = AccessNetworkUtils.getOperatingBandForNrarfcn(mChannelNumber);
+                yield AccessNetworkUtils.getDuplexModeForNgranBandPCell(band);
+            }
+            default -> DUPLEX_MODE_UNKNOWN;
+        };
     }
 
     /**

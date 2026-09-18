@@ -24,6 +24,7 @@ import com.android.settingslib.mobile.MobileIconCarrierIdOverridesImpl
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.logDiffsForTable
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState.Connected
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.model.ResolvedNetworkType
@@ -307,8 +308,8 @@ class MobileIconInteractorImpl(
 
     override val isAllowedDuringAirplaneMode = connectionRepository.isAllowedDuringAirplaneMode
 
-    /** Whether or not to show the error state of [SignalDrawable] */
-    private val showExclamationMark: StateFlow<Boolean> =
+    /** Whether or not to show the error state of [SignalDrawable] for cellular connections */
+    private val showExclamationMarkForCellular: StateFlow<Boolean> =
         combine(defaultSubscriptionHasDataEnabled, isDefaultConnectionFailed, isInService) {
                 isDefaultDataEnabled,
                 isDefaultConnectionFailed,
@@ -316,6 +317,10 @@ class MobileIconInteractorImpl(
                 !isDefaultDataEnabled || isDefaultConnectionFailed || !isInService
             }
             .stateIn(scope, SharingStarted.WhileSubscribed(), true)
+
+    /** Whether or not to show the error state of [SignalDrawable] for satellite connection */
+    private val showExclamationMarkForSatellite: StateFlow<Boolean> =
+        isInService.map { !it }.stateIn(scope, SharingStarted.WhileSubscribed(), true)
 
     private val cellularShownLevel: StateFlow<Int> =
         combine(level, isInService, connectionRepository.inflateSignalStrength) {
@@ -333,14 +338,28 @@ class MobileIconInteractorImpl(
     private val satelliteShownLevel: StateFlow<Int> =
         connectionRepository.satelliteLevel.stateIn(scope, SharingStarted.WhileSubscribed(), 0)
 
-    private val cellularIcon: Flow<SignalIconModel.Cellular> =
+    private val satelliteShownLevelV2: StateFlow<Int> =
+        combine(
+                connectionRepository.satelliteLevel,
+                isInService,
+                connectionRepository.inflateSignalStrength,
+            ) { level, inService, inflate ->
+                if (inService) {
+                    if (inflate) level + 1 else level
+                } else {
+                    0
+                }
+            }
+            .stateIn(scope, SharingStarted.WhileSubscribed(), 0)
+
+    private val cellularIcon: Flow<SignalIconModel.CellularTypeIconModel.Cellular> =
         combine(
             cellularShownLevel,
             numberOfLevels,
-            showExclamationMark,
+            showExclamationMarkForCellular,
             carrierNetworkChangeActive,
         ) { cellularShownLevel, numberOfLevels, showExclamationMark, carrierNetworkChange ->
-            SignalIconModel.Cellular(
+            SignalIconModel.CellularTypeIconModel.Cellular(
                 cellularShownLevel,
                 numberOfLevels,
                 showExclamationMark,
@@ -358,18 +377,34 @@ class MobileIconInteractorImpl(
             )
         }
 
+    private val satelliteIconV2: Flow<SignalIconModel.CellularTypeIconModel.SatelliteV2> =
+        combine(satelliteShownLevelV2, numberOfLevels, showExclamationMarkForSatellite) {
+            shownLevel,
+            numberOfLevels,
+            showExclamationMark ->
+            SignalIconModel.CellularTypeIconModel.SatelliteV2(
+                shownLevel,
+                numberOfLevels,
+                showExclamationMark,
+            )
+        }
+
     override val signalLevelIcon: StateFlow<SignalIconModel> = run {
         val initial =
-            SignalIconModel.Cellular(
+            SignalIconModel.CellularTypeIconModel.Cellular(
                 cellularShownLevel.value,
                 numberOfLevels.value,
-                showExclamationMark.value,
+                showExclamationMarkForCellular.value,
                 carrierNetworkChangeActive.value,
             )
         isNonTerrestrial
             .flatMapLatest { ntn ->
                 if (ntn) {
-                    satelliteIcon
+                    if (NewSatelliteIcon.isEnabled) {
+                        satelliteIconV2
+                    } else {
+                        satelliteIcon
+                    }
                 } else {
                     cellularIcon
                 }

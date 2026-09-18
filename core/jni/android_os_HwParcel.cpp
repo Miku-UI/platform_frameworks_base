@@ -49,11 +49,13 @@ using ::android::hardware::hidl_vec;
 
 namespace android {
 
-static struct fields_t {
+namespace {
+struct fields_t {
     jfieldID contextID;
     jmethodID constructID;
 
 } gFields;
+} // namespace
 
 void signalExceptionForError(JNIEnv *env, status_t err, bool canThrowRemoteException) {
     switch (err) {

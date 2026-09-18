@@ -16,10 +16,8 @@
 
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
-import android.app.Flags
 import android.content.Intent
 import android.provider.Settings
-import android.util.Log
 import com.android.settingslib.notification.modes.ZenMode
 import com.android.systemui.animation.Expandable
 import com.android.systemui.dagger.SysUISingleton
@@ -77,27 +75,9 @@ constructor(
         // We want this toggle to work as a shortcut to DND in most cases, but it should still
         // correctly toggle the tile state to "off" as the user would expect when more modes are on.
         if (modesTileModel.activeModes.isEmpty()) {
-            if (Flags.modesUiTileReactivatesLast()) {
-                // TODO: b/405988332 - When inlining modes_ui_tile_reactivates_last, this is just
-                //   activateMode(modesTileModel.quickMode)
-                val modeToActivate = modesTileModel.quickMode
-                if (modeToActivate == null) {
-                    Log.wtf(TAG, "No quick mode to activate!?")
-                    return
-                }
-                activateMode(modeToActivate)
-            } else {
-                val dnd = zenModeInteractor.dndMode.value
-                if (dnd == null) {
-                    Log.wtf(TAG, "Triggered DND but it's null!?")
-                    return
-                }
-                activateMode(dnd)
-            }
+            activateMode(modesTileModel.quickMode)
         } else {
-            if (Flags.modesUiTileReactivatesLast()) {
-                dataInteractor.setQuickModeOverride(modesTileModel.activeModes.mapNotNull { it.id })
-            }
+            dataInteractor.setQuickModeOverride(modesTileModel.activeModes.map { it.id })
             zenModeInteractor.deactivateAllModes()
         }
     }

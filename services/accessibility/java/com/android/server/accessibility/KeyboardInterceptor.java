@@ -32,7 +32,7 @@ import com.android.server.input.InputManagerInternal;
  */
 public class KeyboardInterceptor extends BaseEventStreamTransformation implements Handler.Callback {
     private static final int MESSAGE_PROCESS_QUEUED_EVENTS = 1;
-    private static final String LOG_TAG = "KeyboardInterceptor";
+    private static final String LOG_TAG = KeyboardInterceptor.class.getSimpleName();
 
     private final AccessibilityManagerService mAms;
     private final InputManagerInternal mInputManagerInternal;

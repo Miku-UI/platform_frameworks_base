@@ -32,7 +32,6 @@ import androidx.test.uiautomator.UiScrollable
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
 import com.android.server.wm.flicker.testapp.ActivityOptions
-import java.util.regex.Pattern
 
 class StartMediaProjectionAppHelper
 @JvmOverloads
@@ -42,8 +41,6 @@ constructor(
     component: ComponentNameMatcher =
         ActivityOptions.StartMediaProjectionActivity.COMPONENT.toFlickerComponent()
 ) : StandardAppHelper(instr, launcherName, component) {
-    private val packageManager = instr.context.packageManager
-
     fun startEntireScreenMediaProjection(wmHelper: WindowManagerStateHelper) {
         clickStartMediaProjectionButton()
         chooseEntireScreenOption()
@@ -97,6 +94,18 @@ constructor(
             .waitForAndVerify()
     }
 
+    fun startMediaProjectionAppSelector(wmHelper: WindowManagerStateHelper) {
+        val mediaProjectionAppSelector =
+            ComponentNameMatcher(SYSTEMUI_PACKAGE, APP_SELECTOR_CLASS_NAME)
+
+        chooseSingleAppOption()
+        startScreenSharing()
+        wmHelper
+            .StateSyncBuilder()
+            .withWindowSurfaceAppeared(mediaProjectionAppSelector)
+            .waitForAndVerify()
+    }
+
     private fun clickStartMediaProjectionButton() {
         findObject(By.res(packageName, START_MEDIA_PROJECTION_BUTTON_ID)).also { it.click() }
     }
@@ -106,10 +115,19 @@ constructor(
     }
 
     private fun chooseEntireScreenOption() {
-        findObject(By.res(SCREEN_SHARE_OPTIONS_PATTERN)).also { it.click() }
+        findObject(By.res(SYSTEMUI_PACKAGE, SCREEN_SHARE_SPINNER_ID)).also { it.click() }
+        // Screen recording is "Record entire screen" while screen sharing is "Share entire screen"
+        findObject(By.textContains("entire screen")).also { it.click() }
+    }
 
-        val entireScreenString = getSysUiResourceString(ENTIRE_SCREEN_STRING_RES_NAME)
-        findObject(By.text(entireScreenString)).also { it.click() }
+    private fun chooseSingleAppOption() {
+        findObject(By.res(SYSTEMUI_PACKAGE, SCREEN_SHARE_SPINNER_ID)).also { it.click() }
+        // Screen recording is "Record one app" while screen sharing is "Share one app"
+        retryIfStaleObject { findObject(By.textContains("one app")).also { it.click() } }
+    }
+
+    private fun startScreenSharing() {
+        retryIfStaleObject { findObject(By.res(ACCEPT_RESOURCE_ID)).also { it.click() } }
     }
 
     private fun selectTargetApp(targetAppName: String) {
@@ -139,40 +157,21 @@ constructor(
         // Scroll to to find target app to launch then click app icon it to start capture
         val recentsTasksRecycler =
             findObject(By.res(SYSTEMUI_PACKAGE, MEDIA_PROJECTION_RECENT_TASKS))
-        recentsTasksRecycler.children[recentTasksIndex].also{ it.click() }
-    }
-
-    private fun chooseSingleAppOption() {
-        findObject(By.res(SCREEN_SHARE_OPTIONS_PATTERN)).also { it.click() }
-
-        val singleAppString = getSysUiResourceString(SINGLE_APP_STRING_RES_NAME)
-        retryIfStaleObject { findObject(By.text(singleAppString)).also { it.click() } }
-    }
-
-    private fun startScreenSharing() {
-        retryIfStaleObject { findObject(By.res(ACCEPT_RESOURCE_ID)).also { it.click() } }
+        recentsTasksRecycler.children[recentTasksIndex].also { it.click() }
     }
 
     private fun findObject(selector: BySelector): UiObject2 =
         uiDevice.wait(Until.findObject(selector), TIMEOUT) ?: error("Can't find object $selector")
 
-    private fun getSysUiResourceString(resName: String): String =
-        with(packageManager.getResourcesForApplication(SYSTEMUI_PACKAGE)) {
-            getString(getIdentifier(resName, "string", SYSTEMUI_PACKAGE))
-        }
-
-    companion object {
+    private companion object {
         const val TAG: String = "StartMediaProjectionAppHelper"
         const val TIMEOUT: Long = 5000L
         const val ACCEPT_RESOURCE_ID: String = "android:id/button1"
         const val START_MEDIA_PROJECTION_BUTTON_ID: String = "button_start_mp"
         const val START_MEDIA_PROJECTION_NEW_INTENT_BUTTON_ID: String = "button_start_mp_new_intent"
-        val SCREEN_SHARE_OPTIONS_PATTERN: Pattern =
-            Pattern.compile("$SYSTEMUI_PACKAGE:id/screen_share_mode_(options|spinner)")
+        const val SCREEN_SHARE_SPINNER_ID: String = "screen_share_mode_options"
         const val MEDIA_PROJECTION_RECENT_TASKS: String = "media_projection_recent_tasks_recycler"
-        const val ENTIRE_SCREEN_STRING_RES_NAME: String =
-            "screen_share_permission_dialog_option_entire_screen"
-        const val SINGLE_APP_STRING_RES_NAME: String =
-            "screen_share_permission_dialog_option_single_app"
+        const val APP_SELECTOR_CLASS_NAME: String =
+            "com.android.systemui.mediaprojection.appselector.MediaProjectionAppSelectorActivity"
     }
 }

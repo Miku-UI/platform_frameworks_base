@@ -21,14 +21,13 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.util.Log
 
-/**
- * Checks if an intent is resizable to display in a bubble.
- */
+/** Checks if an intent is resizable to display in a bubble. */
 class BubbleResizabilityChecker : ResizabilityChecker {
 
     override fun isResizableActivity(
         intent: Intent?,
-        packageManager: PackageManager, key: String
+        packageManager: PackageManager,
+        key: String,
     ): Boolean {
         if (intent == null) {
             Log.w(TAG, "Unable to send as bubble: $key null intent")
@@ -37,15 +36,21 @@ class BubbleResizabilityChecker : ResizabilityChecker {
         val info = intent.resolveActivityInfo(packageManager, 0)
         if (info == null) {
             Log.w(
-                TAG, ("Unable to send as bubble: " + key
-                        + " couldn't find activity info for intent: " + intent)
+                TAG,
+                ("Unable to send as bubble: " +
+                    key +
+                    " couldn't find activity info for intent: " +
+                    intent),
             )
             return false
         }
         if (!ActivityInfo.isResizeableMode(info.resizeMode)) {
             Log.w(
-                TAG, ("Unable to send as bubble: " + key
-                        + " activity is not resizable for intent: " + intent)
+                TAG,
+                ("Unable to send as bubble: " +
+                    key +
+                    " activity is not resizable for intent: " +
+                    intent),
             )
             return false
         }

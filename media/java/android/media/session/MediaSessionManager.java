@@ -16,6 +16,7 @@
 
 package android.media.session;
 
+import android.Manifest;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
@@ -137,22 +138,39 @@ public final class MediaSessionManager {
 
     /**
      * Create a new session in the system and get the binder for it.
+     * <p>
+     * Requires {@link android.Manifest.permission#OVERRIDE_MEDIA_SESSION_OWNER} if the
+     * {@code overridePackageName} is non-null and is different from
+     * {@link Context#getPackageName()}.
+     * </p>
      *
      * @param tag A short name for debugging purposes.
      * @param sessionInfo A bundle for additional information about this session.
+     * @param overridePackageName The package name override for the session.
      * @return The binder object from the system
      * @hide
      */
     @NonNull
-    public ISession createSession(@NonNull MediaSession.CallbackStub cbStub, @NonNull String tag,
-            @Nullable Bundle sessionInfo) {
+    @RequiresPermission(
+            value = android.Manifest.permission.OVERRIDE_MEDIA_SESSION_OWNER,
+            conditional = true)
+    public ISession createSession(
+            @NonNull MediaSession.CallbackStub cbStub,
+            @NonNull String tag,
+            @Nullable Bundle sessionInfo,
+            @Nullable String overridePackageName) {
         Objects.requireNonNull(cbStub, "cbStub shouldn't be null");
         Objects.requireNonNull(tag, "tag shouldn't be null");
         try {
-            return mService.createSession(mContext.getPackageName(), cbStub, tag, sessionInfo,
+            return mService.createSession(
+                    mContext.getPackageName(),
+                    overridePackageName,
+                    cbStub,
+                    tag,
+                    sessionInfo,
                     UserHandle.myUserId());
         } catch (RemoteException e) {
-            throw new RuntimeException(e);
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -188,7 +206,72 @@ public final class MediaSessionManager {
      */
     public @NonNull List<MediaController> getActiveSessions(
             @Nullable ComponentName notificationListener) {
-        return getActiveSessionsForUser(notificationListener, UserHandle.myUserId());
+        return getActiveControllersForUser(notificationListener, UserHandle.myUserId());
+    }
+
+    /**
+     * Get a list of {@link MediaSession.Token} for all active sessions for the {@code packageName}.
+     * The tokens will be provided in priority order with the most important controller at index 0.
+     *
+     * <p>
+     * If the {@code packageName} is provided and is different from {@link
+     * Context#getPackageName()}, this requires the {@link
+     * android.Manifest.permission#MEDIA_CONTENT_CONTROL} permission be held by the calling app.
+     * </p>
+     *
+     * @param packageName Package name of the application for which tokens should be fetched.
+     * @return A list of {@link MediaSession.Token} for active sessions of the calling application.
+     */
+    @FlaggedApi(Flags.FLAG_FETCH_MEDIA_CONTROLLERS_FOR_APP)
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    public @NonNull List<MediaSession.Token> getActiveSessionsForPackage(
+            @NonNull String packageName) {
+        Objects.requireNonNull(packageName, "packageName shouldn't be null");
+        List<MediaSession.Token> activeSessions = new ArrayList<>();
+        try {
+            activeSessions =
+                    getActiveSessionsForUser(
+                            /* notificationListener= */ null,
+                            UserHandle.myUserId(),
+                            packageName);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to get active sessions for package " + packageName, e);
+            e.rethrowFromSystemServer();
+        }
+        return activeSessions;
+    }
+
+    /**
+     * Get a list of {@link MediaSession.Token} for all active sessions for the {@code packageName}.
+     * The tokens will be provided in priority order with the most important controller at index 0.
+     *
+     * <p>If the {@code packageName} is provided and is different from {@link
+     * Context#getPackageName()}, this requires the {@link
+     * android.Manifest.permission#MEDIA_CONTENT_CONTROL} permission be held by the calling app. You
+     * may also retrieve this list if your app is an enabled notification listener using the {@link
+     * NotificationListenerService} APIs, in which case you must pass the {@link ComponentName} of
+     * your enabled listener. If none of them applies, it will throw a {@link SecurityException}.
+     * </p>
+     *
+     * @param packageName Package name of the application for which tokens should be fetched.
+     * @param notificationListener The enabled notification listener component. May be null.
+     * @return A list of controllers for active sessions of the calling application.
+     */
+    @FlaggedApi(Flags.FLAG_FETCH_MEDIA_CONTROLLERS_FOR_APP)
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    public @NonNull List<MediaSession.Token> getActiveSessionsForPackage(
+            @NonNull String packageName, @Nullable ComponentName notificationListener) {
+        Objects.requireNonNull(packageName, "packageName shouldn't be null");
+        List<MediaSession.Token> activeSessions = new ArrayList<>();
+        try {
+            activeSessions =
+                    getActiveSessionsForUser(
+                            notificationListener, UserHandle.myUserId(), packageName);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to get active sessions for package " + packageName, e);
+            e.rethrowFromSystemServer();
+        }
+        return activeSessions;
     }
 
     /**
@@ -259,15 +342,24 @@ public final class MediaSessionManager {
     public @NonNull List<MediaController> getActiveSessionsForUser(
             @Nullable ComponentName notificationListener, @NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle, "userHandle shouldn't be null");
-        return getActiveSessionsForUser(notificationListener, userHandle.getIdentifier());
+        return getActiveControllersForUser(notificationListener, userHandle.getIdentifier());
     }
 
-    private List<MediaController> getActiveSessionsForUser(ComponentName notificationListener,
-            int userId) {
-        ArrayList<MediaController> controllers = new ArrayList<MediaController>();
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    private List<MediaSession.Token> getActiveSessionsForUser(
+            ComponentName notificationListener, int userId, String packageNameFilter)
+            throws RemoteException {
+        return mService.getSessions(notificationListener, userId, packageNameFilter);
+    }
+
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    private List<MediaController> getActiveControllersForUser(
+            ComponentName notificationListener, int userId) {
+        List<MediaController> controllers = new ArrayList<>();
         try {
-            List<MediaSession.Token> tokens = mService.getSessions(notificationListener,
-                    userId);
+            List<MediaSession.Token> tokens =
+                    getActiveSessionsForUser(
+                            notificationListener, userId, /* packageNameFilter= */ null);
             int size = tokens.size();
             for (int i = 0; i < size; i++) {
                 MediaController controller = new MediaController(mContext, tokens.get(i));
@@ -315,7 +407,8 @@ public final class MediaSessionManager {
     public void addOnActiveSessionsChangedListener(
             @NonNull OnActiveSessionsChangedListener sessionListener,
             @Nullable ComponentName notificationListener) {
-        addOnActiveSessionsChangedListener(sessionListener, notificationListener, null);
+        addOnActiveSessionsChangedListener(
+                sessionListener, notificationListener, /* handler= */ null);
     }
 
     /**
@@ -334,8 +427,104 @@ public final class MediaSessionManager {
     public void addOnActiveSessionsChangedListener(
             @NonNull OnActiveSessionsChangedListener sessionListener,
             @Nullable ComponentName notificationListener, @Nullable Handler handler) {
-        addOnActiveSessionsChangedListener(sessionListener, notificationListener,
-                UserHandle.myUserId(), handler == null ? null : new HandlerExecutor(handler));
+        try {
+            addOnActiveSessionsChangedListenerInternal(
+                    sessionListener,
+                    notificationListener,
+                    UserHandle.myUserId(),
+                    handler == null ? null : new HandlerExecutor(handler),
+                    /* packageNameFilter= */ null);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error in addOnActiveSessionsChangedListener.", e);
+        }
+    }
+
+    /**
+     * Add a listener to be notified when the list of active sessions changes for the {@code
+     * packageName}, as returned by {@link #getActiveSessionsForPackage}. The
+     * registered listener can be removed by calling {@link
+     * #removeOnActiveSessionsForPackageChangedListener}.
+     *
+     * <p>
+     * If the {@code packageName} is different from the {@link Context#getPackageName()}, it
+     * requires the {@link android.Manifest.permission#MEDIA_CONTENT_CONTROL} permission be held by
+     * the calling app.
+     * </p>
+     *
+     * @param packageName The package name filter to be applied for the listener.
+     * @param executor The executor to be used for sending events to listener.
+     * @param sessionListener The listener to add.
+     */
+    @FlaggedApi(Flags.FLAG_FETCH_MEDIA_CONTROLLERS_FOR_APP)
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    public void addOnActiveSessionsForPackageChangedListener(
+            @NonNull String packageName,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull OnActiveSessionsChangedListener sessionListener) {
+        Objects.requireNonNull(packageName, "packageName shouldn't be null");
+        Objects.requireNonNull(executor, "executor shouldn't be null");
+        Objects.requireNonNull(sessionListener, "sessionListener shouldn't be null");
+        try {
+            addOnActiveSessionsChangedListenerInternal(
+                    sessionListener,
+                    /* notificationListener= */ null,
+                    UserHandle.myUserId(),
+                    executor,
+                    packageName);
+        } catch (RemoteException e) {
+            Log.e(
+                    TAG,
+                    "Error in addOnActiveSessionsForPackageChangedListener for package "
+                            + packageName,
+                    e);
+            e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Add a listener to be notified when the list of active controllers changes for the {@code
+     * packageName}, as returned by {@link #getActiveSessionsForPackage}. The
+     * registered listener can be removed by calling {@link
+     * #removeOnActiveSessionsForPackageChangedListener}.
+     *
+     * <p>
+     * If the {@code packageName} is different from the {@link Context#getPackageName()}, it
+     * requires the {@link android.Manifest.permission#MEDIA_CONTENT_CONTROL} permission be held by
+     * the calling app. You may also attach a listener if your app is an enabled notification
+     * listener using the {@link NotificationListenerService} APIs, in which case you must pass the
+     * {@link ComponentName} of your enabled listener.
+     * </p>
+     *
+     * @param packageName The package name filter to be applied for the listener.
+     * @param executor The executor to be used for sending events to listener.
+     * @param notificationListener The enabled notification listener component. May be null.
+     * @param sessionListener The listener to add.
+     */
+    @FlaggedApi(Flags.FLAG_FETCH_MEDIA_CONTROLLERS_FOR_APP)
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    public void addOnActiveSessionsForPackageChangedListener(
+            @NonNull String packageName,
+            @NonNull @CallbackExecutor Executor executor,
+            @Nullable ComponentName notificationListener,
+            @NonNull OnActiveSessionsChangedListener sessionListener) {
+        Objects.requireNonNull(packageName, "packageName shouldn't be null");
+        Objects.requireNonNull(executor, "executor shouldn't be null");
+        Objects.requireNonNull(sessionListener, "sessionListener shouldn't be null");
+        try {
+            addOnActiveSessionsChangedListenerInternal(
+                    sessionListener,
+                    notificationListener,
+                    UserHandle.myUserId(),
+                    executor,
+                    packageName);
+        } catch (RemoteException e) {
+            Log.e(
+                    TAG,
+                    "Error in addOnActiveSessionsForPackageChangedListener for package "
+                            + packageName,
+                    e);
+            e.rethrowFromSystemServer();
+        }
     }
 
     /**
@@ -365,14 +554,26 @@ public final class MediaSessionManager {
             @NonNull OnActiveSessionsChangedListener sessionListener) {
         Objects.requireNonNull(userHandle, "userHandle shouldn't be null");
         Objects.requireNonNull(executor, "executor shouldn't be null");
-        addOnActiveSessionsChangedListener(sessionListener, notificationListener,
-                userHandle.getIdentifier(), executor);
+        try {
+            addOnActiveSessionsChangedListenerInternal(
+                    sessionListener,
+                    notificationListener,
+                    userHandle.getIdentifier(),
+                    executor,
+                    /* packageNameFilter= */ null);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error in addOnActiveSessionsChangedListener", e);
+        }
     }
 
-    private void addOnActiveSessionsChangedListener(
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    private void addOnActiveSessionsChangedListenerInternal(
             @NonNull OnActiveSessionsChangedListener sessionListener,
-            @Nullable ComponentName notificationListener, int userId,
-            @Nullable Executor executor) {
+            @Nullable ComponentName notificationListener,
+            int userId,
+            @Nullable Executor executor,
+            @Nullable String packageNameFilter)
+            throws RemoteException {
         Objects.requireNonNull(sessionListener, "sessionListener shouldn't be null");
         if (executor == null) {
             executor = new HandlerExecutor(new Handler());
@@ -385,12 +586,9 @@ public final class MediaSessionManager {
             }
             SessionsChangedWrapper wrapper = new SessionsChangedWrapper(mContext, sessionListener,
                     executor);
-            try {
-                mService.addSessionsListener(wrapper.mStub, notificationListener, userId);
+            mService.addSessionsListener(
+                    wrapper.mStub, notificationListener, userId, packageNameFilter);
                 mListeners.put(sessionListener, wrapper);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Error in addOnActiveSessionsChangedListener.", e);
-            }
         }
     }
 
@@ -401,14 +599,44 @@ public final class MediaSessionManager {
      */
     public void removeOnActiveSessionsChangedListener(
             @NonNull OnActiveSessionsChangedListener sessionListener) {
+        try {
+            removeSessionsListenerInternal(
+                    sessionListener, /* isListenerForPackageFilter= */ false);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error in removeOnActiveSessionsChangedListener.", e);
+        }
+    }
+
+    /**
+     * Stop receiving active sessions updates on the specified listener for package.
+     *
+     * @param sessionListener The listener to remove.
+     */
+    @FlaggedApi(Flags.FLAG_FETCH_MEDIA_CONTROLLERS_FOR_APP)
+    public void removeOnActiveSessionsForPackageChangedListener(
+            @NonNull OnActiveSessionsChangedListener sessionListener) {
+        try {
+            removeSessionsListenerInternal(sessionListener, /* isListenerForPackageFilter= */ true);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error in removeOnActiveSessionsChangedListener.", e);
+            e.rethrowFromSystemServer();
+        }
+    }
+
+    private void removeSessionsListenerInternal(
+            @NonNull OnActiveSessionsChangedListener sessionListener,
+            boolean isListenerForPackageFilter)
+            throws RemoteException {
         Objects.requireNonNull(sessionListener, "sessionListener shouldn't be null");
         synchronized (mLock) {
             SessionsChangedWrapper wrapper = mListeners.remove(sessionListener);
             if (wrapper != null) {
                 try {
-                    mService.removeSessionsListener(wrapper.mStub);
-                } catch (RemoteException e) {
-                    Log.e(TAG, "Error in removeOnActiveSessionsChangedListener.", e);
+                    if (isListenerForPackageFilter) {
+                        mService.removeSessionsListenerForPackage(wrapper.mStub);
+                    } else {
+                        mService.removeSessionsListener(wrapper.mStub);
+                    }
                 } finally {
                     wrapper.release();
                 }
@@ -1062,8 +1290,9 @@ public final class MediaSessionManager {
     }
 
     /**
-     * Listens for changes to the list of active sessions. This can be added
-     * using {@link #addOnActiveSessionsChangedListener}.
+     * Listens for changes to the list of active sessions. This can be added using {@link
+     * #addOnActiveSessionsChangedListener} or {@link
+     * #addOnActiveSessionsForPackageChangedListener}.
      */
     public interface OnActiveSessionsChangedListener {
         public void onActiveSessionsChanged(@Nullable List<MediaController> controllers);

@@ -25,13 +25,14 @@ package {
 java_defaults {
     name: "platform_app_defaults",
     errorprone: {
+        enabled: true,
         extra_check_modules: ["error_prone_android_framework"],
         javacflags: [
             // We're less worried about performance in app code
             "-Xep:AndroidFrameworkEfficientCollections:OFF",
-            "-Xep:AndroidFrameworkEfficientParcelable:OFF",
+            "-Xep:AndroidFrameworkEfficientParcelable:ERROR",
             "-Xep:AndroidFrameworkEfficientStrings:OFF",
-            "-Xep:AndroidFrameworkEfficientXml:OFF",
+            "-Xep:AndroidFrameworkEfficientXml:ERROR",
         ],
     },
 }

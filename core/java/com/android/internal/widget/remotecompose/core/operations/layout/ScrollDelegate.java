@@ -15,6 +15,10 @@
  */
 package com.android.internal.widget.remotecompose.core.operations.layout;
 
+import android.annotation.NonNull;
+
+import com.android.internal.widget.remotecompose.core.PaintContext;
+
 /**
  * Represent scroll delegates components.
  *
@@ -55,4 +59,21 @@ public interface ScrollDelegate {
 
     /** Reset the delegate (e.g. the content of the component has changed) */
     void reset();
+
+    /**
+     * Apply an edge effect
+     * @param context
+     * @param component
+     */
+    void applyEdgeEffect(@NonNull PaintContext context, @NonNull Component component, int phase);
+
+    /**
+     * Return current content width
+     */
+    float contentWidth();
+
+    /**
+     * Return current content height
+     */
+    float contentHeight();
 }

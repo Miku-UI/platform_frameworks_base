@@ -24,7 +24,7 @@
         android:layout_weight="1"
         android:layout_gravity="start|center_vertical"
         android:textSize="18sp"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="@color/materialColorOnSurface"
         android:lineHeight="24sp"
         />
 
@@ -38,8 +38,8 @@
             android:layout_height="24dp"
             android:layout_gravity="center"
             android:background="@drawable/circular_background"
-            android:backgroundTint="@androidprv:color/materialColorSurfaceContainerHigh"
-            android:tint="@androidprv:color/materialColorOnSurface"
+            android:backgroundTint="@color/materialColorSurfaceContainerHigh"
+            android:tint="@color/materialColorOnSurface"
             android:padding="2dp"
             android:src="@drawable/ic_close"/>
     </FrameLayout>

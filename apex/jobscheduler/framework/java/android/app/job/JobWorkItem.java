@@ -44,6 +44,8 @@ import android.os.PersistableBundle;
  * {@link Builder#setExtras(PersistableBundle)} for any information that needs to be persisted.
  */
 final public class JobWorkItem implements Parcelable {
+    /** @hide */
+    public static final int SIZE_BYTES_UNKNOWN = -1;
     @NonNull
     private final PersistableBundle mExtras;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
@@ -57,6 +59,15 @@ final public class JobWorkItem implements Parcelable {
     int mWorkId;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     Object mGrants;
+
+    /**
+     * A size estimate of this JobWorkItem based on the parcel size on unparcel.
+     * <p>
+     * If this value is negative, it is because this object was created in process and has not
+     * been built from a parcel.
+     * @hide
+     */
+    private int mEstimatedSizeBytes = SIZE_BYTES_UNKNOWN;
 
     /**
      * Create a new piece of work, which can be submitted to
@@ -129,6 +140,7 @@ final public class JobWorkItem implements Parcelable {
         mNetworkDownloadBytes = builder.mNetworkDownloadBytes;
         mNetworkUploadBytes = builder.mNetworkUploadBytes;
         mMinimumChunkBytes = builder.mMinimumNetworkChunkBytes;
+        mEstimatedSizeBytes = builder.mEstimatedSizeBytes;
     }
 
     /**
@@ -264,6 +276,7 @@ final public class JobWorkItem implements Parcelable {
         private long mNetworkDownloadBytes = NETWORK_BYTES_UNKNOWN;
         private long mNetworkUploadBytes = NETWORK_BYTES_UNKNOWN;
         private long mMinimumNetworkChunkBytes = NETWORK_BYTES_UNKNOWN;
+        private int mEstimatedSizeBytes = SIZE_BYTES_UNKNOWN;
 
         /**
          * Initialize a new Builder to construct a {@link JobWorkItem} object.
@@ -371,6 +384,17 @@ final public class JobWorkItem implements Parcelable {
             return this;
         }
 
+
+        /**
+         * Set the estimated size of this JobWorkItem.
+         * @hide
+         */
+        @NonNull
+        public Builder setEstimatedSizeBytes(int estimatedSizeBytes) {
+            mEstimatedSizeBytes = estimatedSizeBytes;
+            return this;
+        }
+
         /**
          * @return The JobWorkItem object to hand to the JobScheduler. This object is immutable.
          */
@@ -420,6 +444,18 @@ final public class JobWorkItem implements Parcelable {
         }
     }
 
+    /**
+     * Returns a rough size estimate of this JobWorkItem, if available. The value is derived from
+     * the source parcel of this object, so will not be true representation of this object's
+     * impact on memory and will not be available if this object came from within the current
+     * process.
+     * If the estimate is unavailable, then the returned value will be negative.
+     * @hide
+     */
+    public int getEstimatedSizeBytes() {
+        return mEstimatedSizeBytes;
+    }
+
     public int describeContents() {
         return 0;
     }
@@ -452,6 +488,7 @@ final public class JobWorkItem implements Parcelable {
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     JobWorkItem(Parcel in) {
+        final int startPos = in.dataPosition();
         if (in.readInt() != 0) {
             mIntent = Intent.CREATOR.createFromParcel(in);
         } else {
@@ -464,5 +501,6 @@ final public class JobWorkItem implements Parcelable {
         mMinimumChunkBytes = in.readLong();
         mDeliveryCount = in.readInt();
         mWorkId = in.readInt();
+        mEstimatedSizeBytes = in.dataPosition() - startPos;
     }
 }

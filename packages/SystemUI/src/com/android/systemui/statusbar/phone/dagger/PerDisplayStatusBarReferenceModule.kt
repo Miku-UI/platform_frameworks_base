@@ -16,15 +16,26 @@
 
 package com.android.systemui.statusbar.phone.dagger
 
+import android.content.Context
+import com.android.systemui.Flags
+import com.android.systemui.dagger.qualifiers.Default
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
-import com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAwareStatusBar
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
+import com.android.systemui.statusbar.events.SystemStatusAnimationScheduler
+import com.android.systemui.statusbar.gesture.StatusBarLongPressGestureDetector
 import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarComponent
+import com.android.systemui.statusbar.phone.ongoingcall.domain.interactor.OngoingCallStatusBarInteractor
 import com.android.systemui.statusbar.pipeline.shared.ui.binder.HomeStatusBarViewBinder
 import com.android.systemui.statusbar.pipeline.shared.ui.binder.HomeStatusBarViewBinderImpl
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.HomeStatusBarViewModel.HomeStatusBarViewModelFactory
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.HomeStatusBarViewModelImpl.HomeStatusBarViewModelFactoryImpl
 import dagger.Binds
+import dagger.Lazy
 import dagger.Module
+import dagger.Provides
+import dagger.multibindings.IntoSet
 
 @Module(subcomponents = [HomeStatusBarComponent::class])
 interface PerDisplayStatusBarReferenceModule {
@@ -37,10 +48,6 @@ interface PerDisplayStatusBarReferenceModule {
 
     @Binds
     @DisplayAware
-    fun statusBarFragmentProvider(fragment: CollapsedStatusBarFragment): CollapsedStatusBarFragment
-
-    @Binds
-    @DisplayAware
     fun homeStatusBarViewModelFactory(
         impl: HomeStatusBarViewModelFactoryImpl
     ): HomeStatusBarViewModelFactory
@@ -48,4 +55,36 @@ interface PerDisplayStatusBarReferenceModule {
     @Binds
     @DisplayAware
     fun homeStatusBarViewBinder(impl: HomeStatusBarViewBinderImpl): HomeStatusBarViewBinder
+
+    @Binds
+    @IntoSet
+    @DisplayAware
+    fun ongoingCallStatusBarInteractorAsLifecycleListener(
+        interactor: OngoingCallStatusBarInteractor
+    ): SystemUIDisplaySubcomponent.LifecycleListener
+
+    @Binds
+    @IntoSet
+    @DisplayAware
+    fun systemStatusSchedulerAsLifecycleListener(
+        @DisplayAware scheduler: SystemStatusAnimationScheduler
+    ): SystemUIDisplaySubcomponent.LifecycleListener
+
+    companion object {
+
+        @Provides
+        @DisplayAware
+        @PerDisplaySingleton
+        fun statusBarLongPressGestureDetector(
+            @DisplayAwareStatusBar context: Context,
+            detectorFactory: StatusBarLongPressGestureDetector.Factory,
+            @Default defaultDetectorLazy: Lazy<StatusBarLongPressGestureDetector>,
+        ): StatusBarLongPressGestureDetector {
+            return if (Flags.statusBarLongPressGestureDetectorPerDisplay()) {
+                detectorFactory.create(context)
+            } else {
+                defaultDetectorLazy.get()
+            }
+        }
+    }
 }

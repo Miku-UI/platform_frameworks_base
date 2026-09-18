@@ -158,6 +158,10 @@
     <string name="wfc_mode_wifi_preferred_summary" msgid="1035175836270943089">"Ring via Wifi"</string>
     <string name="wfc_mode_cellular_preferred_summary" msgid="4958965609212575619">"Ring over mobilnettverk"</string>
     <string name="wfc_mode_wifi_only_summary" msgid="104951993894678665">"Bare wifi"</string>
+    <string name="adaptive_low_frequency_less_than_one_minute" msgid="8869498183646028708">"~ %s"</string>
+    <string name="adaptive_low_frequency_neg_less_than_one_minute" msgid="2590062535985417056">"~ −%s"</string>
+    <string name="elapsed_time_low_frequency_short_format_h_mm" msgid="6728141238066668781">"%1$d:%2$02d:--"</string>
+    <string name="elapsed_time_low_frequency_short_format_mm" msgid="2405181895215514414">"%1$02d:--"</string>
     <!-- no translation found for crossSimFormat_spn (9125246077491634262) -->
     <skip />
     <string name="crossSimFormat_spn_cross_sim_calling" msgid="5620807020002879057">"<xliff:g id="SPN">%s</xliff:g>-reserve for anrop"</string>
@@ -278,6 +282,7 @@
     <string name="global_action_restart" msgid="4678451019561687074">"Start på nytt"</string>
     <string name="global_action_emergency" msgid="1387617624177105088">"Nødssituasjon"</string>
     <string name="global_action_bug_report" msgid="5127867163044170003">"Feilrapport"</string>
+    <string name="global_action_feedback" msgid="3480836834202300036">"Tilbakemelding"</string>
     <string name="global_action_logout" msgid="6093581310002476511">"Avslutt økten"</string>
     <string name="global_action_screenshot" msgid="2610053466156478564">"Skjermbilde"</string>
     <string name="global_action_standby" msgid="6786920589970257642">"Ventemodus"</string>
@@ -326,6 +331,7 @@
     <string name="notification_channel_accessibility_hearing_device" msgid="7816963856388758952">"Høreapparat"</string>
     <string name="notification_channel_accessibility_security_policy" msgid="1727787021725251912">"Bruk av Tilgjengelighet"</string>
     <string name="notification_channel_display" msgid="6905032605735615090">"Skjerm"</string>
+    <string name="notification_channel_parental_controls" msgid="2963963315750128538">"Foreldrekontroll"</string>
     <string name="foreground_service_app_in_background" msgid="1439289699671273555">"<xliff:g id="APP_NAME">%1$s</xliff:g> bruker batteri"</string>
     <string name="foreground_service_apps_in_background" msgid="7340037176412387863">"<xliff:g id="NUMBER">%1$d</xliff:g> apper bruker batteri"</string>
     <string name="foreground_service_tap_for_details" msgid="9078123626015586751">"Trykk for detaljer om batteri- og databruk"</string>
@@ -339,7 +345,7 @@
     <string name="permgrouplab_contacts" msgid="7443702399615347952">"Kontakter og kontoer"</string>
     <string name="permgroupdesc_contacts" msgid="2001771388402758264">"åpne kontaktene dine og se listen over kontoene dine som kan lagre kontakter på denne enheten"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Posisjon"</string>
-    <string name="permgroupdesc_location" msgid="1995955142118450685">"få tilgang til enhetens plassering"</string>
+    <string name="permgroupdesc_location" msgid="1995955142118450685">"se enhetens posisjon"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Kalender"</string>
     <string name="permgroupdesc_calendar" msgid="6762751063361489379">"åpne kalenderen din"</string>
     <string name="permgrouplab_sms" msgid="795737735126084874">"SMS"</string>
@@ -548,6 +554,8 @@
     <string name="permdesc_backgroundCamera" msgid="1615291686191138250">"Denne appen kan når som helst ta bilder og spille inn videoer med kameraet."</string>
     <string name="permlab_systemCamera" msgid="3642917457796210580">"Gi en app eller tjeneste tilgang til systemkameraene for å ta bilder og spille inn videoer"</string>
     <string name="permdesc_systemCamera" msgid="5938360914419175986">"Denne privilegerte appen eller systemappen kan når som helst ta bilder og spille inn videoer med et systemkamera. Dette krever at appen også har tillatelsen android.permission.CAMERA"</string>
+    <string name="permlab_warmUpCamera" msgid="6135692056406854923">"Tillat at en app eller tjeneste sender et oppvarmingssignal til kameraundersystemet"</string>
+    <string name="permdesc_warmUpCamera" msgid="925343364567764736">"Denne privilegerte appen eller systemappen kan sende et signal til kameraundersystemet for å varme opp en kameraenhet for å bidra til bedre ytelse og andre fordeler"</string>
     <string name="permlab_cameraOpenCloseListener" msgid="5548732769068109315">"Tillat at en app eller tjeneste mottar tilbakekallinger om kameraenheter som åpnes eller lukkes."</string>
     <string name="permdesc_cameraOpenCloseListener" msgid="2002636131008772908">"Denne appen kan motta tilbakekallinger når en kameraenhet blir åpnet (av hvilken app) eller lukket."</string>
     <string name="permlab_cameraHeadlessSystemUser" msgid="680194666834500050">"Tillat at en app eller tjeneste bruker kameraet som en hodeløs systembruker."</string>
@@ -641,6 +649,10 @@
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Lar appen annonsere, koble til og fastslå den relative posisjonen til wifi-enheter i nærheten"</string>
     <string name="permlab_access_local_network" msgid="3420360767259066877">"bruke enheter på det lokale nettverket"</string>
     <string name="permdesc_access_local_network" msgid="6364679803386822638">"Gir appen tilgang til enheter på det lokale nettverket"</string>
+    <string name="permlab_use_loopback_interface" msgid="8032765172835686213">"bruke loopback-grensesnittet"</string>
+    <string name="permdesc_use_loopback_interface" msgid="47684087751145157">"Lar appen bruke andre apper via loopback-grensesnittet"</string>
+    <string name="permlab_force_use_loopback_interface" msgid="1319727311706416481">"tving bruk av loopback-grensesnitt"</string>
+    <string name="permdesc_force_use_loopback_interface" msgid="5829032514048681980">"Lar appen bruke andre apper via loopback-grensesnittet uten at den andre appen trenger loopback-tillatelser"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"Relativ posisjon mellom enheter i nærheten"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Tillat at appen avgjør den relative posisjonen mellom enheter i nærheten"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Informasjon om prioritert NFC-betalingstjeneste"</string>
@@ -748,33 +760,48 @@
     <string name="fingerprint_icon_content_description" msgid="4741068463175388817">"Ikon for fingeravtrykk"</string>
     <string name="device_unlock_notification_name" msgid="2632928999862915709">"Enhetsopplåsing"</string>
     <string name="alternative_unlock_setup_notification_title" msgid="6241508547901933544">"Prøv å låse opp på en annen måte"</string>
-    <string name="alternative_face_setup_notification_content" msgid="3384959224091897331">"Bruk ansiktslåsen når fingeravtrykket ditt ikke gjenkjennes, for eksempel når du har våte fingre"</string>
+    <string name="alternative_face_setup_notification_content" product="default" msgid="3384959224091897331">"Bruk ansiktslåsen når fingeravtrykket ditt ikke gjenkjennes, for eksempel når du har våte fingre"</string>
+    <string name="alternative_face_setup_notification_content" product="desktop" msgid="8589631194028810041">"Lås opp med ansiktet når fingeravtrykket ditt ikke gjenkjennes, for eksempel når du har våte fingre"</string>
     <string name="alternative_fp_setup_notification_content" msgid="7454096947415721639">"Bruk opplåsing med fingeravtrykk når ansiktet ditt ikke gjenkjennes, for eksempel når det ikke er nok lys rundt deg"</string>
-    <string name="face_recalibrate_notification_name" msgid="7311163114750748686">"Ansiktslås"</string>
-    <string name="face_recalibrate_notification_title" msgid="2524791952735579082">"Problem med ansiktslås"</string>
+    <string name="face_recalibrate_notification_name" product="default" msgid="7311163114750748686">"Ansiktslås"</string>
+    <string name="face_recalibrate_notification_name" product="desktop" msgid="6343244778393495390">"Opplåsing med ansikt"</string>
+    <string name="face_recalibrate_notification_title" product="default" msgid="2524791952735579082">"Problem med ansiktslås"</string>
+    <string name="face_recalibrate_notification_title" product="desktop" msgid="7502893130398903561">"Problem med opplåsing med ansikt"</string>
     <string name="face_recalibrate_notification_content" msgid="3064513770251355594">"Trykk for å slette ansiktsmodellen din, og legg deretter til ansiktet på nytt"</string>
-    <string name="face_sensor_privacy_enabled" msgid="7407126963510598508">"For å bruke ansiktslås, slå på "<b>"Kameratilgang"</b>" i Innstillinger &gt; Personvern"</string>
+    <string name="face_sensor_privacy_enabled" product="default" msgid="7407126963510598508">"For å bruke ansiktslås, slå på "<b>"Kameratilgang"</b>" i Innstillinger &gt; Personvern"</string>
+    <string name="face_sensor_privacy_enabled" product="desktop" msgid="7690221855638766930">"For å låse opp med ansiktet, slå på "<b>"Kameratilgang"</b>" i Innstillinger &gt; Personvern"</string>
     <string name="fingerprint_recalibrate_notification_name" msgid="1414578431898579354">"Opplåsing med fingeravtrykk"</string>
     <string name="fingerprint_recalibrate_notification_title" msgid="2406561052064558497">"Kan ikke bruke fingeravtrykkssensoren"</string>
     <string name="fingerprint_recalibrate_notification_content" msgid="8519935717822194943">"Gå til en reparasjonsleverandør."</string>
     <string name="face_acquired_insufficient" msgid="6889245852748492218">"Kan ikke lage ansiktsmodell. Prøv på nytt."</string>
     <string name="face_acquired_too_bright" msgid="8070756048978079164">"For lyst. Prøv svakere belysning."</string>
     <string name="face_acquired_too_dark" msgid="8539853432479385326">"Ikke nok lys"</string>
-    <string name="face_acquired_too_close" msgid="4453646176196302462">"Flytt telefonen lengre unna"</string>
-    <string name="face_acquired_too_far" msgid="2922278214231064859">"Flytt telefonen nærmere"</string>
-    <string name="face_acquired_too_high" msgid="8278815780046368576">"Flytt telefonen høyere"</string>
-    <string name="face_acquired_too_low" msgid="4075391872960840081">"Flytt telefonen lavere"</string>
-    <string name="face_acquired_too_right" msgid="6245286514593540859">"Flytt telefonen til venstre"</string>
-    <string name="face_acquired_too_left" msgid="9201762240918405486">"Flytt telefonen til høyre"</string>
-    <string name="face_acquired_poor_gaze" msgid="4427153558773628020">"Se mer direkte på enheten din."</string>
-    <string name="face_acquired_not_detected" msgid="1057966913397548150">"Kan ikke se ansiktet ditt. Hold telefonen i øyehøyde."</string>
-    <string name="face_acquired_too_much_motion" msgid="8199691445085189528">"For mye bevegelse. Hold telefonen stødig."</string>
+    <string name="face_acquired_too_close" product="default" msgid="4453646176196302462">"Flytt telefonen lengre unna"</string>
+    <string name="face_acquired_too_close" product="desktop" msgid="7189579448504853047">"Flytt enheten lenger unna"</string>
+    <string name="face_acquired_too_far" product="default" msgid="2922278214231064859">"Flytt telefonen nærmere"</string>
+    <string name="face_acquired_too_far" product="desktop" msgid="6590730829823321223">"Flytt enheten nærmere"</string>
+    <string name="face_acquired_too_high" product="default" msgid="8278815780046368576">"Flytt telefonen høyere"</string>
+    <string name="face_acquired_too_high" product="desktop" msgid="717393614154504299">"Flytt enheten høyere opp"</string>
+    <string name="face_acquired_too_low" product="default" msgid="4075391872960840081">"Flytt telefonen lavere"</string>
+    <string name="face_acquired_too_low" product="desktop" msgid="7695733281069538045">"Flytt enheten lavere"</string>
+    <string name="face_acquired_too_right" product="default" msgid="6245286514593540859">"Flytt telefonen til venstre"</string>
+    <string name="face_acquired_too_right" product="desktop" msgid="4058756237538843740">"Flytt enheten til venstre"</string>
+    <string name="face_acquired_too_left" product="default" msgid="9201762240918405486">"Flytt telefonen til høyre"</string>
+    <string name="face_acquired_too_left" product="desktop" msgid="5804819007366973778">"Flytt enheten til høyre"</string>
+    <string name="face_acquired_poor_gaze" msgid="6746437451436776485">"Se mer direkte på kameraet"</string>
+    <string name="face_acquired_not_detected" product="default" msgid="1057966913397548150">"Kan ikke se ansiktet ditt. Hold telefonen i øyehøyde."</string>
+    <string name="face_acquired_not_detected" product="desktop" msgid="1047701586390904260">"Kan ikke se ansiktet ditt. Hold enheten i øyehøyde."</string>
+    <string name="face_acquired_too_much_motion" product="default" msgid="8199691445085189528">"For mye bevegelse. Hold telefonen stødig."</string>
+    <string name="face_acquired_too_much_motion" product="desktop" msgid="7135563968992659161">"For mye bevegelse. Hold enheten i ro."</string>
     <string name="face_acquired_recalibrate" msgid="8724013080976469746">"Registrer ansiktet ditt på nytt."</string>
     <string name="face_acquired_too_different" msgid="4505278456634706967">"Ansiktet ble ikke gjenkjent. Prøv på nytt."</string>
     <string name="face_acquired_too_similar" msgid="8882920552674125694">"Endre hodeposisjonen litt"</string>
-    <string name="face_acquired_pan_too_extreme" msgid="5417928604710621088">"Se mer direkte på telefonen"</string>
-    <string name="face_acquired_tilt_too_extreme" msgid="5715715666540716620">"Se mer direkte på telefonen"</string>
-    <string name="face_acquired_roll_too_extreme" msgid="8261939882838881194">"Se mer direkte på telefonen"</string>
+    <string name="face_acquired_pan_too_extreme" product="default" msgid="5417928604710621088">"Se mer direkte på telefonen"</string>
+    <string name="face_acquired_pan_too_extreme" product="desktop" msgid="821456302944137576">"Se mer direkte på enheten"</string>
+    <string name="face_acquired_tilt_too_extreme" product="default" msgid="5715715666540716620">"Se mer direkte på telefonen"</string>
+    <string name="face_acquired_tilt_too_extreme" product="desktop" msgid="1119243364774233108">"Se mer direkte på enheten"</string>
+    <string name="face_acquired_roll_too_extreme" product="default" msgid="8261939882838881194">"Se mer direkte på telefonen"</string>
+    <string name="face_acquired_roll_too_extreme" product="desktop" msgid="3665467581072397682">"Se mer direkte på enheten"</string>
     <string name="face_acquired_obscured" msgid="4917643294953326639">"Fjern alt som skjuler ansiktet ditt."</string>
     <string name="face_acquired_sensor_dirty" msgid="8968391891086721678">"Rengjør den øverste delen av skjermen, inkludert den svarte linjen"</string>
     <!-- no translation found for face_acquired_dark_glasses_detected (5643703296620631986) -->
@@ -787,19 +814,25 @@
   <string-array name="face_acquired_vendor">
   </string-array>
     <string name="face_error_hw_not_available" msgid="5085202213036026288">"Kan ikke bekrefte ansikt. Utilgjengelig maskinvare."</string>
-    <string name="face_error_timeout" msgid="2598544068593889762">"Prøv ansiktslås igjen"</string>
+    <string name="face_error_timeout" product="default" msgid="2598544068593889762">"Prøv ansiktslås igjen"</string>
+    <string name="face_error_timeout" product="desktop" msgid="8136501408214657840">"Prøv å låse opp med ansiktet igjen"</string>
     <string name="face_error_no_space" msgid="5649264057026021723">"Kan ikke lagre nye ansiktsdata. Slett gamle data først."</string>
     <string name="face_error_canceled" msgid="2164434737103802131">"Ansikt-operasjonen ble avbrutt."</string>
-    <string name="face_error_user_canceled" msgid="5766472033202928373">"Ansiktslås ble avbrutt av brukeren"</string>
+    <string name="face_error_user_canceled" product="default" msgid="5766472033202928373">"Ansiktslås ble avbrutt av brukeren"</string>
+    <string name="face_error_user_canceled" product="desktop" msgid="8903551031462609651">"Opplåsing med ansikt ble avbrutt av brukeren"</string>
     <string name="face_error_lockout" msgid="7864408714994529437">"For mange forsøk. Prøv på nytt senere."</string>
-    <string name="face_error_lockout_permanent" msgid="8533257333130473422">"For mange forsøk Ansiktslås er utilgjengelig."</string>
+    <string name="face_error_lockout_permanent" product="default" msgid="8533257333130473422">"For mange forsøk Ansiktslås er utilgjengelig."</string>
+    <string name="face_error_lockout_permanent" product="desktop" msgid="1885291877517229762">"For mange forsøk. Opplåsing med ansikt er utilgjengelig."</string>
     <string name="face_error_lockout_screen_lock" msgid="5062609811636860928">"For mange forsøk. Skriv inn skjermlås i stedet."</string>
     <string name="face_error_unable_to_process" msgid="5723292697366130070">"Kan ikke bekrefte ansiktet. Prøv på nytt."</string>
-    <string name="face_error_not_enrolled" msgid="1134739108536328412">"Du har ikke konfigurert ansiktslås"</string>
-    <string name="face_error_hw_not_present" msgid="7940978724978763011">"Ansiktslås støttes ikke på denne enheten"</string>
+    <string name="face_error_not_enrolled" product="default" msgid="1134739108536328412">"Du har ikke konfigurert ansiktslås"</string>
+    <string name="face_error_not_enrolled" product="desktop" msgid="7350396330456504527">"Opplåsing med ansikt er ikke konfigurert ennå"</string>
+    <string name="face_error_hw_not_present" product="default" msgid="7940978724978763011">"Ansiktslås støttes ikke på denne enheten"</string>
+    <string name="face_error_hw_not_present" product="desktop" msgid="4947323392112708365">"Opplåsing med ansikt støttes ikke på denne enheten"</string>
     <string name="face_error_security_update_required" msgid="5076017208528750161">"Sensoren er midlertidig slått av."</string>
     <string name="face_name_template" msgid="3877037340223318119">"Ansikt <xliff:g id="FACEID">%d</xliff:g>"</string>
-    <string name="face_app_setting_name" msgid="5854024256907828015">"Bruk ansiktslås"</string>
+    <string name="face_app_setting_name" product="default" msgid="5854024256907828015">"Bruk ansiktslås"</string>
+    <string name="face_app_setting_name" product="desktop" msgid="8226850671242901114">"Opplåsing med ansikt"</string>
     <string name="face_or_screen_lock_app_setting_name" msgid="1603149075605709106">"Bruk ansikts- eller skjermlås"</string>
     <string name="face_dialog_default_subtitle" msgid="6620492813371195429">"Bruk ansiktet for å fortsette"</string>
     <string name="face_or_screen_lock_dialog_default_subtitle" msgid="5006381531158341844">"Bruk ansikts- eller skjermlåsen for å fortsette"</string>
@@ -821,6 +854,8 @@
     <string name="permdesc_readMediaVideo" msgid="3846400073770403528">"Lar appen lese videofiler fra den delte lagringsplassen din."</string>
     <string name="permlab_readMediaImages" msgid="4057590631020986789">"lese bildefiler fra delt lagringsplass"</string>
     <string name="permdesc_readMediaImages" msgid="5836219373138469259">"Lar appen lese bildefiler fra den delte lagringsplassen din."</string>
+    <string name="permlab_readMediaDocuments" msgid="5716810755602938263">"lese dokumentfiler fra delt lagringsplass"</string>
+    <string name="permdesc_readMediaDocuments" msgid="5665930210237304120">"Lar appen lese dokumentfiler fra den delte lagringsplassen din."</string>
     <string name="permlab_readVisualUserSelect" msgid="5516204215354667586">"lese brukervalgte bilde- og videofiler fra den delte lagringen"</string>
     <string name="permdesc_readVisualUserSelect" msgid="8027174717714968217">"lar appen lese bilde- og videofiler du velger fra den delte lagringen din"</string>
     <string name="permlab_sdcardWrite" msgid="4863021819671416668">"endre eller slette innholdet i den delte lagringen din"</string>
@@ -1054,8 +1089,12 @@
     <string name="lockscreen_pattern_correct" msgid="8050630103651508582">"Riktig!"</string>
     <string name="lockscreen_pattern_wrong" msgid="2940138714468358458">"Prøv på nytt"</string>
     <string name="lockscreen_password_wrong" msgid="8605355913868947490">"Prøv på nytt"</string>
+    <string name="lockscreen_click_to_unlock_hint" msgid="6056691847669178119">"Klikk for å låse opp"</string>
+    <string name="lockscreen_enter_to_unlock_hint" msgid="4248057180339112937">"Trykk på Enter for å låse opp"</string>
+    <string name="lockscreen_key_to_unlock_hint" msgid="9042402393653798264">"Trykk på en tast for å låse opp"</string>
     <string name="lockscreen_storage_locked" msgid="634993789186443380">"Lås opp for å få alle funksjoner og data"</string>
-    <string name="faceunlock_multiple_failures" msgid="681991538434031708">"Du har overskredet grensen for opplåsingsforsøk med Ansiktslås"</string>
+    <string name="faceunlock_multiple_failures" product="default" msgid="681991538434031708">"Du har overskredet grensen for opplåsingsforsøk med Ansiktslås"</string>
+    <string name="faceunlock_multiple_failures" product="desktop" msgid="5388142244463490793">"Du har nådd det maksimale antallet forsøk på å låse opp med ansiktet"</string>
     <string name="lockscreen_missing_sim_message_short" msgid="1229301273156907613">"Ingen SIM-kort"</string>
     <string name="lockscreen_missing_sim_message" product="tablet" msgid="3986843848305639161">"Det er ingen SIM-kort i nettbrettet."</string>
     <string name="lockscreen_missing_sim_message" product="tv" msgid="3903140876952198273">"Det er ingen SIM-kort i Android TV-enheten."</string>
@@ -1109,6 +1148,7 @@
     <string name="lockscreen_access_pattern_cell_added_verbose" msgid="2931364927622563465">"Celle <xliff:g id="CELL_INDEX">%1$s</xliff:g> er lagt til"</string>
     <string name="lockscreen_access_pattern_detected" msgid="3931150554035194012">"Mønsteret er fullført"</string>
     <string name="lockscreen_access_pattern_area" msgid="1288780416685002841">"Mønsterområde."</string>
+    <string name="lockscreen_access_pattern_cell_verbose" msgid="6670905066468035137">"Celle <xliff:g id="CELL_INDEX">%1$s</xliff:g>"</string>
     <string name="keyguard_accessibility_widget_changed" msgid="7298011259508200234">"%1$s. Modul %2$d av %3$d."</string>
     <string name="keyguard_accessibility_add_widget" msgid="8245795023551343672">"Legg til modul."</string>
     <string name="keyguard_accessibility_widget_empty_slot" msgid="544239307077644480">"Tom"</string>
@@ -1125,7 +1165,8 @@
     <string name="keyguard_accessibility_expand_lock_area" msgid="4215280881346033434">"Vis opplåsingsfeltet."</string>
     <string name="keyguard_accessibility_slide_unlock" msgid="2968195219692413046">"Opplåsning ved å dra med fingeren."</string>
     <string name="keyguard_accessibility_pattern_unlock" msgid="8669128146589233293">"Mønsteropplåsning."</string>
-    <string name="keyguard_accessibility_face_unlock" msgid="4533832120787386728">"Ansiktslås"</string>
+    <string name="keyguard_accessibility_face_unlock" product="default" msgid="4533832120787386728">"Ansiktslås"</string>
+    <string name="keyguard_accessibility_face_unlock" product="desktop" msgid="6739732585954513653">"Opplåsing med ansikt."</string>
     <string name="keyguard_accessibility_pin_unlock" msgid="4020864007967340068">"PIN-opplåsning."</string>
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"PIN-opplåsing for SIM-kort."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"PUK-opplåsing for SIM-kort."</string>
@@ -1275,6 +1316,7 @@
     <string name="whichApplicationLabel" msgid="7852182961472531728">"Fullfør handlingen"</string>
     <string name="whichViewApplication" msgid="5733194231473132945">"Åpne med"</string>
     <string name="whichViewApplicationNamed" msgid="415164730629690105">"Åpne med %1$s"</string>
+    <string name="open_app_name" msgid="6114096770130122912">"Åpne <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="whichViewApplicationLabel" msgid="7367556735684742409">"Åpne"</string>
     <string name="whichOpenHostLinksWith" msgid="7645631470199397485">"Åpne <xliff:g id="HOST">%1$s</xliff:g>-linker med"</string>
     <string name="whichOpenLinksWith" msgid="1120936181362907258">"Åpne linker med"</string>
@@ -1441,6 +1483,9 @@
     <string name="carrier_app_notification_text" msgid="6567057546341958637">"Konfigurer"</string>
     <string name="time_zone_change_notification_title" msgid="5232503069219193218">"Tidssonen er endret"</string>
     <string name="time_zone_change_notification_body" msgid="6135793674904665585">"Nå er du i <xliff:g id="TIME_ZONE_DISPLAY_NAME">%1$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET">%2$s</xliff:g>)"</string>
+    <string name="time_zone_offset_change_notification_title" msgid="8232305835199459588">"Klokkeendring"</string>
+    <string name="time_zone_offset_change_notification_body_forward" msgid="1299493962341887576">"Klokkene er stilt <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g> frem. Nå er du i <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)."</string>
+    <string name="time_zone_offset_change_notification_body_backward" msgid="6643532078142642118">"Klokkene er stilt <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g> tilbake. Nå er du i <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)."</string>
     <string name="time_picker_dialog_title" msgid="9053376764985220821">"Angi tidspunkt"</string>
     <string name="date_picker_dialog_title" msgid="5030520449243071926">"Angi dato"</string>
     <string name="date_time_set" msgid="4603445265164486816">"Lagre"</string>
@@ -1480,6 +1525,14 @@
     <string name="usb_contaminant_detected_message" msgid="7346100585390795743">"USB-porten deaktiveres automatisk. Trykk for å finne ut mer."</string>
     <string name="usb_contaminant_not_detected_title" msgid="2651167729563264053">"Trygt å bruke USB-porten"</string>
     <string name="usb_contaminant_not_detected_message" msgid="892863190942660462">"Telefonen oppdager ikke væsker eller rusk lenger."</string>
+    <string name="usb_authorization_notify_on_screenlock_title" msgid="4219670768084927681">"En ny USB-enhet er koblet til"</string>
+    <string name="usb_authorization_notify_on_screenlock_message" msgid="3391658768099414499">"Logg på for å ha tillit til denne USB-enheten og begynne å bruke den."</string>
+    <string name="usb_authorization_notify_on_screenlock_message_multiple" msgid="1722575755931059980">"Logg på for å ha tillit til disse USB-enhetene og begynne å bruke dem."</string>
+    <string name="usb_authorization_notify_finish_logging_in_title" msgid="3417036506115006412">"En ny USB-enhet er koblet til"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message" msgid="7996802340128367690">"Logg på innen <xliff:g id="NUM_SECONDS">%1$d</xliff:g> sekunder for å ha fullstendig tillit til denne USB-enheten. Hvis du ikke gjør det, må du koble den fra og til igjen."</string>
+    <string name="usb_authorization_notify_finish_logging_in_title_multiple" msgid="3184839817149193434">"Nye USB-enheter er koblet til"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message_multiple" msgid="6745916608298736853">"Logg på innen <xliff:g id="NUM_SECONDS">%1$d</xliff:g> sekunder for å ha fullstendig tillit til disse USB-enhetene. Hvis du ikke gjør det, må du koble dem fra og til igjen."</string>
+    <string name="notification_channel_usb_authorization" msgid="7567851967410736399">"Autorisering av USB-enhet"</string>
     <string name="taking_remote_bugreport_notification_title" msgid="1582531382166919850">"Kjører feilrapport …"</string>
     <string name="share_remote_bugreport_notification_title" msgid="6708897723753334999">"Vil du dele feilrapporten?"</string>
     <string name="sharing_remote_bugreport_notification_title" msgid="3077385149217638550">"Deler feilrapporten …"</string>
@@ -1623,6 +1676,9 @@
     <string name="gpsNotifMessage" msgid="7346649122793758032">"Forespurt av <xliff:g id="NAME">%1$s</xliff:g> (<xliff:g id="SERVICE">%2$s</xliff:g>)"</string>
     <string name="gpsVerifYes" msgid="3719843080744112940">"Ja"</string>
     <string name="gpsVerifNo" msgid="1671201856091564741">"Nei"</string>
+    <string name="emergency_location_notification_title" msgid="917557758257778958">"Posisjonen er delt på grunn av en nødssituasjon"</string>
+    <string name="emergency_location_notification_message" msgid="1877038822515882885">"Nødtjenestene har mottatt posisjonen din fra operatøren"</string>
+    <string name="emergency_location_notification_learn_more" msgid="8718634939217070481">"Finn ut mer"</string>
     <string name="sync_too_many_deletes" msgid="6999440774578705300">"Slettegrense overskredet"</string>
     <string name="sync_too_many_deletes_desc" msgid="7409327940303504440">"Det fins <xliff:g id="NUMBER_OF_DELETED_ITEMS">%1$d</xliff:g> slettede elementer for <xliff:g id="TYPE_OF_SYNC">%2$s</xliff:g> for kontoen <xliff:g id="ACCOUNT_NAME">%3$s</xliff:g>. Hva ønsker du å gjøre?"</string>
     <string name="sync_really_delete" msgid="5657871730315579051">"Slett elementene"</string>
@@ -1793,8 +1849,8 @@
     <string name="accessibility_shortcut_single_service_warning" msgid="6363127705112844257">"Hvis du holder inne begge volumtastene i noen sekunder, slår du på <xliff:g id="SERVICE">%1$s</xliff:g>, en tilgjengelighetsfunksjon. Dette kan endre hvordan enheten din fungerer.\n\nDu kan endre denne snarveien til en annen funksjon i Innstillinger &gt; Tilgjengelighet."</string>
     <string name="accessibility_shortcut_on" msgid="5463618449556111344">"Slå på"</string>
     <string name="accessibility_shortcut_off" msgid="3651336255403648739">"Ikke slå på"</string>
-    <string name="accessibility_shortcut_menu_item_status_on" msgid="6608392117189732543">"PÅ"</string>
-    <string name="accessibility_shortcut_menu_item_status_off" msgid="5531598275559472393">"AV"</string>
+    <string name="accessibility_shortcut_menu_item_status_on" msgid="6162756705754654002">"På"</string>
+    <string name="accessibility_shortcut_menu_item_status_off" msgid="6274512913017713543">"Av"</string>
     <string name="accessibility_enable_service_title" msgid="3931558336268541484">"Vil du gi <xliff:g id="SERVICE">%1$s</xliff:g> full kontroll over enheten din?"</string>
     <string name="accessibility_service_warning_description" msgid="291674995220940133">"Full kontroll er passende for apper som hjelper deg med tilgjengelighetsbehov, men ikke for de fleste apper."</string>
     <string name="accessibility_service_screen_control_title" msgid="190017412626919776">"Se og kontroller skjermen"</string>
@@ -1808,16 +1864,22 @@
     <string name="accessibility_select_shortcut_menu_title" msgid="6002726538854613272">"Trykk på en funksjon for å begynne å bruke den:"</string>
     <string name="accessibility_edit_shortcut_menu_button_title" msgid="239446795930436325">"Velg funksjonene du vil bruke med Tilgjengelighet-knappen"</string>
     <string name="accessibility_edit_shortcut_menu_volume_title" msgid="2245540598834891500">"Velg funksjonene du vil bruke med volumtastsnarveien"</string>
+    <string name="accessibility_shortcut_label_button" msgid="6473341300585254821">"tilgjengelighet-knapp"</string>
+    <string name="accessibility_shortcut_label_volume_keys" msgid="5642990791242136231">"volumtaster"</string>
+    <string name="accessibility_shortcut_label_gesture" msgid="7987298674836890931">"bevegelse"</string>
+    <string name="accessibility_shortcut_label_quick_settings" msgid="6851280333772213611">"hurtiginnstillinger"</string>
+    <string name="accessibility_shortcut_label_triple_tap" msgid="9058975959054454796">"trippeltrykk"</string>
+    <string name="accessibility_shortcut_label_top_row_key" msgid="1488840908672437180">"tilgjengelighetstast"</string>
     <string name="accessibility_uncheck_legacy_item_warning" msgid="8047830891064817447">"<xliff:g id="SERVICE_NAME">%s</xliff:g> er slått av"</string>
     <string name="edit_accessibility_shortcut_menu_button" msgid="8885752738733772935">"Endre snarveier"</string>
     <string name="done_accessibility_shortcut_menu_button" msgid="3668407723770815708">"Ferdig"</string>
     <string name="disable_accessibility_shortcut" msgid="5806091378745232383">"Slå av snarveien"</string>
     <string name="leave_accessibility_shortcut_on" msgid="6543362062336990814">"Bruk snarveien"</string>
-    <string name="color_inversion_feature_name" msgid="2672824491933264951">"Farge&amp;#173;invertering"</string>
-    <string name="color_correction_feature_name" msgid="7975133554160979214">"Fargekorrigering"</string>
-    <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Enhåndsmodus"</string>
+    <string name="color_inversion_feature_name" msgid="2672824491933264951">"Fargeinvertering"</string>
+    <string name="color_correction_feature_name" msgid="7975133554160979214">"Farge­korrigering"</string>
+    <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Enhånds­modus"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Ekstra dimmet"</string>
-    <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Høreapparater"</string>
+    <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Høre­apparater"</string>
     <string name="autoclick_feature_name" msgid="4056260617171267864">"Autoklikk (holdetid)"</string>
     <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Musetaster"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Frakoblet"</string>
@@ -1841,7 +1903,7 @@
     <string name="hearing_device_notification_switch_button" msgid="3619524619430941300">"Bytt"</string>
     <string name="hearing_device_notification_settings_button" msgid="6673651052880279178">"Innstillinger"</string>
     <string name="user_switching_message" msgid="1912993630661332336">"Bytter til <xliff:g id="NAME">%1$s</xliff:g> …"</string>
-    <string name="user_logging_out_message" msgid="7216437629179710359">"Logger av <xliff:g id="NAME">%1$s</xliff:g> …"</string>
+    <string name="user_logging_out_message" msgid="2968888364742643174">"Logger av …"</string>
     <string name="owner_name" msgid="8713560351570795743">"Eier"</string>
     <string name="guest_name" msgid="8502103277839834324">"Gjest"</string>
     <string name="headless_system_user_name" msgid="1849150903255530049">"Systembruker"</string>
@@ -1979,6 +2041,7 @@
     <string name="managed_profile_label_badge_3" msgid="6882151970556391957">"Tredje <xliff:g id="LABEL">%1$s</xliff:g> for jobben"</string>
     <string name="clone_profile_label_badge" msgid="1871997694718793964">"Klon <xliff:g id="LABEL">%1$s</xliff:g>"</string>
     <string name="private_profile_label_badge" msgid="1712086003787839183">"Privat <xliff:g id="LABEL">%1$s</xliff:g>"</string>
+    <string name="hsu_label_badge" msgid="1357272000281944932">"System <xliff:g id="LABEL">%1$s</xliff:g>"</string>
     <string name="lock_to_app_unlock_pin" msgid="3890940811866290782">"Krev PIN-kode for å løsne app"</string>
     <string name="lock_to_app_unlock_pattern" msgid="2694204070499712503">"Krev opplåsingsmønster for å løsne apper"</string>
     <string name="lock_to_app_unlock_password" msgid="9126722403506560473">"Krev passord for å løsne apper"</string>
@@ -2052,6 +2115,9 @@
     <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
     <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
     <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
+    <string name="notification_history_metric_subtext" msgid="7408216222655116821">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>: <xliff:g id="METRIC_VALUE">%2$s</xliff:g>"</string>
+    <string name="notification_metric_running_timer" msgid="1096459900744921213">"Løpenedtelling"</string>
+    <string name="notification_metric_running_stopwatch" msgid="8039546029949295377">"Løpestoppeklokke"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Svar"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Avvis"</string>
@@ -2084,6 +2150,38 @@
     <string name="app_suspended_default_message" msgid="6451215678552004172">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> er ikke tilgjengelig akkurat nå. Dette administreres av <xliff:g id="APP_NAME_1">%2$s</xliff:g>."</string>
     <string name="app_suspended_more_details" msgid="211260942831587014">"Finn ut mer"</string>
     <string name="app_suspended_unsuspend_message" msgid="1665438589450555459">"Opphev pause for appen"</string>
+    <string name="app_lock_add_screen_lock_button_text" msgid="9209013414563206600">"Legg til skjermlås"</string>
+    <string name="app_lock_add_screen_lock_message" msgid="6107009360675769892">"Skjermlåsen kan være en PIN-kode, et mønster eller et passord. Du bruker dette til å låse opp enheten og åpne låste apper."</string>
+    <string name="app_lock_add_screen_lock_title" msgid="6905612843620128689">"Legg til en skjermlås først"</string>
+    <string name="enable_app_lock_success_toast_message" msgid="3339622779190529987">"<xliff:g id="APP_NAME">%1$s</xliff:g> er låst"</string>
+    <string name="enable_app_lock_failure_toast_message" msgid="1055838896510445566">"Kan ikke låse <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="disable_app_lock_success_toast_message" msgid="360172251656799346">"Applåsen er fjernet"</string>
+    <string name="enable_app_lock_biometric_prompt_subtitle" msgid="8215241065630017088">"Applås legges til for <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="disable_app_lock_biometric_prompt_subtitle" msgid="3963064765974508170">"Applåsen blir fjernet fra <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="locked_app_biometric_prompt_description" msgid="5892653396104581919">"Denne appen er beskyttet med applås"</string>
+    <string name="locked_app_external_display_message" msgid="5483884799685545338">"Før du kan bruke appen på denne skjermen, må du bekrefte identiteten din på den andre enheten"</string>
+    <string name="app_lock_edu_dialog_enable_app_lock_title" msgid="283314042336592322">"Vil du legge til applås for <xliff:g id="APP_NAME">%1$s</xliff:g>?"</string>
+    <string name="app_lock_edu_dialog_description_template" msgid="8563718120753342530">"Av sikkerhetshensyn er det bare du som kan bruke denne appen med %1$s eller %2$s"</string>
+    <string name="app_lock_edu_dialog_description_template_no_biometrics" msgid="7122017109150633691">"Av sikkerhetshensyn er det bare du som kan bruke denne appen med %1$s"</string>
+    <string name="app_lock_edu_dialog_info_header" msgid="5876120209204270990">"Med applås"</string>
+    <string name="app_lock_edu_dialog_info_notifications" msgid="1124438392204873305">"Innhold i varsler skjules"</string>
+    <string name="app_lock_edu_dialog_info_widgets" msgid="8809009414650740872">"Moduler og snarveier fjernes"</string>
+    <string name="app_lock_edu_dialog_info_ai_disclaimer" msgid="5623615653703542050">"AI-agenter og -tjenester du har gitt tilgang til %1$s, kan fortsatt bruke dataene"</string>
+    <string name="app_lock_edu_dialog_button_lock" msgid="3914687128135704801">"Legg til applås"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="default" msgid="1348151645996748654">"Ansiktslås"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="desktop" msgid="380233309639495358">"Opplåsing med ansikt"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint" msgid="5206107469561561455">"Opplåsing med fingeravtrykk"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="default" msgid="6551410616110497401">"Opplåsing med fingeravtrykk, ansiktslås"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="desktop" msgid="4797005135507921547">"Opplåsing med fingeravtrykk, ansiktslås"</string>
+    <string name="app_lock_edu_dialog_lockscreen_password_name" msgid="6019284267033007445">"passord"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pattern_name" msgid="2370939002644936965">"mønster"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pin_name" msgid="6458607126966304795">"PIN-kode"</string>
+    <string name="app_lock_permission_review_dialog_title_photos" msgid="6193222920123912729">"Bildene dine kan fortsatt vises i andre apper"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_photos" msgid="1854948251386976703">"Apper som har tilgang til bildene dine"</string>
+    <string name="app_lock_permission_review_dialog_title_files" msgid="8820759644609198515">"Filene dine kan fortsatt vises i andre apper"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_files" msgid="2999447193189851364">"Apper som har tilgang til filene dine"</string>
+    <string name="app_lock_permission_review_expand_app_list_button" msgid="3214809707125223273">"Se alle"</string>
+    <string name="app_lock_permission_review_continue_button" msgid="4045066724173414043">"Fortsett"</string>
     <string name="work_mode_off_title" msgid="6367463960165135829">"Vil du slå på jobbapper igjen?"</string>
     <string name="work_mode_turn_on" msgid="5316648862401307800">"Slå på"</string>
     <string name="work_mode_emergency_call_button" msgid="6818855962881612322">"Nød"</string>
@@ -2162,13 +2260,21 @@
     <string name="autofill_picker_no_suggestions" msgid="1076022650427481509">"Ingen forslag til autofyll"</string>
     <string name="autofill_picker_some_suggestions" msgid="5560549696296202701">"{count,plural, =1{Ett forslag til autofyll}other{# forslag til autofyll}}"</string>
     <string name="autofill_save_title" msgid="7719802414283739775">"Vil du lagre i "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_expressive" msgid="2665408870424848558">"Lagre informasjon i "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_type" msgid="3002460014579799605">"Vil du lagre <xliff:g id="TYPE">%1$s</xliff:g> i "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_with_type_expressive" msgid="6063660551496235255">"Lagre <xliff:g id="TYPE">%1$s</xliff:g> i "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_2types" msgid="3783270967447869241">"Vil du lagre <xliff:g id="TYPE_0">%1$s</xliff:g> og <xliff:g id="TYPE_1">%2$s</xliff:g> i "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_with_2types_expressive" msgid="2996687022212666293">"Lagre <xliff:g id="TYPE_0">%1$s</xliff:g> og <xliff:g id="TYPE_1">%2$s</xliff:g> i "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_3types" msgid="6598228952100102578">"Vil du lagre <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> og <xliff:g id="TYPE_2">%3$s</xliff:g> i "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_with_3types_expressive" msgid="3301676215501214049">"Lagre <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> og <xliff:g id="TYPE_2">%3$s</xliff:g> i "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b></string>
     <string name="autofill_update_title" msgid="3630695947047069136">"Vil du oppdatere i "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_update_title_expressive" msgid="7660582214109012920">"Oppdater informasjon i "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_type" msgid="5264152633488495704">"Vil du oppdatere <xliff:g id="TYPE">%1$s</xliff:g> i "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_update_title_with_type_expressive" msgid="6162413585161767846">"Oppdater <xliff:g id="TYPE">%1$s</xliff:g> i "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_2types" msgid="1797514386321086273">"Vil du oppdatere <xliff:g id="TYPE_0">%1$s</xliff:g> og <xliff:g id="TYPE_1">%2$s</xliff:g> i "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_update_title_with_2types_expressive" msgid="1911825941498393471">"Oppdater <xliff:g id="TYPE_0">%1$s</xliff:g> og <xliff:g id="TYPE_1">%2$s</xliff:g> i "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_3types" msgid="8285767070604652626">"Vil du oppdatere disse elementene i "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>": <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> og <xliff:g id="TYPE_2">%3$s</xliff:g>?"</string>
+    <string name="autofill_update_title_with_3types_expressive" msgid="6040725201378429027">"Oppdater disse elementene i "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>": <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> og <xliff:g id="TYPE_2">%3$s</xliff:g>"</string>
     <string name="autofill_save_yes" msgid="8035743017382012850">"Lagre"</string>
     <string name="autofill_save_no" msgid="9212826374207023544">"Nei takk"</string>
     <string name="autofill_save_notnow" msgid="2853932672029024195">"Ikke nå"</string>
@@ -2362,8 +2468,8 @@
     <string name="PERSOSUBSTATE_SIM_IMPI_ENTRY" msgid="7043865376145617024">"PIN-kode for å låse opp IMPI"</string>
     <string name="PERSOSUBSTATE_SIM_NS_SP_ENTRY" msgid="6144227308185112176">"PIN-kode for fjerning av bestemte operatørlåser"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_IN_PROGRESS" msgid="4233355366318061180">"Ber om fjerning av operatørlåser …"</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="6742563947637715645">"Ber om fjerning av bestemte operatørlåser …"</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="2033399698172403560">"Ber om opplåsing av SIM-tjenesteleverandør …"</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="2917242135129860371">"Ber om fjerning av bestemte operatørlåser …"</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="4435641041692795695">"Ber om opplåsing av SIM-tjenesteleverandør …"</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_IN_PROGRESS" msgid="4795977251920732254">"Ber om opplåsing av SIM-kort for bedrifter …"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_IN_PROGRESS" msgid="1090425878157254446">"Ber om PUK-opplåsing …"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_IN_PROGRESS" msgid="6476898876518094438">"Ber om PUK-opplåsing …"</string>
@@ -2389,15 +2495,15 @@
     <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_PUK_IN_PROGRESS" msgid="2695678959963807782">"Ber om PUK-opplåsing …"</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_PUK_IN_PROGRESS" msgid="1230605365926493599">"Ber om PUK-opplåsing …"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_ERROR" msgid="1924844017037151535">"Forespørselen om å fjerne operatørlåser mislyktes."</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="3372797822292089708">"Forespørselen om å fjerne bestemte operatørlåser mislyktes."</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="1878443146720411381">"Forespørselen om å låse opp SIM-tjenesteleverandør mislyktes."</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="7136658591279283417">"Forespørselen om å fjerne bestemte operatørlåser mislyktes."</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="8344463467085504202">"Forespørselen om å låse opp SIM-tjenesteleverandør mislyktes."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_ERROR" msgid="7664778312218023192">"Forespørselen om å låse opp SIM-kort for bedrifter mislyktes."</string>
     <string name="PERSOSUBSTATE_SIM_SIM_ERROR" msgid="2472944311643350302">"Forespørselen om å låse opp SIM-kort mislyktes."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_ERROR" msgid="828089694480999120">"Forespørselen om å låse opp RUIM Network1 mislyktes."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_ERROR" msgid="17619001007092511">"Forespørselen om å låse opp RUIM Network2 mislyktes."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_ERROR" msgid="807214229604353614">"Forespørselen om å låse opp RUIM Hrpd mislyktes."</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_ERROR" msgid="8644184447744175747">"Forespørselen om å låse opp RUIM for bedrifter mislyktes."</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="3801002648649640407">"Forespørselen om å låse opp RUIM-tjenesteleverandører mislyktes."</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="1882547895012628428">"Forespørselen om å låse opp RUIM-tjenesteleverandører mislyktes."</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_ERROR" msgid="707397021218680753">"Forespørselen om å låse opp RUIM mislyktes."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_ERROR" msgid="894358680773257820">"PUK-opplåsingen mislyktes."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_ERROR" msgid="352466878146726991">"PUK-opplåsingen mislyktes."</string>
@@ -2417,13 +2523,13 @@
     <string name="PERSOSUBSTATE_SIM_NS_SP_ERROR" msgid="1890493954453456758">"Forespørselen om fjerning av bestemte operatørlåser mislyktes."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUCCESS" msgid="4886243367747126325">"Fjerningen av operatørlåser er fullført."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_SUCCESS" msgid="4053809277733513987">"Fjerningen av bestemte operatørlåser er fullført."</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="8249342930499801740">"SIM-tjenesteleverandør er låst opp."</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="6233653087159353652">"SIM-tjenesteleverandør er låst opp."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_SUCCESS" msgid="2339794542560381270">"Opplåsingen av SIM-kort for bedrifter er fullført."</string>
     <string name="PERSOSUBSTATE_SIM_SIM_SUCCESS" msgid="6975608174152828954">"SIM-kortet er låst opp."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_SUCCESS" msgid="2846699261330463192">"Opplåsingen av RUIM Network1 er fullført."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_SUCCESS" msgid="5335414726057102801">"Opplåsingen av RUIM Network2 er fullført."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_SUCCESS" msgid="8868100318474971969">"RUIM Hrpd-opplåsingen er fullført."</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6020936629725666932">"Opplåsingen av RUIM-tjenesteleverandører er fullført."</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6724555357287036238">"Opplåsingen av RUIM-tjenesteleverandører er fullført."</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_SUCCESS" msgid="6944873647584595489">"Opplåsingen av RUIM for bedrifter er fullført."</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_SUCCESS" msgid="2526483514124121988">"RUIM-opplåsingen er fullført."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_SUCCESS" msgid="7662200333621664621">"PUK-opplåsingen er fullført."</string>
@@ -2515,6 +2621,8 @@
     <string name="accessibility_label_clone_profile" msgid="7579118375042398784">"Klon"</string>
     <string name="accessibility_label_communal_profile" msgid="1437173163111334791">"Felles"</string>
     <string name="private_space_biometric_prompt_title" msgid="5777592909271728154">"Privat område"</string>
+    <string name="app_locked_new_notification" msgid="4409730436247596215">"Nytt varsel"</string>
+    <string name="app_locked_notification_message" msgid="4576179600328065280">"Ny melding"</string>
     <string name="redacted_notification_message" msgid="1520587845842228816">"Sensitivt varselinnhold er skjult"</string>
     <string name="redacted_notification_action_title" msgid="6942924973335920935"></string>
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Av sikkerhetsgrunner er appinnholdet skjult for skjermdelingen"</string>
@@ -2554,13 +2662,16 @@
     <string name="satellite_messaging_unsupported_default_sms_app_notification_summary" msgid="17084124893763593">"For å sende meldinger via satellitt må du angi Google Meldinger som standardapp for meldinger"</string>
     <string name="satellite_messaging_location_disabled_notification_title" msgid="7270641894250928494">"Satellittmeldinger er ikke tilgjengelige"</string>
     <string name="satellite_messaging_location_disabled_notification_summary" msgid="1450824950686221810">"For å sjekke om satellittmeldinger er tilgjengelige i dette landet eller denne regionen, slå på posisjonsinnstillinger"</string>
+    <string name="satellite_indicator" msgid="6846063647532086110">"SAT"</string>
     <string name="fingerprint_dangling_notification_title" msgid="7362075195588639989">"Konfigurer opplåsingen med fingeravtrykk på nytt"</string>
     <string name="fingerprint_dangling_notification_msg_1" msgid="5851784577768803510">"<xliff:g id="FINGERPRINT">%s</xliff:g> gjenkjennes ikke lenger."</string>
     <string name="fingerprint_dangling_notification_msg_2" msgid="7925203589860744456">"<xliff:g id="FINGERPRINT_0">%1$s</xliff:g> og <xliff:g id="FINGERPRINT_1">%2$s</xliff:g> gjenkjennes ikke lenger."</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_1" msgid="1824812666549916586">"<xliff:g id="FINGERPRINT">%s</xliff:g> gjenkjennes ikke lenger. Konfigurer opplåsing med fingeravtrykk på nytt."</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_2" msgid="5974657382960155099">"<xliff:g id="FINGERPRINT_0">%1$s</xliff:g> og <xliff:g id="FINGERPRINT_1">%2$s</xliff:g> gjenkjennes ikke lenger. Konfigurer opplåsing med fingeravtrykk på nytt."</string>
-    <string name="face_dangling_notification_title" msgid="947852541060975473">"Konfigurer ansiktslåsen på nytt"</string>
-    <string name="face_dangling_notification_msg" msgid="746235263598985384">"Ansiktsmodellen din gjenkjennes ikke lenger. Konfigurer ansiktslåsen på nytt."</string>
+    <string name="face_dangling_notification_title" product="default" msgid="947852541060975473">"Konfigurer ansiktslåsen på nytt"</string>
+    <string name="face_dangling_notification_title" product="desktop" msgid="4632690536207343589">"Konfigurer opplåsing med ansikt på nytt"</string>
+    <string name="face_dangling_notification_msg" product="default" msgid="746235263598985384">"Ansiktsmodellen din gjenkjennes ikke lenger. Konfigurer ansiktslåsen på nytt."</string>
+    <string name="face_dangling_notification_msg" product="desktop" msgid="5982979430103820891">"Ansiktsmodellen din gjenkjennes ikke lenger. Konfigurer opplåsing med ansikt på nytt."</string>
     <string name="biometric_dangling_notification_action_set_up" msgid="8246885009807817961">"Konfigurer"</string>
     <string name="biometric_dangling_notification_action_not_now" msgid="8095249216864443491">"Ikke nå"</string>
     <string name="bg_user_sound_notification_title_alarm" msgid="5251678483393143527">"Alarm for <xliff:g id="USER_NAME">%s</xliff:g>"</string>
@@ -2594,7 +2705,17 @@
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Trykk for å se tips om hvordan du kan forbedre opplåsingsopplevelsen"</string>
     <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Ikke blink"</string>
     <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Trykk lenge på av/på-knappen for å slå av TV-en"</string>
-    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Varsler om systemressurser"</string>
-    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Overforbruk av ressurser"</string>
-    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Appen «<xliff:g id="APP_NAME">%1$s</xliff:g>» bruker for mye ressurser."</string>
+    <string name="supervision_blocked_app_title" msgid="5546803865875383588">"Oppdatering fra forelderen din"</string>
+    <string name="supervision_blocked_app_content" msgid="4125452996088641559">"<xliff:g id="APP_NAME">%1$s</xliff:g> er fjernet inntil videre"</string>
+    <string name="supervision_unblocked_app_content" msgid="8282985265957852278">"Nå er <xliff:g id="APP_NAME">%1$s</xliff:g> tilgjengelig"</string>
+    <string name="media_route_chooser_share_cast_others" msgid="8797886650999355673">"Cast til andre"</string>
+    <string name="activity_embedding_divider_drag_handle_description" msgid="4922243158119077780">"dra-aktivert skillelinje"</string>
+    <string name="brightness_unable_adjust_msg" msgid="739363986705194491">"Kan ikke justere lysstyrken, fordi den kontrolleres av den øvre appen"</string>
+    <string name="airplane_mode_sync_notification_channel_name" msgid="474278137226432576">"Synkronisering i flymodus"</string>
+    <string name="airplane_mode_sync_notification_title" msgid="1093374489486832486">"Flymodus"</string>
+    <string name="airplane_mode_sync_notification_content" msgid="300807352375759726">"Nå synkroniseres flymodus mellom telefonen og klokken.\n\nAdministrer preferanser for modussynkronisering i innstillingene på klokken og telefonen."</string>
+    <string name="apm_sync_notification_settings_action" msgid="3453490777165524861">"Administrer innstillinger"</string>
+    <string name="do_not_disturb_sync_notification_channel_name" msgid="8652220979613037381">"Synkronisering av Ikke forstyrr"</string>
+    <string name="do_not_disturb_sync_notification_title" msgid="6732475150089465528">"Ikke forstyrr"</string>
+    <string name="do_not_disturb_sync_notification_content" msgid="2755604717509797896">"Synkronisert fra enheten i nærheten"</string>
 </resources>

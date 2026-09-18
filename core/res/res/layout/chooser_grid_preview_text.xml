@@ -23,7 +23,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="?android:attr/colorBackground">
+    android:background="@color/materialColorSurfaceContainer">
 
   <RelativeLayout
       android:layout_width="@dimen/chooser_preview_width"
@@ -43,7 +43,7 @@
         android:layout_centerVertical="true"
         android:ellipsize="end"
         android:fontFamily="@android:string/config_headlineFontFamily"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="@color/materialColorOnSurface"
         android:textAlignment="gravity"
         android:textDirection="locale"
         android:maxLines="2"

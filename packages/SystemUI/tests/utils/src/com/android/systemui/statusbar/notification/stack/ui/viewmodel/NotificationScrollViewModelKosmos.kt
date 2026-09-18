@@ -16,32 +16,38 @@
 
 package com.android.systemui.statusbar.notification.stack.ui.viewmodel
 
-import com.android.systemui.bouncer.domain.interactor.bouncerInteractor
+import android.content.applicationContext
+import com.android.systemui.brightness.domain.interactor.brightnessMirrorShowingInteractor
+import com.android.systemui.common.ui.configurationState
+import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.notifications.ui.notificationPlaceholderStateStorage
 import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.settings.brightness.domain.interactor.brightnessMirrorShowingInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.domain.interactor.remoteInputInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.headsUpNotificationInteractor
-import com.android.systemui.statusbar.notification.stack.domain.interactor.lockscreenNotificationDisplayConfigInteractor
+import com.android.systemui.statusbar.notification.stack.domain.interactor.lockscreenNotificationsInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackAppearanceInteractor
 
 val Kosmos.notificationScrollViewModel by Fixture {
     NotificationScrollViewModel(
         dumpManager = dumpManager,
-        lockscreenAppearanceInteractor = lockscreenNotificationDisplayConfigInteractor,
+        configuration = configurationState,
+        placeholderStateStorage = notificationPlaceholderStateStorage,
+        lockscreenNotificationsInteractor = lockscreenNotificationsInteractor,
         stackAppearanceInteractor = notificationStackAppearanceInteractor,
         brightnessMirrorShowingInteractorLazy = { brightnessMirrorShowingInteractor },
         shadeInteractor = shadeInteractor,
         shadeModeInteractor = shadeModeInteractor,
-        bouncerInteractor = bouncerInteractor,
         remoteInputInteractor = remoteInputInteractor,
         headsUpNotificationInteractor = headsUpNotificationInteractor,
         sceneInteractor = sceneInteractor,
         keyguardInteractor = { keyguardInteractor },
+        configurationInteractor = configurationInteractor,
+        context = applicationContext,
     )
 }

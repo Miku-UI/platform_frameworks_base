@@ -16,16 +16,14 @@
 
 package com.android.systemui.privacy.logging
 
-import android.app.ActivityManager
-import android.content.Context
 import android.icu.text.SimpleDateFormat
 import android.permission.PermissionGroupUsage
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.core.LogMessage
 import com.android.systemui.log.dagger.PrivacyLog
-import com.android.systemui.privacy.PrivacyDialog
-import com.android.systemui.privacy.PrivacyDialogV2
+import com.android.systemui.privacy.PrivacyDialogDelegate
+import com.android.systemui.privacy.PrivacyDialogDelegateV2
 import com.android.systemui.privacy.PrivacyItem
 import java.util.Locale
 import javax.inject.Inject
@@ -141,7 +139,7 @@ class PrivacyLogger @Inject constructor(
         })
     }
 
-    fun logShowDialogContents(contents: List<PrivacyDialog.PrivacyElement>) {
+    fun logShowDialogContents(contents: List<PrivacyDialogDelegate.PrivacyElement>) {
         log(LogLevel.INFO, {
             str1 = contents.toString()
         }, {
@@ -149,7 +147,7 @@ class PrivacyLogger @Inject constructor(
         })
     }
 
-    fun logShowDialogV2Contents(contents: List<PrivacyDialogV2.PrivacyElement>) {
+    fun logShowDialogV2Contents(contents: List<PrivacyDialogDelegateV2.PrivacyElement>) {
         log(LogLevel.INFO, {
             str1 = contents.toString()
         }, {

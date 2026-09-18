@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.layout.ui.viewmodel
 
 import android.content.res.Configuration
-import android.platform.test.annotations.EnableFlags
 import android.view.Display
 import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -27,7 +26,6 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.layout.statusBarContentInsetsProvider
 import com.android.systemui.statusbar.policy.configurationController
 import com.android.systemui.statusbar.policy.fake
@@ -41,7 +39,6 @@ import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
-@EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
 class StatusBarContentInsetsViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val configuration = Configuration()

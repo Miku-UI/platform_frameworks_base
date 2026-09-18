@@ -35,6 +35,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertThrows;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -58,6 +59,7 @@ import android.platform.test.flag.junit.SetFlagsRule;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.server.LocalServices;
 import com.android.server.SystemService;
 import com.android.server.power.thermal.ThermalManagerService.TemperatureWatcher;
 import com.android.server.power.thermal.ThermalManagerService.ThermalHalWrapper;
@@ -94,6 +96,7 @@ public class ThermalManagerServiceTest {
     public final SetFlagsRule mSetFlagsRule = mSetFlagsClassRule.createSetFlagsRule();
 
     private static final long CALLBACK_TIMEOUT_MILLI_SEC = 5000;
+    private static final int VIRTUAL_DEVICE_ID = 42;
     private ThermalManagerService mService;
     private ThermalHalFake mFakeHal;
     private PowerManager mPowerManager;
@@ -359,6 +362,39 @@ public class ThermalManagerServiceTest {
     }
 
     @Test
+    public void testRegisterThermalStatusListenerForDevice_invalidOrDefaultDevice_throws()
+            throws Exception {
+        assertThrows(IllegalArgumentException.class, () ->
+                mService.mService.registerThermalStatusListenerForDevice(
+                        Context.DEVICE_ID_DEFAULT, mStatusListener1));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                mService.mService.registerThermalStatusListenerForDevice(
+                        Context.DEVICE_ID_INVALID, mStatusListener1));
+    }
+
+    @Test
+    public void testRegisterThermalStatusListenerForDevice() throws Exception {
+        assertTrue(mService.mService.registerThermalStatusListenerForDevice(
+                VIRTUAL_DEVICE_ID, mStatusListener1));
+        verify(mStatusListener1, timeout(CALLBACK_TIMEOUT_MILLI_SEC)
+                .times(1)).onStatusChange(Temperature.THROTTLING_NONE);
+
+        mService.mLocalService.notifyDeviceThermalStatusChanged(
+                VIRTUAL_DEVICE_ID, Temperature.THROTTLING_SEVERE);
+        verify(mStatusListener1, timeout(CALLBACK_TIMEOUT_MILLI_SEC)
+                .times(1)).onStatusChange(Temperature.THROTTLING_SEVERE);
+
+        assertTrue(mService.mService.registerThermalStatusListenerForDevice(
+                VIRTUAL_DEVICE_ID, mStatusListener2));
+        verify(mStatusListener2, timeout(CALLBACK_TIMEOUT_MILLI_SEC)
+                .times(1)).onStatusChange(Temperature.THROTTLING_SEVERE);
+
+        assertTrue(mService.mService.unregisterThermalStatusListener(mStatusListener1));
+        assertTrue(mService.mService.unregisterThermalStatusListener(mStatusListener2));
+    }
+
+    @Test
     public void testNotifyThrottling() throws Exception {
         assertTrue(mService.mService.registerThermalEventListener(mEventListener1));
         assertTrue(mService.mService.registerThermalStatusListener(mStatusListener1));
@@ -524,6 +560,28 @@ public class ThermalManagerServiceTest {
         int battStatus = Temperature.THROTTLING_EMERGENCY;
         Temperature newBattery = new Temperature(60, Temperature.TYPE_BATTERY, "batt", battStatus);
         assertEquals(status, mService.mService.getCurrentThermalStatus());
+    }
+
+    @EnableFlags(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_THERMAL_STATUS)
+    @Test
+    public void testGetCurrentStatusForDevice_invalidOrDefaultDevice_throws() throws Exception {
+        assertThrows(IllegalArgumentException.class, () ->
+                mService.mService.getCurrentThermalStatusForDevice(Context.DEVICE_ID_DEFAULT));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                mService.mService.getCurrentThermalStatusForDevice(Context.DEVICE_ID_INVALID));
+    }
+
+    @EnableFlags(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_THERMAL_STATUS)
+    @Test
+    public void testGetCurrentStatusForDevice() throws Exception {
+        assertThat(mService.mService.getCurrentThermalStatusForDevice(VIRTUAL_DEVICE_ID))
+                .isEqualTo(Temperature.THROTTLING_NONE);
+
+        mService.mLocalService.notifyDeviceThermalStatusChanged(
+                VIRTUAL_DEVICE_ID, Temperature.THROTTLING_SEVERE);
+        assertThat(mService.mService.getCurrentThermalStatusForDevice(VIRTUAL_DEVICE_ID))
+                .isEqualTo(Temperature.THROTTLING_SEVERE);
     }
 
     @Test

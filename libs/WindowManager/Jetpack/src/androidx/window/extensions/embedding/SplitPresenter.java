@@ -62,6 +62,7 @@ import androidx.window.extensions.layout.WindowLayoutInfo;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.window.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -372,6 +373,11 @@ class SplitPresenter extends JetpackTaskFragmentOrganizer {
         if (isPlaceholder) {
             // When placeholder is launched in split, we should keep the focus on the primary.
             wct.requestFocusOnTaskFragment(primaryContainer.getTaskFragmentToken());
+
+            if (Flags.virtualGamepadOverride()) {
+                AppCompatEmbeddingRuleController
+                        .updatePlaceholderContainer(this, secondaryContainer, wct);
+            }
         }
     }
 

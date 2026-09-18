@@ -16,6 +16,7 @@
 
 package com.android.systemui.volume.panel.component.mediaoutput.domain.interactor
 
+import android.content.applicationContext
 import android.content.mockedContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
@@ -26,6 +27,19 @@ import com.android.systemui.volume.mediaDeviceSessionInteractor
 import com.android.systemui.volume.mediaOutputInteractor
 
 val Kosmos.mediaOutputComponentInteractor by
+    Kosmos.Fixture {
+        MediaOutputComponentInteractor(
+            applicationContext,
+            testScope.backgroundScope,
+            mediaDeviceSessionInteractor,
+            audioOutputInteractor,
+            audioModeInteractor,
+            mediaOutputInteractor,
+            audioSharingInteractor,
+        )
+    }
+
+val Kosmos.mockedMediaOutputComponentInteractor by
     Kosmos.Fixture {
         MediaOutputComponentInteractor(
             mockedContext,

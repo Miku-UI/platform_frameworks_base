@@ -107,7 +107,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
 
     /** The current windowing mode of the configuration. */
     @WindowingMode
-    private int mWindowingMode;
+    private int mWindowingMode = WINDOWING_MODE_UNDEFINED;
 
     /** Windowing mode is currently not defined. */
     public static final int WINDOWING_MODE_UNDEFINED = 0;
@@ -135,7 +135,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
 
     /** The current activity type of the configuration. */
     @ActivityType
-    private int mActivityType;
+    private int mActivityType = ACTIVITY_TYPE_UNDEFINED;
 
     /** Activity type is currently not defined. */
     public static final int ACTIVITY_TYPE_UNDEFINED = 0;
@@ -165,7 +165,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
 
     /** The current always on top status of the configuration. */
     @AlwaysOnTop
-    private int mAlwaysOnTop;
+    private int mAlwaysOnTop = ALWAYS_ON_TOP_UNDEFINED;
 
     /** Always on top is currently not defined. */
     private static final int ALWAYS_ON_TOP_UNDEFINED = 0;
@@ -222,9 +222,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
     public @interface WindowConfig {}
 
     @UnsupportedAppUsage
-    public WindowConfiguration() {
-        unset();
-    }
+    public WindowConfiguration() {}
 
     /** @hide */
     public WindowConfiguration(@NonNull WindowConfiguration configuration) {
@@ -767,7 +765,9 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
             while (proto.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
                 switch (proto.getFieldNumber()) {
                     case (int) APP_BOUNDS:
-                        mAppBounds = new Rect();
+                        if (mAppBounds == null) {
+                            mAppBounds = new Rect();
+                        }
                         mAppBounds.readFromProto(proto, APP_BOUNDS);
                         break;
                     case (int) BOUNDS:

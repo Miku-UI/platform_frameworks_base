@@ -26,13 +26,13 @@ import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.LockscreenShadeTransitionController
 import com.android.systemui.statusbar.StatusBarState.KEYGUARD
 import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.statusbar.notification.domain.interactor.SeenNotificationsInteractor
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.ExpandableView
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.notification.shared.NotificationMinimalism
 import com.android.systemui.statusbar.policy.SplitShadeStateController
 import com.android.systemui.util.Compile
@@ -64,6 +64,7 @@ constructor(
     private val mediaDataManager: MediaDataManager,
     @ShadeDisplayAware private val resources: Resources,
     private val splitShadeStateController: SplitShadeStateController,
+    private val shadeModeInteractor: ShadeModeInteractor,
     private val seenNotificationsInteractor: SeenNotificationsInteractor,
     @Application private val scope: CoroutineScope,
 ) {
@@ -205,8 +206,10 @@ constructor(
 
         // TODO: Avoid making this split shade assumption by simply checking the stack for media
         val isMediaShowing = mediaDataManager.hasActiveMedia()
-        val isMediaShowingInStack =
-            isMediaShowing && !splitShadeStateController.shouldUseSplitNotificationShade(resources)
+        val isSplitShade =
+            if (SceneContainerFlag.isEnabled) shadeModeInteractor.isSplitShade
+            else splitShadeStateController.shouldUseSplitNotificationShade(resources)
+        val isMediaShowingInStack = isMediaShowing && !isSplitShade
 
         log { "\tGet maxNotifWithoutSavingSpace ---" }
         val maxNotifWithoutSavingSpace =
@@ -412,14 +415,7 @@ constructor(
             var bucket: Int? = null
             if (counter != null) {
                 bucket =
-                    if (NotificationBundleUi.isEnabled) {
-                        val entryAdapter =
-                            (currentNotification as? ExpandableNotificationRow)?.entryAdapter
-                        entryAdapter?.sectionBucket
-                    } else {
-                        val entry = (currentNotification as? ExpandableNotificationRow)?.entryLegacy
-                        entry?.bucket
-                    }
+                    (currentNotification as? ExpandableNotificationRow)?.entryAdapter?.sectionBucket
                 counter.incrementForBucket(bucket)
             }
 
@@ -480,10 +476,7 @@ constructor(
         val height = view.heightWithoutLockscreenConstraints.toFloat()
         val gapAndDividerHeight =
             calculateGapAndDividerHeight(stack, previousView, current = view, visibleIndex)
-        val canPeek =
-            view is ExpandableNotificationRow &&
-                if (NotificationBundleUi.isEnabled) view.entryAdapter?.canPeek() == true
-                else view.entryLegacy.isStickyAndNotDemoted
+        val canPeek = view is ExpandableNotificationRow && view.entryAdapter?.canPeek() == true
 
         var size =
             if (onLockscreen) {
@@ -491,8 +484,9 @@ constructor(
                     view is ExpandableNotificationRow &&
                         (canPeek ||
                             view.isPromotedOngoing ||
-                                (view.isBundle && view.isGroupExpanded) ||
-                                    (SceneContainerFlag.isEnabled && view.isUserLocked))
+                            (view.isBundle && view.isGroupExpanded) ||
+                            (SceneContainerFlag.isEnabled &&
+                                (view.isHeadsUpState || view.isUserSwipingToExpandRow)))
                 ) {
                     height
                 } else {

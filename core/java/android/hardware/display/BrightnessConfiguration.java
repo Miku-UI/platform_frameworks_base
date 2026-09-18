@@ -579,7 +579,7 @@ public final class BrightnessConfiguration implements Parcelable {
          *
          * @return The builder.
          *
-         * @throws IllegalArgumentExceptions
+         * @throws IllegalArgumentException
          *      Maximum number of corrections by package name exceeded (see
          *      {@link #getMaxCorrectionsByPackageName}).
          *
@@ -653,7 +653,7 @@ public final class BrightnessConfiguration implements Parcelable {
          * Sets the timeout for the short term model in milliseconds.
          *
          * If the screen is inactive for this timeout then the short term model
-         * will check the lux range defined by {@link #setShortTermModelLowerLuxMultiplier(float))}
+         * will check the lux range defined by {@link #setShortTermModelLowerLuxMultiplier(float)}
          * and {@link #setShortTermModelUpperLuxMultiplier(float)} to decide whether to keep any
          * adjustment the user has made to adaptive brightness.
          */

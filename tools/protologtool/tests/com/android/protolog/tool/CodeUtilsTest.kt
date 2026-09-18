@@ -19,13 +19,23 @@ package com.android.protolog.tool
 import com.android.internal.protolog.common.LogLevel
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.expr.BinaryExpr
+import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.BeforeClass
 import org.junit.Test
 
 class CodeUtilsTest {
+    companion object {
+        @BeforeClass
+        @JvmStatic
+        fun setParserConfig() {
+            StaticJavaParser.setConfiguration(ProtoLogTool.PARSER_CONFIG)
+        }
+    }
+
     @Test
     fun hash() {
         assertEquals(3883826472308915399, CodeUtils.hash("Test.java:50", "test",
@@ -179,5 +189,123 @@ class CodeUtilsTest {
         val code = StaticJavaParser.parseExpression<BinaryExpr>(str)
         val out = CodeUtils.concatMultilineString(code, ParsingContext())
         assertEquals("testabc1234test", out)
+    }
+
+    @Test
+    fun concatMultilineString_singleTextBlock() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}
+            Line 1
+            Line 2
+            ${"\"\"\""}
+        """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("Line 1\nLine 2\n", out)
+    }
+
+    @Test
+    fun concatMultilineString_textBlockWithIndentation() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}
+                Indented Line 1
+                    Indented Line 2
+            ${"\"\"\""}
+        """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("    Indented Line 1\n        Indented Line 2\n", out)
+    }
+
+    @Test
+    fun concatMultilineString_emptyTextBlock() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}${"\"\"\""}
+            """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("", out)
+    }
+
+    @Test
+    fun concatMultilineString_textBlockWithOnlyNewlines() {
+         val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}
+
+
+            ${"\"\"\""}
+            """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("\n\n", out)
+    }
+
+    @Test
+    fun concatMultilineString_textBlockAndStringLiteral() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}
+            Line 1
+            ${"\"\"\""} + " StringLiteral"
+            """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("Line 1\n StringLiteral", out)
+    }
+
+    @Test
+    fun concatMultilineString_StringLiteralAndTextBlock() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            "StringLiteral " + ${"\"\"\""}
+            Line 1
+            ${"\"\"\""}
+            """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("StringLiteral Line 1\n", out)
+    }
+
+    @Test
+    fun concatMultilineString_twoTextBlocks() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}
+            Block 1 Line 1
+            ${"\"\"\""} + ${"\"\"\""}
+            Block 2 Line 1
+            ${"\"\"\""}
+        """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("Block 1 Line 1\nBlock 2 Line 1\n", out)
+    }
+
+    @Test
+    fun concatMultilineString_textBlockWithEscapes() {
+        // Note: JavaParser handles the escape sequences in text blocks.
+        // \n is a newline, \\ is a backslash, \s is a space.
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            ${"\"\"\""}
+            First Line\nSecond Line\\Escaped Backslash\sEndSpace
+            ${"\"\"\""}
+        """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("First Line\\nSecond Line\\\\Escaped Backslash\\sEndSpace\n", out)
+    }
+
+    @Test
+    fun concatMultilineString_complexConcatenation() {
+        val expr = StaticJavaParser.parseExpression<Expression>("""
+            "Start " + ${"\"\"\""}
+            Block 1
+            ${"\"\"\""} + " Middle " + ${"\"\"\""}
+            Block 2
+            ${"\"\"\""} + " End"
+            """.trimIndent())
+        val out = CodeUtils.concatMultilineString(expr, ParsingContext())
+        assertEquals("Start Block 1\n Middle Block 2\n End", out)
+    }
+
+    @Test(expected = InvalidProtoLogCallException::class)
+    fun concatMultilineString_invalidExpression() {
+        val expr = StaticJavaParser.parseExpression<Expression>("1 + 2")
+        CodeUtils.concatMultilineString(expr, ParsingContext())
+    }
+
+    @Test(expected = InvalidProtoLogCallException::class)
+    fun concatMultilineString_invalidBinaryOp() {
+        val expr = StaticJavaParser.parseExpression<Expression>(""""a" - "b"""")
+        CodeUtils.concatMultilineString(expr, ParsingContext())
     }
 }

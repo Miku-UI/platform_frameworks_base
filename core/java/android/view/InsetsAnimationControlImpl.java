@@ -77,18 +77,42 @@ import java.util.Objects;
 /**
  * Implements {@link WindowInsetsAnimationController}
  *
+ * This class coordinates the leashes for the upstream caller by managing the translation and the
+ * alpha during the insets animation. It also updates the {@link InsetsState} if requested.
+ *
  * @hide
  */
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public class InsetsAnimationControlImpl implements InternalInsetsAnimationController,
         InsetsAnimationControlRunner {
+
+    /**
+     * A temporary rectangle used to store and manipulate the frame of an insets source.
+     */
     @NonNull
     private final Rect mTmpFrame = new Rect();
 
+    /**
+     * A temporary rectangle used to store and manipulate the visible frame of an insets source.
+     */
+    @NonNull
+    private final Rect mTmpVisibleFrame = new Rect();
+
+    /**
+     * The listener that receives callbacks about the progress and lifecycle of the animation.
+     */
     @NonNull
     private final WindowInsetsAnimationControlListener mListener;
+
+    /**
+     * A collection of controls for each insets source being animated, keyed by their ID.
+     */
     @NonNull
     private final SparseArray<InsetsSourceControl> mControls;
+
+    /**
+     * A mapping from sides (left, top, right, bottom) to the controls affecting that side.
+     */
     @NonNull
     private final SparseSetArray<InsetsSourceControl> mSideControlsMap = new SparseSetArray<>();
 
@@ -99,47 +123,144 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
     /** @see WindowInsetsAnimationController#getShownStateInsets */
     @NonNull
     private final Insets mShownInsets;
+
+    /**
+     * A temporary matrix used for calculating surface transformations during animation frames.
+     */
     @NonNull
     private final Matrix mTmpMatrix = new Matrix();
+
+    /**
+     * The state of insets at the beginning of the animation.
+     */
     @NonNull
     private final InsetsState mInitialInsetsState;
+
+    /**
+     * The type of animation (e.g., show or hide).
+     */
     @AnimationType
     private final int mAnimationType;
+
+    /**
+     * Determines which insets state is used for layout during the animation.
+     */
     @LayoutInsetsDuringAnimation
     private int mLayoutInsetsDuringAnimation;
+
+    /**
+     * The bitmask of insets types that this controller was originally requested to animate.
+     */
     @InsetsType
     private final int mTypes;
+
+    /**
+     * The bitmask of insets types that this controller is currently managing.
+     */
     @InsetsType
     private int mControllingTypes;
+
+    /**
+     * The callback interface used to communicate with the {@link InsetsController}.
+     */
     @NonNull
     private final InsetsAnimationControlCallbacks mController;
+
+    /**
+     * Applier for surface parameters, used to update leashes in the RenderThread.
+     */
     @NonNull
     private final SurfaceParamsApplier mSurfaceParamsApplier;
+
+    /**
+     * The underlying animation object representing this insets transition.
+     */
     @NonNull
     private final WindowInsetsAnimation mAnimation;
+
+    /**
+     * The total duration of the animation in milliseconds.
+     */
     private final long mDurationMs;
+
+    /**
+     * The interpolator used to calculate intermediate progress.
+     */
     private final Interpolator mInterpolator;
+
     /** @see WindowInsetsAnimationController#hasZeroInsetsIme */
     private final boolean mHasZeroInsetsIme;
+
+    /**
+     * Translator used to handle coordinate transformations for different display scales.
+     */
     @Nullable
     private final CompatibilityInfo.Translator mTranslator;
+
+    /**
+     * Token used for tracking IME visibility requests through {@link ImeTracker}.
+     */
     @Nullable
     private final ImeTracker.Token mStatsToken;
+
+    /**
+     * The current insets values applied to the window.
+     */
     @NonNull
     private Insets mCurrentInsets;
+
+    /**
+     * The insets values that will be applied in the next animation frame.
+     */
     @NonNull
     private Insets mPendingInsets;
+
+    /**
+     * The fraction of the animation that will be applied in the next animation frame.
+     */
     @FloatRange(from = 0f, to = 1f)
     private float mPendingFraction;
+
+    /**
+     * Flag indicating if the animation has successfully finished.
+     */
     private boolean mFinished;
+
+    /**
+     * Flag indicating if the animation is in the process of being cancelled.
+     */
     private boolean mCancelling;
+
+    /**
+     * Flag indicating if the animation has been cancelled.
+     */
     private boolean mCancelled;
+
+    /**
+     * Flag indicating if the insets should be shown once the animation finishes.
+     */
     private boolean mShownOnFinish;
+
+    /**
+     * The current alpha value (transparency) of the animating insets.
+     */
     @FloatRange(from = 0f, to = 1f)
     private float mCurrentAlpha = 1.0f;
+
+    /**
+     * The alpha value that will be applied in the next animation frame.
+     */
     @FloatRange(from = 0f, to = 1f)
     private float mPendingAlpha = 1.0f;
+
+    /**
+     * Flag indicating if the 'ready' state of the animation has been dispatched to the listener.
+     */
     private boolean mReadyDispatched;
+
+    /**
+     * Tracks whether the animating insets are considered perceptible to the user.
+     */
     @Nullable
     private Boolean mPerceptible;
 
@@ -298,6 +419,14 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
     }
 
     @Override
+    public boolean hasAnimationCallback() {
+        if (mListener instanceof InsetsController.InternalAnimationControlListener listener) {
+            return listener.hasAnimationCallbacks();
+        }
+        return false;
+    }
+
+    @Override
     @NonNull
     public SurfaceParamsApplier getSurfaceParamsApplier() {
         return mSurfaceParamsApplier;
@@ -339,7 +468,15 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
     }
 
     /**
-     * @return Whether the finish callback of this animation should be invoked.
+     * Applies the pending insets and alpha by updating the surface leashes.
+     *
+     * <p>This method is typically called from the {@link Choreographer} callback scheduled by
+     * {@link #setInsetsAndAlpha}. It calculates the necessary translations for each surface
+     * leash based on the difference between shown insets and pending insets.
+     *
+     * @param outState If not null, the {@link InsetsState} will be updated with the new
+     *                 source frames and visibility.
+     * @return {@code true} if the animation is finished and this was the final update.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public boolean applyChangeInsets(@Nullable InsetsState outState) {
@@ -361,7 +498,7 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
         mAnimation.setAlpha(mPendingAlpha);
         if (mFinished) {
             ProtoLog.d(INSETS_ANIMATION_CONTROLLER,
-                    "notifyFinished shown: %s, currentAlpha: %s, currentInsets: %s", mShownOnFinish,
+                    "notifyFinished shown: %b, currentAlpha: %f, currentInsets: %s", mShownOnFinish,
                     mCurrentAlpha, mCurrentInsets);
             mController.notifyFinished(this, mShownOnFinish);
             releaseLeashes();
@@ -533,6 +670,15 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
         return alpha >= 1 ? 1 : (alpha <= 0 ? 0 : alpha);
     }
 
+    /**
+     * Updates the surface leashes for a specific side of the window.
+     *
+     * @param side          The side to update (left, top, right, or bottom).
+     * @param offset        The amount of translation to apply to the surfaces on this side.
+     * @param surfaceParams A list where new {@link SurfaceParams} will be added for each control.
+     * @param outState      If not null, the animated {@link InsetsSource}s will be updated
+     * @param alpha         The alpha value to apply to the surfaces.
+     */
     private void updateLeashesForSide(@InternalInsetsSide int side, int offset,
             @NonNull List<SurfaceParams> surfaceParams, @Nullable InsetsState outState,
             @FloatRange(from = 0f, to = 1f) float alpha) {
@@ -558,15 +704,21 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
             final SurfaceControl leash = control.getLeash();
 
             mTmpMatrix.setTranslate(control.getSurfacePosition().x, control.getSurfacePosition().y);
+            Rect tmpVisibleFrame = null;
             if (source != null) {
                 mTmpFrame.set(source.getFrame());
+                if (source.getVisibleFrame() != null) {
+                    mTmpVisibleFrame.set(source.getVisibleFrame());
+                    tmpVisibleFrame = mTmpVisibleFrame;
+                }
             }
-            addTranslationToMatrix(side, offset, mTmpMatrix, mTmpFrame);
+            addTranslationToMatrix(side, offset, mTmpMatrix, mTmpFrame, tmpVisibleFrame);
 
             if (outState != null && source != null) {
                 outState.addSource(new InsetsSource(source)
                         .setVisible(visible)
-                        .setFrame(mTmpFrame));
+                        .setFrame(mTmpFrame)
+                        .setVisibleFrame(tmpVisibleFrame));
             }
 
             // If the system is controlling the insets source, the leash can be null.
@@ -581,30 +733,53 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
         }
     }
 
+    /**
+     * Translates a transformation matrix and a set of frames based on the specified side and
+     * offset.
+     *
+     * @param side         The side from which the translation originates.
+     * @param offset       The pixel offset to translate.
+     * @param m            The matrix to update with the translation.
+     * @param frame        The frame rectangle to offset.
+     * @param visibleFrame The visible frame rectangle to offset.
+     */
     private void addTranslationToMatrix(@InternalInsetsSide int side, int offset, @NonNull Matrix m,
-            @NonNull Rect frame) {
+            @NonNull Rect frame, @Nullable Rect visibleFrame) {
         final float surfaceOffset = mTranslator != null
                 ? mTranslator.translateLengthInAppWindowToScreen(offset) : offset;
+        int offsetX = 0;
+        int offsetY = 0;
         switch (side) {
             case SIDE_LEFT:
                 m.postTranslate(-surfaceOffset, 0);
-                frame.offset(-offset, 0);
+                offsetX = -offset;
                 break;
             case SIDE_TOP:
                 m.postTranslate(0, -surfaceOffset);
-                frame.offset(0, -offset);
+                offsetY = -offset;
                 break;
             case SIDE_RIGHT:
                 m.postTranslate(surfaceOffset, 0);
-                frame.offset(offset, 0);
+                offsetX = offset;
                 break;
             case SIDE_BOTTOM:
                 m.postTranslate(0, surfaceOffset);
-                frame.offset(0, offset);
+                offsetY = offset;
                 break;
+        }
+        frame.offset(offsetX, offsetY);
+        if (visibleFrame != null) {
+            visibleFrame.offset(offsetX, offsetY);
         }
     }
 
+    /**
+     * Builds a map from window sides to the controls associated with that side.
+     *
+     * @param idSideMap       A mapping of source IDs to their corresponding logical sides.
+     * @param sideControlsMap The map to populate with controls grouped by side.
+     * @param controls        The set of all controls being managed.
+     */
     private static void buildSideControlsMap(@NonNull SparseIntArray idSideMap,
             @NonNull SparseSetArray<InsetsSourceControl> sideControlsMap,
             @NonNull SparseArray<InsetsSourceControl> controls) {
@@ -621,6 +796,13 @@ public class InsetsAnimationControlImpl implements InternalInsetsAnimationContro
         }
     }
 
+    /**
+     * Builds a map from window sides to the controls associated with that side,
+     * using the insets hint from each control to determine the side.
+     *
+     * @param sideControlsMap The map to populate with controls grouped by side.
+     * @param controls        The set of all controls being managed.
+     */
     private static void buildSideControlsMap(
             @NonNull SparseSetArray<InsetsSourceControl> sideControlsMap,
             @NonNull SparseArray<InsetsSourceControl> controls) {

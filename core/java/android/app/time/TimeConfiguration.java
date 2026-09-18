@@ -35,8 +35,8 @@ import java.util.Objects;
  * several settings, the device behavior may not be directly affected by the setting value.
  *
  * <p>Settings can be left absent when updating configuration via {@link
- * TimeManager#updateTimeConfiguration(TimeConfiguration)} and those settings will not be
- * changed. Not all configuration settings can be modified by all users: see {@link
+ * TimeManager#updateTimeConfiguration(TimeConfiguration)} and those settings will not be changed.
+ * Not all configuration settings can be modified by all users: see {@link
  * TimeManager#getTimeCapabilitiesAndConfig()} and {@link TimeCapabilities} for details.
  *
  * @hide
@@ -67,20 +67,16 @@ public final class TimeConfiguration implements Parcelable {
     @interface Setting {}
 
     /** See {@link TimeConfiguration#isAutoDetectionEnabled()} for details. */
-    @Setting
-    private static final String SETTING_AUTO_DETECTION_ENABLED = "autoDetectionEnabled";
+    @Setting private static final String SETTING_AUTO_DETECTION_ENABLED = "autoDetectionEnabled";
 
-    @NonNull
-    private final Bundle mBundle;
+    @NonNull private final Bundle mBundle;
 
     private TimeConfiguration(Builder builder) {
         this.mBundle = builder.mBundle;
     }
 
     private static TimeConfiguration readFromParcel(Parcel in) {
-        return new TimeConfiguration.Builder()
-                .setPropertyBundleInternal(in.readBundle())
-                .build();
+        return new TimeConfiguration.Builder().setPropertyBundleInternal(in.readBundle()).build();
     }
 
     @Override
@@ -98,12 +94,12 @@ public final class TimeConfiguration implements Parcelable {
     }
 
     /**
-     * Returns the value of the {@link #SETTING_AUTO_DETECTION_ENABLED} setting. This
-     * controls whether a device will attempt to determine the time automatically using
-     * contextual information if the device supports auto detection.
+     * Returns the value of the {@link #SETTING_AUTO_DETECTION_ENABLED} setting. This controls
+     * whether a device will attempt to determine the time automatically using contextual
+     * information if the device supports auto detection.
      *
-     * <p>See {@link TimeCapabilities#getConfigureAutoDetectionEnabledCapability()} for how to
-     * tell if the setting is meaningful for the current user at this time.
+     * <p>See {@link TimeCapabilities#getConfigureAutoDetectionEnabledCapability()} for how to tell
+     * if the setting is meaningful for the current user at this time.
      *
      * @throws IllegalStateException if the setting is not present
      */
@@ -141,9 +137,7 @@ public final class TimeConfiguration implements Parcelable {
 
     @Override
     public String toString() {
-        return "TimeConfiguration{"
-                + "mBundle=" + mBundle
-                + '}';
+        return "TimeConfiguration{" + "mBundle=" + mBundle + '}';
     }
 
     private void enforceSettingPresent(@TimeZoneConfiguration.Setting String setting) {
@@ -162,14 +156,10 @@ public final class TimeConfiguration implements Parcelable {
 
         private final Bundle mBundle = new Bundle();
 
-        /**
-         * Creates a new Builder with no settings held.
-         */
+        /** Creates a new Builder with no settings held. */
         public Builder() {}
 
-        /**
-         * Creates a new Builder by copying the settings from an existing instance.
-         */
+        /** Creates a new Builder by copying the settings from an existing instance. */
         public Builder(@NonNull TimeConfiguration toCopy) {
             mergeProperties(toCopy);
         }

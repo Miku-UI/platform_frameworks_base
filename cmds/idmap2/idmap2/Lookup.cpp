@@ -211,7 +211,7 @@ Result<Unit> Lookup(const std::vector<std::string>& args) {
                    target_path.c_str(), idmap_path.c_str(), idmap_header->GetTargetPath().c_str());
     }
 
-    auto overlay_apk = ApkAssets::LoadOverlay(idmap_path);
+    auto overlay_apk = ApkAssets::LoadOverlay(idmap_path, nullptr);
     if (!overlay_apk) {
       return Error("failed to read overlay apk from %s", idmap_header->GetOverlayPath().c_str());
     }

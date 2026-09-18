@@ -44,35 +44,30 @@ import org.junit.runners.Parameterized
 @Postsubmit
 class OpenTrampolineAppInDesktopModeTaskPositionFlickerTest(flicker: FlickerTest) :
     DesktopModeBaseTest(flicker) {
-    inner class OpenTrampolineAppInDesktopModeTaskPositionScenario : OpenTrampolineAppInDesktopModeTaskPosition(flicker.scenario.startRotation)
+    inner class OpenTrampolineAppInDesktopModeTaskPositionScenario :
+        OpenTrampolineAppInDesktopModeTaskPosition(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
+    val testSetupRule = Utils.testSetupRule(NavBar.MODE_3BUTTON, flicker.scenario.startRotation)
     val scenario = OpenTrampolineAppInDesktopModeTaskPositionScenario()
-    val finalTrampolineActivity = ActivityOptions.TrampolineFinishActivity.COMPONENT.toFlickerComponent()
+    val finalTrampolineActivity =
+        ActivityOptions.TrampolineFinishActivity.COMPONENT.toFlickerComponent()
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.openTrampolineApp()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.openTrampolineApp() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(finalTrampolineActivity)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(finalTrampolineActivity)
+
+    @Test fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(finalTrampolineActivity)
 
     @Test
-    fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(finalTrampolineActivity)
-
-    @Test
-    fun appWindowInsideDisplayBoundsAtEnd() = flicker.appWindowInsideDisplayBoundsAtEnd(finalTrampolineActivity)
+    fun appWindowInsideDisplayBoundsAtEnd() =
+        flicker.appWindowInsideDisplayBoundsAtEnd(finalTrampolineActivity)
 
     @Test
     fun appLayerPositionedBottomRightAtEnd() =
@@ -83,7 +78,7 @@ class OpenTrampolineAppInDesktopModeTaskPositionFlickerTest(flicker: FlickerTest
         @JvmStatic
         fun getParams(): Collection<FlickerChecker> {
             return FlickerTestFactory.nonRotationTests(
-                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
+                supportedNavigationModes = listOf(NavBar.MODE_3BUTTON)
             )
         }
     }

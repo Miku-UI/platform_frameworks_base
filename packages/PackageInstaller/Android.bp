@@ -37,8 +37,9 @@ java_defaults {
     defaults: ["platform_app_defaults"],
 
     srcs: [
-        "src/**/*.java",
-        "src/**/*.kt",
+        ":package-installer-source-kotlin",
+        ":package-installer-source-java",
+        ":statslog-packageinstaller-java-gen",
     ],
 
     certificate: "platform",
@@ -71,6 +72,20 @@ java_defaults {
     },
 }
 
+filegroup {
+    name: "package-installer-source-java",
+    srcs: [
+        "src/**/*.java",
+    ],
+}
+
+filegroup {
+    name: "package-installer-source-kotlin",
+    srcs: [
+        "src/**/*.kt",
+    ],
+}
+
 android_app {
     name: "PackageInstaller",
     defaults: ["package_installer_defaults"],
@@ -92,4 +107,11 @@ android_app {
     overrides: ["PackageInstaller"],
 
     aaptflags: ["--product tv"],
+}
+
+genrule {
+    name: "statslog-packageinstaller-java-gen",
+    tools: ["stats-log-api-gen"],
+    cmd: "$(location stats-log-api-gen) --java $(out) --module packageinstaller --javaPackage com.android.packageinstaller.stats --javaClass PackageInstallerStatsLog",
+    out: ["com/android/packageinstaller/stats/PackageInstallerStatsLog.java"],
 }

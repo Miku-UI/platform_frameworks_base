@@ -19,11 +19,12 @@ package com.android.systemui.volume.panel.component.mediaoutput.ui.viewmodel
 import android.content.Context
 import android.graphics.Color as GraphicsColor
 import com.android.internal.logging.UiEventLogger
-import com.android.systemui.Flags
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Color
 import com.android.systemui.common.shared.model.Icon
+import com.android.systemui.media.dialog.MediaSwitchingType
 import com.android.systemui.res.R
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.domain.model.AudioOutputDevice
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaOutputActionsInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaOutputComponentInteractor
@@ -49,6 +50,7 @@ constructor(
     private val actionsInteractor: MediaOutputActionsInteractor,
     private val mediaOutputComponentInteractor: MediaOutputComponentInteractor,
     private val uiEventLogger: UiEventLogger,
+    private val expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
 
     val connectedDeviceViewModel: StateFlow<ConnectedDeviceViewModel?> =
@@ -77,13 +79,7 @@ constructor(
                 ConnectedDeviceViewModel(
                     label = label,
                     labelColor =
-                        if (Flags.volumeRedesign()) {
-                            Color.Resource(com.android.internal.R.color.materialColorOnSurface)
-                        } else {
-                            Color.Resource(
-                                com.android.internal.R.color.materialColorOnSurfaceVariant
-                            )
-                        },
+                        Color.Resource(com.android.internal.R.color.materialColorOnSurface),
                     deviceName =
                         if (mediaOutputModel.isInAudioSharing) {
                             context.getString(R.string.audio_sharing_description)
@@ -123,15 +119,7 @@ constructor(
                         icon = icon,
                         iconColor =
                             if (mediaOutputModel.canOpenAudioSwitcher) {
-                                if (Flags.volumeRedesign()) {
-                                    Color.Resource(
-                                        com.android.internal.R.color.materialColorOnPrimary
-                                    )
-                                } else {
-                                    Color.Resource(
-                                        com.android.internal.R.color.materialColorSurface
-                                    )
-                                }
+                                Color.Resource(com.android.internal.R.color.materialColorOnPrimary)
                             } else {
                                 Color.Resource(
                                     com.android.internal.R.color
@@ -140,15 +128,7 @@ constructor(
                             },
                         backgroundColor =
                             if (mediaOutputModel.canOpenAudioSwitcher) {
-                                if (Flags.volumeRedesign()) {
-                                    Color.Resource(
-                                        com.android.internal.R.color.materialColorPrimary
-                                    )
-                                } else {
-                                    Color.Resource(
-                                        com.android.internal.R.color.materialColorSecondary
-                                    )
-                                }
+                                Color.Resource(com.android.internal.R.color.materialColorPrimary)
                             } else {
                                 Color.Resource(com.android.internal.R.color.materialColorOutline)
                             },
@@ -158,15 +138,7 @@ constructor(
                         icon = icon,
                         iconColor =
                             if (mediaOutputModel.canOpenAudioSwitcher) {
-                                if (Flags.volumeRedesign()) {
-                                    Color.Resource(
-                                        com.android.internal.R.color.materialColorPrimary
-                                    )
-                                } else {
-                                    Color.Resource(
-                                        com.android.internal.R.color.materialColorOnSurfaceVariant
-                                    )
-                                }
+                                Color.Resource(com.android.internal.R.color.materialColorPrimary)
                             } else {
                                 Color.Resource(com.android.internal.R.color.materialColorOutline)
                             },
@@ -189,6 +161,11 @@ constructor(
         actionsInteractor.onBarClick(
             (result as? Result.Data<MediaOutputComponentModel>)?.data,
             expandable,
+            if (expandedAudioTileDetailsFeatureInteractor.isEnabled()) {
+                MediaSwitchingType.OUTPUT
+            } else {
+                null
+            },
         )
     }
 }

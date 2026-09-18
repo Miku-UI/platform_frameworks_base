@@ -29,7 +29,6 @@ import android.hardware.usb.UsbManager.DisplayPortAltModeInfoListener;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.display.feature.DisplayManagerFlags;
 
 /**
  * Detects usb issues related to an external display connected.
@@ -67,29 +66,21 @@ public class ConnectedDisplayUsbErrorsDetector implements DisplayPortAltModeInfo
     private Listener mListener;
     private final Injector mInjector;
     private final Context mContext;
-    private final boolean mIsConnectedDisplayErrorHandlingEnabled;
 
-    ConnectedDisplayUsbErrorsDetector(@NonNull final DisplayManagerFlags flags,
-            @NonNull final Context context) {
-        this(flags, context, () -> context.getSystemService(UsbManager.class));
+    ConnectedDisplayUsbErrorsDetector(@NonNull final Context context) {
+        this(context, () -> context.getSystemService(UsbManager.class));
     }
 
     @VisibleForTesting
-    ConnectedDisplayUsbErrorsDetector(@NonNull final DisplayManagerFlags flags,
-            @NonNull final Context context, @NonNull final Injector injector) {
+    ConnectedDisplayUsbErrorsDetector(@NonNull final Context context,
+            @NonNull final Injector injector) {
         mContext = context;
         mInjector = injector;
-        mIsConnectedDisplayErrorHandlingEnabled =
-                flags.isConnectedDisplayErrorHandlingEnabled();
     }
 
     /** Register listener for usb error events. */
     @SuppressLint("AndroidFrameworkRequiresPermission")
     void registerListener(final Listener listener) {
-        if (!mIsConnectedDisplayErrorHandlingEnabled) {
-            return;
-        }
-
         final var usbManager = mInjector.getUsbManager();
         if (usbManager == null) {
             Slog.e(TAG, "UsbManager is null");

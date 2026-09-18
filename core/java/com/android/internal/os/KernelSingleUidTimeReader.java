@@ -147,7 +147,7 @@ public class KernelSingleUidTimeReader {
 
     /**
      * Compute and return cpu times delta of an uid using previously read cpu times and
-     * {@param latestCpuTimesMs}.
+     * {@code latestCpuTimesMs}.
      *
      * @return delta of cpu times if at least one of the cpu time at a freq is +ve, otherwise null.
      */
@@ -184,7 +184,7 @@ public class KernelSingleUidTimeReader {
 
     /**
      * Returns null if the latest cpu times are not valid**, otherwise delta of
-     * {@param latestCpuTimesMs} and {@param lastCpuTimesMs}.
+     * {@code latestCpuTimesMs} and {@code lastCpuTimesMs}.
      *
      * **latest cpu times are considered valid if all the cpu times are +ve and
      * greater than or equal to previously read cpu times.

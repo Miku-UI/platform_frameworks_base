@@ -16,8 +16,6 @@
 
 package com.android.server.media;
 
-import static com.android.media.mediasession.flags.Flags.addWiuAllowlistingToMediaButtonReceiverHolderSend;
-
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -137,6 +135,9 @@ final class MediaButtonReceiverHolder {
     }
 
     public static MediaButtonReceiverHolder create(int userId, ComponentName broadcastReceiver) {
+        if (componentNameTooLong(broadcastReceiver)) {
+            throw new IllegalArgumentException("receiver name too long");
+        }
         return new MediaButtonReceiverHolder(userId, null, broadcastReceiver,
                 COMPONENT_TYPE_BROADCAST);
     }
@@ -192,8 +193,6 @@ final class MediaButtonReceiverHolder {
      *     there's no valid pending intent.
      * @param handler handler to be used to call onFinishedListener. Ignored if there's no valid
      *     pending intent.
-     * @param fgsAllowlistDurationMs duration for which the media button receiver will be allowed to
-     *     start FGS from BG.
      * @see PendingIntent#send(Context, int, Intent, PendingIntent.OnFinished, Handler)
      */
     public boolean send(
@@ -206,58 +205,38 @@ final class MediaButtonReceiverHolder {
             String reportedPackageName,
             int resultCode,
             PendingIntent.OnFinished onFinishedListener,
-            Handler handler,
-            long fgsAllowlistDurationMs) {
+            Handler handler) {
         Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
         mediaButtonIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         mediaButtonIntent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
         // TODO: Find a way to also send PID/UID in secure way.
         mediaButtonIntent.putExtra(Intent.EXTRA_PACKAGE_NAME, reportedPackageName);
 
-        // TODO: b/385736540 - Remove options and timeout constants for fgsAllowlistDurationMs once
-        //  flag add_wiu_allowlisting_to_media_button_receiver_holder_send is rolled out.
-        final BroadcastOptions options = BroadcastOptions.makeBasic();
-        options.setTemporaryAppAllowlist(fgsAllowlistDurationMs,
-                PowerWhitelistManager.TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED,
-                PowerWhitelistManager.REASON_MEDIA_BUTTON, "");
-        options.setBackgroundActivityStartsAllowed(true);
-        if (addWiuAllowlistingToMediaButtonReceiverHolderSend()) {
-            PackageManager packageManager = context.getPackageManager();
-            try {
-                int targetUid = packageManager.getPackageUidAsUser(mPackageName, mUserId);
-                mediaSessionService.tempAllowlistTargetPkgIfPossible(
-                        targetUid,
-                        /* targetPackage= */ mPackageName,
-                        callingPid,
-                        callingUid,
-                        callingPackageName,
-                        /* reason= */ TAG);
-            } catch (PackageManager.NameNotFoundException e) {
-                // Package name doesn't exist.
-                if (DEBUG_KEY_EVENT) {
-                    Log.d(TAG, "Can't allowlist, package " + mPackageName + "doesn't exist");
-                }
+        PackageManager packageManager = context.getPackageManager();
+        try {
+            int targetUid = packageManager.getPackageUidAsUser(mPackageName, mUserId);
+            mediaSessionService.tempAllowlistTargetPkgIfPossible(
+                    targetUid,
+                    /* targetPackage= */ mPackageName,
+                    callingPid,
+                    callingUid,
+                    callingPackageName,
+                    /* reason= */ TAG);
+        } catch (PackageManager.NameNotFoundException e) {
+            // Package name doesn't exist.
+            if (DEBUG_KEY_EVENT) {
+                Log.d(TAG, "Can't allowlist, package " + mPackageName + "doesn't exist");
             }
         }
+
         if (mPendingIntent != null) {
             if (DEBUG_KEY_EVENT) {
                 Log.d(TAG, "Sending " + keyEvent + " to the last known PendingIntent "
                         + mPendingIntent);
             }
             try {
-                if (addWiuAllowlistingToMediaButtonReceiverHolderSend()) {
-                    mPendingIntent.send(
-                            context, resultCode, mediaButtonIntent, onFinishedListener, handler);
-                } else {
-                    mPendingIntent.send(
-                            context,
-                            resultCode,
-                            mediaButtonIntent,
-                            onFinishedListener,
-                            handler,
-                            /* requiredPermission= */ null,
-                            options.toBundle());
-                }
+                mPendingIntent.send(
+                        context, resultCode, mediaButtonIntent, onFinishedListener, handler);
             } catch (PendingIntent.CanceledException e) {
                 Log.w(TAG, "Error sending key event to media button receiver " + mPendingIntent, e);
                 return false;
@@ -280,15 +259,7 @@ final class MediaButtonReceiverHolder {
                         break;
                     default:
                         // Legacy behavior for other cases.
-                        if (addWiuAllowlistingToMediaButtonReceiverHolderSend()) {
-                            context.sendBroadcastAsUser(mediaButtonIntent, userHandle);
-                        } else {
-                            context.sendBroadcastAsUser(
-                                    mediaButtonIntent,
-                                    userHandle,
-                                    /* receiverPermission= */ null,
-                                    options.toBundle());
-                        }
+                        context.sendBroadcastAsUser(mediaButtonIntent, userHandle);
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Error sending media button to the restored intent "
@@ -403,18 +374,25 @@ final class MediaButtonReceiverHolder {
             if (componentInfo != null && TextUtils.equals(componentInfo.packageName,
                     pendingIntent.getCreatorPackage())
                     && componentInfo.packageName != null && componentInfo.name != null) {
-                int componentNameLength =
-                        componentInfo.packageName.length() + componentInfo.name.length() + 1;
-                if (componentNameLength > MAX_COMPONENT_NAME_LENGTH) {
+                ComponentName componentName =
+                    new ComponentName(componentInfo.packageName, componentInfo.name);
+                if (componentNameTooLong(componentName)) {
                     Log.w(TAG, "detected and ignored component name with overly long package"
                             + " or name, pi=" + pendingIntent);
                     continue;
                 }
-                return new ComponentName(componentInfo.packageName, componentInfo.name);
+                return componentName;
             }
         }
 
         return null;
+    }
+
+    private static boolean componentNameTooLong(ComponentName componentName) {
+        return componentName.getPackageName().length()
+                + componentName.getClassName().length()
+                + 1
+            > MAX_COMPONENT_NAME_LENGTH;
     }
 
     /**

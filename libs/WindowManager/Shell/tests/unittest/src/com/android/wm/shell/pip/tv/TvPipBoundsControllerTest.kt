@@ -22,25 +22,23 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.test.TestLooper
 import android.testing.AndroidTestingRunner
-
 import com.android.wm.shell.R
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.pip.PipBoundsState.STASH_TYPE_RIGHT
 import com.android.wm.shell.pip.tv.TvPipBoundsController.POSITION_DEBOUNCE_TIMEOUT_MILLIS
 import com.android.wm.shell.pip.tv.TvPipKeepClearAlgorithm.Placement
-
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.AdditionalAnswers.returnsFirstArg
 import org.mockito.Mock
-import org.mockito.Mockito.`when` as whenever
 import org.mockito.Mockito.any
 import org.mockito.Mockito.anyInt
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.never
 import org.mockito.Mockito.reset
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when` as whenever
 import org.mockito.MockitoAnnotations
 
 @RunWith(AndroidTestingRunner::class)
@@ -53,15 +51,15 @@ class TvPipBoundsControllerTest : ShellTestCase() {
     val MOVED_BOUNDS = Rect(90, 80, 100, 90)
     val STASHED_MOVED_BOUNDS = Rect(99, 80, 109, 90)
     val ANCHOR_PLACEMENT = Placement(ANCHOR_BOUNDS, ANCHOR_BOUNDS)
-    val STASHED_PLACEMENT = Placement(STASHED_BOUNDS, ANCHOR_BOUNDS,
-            STASH_TYPE_RIGHT, ANCHOR_BOUNDS, false)
-    val STASHED_PLACEMENT_RESTASH = Placement(STASHED_BOUNDS, ANCHOR_BOUNDS,
-            STASH_TYPE_RIGHT, ANCHOR_BOUNDS, true)
+    val STASHED_PLACEMENT =
+        Placement(STASHED_BOUNDS, ANCHOR_BOUNDS, STASH_TYPE_RIGHT, ANCHOR_BOUNDS, false)
+    val STASHED_PLACEMENT_RESTASH =
+        Placement(STASHED_BOUNDS, ANCHOR_BOUNDS, STASH_TYPE_RIGHT, ANCHOR_BOUNDS, true)
     val MOVED_PLACEMENT = Placement(MOVED_BOUNDS, ANCHOR_BOUNDS)
-    val STASHED_MOVED_PLACEMENT = Placement(STASHED_MOVED_BOUNDS, ANCHOR_BOUNDS,
-            STASH_TYPE_RIGHT, MOVED_BOUNDS, false)
-    val STASHED_MOVED_PLACEMENT_RESTASH = Placement(STASHED_MOVED_BOUNDS, ANCHOR_BOUNDS,
-            STASH_TYPE_RIGHT, MOVED_BOUNDS, true)
+    val STASHED_MOVED_PLACEMENT =
+        Placement(STASHED_MOVED_BOUNDS, ANCHOR_BOUNDS, STASH_TYPE_RIGHT, MOVED_BOUNDS, false)
+    val STASHED_MOVED_PLACEMENT_RESTASH =
+        Placement(STASHED_MOVED_BOUNDS, ANCHOR_BOUNDS, STASH_TYPE_RIGHT, MOVED_BOUNDS, true)
 
     lateinit var boundsController: TvPipBoundsController
     var time = 0L
@@ -71,16 +69,11 @@ class TvPipBoundsControllerTest : ShellTestCase() {
     var inMenu = false
     var inMoveMode = false
 
-    @Mock
-    lateinit var mockContext: Context
-    @Mock
-    lateinit var resources: Resources
-    @Mock
-    lateinit var tvPipBoundsState: TvPipBoundsState
-    @Mock
-    lateinit var tvPipBoundsAlgorithm: TvPipBoundsAlgorithm
-    @Mock
-    lateinit var listener: TvPipBoundsController.PipBoundsListener
+    @Mock lateinit var mockContext: Context
+    @Mock lateinit var resources: Resources
+    @Mock lateinit var tvPipBoundsState: TvPipBoundsState
+    @Mock lateinit var tvPipBoundsAlgorithm: TvPipBoundsAlgorithm
+    @Mock lateinit var listener: TvPipBoundsController.PipBoundsListener
 
     @Before
     fun setUp() {
@@ -98,14 +91,16 @@ class TvPipBoundsControllerTest : ShellTestCase() {
         whenever(mockContext.resources).thenReturn(resources)
         whenever(resources.getInteger(R.integer.config_pipStashDuration)).thenReturn(STASH_DURATION)
         whenever(tvPipBoundsAlgorithm.adjustBoundsForTemporaryDecor(any()))
-                .then(returnsFirstArg<Rect>())
+            .then(returnsFirstArg<Rect>())
 
-        boundsController = TvPipBoundsController(
+        boundsController =
+            TvPipBoundsController(
                 mockContext,
                 { time },
                 mainHandler,
                 tvPipBoundsState,
-                tvPipBoundsAlgorithm)
+                tvPipBoundsAlgorithm,
+            )
         boundsController.setListener(listener)
     }
 
@@ -251,8 +246,12 @@ class TvPipBoundsControllerTest : ShellTestCase() {
         whenever(tvPipBoundsAlgorithm.getTvPipPlacement()).thenReturn(placement)
         val stayAtAnchorPosition = inMoveMode
         val disallowStashing = inMenu || stayAtAnchorPosition
-        boundsController.recalculatePipBounds(stayAtAnchorPosition, disallowStashing,
-                ANIMATION_DURATION, immediate)
+        boundsController.recalculatePipBounds(
+            stayAtAnchorPosition,
+            disallowStashing,
+            ANIMATION_DURATION,
+            immediate,
+        )
     }
 
     fun triggerImmediatePlacement(placement: Placement) {

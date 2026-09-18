@@ -408,17 +408,18 @@ final class BatteryController {
 
     /** Gets the current battery state of an input device. */
     public IInputDeviceBatteryState getBatteryState(int deviceId) {
+        DeviceMonitor monitor;
         synchronized (mLock) {
-            final long updateTime = SystemClock.uptimeMillis();
-            final DeviceMonitor monitor = mDeviceMonitors.get(deviceId);
-            if (monitor == null) {
-                // The input device's battery is not being monitored by any listener.
-                return queryBatteryStateFromNative(deviceId, updateTime, hasBattery(deviceId));
+            monitor = mDeviceMonitors.get(deviceId);
+            if (monitor != null) {
+                // Force the battery state to update, and notify listeners if necessary.
+                monitor.onPoll(SystemClock.uptimeMillis());
+                return monitor.getBatteryStateForReporting();
             }
-            // Force the battery state to update, and notify listeners if necessary.
-            monitor.onPoll(updateTime);
-            return monitor.getBatteryStateForReporting();
         }
+        // The input device's battery is not being monitored by any listener.
+        return queryBatteryStateFromNative(deviceId, SystemClock.uptimeMillis(),
+                hasBattery(deviceId));
     }
 
     public void onInteractiveChanged(boolean interactive) {
@@ -521,7 +522,19 @@ final class BatteryController {
         }
     }
 
-    // Queries the battery state of an input device from native code.
+
+
+    /**
+     * Queries the battery state of an input device from native code.
+     * <p/>
+     * For some peripheral devices, reading battery state can be broken and take 5+ seconds. Avoid
+     * holding any locks while calling this.
+     *
+     * @param deviceId The input device id.
+     * @param updateTime The time at which the battery state was updated.
+     * @param isPresent Whether the input device has a battery.
+     * @return The current battery state of the input device.
+     */
     private State queryBatteryStateFromNative(int deviceId, long updateTime, boolean isPresent) {
         return new State(
                 deviceId,
@@ -694,10 +707,12 @@ final class BatteryController {
         }
 
         public void onPoll(long eventTime) {
+            // TODO(b/438159795) : remove call to updateBatteryStateFromNative while holding locks.
             processChangesAndNotify(eventTime, this::updateBatteryStateFromNative);
         }
 
         public void onUEvent(long eventTime) {
+            // TODO(b/438159795) : remove call to updateBatteryStateFromNative while holding locks.
             processChangesAndNotify(eventTime, this::updateBatteryStateFromNative);
         }
 

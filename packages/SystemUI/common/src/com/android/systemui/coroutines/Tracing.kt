@@ -20,8 +20,5 @@ import com.android.app.tracing.coroutines.createCoroutineTracingContext
 import kotlin.coroutines.CoroutineContext
 
 fun newTracingContext(name: String): CoroutineContext {
-    return createCoroutineTracingContext(name, walkStackForDefaultNames = false) { className ->
-        className.startsWith("com.android.systemui.util.kotlin.JavaAdapter") ||
-            className.startsWith("com.android.systemui.lifecycle.RepeatWhenAttached")
-    }
+    return createCoroutineTracingContext(name)
 }

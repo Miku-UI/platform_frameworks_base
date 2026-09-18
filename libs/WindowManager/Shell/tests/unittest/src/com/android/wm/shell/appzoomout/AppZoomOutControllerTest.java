@@ -24,11 +24,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.AndroidTestingRunner;
 import android.view.Display;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.window.flags.Flags;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.common.DisplayController;
@@ -70,7 +72,7 @@ public class AppZoomOutControllerTest extends ShellTestCase {
     }
 
     @Test
-    public void isHomeTaskFocused_zoomOutForHome() {
+    public void isHomeTaskFocused_zoomOutForHome_isFocused() {
         mRunningTaskInfo.isFocused = true;
         when(mRunningTaskInfo.getActivityType()).thenReturn(ACTIVITY_TYPE_HOME);
         mController.onFocusTaskChanged(mRunningTaskInfo);
@@ -79,10 +81,32 @@ public class AppZoomOutControllerTest extends ShellTestCase {
     }
 
     @Test
-    public void isHomeTaskNotFocused_zoomOutForApp() {
+    @EnableFlags({
+            Flags.FLAG_ENABLE_FOCUS_TRANSITION_OBSERVER_CLEANUP
+    })
+    public void isHomeTaskFocused_zoomOutForHome() {
+        when(mRunningTaskInfo.getActivityType()).thenReturn(ACTIVITY_TYPE_HOME);
+        mController.onFocusedTaskChanged(mRunningTaskInfo, true, true);
+
+        verify(mAppDisplayAreaOrganizer).setIsHomeTaskFocused(true);
+    }
+
+    @Test
+    public void isHomeTaskNotFocused_zoomOutForApp_isFocused() {
         mRunningTaskInfo.isFocused = false;
         when(mRunningTaskInfo.getActivityType()).thenReturn(ACTIVITY_TYPE_HOME);
         mController.onFocusTaskChanged(mRunningTaskInfo);
+
+        verify(mAppDisplayAreaOrganizer).setIsHomeTaskFocused(false);
+    }
+
+    @Test
+    @EnableFlags({
+            Flags.FLAG_ENABLE_FOCUS_TRANSITION_OBSERVER_CLEANUP
+    })
+    public void isHomeTaskNotFocused_zoomOutForApp() {
+        when(mRunningTaskInfo.getActivityType()).thenReturn(ACTIVITY_TYPE_HOME);
+        mController.onFocusedTaskChanged(mRunningTaskInfo, false, false);
 
         verify(mAppDisplayAreaOrganizer).setIsHomeTaskFocused(false);
     }

@@ -20,6 +20,8 @@ import static android.os.IInputConstants.INVALID_INPUT_EVENT_ID;
 import static android.view.InputDevice.SOURCE_CLASS_POINTER;
 import static android.view.InputDevice.SOURCE_CLASS_POSITION;
 
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
 /**
  * Process input events and assign input event id to a specific frame.
  *
@@ -43,6 +45,7 @@ import static android.view.InputDevice.SOURCE_CLASS_POSITION;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class InputEventAssigner {
     private static final String TAG = "InputEventAssigner";
     private boolean mHasUnprocessedDown = false;

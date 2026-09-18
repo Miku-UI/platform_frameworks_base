@@ -29,9 +29,16 @@ import android.os.Parcelable
 open class PreferenceCoordinate : PreferenceScreenCoordinate {
     val key: String
 
-    constructor(screenKey: String, key: String) : this(screenKey, null, key)
+    constructor(screenKey: String, key: String) : super(screenKey) {
+        this.key = key
+    }
 
+    @Deprecated("This constructor will be removed once the catalyst framework stops passing the arguments as a bundle. Use the other constructor instead.")
     constructor(screenKey: String, args: Bundle?, key: String) : super(screenKey, args) {
+        this.key = key
+    }
+
+    constructor(screenKey: String, keyParameters: KeyParameters?, key: String) : super(screenKey, keyParameters) {
         this.key = key
     }
 
@@ -51,6 +58,8 @@ open class PreferenceCoordinate : PreferenceScreenCoordinate {
 
     override fun hashCode() = super.hashCode() xor key.hashCode()
 
+    override fun toString() = "PreferenceCoordinate(screenKey=$screenKey, keyParameters=$keyParameters, key=$key)"
+
     companion object CREATOR : Parcelable.Creator<PreferenceCoordinate> {
 
         override fun createFromParcel(parcel: Parcel) = PreferenceCoordinate(parcel)
@@ -65,22 +74,55 @@ open class PreferenceScreenCoordinate : Parcelable {
     val screenKey: String
 
     /** Arguments to create parameterized preference screen. */
+    @Deprecated("Use mapParameters instead")
     val args: Bundle?
 
+    /** Arguments to create parameterized preference screen. */
+    val keyParameters: KeyParameters?
+
+    constructor(screenKey: String) {
+        this.screenKey = screenKey
+        this.args = null
+        this.keyParameters = null
+    }
+
+    @Deprecated("This constructor will be removed once the catalyst framework stops passing the arguments as a bundle. Use the other constructor instead.")
     constructor(screenKey: String, args: Bundle?) {
         this.screenKey = screenKey
         this.args = args
+        this.keyParameters = null
+    }
+
+    constructor(screenKey: String, keyParameters: KeyParameters?) {
+        this.screenKey = screenKey
+        this.keyParameters = keyParameters
+        this.args = null
     }
 
     constructor(parcel: Parcel) {
         screenKey = parcel.readString()!!
-        args = parcel.readBundle(javaClass.classLoader)
+
+        if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            keyParameters = parcel.readString()?.let { KeyParameters(it.deserializeToMap()) }
+            args = null
+        } else {
+            args = parcel.readBundle(javaClass.classLoader)
+            keyParameters = null
+        }
     }
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(screenKey)
-        parcel.writeBundle(args)
+
+        if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            parcel.writeString(keyParameters?.toParametersString())
+        } else {
+            parcel.writeBundle(args)
+        }
     }
+
+        override fun toString() = "PreferenceCoordinate(screenKey=$screenKey, keyParameters=$keyParameters)"
+
 
     override fun describeContents() = 0
 
@@ -88,7 +130,7 @@ open class PreferenceScreenCoordinate : Parcelable {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
         other as PreferenceScreenCoordinate
-        return screenKey == other.screenKey && args.contentEquals(other.args)
+        return screenKey == other.screenKey && args.contentEquals(other.args) && keyParameters == other.keyParameters
     }
 
     // "args" is not included intentionally, otherwise we need to take care of array, etc.

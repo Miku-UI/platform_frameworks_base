@@ -246,8 +246,8 @@ class CollapsableTextView @JvmOverloads constructor(
             else -> {
                 collapseButtonIcon?.setImageDrawable(collapseButtonResources.collapseIcon)
                 collapseButtonText?.text = collapseButtonResources.collapseText
-                titleTextView.maxLines = DEFAULT_MAX_LINES
-                titleTextView.ellipsize = TextUtils.TruncateAt.END
+                titleTextView.maxLines = Integer.MAX_VALUE
+                titleTextView.ellipsize = null
             }
         }
         collapseButton.visibility =

@@ -15,7 +15,6 @@
  */
 package com.android.server.selinux;
 
-import android.text.TextUtils;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -34,6 +33,8 @@ class SelinuxAuditLogBuilder {
     private static final String TAG = "SelinuxAuditLogs";
 
     private static final Matcher NO_OP_MATCHER = Pattern.compile("no-op^").matcher("");
+    private static final String SCONTEXT_PATTERN =
+            "u:r:(?<stype>\\w+):s0(:c)?(?<scategories>((,c)?\\d+)+)*";
     private static final String TCONTEXT_PATTERN =
             "u:object_r:(?<ttype>\\w+):s0(:c)?(?<tcategories>((,c)?\\d+)+)*";
     private static final String PATH_PATTERN = "\"(?<path>/\\w+(/\\w+)?)(/\\w+)*\"";
@@ -45,17 +46,12 @@ class SelinuxAuditLogBuilder {
     private Iterator<String> mTokens;
     private final SelinuxAuditLog mAuditLog = new SelinuxAuditLog();
 
-    SelinuxAuditLogBuilder(String auditDomain) {
+    SelinuxAuditLogBuilder() {
         Matcher scontextMatcher = NO_OP_MATCHER;
         Matcher tcontextMatcher = NO_OP_MATCHER;
         Matcher pathMatcher = NO_OP_MATCHER;
         try {
-            scontextMatcher =
-                    Pattern.compile(
-                                    TextUtils.formatSimple(
-                                            "u:r:(?<stype>%s):s0(:c)?(?<scategories>((,c)?\\d+)+)*",
-                                            auditDomain))
-                            .matcher("");
+            scontextMatcher = Pattern.compile(SCONTEXT_PATTERN).matcher("");
             tcontextMatcher = Pattern.compile(TCONTEXT_PATTERN).matcher("");
             pathMatcher = Pattern.compile(PATH_PATTERN).matcher("");
         } catch (PatternSyntaxException e) {

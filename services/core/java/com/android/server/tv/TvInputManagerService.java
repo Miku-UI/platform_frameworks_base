@@ -4101,6 +4101,44 @@ public final class TvInputManagerService extends SystemService {
         }
 
         @Override
+        public void onChannelRetunedWithExtraInfo(Uri channelUri, Bundle args) {
+            synchronized (mLock) {
+                if (DEBUG) {
+                    Slog.d(TAG, "onChannelRetuned(" + channelUri + ") with extra info");
+                }
+                if (mSessionState.session == null || mSessionState.client == null) {
+                    return;
+                }
+                try {
+                    // Forward the bundle to the client
+                    mSessionState.client.onChannelRetunedWithExtraInfo(channelUri, args,
+                            mSessionState.seq);
+                    // Keep the rest of the logic the same
+                    if (!mSessionState.isCurrent
+                            || !Objects.equals(mSessionState.currentChannel, channelUri)) {
+                        UserState userState = getOrCreateUserStateLocked(mSessionState.userId);
+                        mSessionState.isCurrent = true;
+                        mSessionState.currentChannel = channelUri;
+                        if (!mSessionState.isRecordingSession) {
+                            String sessionActualInputId = getSessionActualInputId(mSessionState);
+                            if (!TextUtils.equals(mOnScreenInputId, sessionActualInputId)) {
+                                logExternalInputEvent(
+                                        FrameworkStatsLog
+                                                .EXTERNAL_TV_INPUT_EVENT__EVENT_TYPE__TUNED,
+                                        sessionActualInputId, mSessionState);
+                            }
+                            mOnScreenInputId = sessionActualInputId;
+                            mOnScreenSessionState = mSessionState;
+                        }
+                        notifyCurrentChannelInfosUpdatedLocked(userState);
+                    }
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "error in onChannelRetuned with extra info", e);
+                }
+            }
+        }
+
+        @Override
         public void onAudioPresentationsChanged(List<AudioPresentation> audioPresentations) {
             synchronized (mLock) {
                 if (DEBUG) {

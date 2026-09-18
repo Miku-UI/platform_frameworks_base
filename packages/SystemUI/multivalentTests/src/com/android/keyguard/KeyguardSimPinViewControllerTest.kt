@@ -19,6 +19,7 @@ package com.android.keyguard
 import android.hardware.input.InputManager
 import android.telephony.TelephonyManager
 import android.testing.TestableLooper
+import android.uilatencystats.UiLatencyStatsManager
 import android.view.LayoutInflater
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -37,6 +38,7 @@ import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.wrapper.LockPatternCheckerWrapper
+import java.util.Optional
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -77,6 +79,7 @@ class KeyguardSimPinViewControllerTest : SysuiTestCase() {
         ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback::class.java)
     @Mock private lateinit var inputManager: InputManager
     @Mock private lateinit var lockPatternChecker: LockPatternCheckerWrapper
+    @Mock private lateinit var mUiLatencyStatsManager: UiLatencyStatsManager
 
     private val kosmos = testKosmos()
 
@@ -113,6 +116,7 @@ class KeyguardSimPinViewControllerTest : SysuiTestCase() {
                 mUserActivityNotifier,
                 inputManager,
                 lockPatternChecker,
+                Optional.of(mUiLatencyStatsManager),
             )
         underTest.mIsInTestMode = true
         underTest.init()

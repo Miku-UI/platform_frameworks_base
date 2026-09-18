@@ -16,8 +16,6 @@
 
 package android.os;
 
-import static android.os.vibrator.Flags.FLAG_VENDOR_VIBRATION_EFFECTS;
-
 import android.annotation.DurationMillisLong;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
@@ -38,18 +36,15 @@ import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwleSegment;
-import android.os.vibrator.RampSegment;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.os.vibrator.VibratorEnvelopeEffectInfo;
-import android.os.vibrator.VibratorFrequencyProfileLegacy;
 import android.util.MathUtils;
 
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,12 +60,11 @@ import java.util.stream.IntStream;
  *
  * <p>These effects may be any number of things, from single shot vibrations to complex waveforms.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class VibrationEffect implements Parcelable {
     private static final int PARCEL_TOKEN_COMPOSED = 1;
     private static final int PARCEL_TOKEN_VENDOR_EFFECT = 2;
 
-    // Stevens' coefficient to scale the perceived vibration intensity.
-    private static final float SCALE_GAMMA = 0.65f;
     // If a vibration is playing for longer than 1s, it's probably not haptic feedback
     private static final long MAX_HAPTIC_FEEDBACK_DURATION = 1000;
     // If a vibration is playing more than 3 constants, it's probably not haptic feedback
@@ -297,7 +291,7 @@ public abstract class VibrationEffect implements Parcelable {
         for (int i = 0; i < timings.length; i++) {
             float parsedAmplitude = amplitudes[i] == DEFAULT_AMPLITUDE
                     ? DEFAULT_AMPLITUDE : (float) amplitudes[i] / MAX_AMPLITUDE;
-            segments.add(new StepSegment(parsedAmplitude, /* frequencyHz= */ 0, (int) timings[i]));
+            segments.add(new StepSegment(parsedAmplitude, (int) timings[i]));
         }
         VibrationEffect effect = new Composed(segments, repeat);
         effect.validate();
@@ -342,7 +336,6 @@ public abstract class VibrationEffect implements Parcelable {
      */
     @NonNull
     @SystemApi
-    @FlaggedApi(FLAG_VENDOR_VIBRATION_EFFECTS)
     @RequiresPermission(android.Manifest.permission.VIBRATE_VENDOR_EFFECTS)
     public static VibrationEffect createVendorEffect(@NonNull PersistableBundle effect) {
         VibrationEffect vendorEffect = new VendorEffect(effect, VendorEffect.DEFAULT_STRENGTH,
@@ -465,73 +458,6 @@ public abstract class VibrationEffect implements Parcelable {
         return new Composition();
     }
 
-    /**
-     * Start building a waveform vibration.
-     *
-     * <p>The waveform builder offers more flexibility for creating waveform vibrations, allowing
-     * control over vibration amplitude and frequency via smooth transitions between values.
-     *
-     * <p>The waveform will start the first transition from the vibrator off state, with the
-     * resonant frequency by default. To provide an initial state, use
-     * {@link #startWaveform(VibrationEffect.VibrationParameter)}.
-     *
-     * @see VibrationEffect.WaveformBuilder
-     * @hide
-     */
-    @TestApi
-    @NonNull
-    public static WaveformBuilder startWaveform() {
-        return new WaveformBuilder();
-    }
-
-    /**
-     * Start building a waveform vibration with an initial state specified by a
-     * {@link VibrationEffect.VibrationParameter}.
-     *
-     * <p>The waveform builder offers more flexibility for creating waveform vibrations, allowing
-     * control over vibration amplitude and frequency via smooth transitions between values.
-     *
-     * @param initialParameter The initial {@link VibrationEffect.VibrationParameter} value to be
-     *                         applied at the beginning of the vibration.
-     * @return The {@link VibrationEffect.WaveformBuilder} started with the initial parameters.
-     *
-     * @see VibrationEffect.WaveformBuilder
-     * @hide
-     */
-    @TestApi
-    @NonNull
-    public static WaveformBuilder startWaveform(@NonNull VibrationParameter initialParameter) {
-        WaveformBuilder builder = startWaveform();
-        builder.addTransition(Duration.ZERO, initialParameter);
-        return builder;
-    }
-
-    /**
-     * Start building a waveform vibration with an initial state specified by two
-     * {@link VibrationEffect.VibrationParameter VibrationParameters}.
-     *
-     * <p>The waveform builder offers more flexibility for creating waveform vibrations, allowing
-     * control over vibration amplitude and frequency via smooth transitions between values.
-     *
-     * @param initialParameter1 The initial {@link VibrationEffect.VibrationParameter} value to be
-     *                          applied at the beginning of the vibration.
-     * @param initialParameter2 The initial {@link VibrationEffect.VibrationParameter} value to be
-     *                          applied at the beginning of the vibration, must be a different type
-     *                          of parameter than the one specified by the first argument.
-     * @return The {@link VibrationEffect.WaveformBuilder} started with the initial parameters.
-     *
-     * @see VibrationEffect.WaveformBuilder
-     * @hide
-     */
-    @TestApi
-    @NonNull
-    public static WaveformBuilder startWaveform(@NonNull VibrationParameter initialParameter1,
-            @NonNull VibrationParameter initialParameter2) {
-        WaveformBuilder builder = startWaveform();
-        builder.addTransition(Duration.ZERO, initialParameter1, initialParameter2);
-        return builder;
-    }
-
     @Override
     public int describeContents() {
         return 0;
@@ -638,19 +564,6 @@ public abstract class VibrationEffect implements Parcelable {
     public abstract VibrationEffect scale(float scaleFactor);
 
     /**
-     * Performs a linear scaling on the effect intensity with the given factor.
-     *
-     * @param scaleFactor scale factor to be applied to the intensity. Values within [0,1) will
-     *                    scale down the intensity, values larger than 1 will scale up
-     * @return this if there is no scaling to be done, or a copy of this effect with scaled
-     *         vibration intensity otherwise
-     *
-     * @hide
-     */
-    @NonNull
-    public abstract VibrationEffect scaleLinearly(float scaleFactor);
-
-    /**
      * Applies given scale factor as adaptive scale.
      *
      * @param scaleFactor scale factor to be applied to the intensity. Values within [0,1) will
@@ -700,53 +613,14 @@ public abstract class VibrationEffect implements Parcelable {
      * @hide
      */
     public static float scale(float intensity, float scaleFactor) {
-        if (Flags.hapticsScaleV2Enabled()) {
-            if (Float.compare(scaleFactor, 1) <= 0 || Float.compare(intensity, 0) == 0) {
-                // Scaling down or scaling zero intensity is straightforward.
-                return scaleFactor * intensity;
-            }
-            // Using S * x / (1 + (S - 1) * x^2) as the scale up function to converge to 1.0.
-            return (scaleFactor * intensity) / (1 + (scaleFactor - 1) * intensity * intensity);
+        if (scaleFactor < 0 || Float.compare(scaleFactor, 1f) == 0) {
+            return intensity;
         }
-
-        // Applying gamma correction to the scale factor, which is the same as encoding the input
-        // value, scaling it, then decoding the scaled value.
-        float scale = MathUtils.pow(scaleFactor, 1f / SCALE_GAMMA);
-
-        if (scaleFactor <= 1) {
-            // Scale down is simply a gamma corrected application of scaleFactor to the intensity.
-            // Scale up requires a different curve to ensure the intensity will not become > 1.
-            return intensity * scale;
-        }
-
-        // Apply the scale factor a few more times to make the ramp curve closer to the raw scale.
-        float extraScale = MathUtils.pow(scaleFactor, 4f - scaleFactor);
-        float x = intensity * scale * extraScale;
-        float maxX = scale * extraScale; // scaled x for intensity == 1
-
-        float expX = MathUtils.exp(x);
-        float expMaxX = MathUtils.exp(maxX);
-
-        // Using f = tanh as the scale up function so the max value will converge.
-        // a = 1/f(maxX), used to scale f so that a*f(maxX) = 1 (the value will converge to 1).
-        float a = (expMaxX + 1f) / (expMaxX - 1f);
-        float fx = (expX - 1f) / (expX + 1f);
-
-        return MathUtils.constrain(a * fx, 0f, 1f);
-    }
-
-    /**
-     * Performs a linear scaling on the given vibration intensity by the given factor.
-     *
-     * @param intensity relative intensity of the effect, must be between 0 and 1.
-     * @param scaleFactor scale factor to be applied to the intensity. Values within [0,1) will
-     *                    scale down the intensity, values larger than 1 will scale up.
-     * @return the scaled intensity which will be values within [0, 1].
-     *
-     * @hide
-     */
-    public static float scaleLinearly(float intensity, float scaleFactor) {
-        return MathUtils.constrain(intensity * scaleFactor, 0f, 1f);
+        // Using S * x / (1 + (S - 1) * x^2) as the scale up function to converge to 1.0.
+        float scaledIntensity = (scaleFactor <= 1 || Float.compare(intensity, 0f) == 0)
+                ? scaleFactor * intensity
+                : (scaleFactor * intensity) / (1 + (scaleFactor - 1) * intensity * intensity);
+        return MathUtils.constrain(scaledIntensity, 0f, 1f);
     }
 
     /**
@@ -1019,15 +893,8 @@ public abstract class VibrationEffect implements Parcelable {
         /** @hide */
         @NonNull
         @Override
-        public Composed scaleLinearly(float scaleFactor) {
-            return applyToSegments(VibrationEffectSegment::scaleLinearly, scaleFactor);
-        }
-
-        /** @hide */
-        @NonNull
-        @Override
         public Composed applyAdaptiveScale(float scaleFactor) {
-            return applyToSegments(VibrationEffectSegment::scaleLinearly, scaleFactor);
+            return applyToSegments(VibrationEffectSegment::applyAdaptiveScale, scaleFactor);
         }
 
         /** @hide */
@@ -1048,8 +915,7 @@ public abstract class VibrationEffect implements Parcelable {
                 ArrayList<VibrationEffectSegment> loopingSegments =
                         new ArrayList<>(mSegments.size() + 1);
                 loopingSegments.addAll(mSegments);
-                loopingSegments.add(
-                        new StepSegment(/* amplitude= */ 0, /* frequencyHz= */ 0, loopDelayMs));
+                loopingSegments.add(new StepSegment(/* amplitude= */ 0, loopDelayMs));
                 return new Composed(loopingSegments, 0);
             }
         }
@@ -1134,9 +1000,6 @@ public abstract class VibrationEffect implements Parcelable {
             }
 
             StepSegment stepSegment = (StepSegment) segment;
-            if (stepSegment.getFrequencyHz() != 0) {
-                return null;
-            }
 
             float amplitude = stepSegment.getAmplitude();
             if (amplitude != 0 && amplitude != DEFAULT_AMPLITUDE) {
@@ -1169,7 +1032,6 @@ public abstract class VibrationEffect implements Parcelable {
      * @hide
      */
     @TestApi
-    @FlaggedApi(FLAG_VENDOR_VIBRATION_EFFECTS)
     public static final class VendorEffect extends VibrationEffect {
         /** @hide */
         public static final int DEFAULT_STRENGTH = VibrationEffect.EFFECT_STRENGTH_MEDIUM;
@@ -1283,13 +1145,6 @@ public abstract class VibrationEffect implements Parcelable {
                     mAdaptiveScale);
             updated.validate();
             return updated;
-        }
-
-        /** @hide */
-        @NonNull
-        @Override
-        public VibrationEffect scaleLinearly(float scaleFactor) {
-            return scale(scaleFactor);
         }
 
         /** @hide */
@@ -1440,9 +1295,12 @@ public abstract class VibrationEffect implements Parcelable {
     @FlaggedApi(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
     @NonNull
     public static VibrationEffect createRepeatingEffect(@NonNull VibrationEffect effect) {
-        return VibrationEffect.startComposition()
-                .repeatEffectIndefinitely(effect)
-                .compose();
+        Preconditions.checkArgument(effect instanceof Composed, "Can't repeat a vendor effect.");
+        Preconditions.checkArgument(effect.getDuration() < Long.MAX_VALUE,
+                "Can't repeat an indefinitely repeating effect.");
+        VibrationEffect repeating = new Composed(((Composed) effect).getSegments(), 0);
+        repeating.validate();
+        return repeating;
     }
 
     /**
@@ -1462,12 +1320,20 @@ public abstract class VibrationEffect implements Parcelable {
     @NonNull
     public static VibrationEffect createRepeatingEffect(@NonNull VibrationEffect preamble,
             @NonNull VibrationEffect repeatingEffect) {
+        Preconditions.checkArgument(preamble instanceof Composed, "Can't repeat a vendor effect.");
         Preconditions.checkArgument(preamble.getDuration() < Long.MAX_VALUE,
                 "Can't repeat an indefinitely repeating effect.");
-        return VibrationEffect.startComposition()
-                .addEffect(preamble)
-                .repeatEffectIndefinitely(repeatingEffect)
-                .compose();
+        Preconditions.checkArgument(repeatingEffect instanceof Composed,
+                "Can't repeat a vendor effect.");
+        Preconditions.checkArgument(repeatingEffect.getDuration() < Long.MAX_VALUE,
+                "Can't repeat an indefinitely repeating effect.");
+        List<VibrationEffectSegment> segments =
+                new ArrayList<>(((Composed) preamble).getSegments());
+        int repeatIndex = segments.size();
+        segments.addAll(((Composed) repeatingEffect).getSegments());
+        VibrationEffect repeating = new Composed(segments, repeatIndex);
+        repeating.validate();
+        return repeating;
     }
 
     /**
@@ -1514,19 +1380,6 @@ public abstract class VibrationEffect implements Parcelable {
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface DelayType {
-        }
-
-        /**
-         * Exception thrown when adding an element to a {@link Composition} that already ends in an
-         * indefinitely repeating effect.
-         * @hide
-         */
-        @TestApi
-        public static final class UnreachableAfterRepeatingIndefinitelyException
-                extends IllegalStateException {
-            UnreachableAfterRepeatingIndefinitelyException() {
-                super("Compositions ending in an indefinitely repeating effect can't be extended");
-            }
         }
 
         /**
@@ -1597,7 +1450,6 @@ public abstract class VibrationEffect implements Parcelable {
          *         .compose()
          * </pre>
          */
-        @FlaggedApi(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
         public static final int DELAY_TYPE_PAUSE = 0;
 
         /**
@@ -1626,38 +1478,12 @@ public abstract class VibrationEffect implements Parcelable {
          *
          * <p>A primitive will be dropped from the composition if it overlaps with previous ones.
          */
-        @FlaggedApi(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
         public static final int DELAY_TYPE_RELATIVE_START_OFFSET = 1;
 
         private final ArrayList<VibrationEffectSegment> mSegments = new ArrayList<>();
         private int mRepeatIndex = -1;
 
         Composition() {}
-
-        /**
-         * Adds a time duration to the current composition, during which the vibrator will be
-         * turned off.
-         *
-         * @param duration The length of time the vibrator should be off. Value must be non-negative
-         *                 and will be truncated to milliseconds.
-         * @return This {@link Composition} object to enable adding multiple elements in one chain.
-         *
-         * @throws UnreachableAfterRepeatingIndefinitelyException if the composition is currently
-         * ending with a repeating effect.
-         * @hide
-         */
-        @TestApi
-        @NonNull
-        public Composition addOffDuration(@NonNull Duration duration) {
-            int durationMs = (int) duration.toMillis();
-            Preconditions.checkArgumentNonnegative(durationMs, "Off period must be non-negative");
-            if (durationMs > 0) {
-                // Created a segment sustaining the zero amplitude to represent the delay.
-                addSegment(new StepSegment(/* amplitude= */ 0, /* frequencyHz= */ 0,
-                        (int) duration.toMillis()));
-            }
-            return this;
-        }
 
         /**
          * Add a haptic effect to the end of the current composition.
@@ -1671,44 +1497,11 @@ public abstract class VibrationEffect implements Parcelable {
          * @param effect The effect to add to the end of this composition.
          * @return This {@link Composition} object to enable adding multiple elements in one chain.
          *
-         * @throws UnreachableAfterRepeatingIndefinitelyException if the composition is currently
-         * ending with a repeating effect.
          * @hide
          */
-        @TestApi
         @NonNull
         public Composition addEffect(@NonNull VibrationEffect effect) {
             return addSegments(effect);
-        }
-
-        /**
-         * Add a haptic effect to the end of the current composition and play it on repeat,
-         * indefinitely.
-         *
-         * <p>The entire effect will be played on repeat, indefinitely, after all other elements
-         * already added to this composition are played. No more effects or primitives will be
-         * accepted by this composition after this method. Such effects should be cancelled via
-         * {@link Vibrator#cancel()}.
-         *
-         * @param effect The effect to add to the end of this composition, must be finite.
-         * @return This {@link Composition} object to enable adding multiple elements in one chain,
-         * although only {@link #compose()} can follow this call.
-         *
-         * @throws IllegalArgumentException if the given effect is already repeating indefinitely.
-         * @throws UnreachableAfterRepeatingIndefinitelyException if the composition is currently
-         * ending with a repeating effect.
-         * @hide
-         */
-        @TestApi
-        @NonNull
-        public Composition repeatEffectIndefinitely(@NonNull VibrationEffect effect) {
-            Preconditions.checkArgument(effect.getDuration() < Long.MAX_VALUE,
-                    "Can't repeat an indefinitely repeating effect. Consider addEffect instead.");
-            int previousSegmentCount = mSegments.size();
-            addSegments(effect);
-            // Set repeat after segments were added, since addSegments checks this index.
-            mRepeatIndex = previousSegmentCount;
-            return this;
         }
 
         /**
@@ -1769,7 +1562,6 @@ public abstract class VibrationEffect implements Parcelable {
          *                  this one or a start offset.
          * @return This {@link Composition} object to enable adding multiple elements in one chain.
          */
-        @FlaggedApi(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
         @NonNull
         public Composition addPrimitive(@PrimitiveType int primitiveId,
                 @FloatRange(from = 0f, to = 1f) float scale, @IntRange(from = 0) int delay,
@@ -1781,7 +1573,7 @@ public abstract class VibrationEffect implements Parcelable {
 
         private Composition addSegment(VibrationEffectSegment segment) {
             if (mRepeatIndex >= 0) {
-                throw new UnreachableAfterRepeatingIndefinitelyException();
+                throw new IllegalStateException("Can't add effects after a repeating effect.");
             }
             mSegments.add(segment);
             return this;
@@ -1789,7 +1581,7 @@ public abstract class VibrationEffect implements Parcelable {
 
         private Composition addSegments(VibrationEffect effect) {
             if (mRepeatIndex >= 0) {
-                throw new UnreachableAfterRepeatingIndefinitelyException();
+                throw new IllegalStateException("Can't add effects after a repeating effect.");
             }
             if (!(effect instanceof Composed composed)) {
                 throw new IllegalArgumentException("Can't add vendor effects to composition.");
@@ -2177,331 +1969,6 @@ public abstract class VibrationEffect implements Parcelable {
 
     }
 
-    /**
-     * A builder for waveform haptic effects.
-     *
-     * <p>Waveform vibrations constitute of one or more timed transitions to new sets of vibration
-     * parameters. These parameters can be the vibration amplitude, frequency, or both.
-     *
-     * <p>The following example ramps a vibrator turned off to full amplitude at 120Hz, over 100ms
-     * starting at 60Hz, then holds that state for 200ms and ramps back down again over 100ms:
-     *
-     * <pre>
-     * {@code import static android.os.VibrationEffect.VibrationParameter.targetAmplitude;
-     * import static android.os.VibrationEffect.VibrationParameter.targetFrequency;
-     *
-     * VibrationEffect effect = VibrationEffect.startWaveform(targetFrequency(60))
-     *     .addTransition(Duration.ofMillis(100), targetAmplitude(1), targetFrequency(120))
-     *     .addSustain(Duration.ofMillis(200))
-     *     .addTransition(Duration.ofMillis(100), targetAmplitude(0), targetFrequency(60))
-     *     .build();}</pre>
-     *
-     * <p>The initial state of the waveform can be set via
-     * {@link VibrationEffect#startWaveform(VibrationParameter)} or
-     * {@link VibrationEffect#startWaveform(VibrationParameter, VibrationParameter)}. If the initial
-     * parameters are not set then the {@link WaveformBuilder} will start with the vibrator off,
-     * represented by zero amplitude, at the vibrator's resonant frequency.
-     *
-     * <p>Repeating waveforms can be created by building the repeating block separately and adding
-     * it to the end of a composition with
-     * {@link Composition#repeatEffectIndefinitely(VibrationEffect)}:
-     *
-     * <p>Note that physical vibration actuators have different reaction times for changing
-     * amplitude and frequency. Durations specified here represent a timeline for the target
-     * parameters, and quality of effects may be improved if the durations allow time for a
-     * transition to be smoothly applied.
-     *
-     * <p>The following example illustrates both an initial state and a repeating section, using
-     * a {@link VibrationEffect.Composition}. The resulting effect will have a tick followed by a
-     * repeated beating effect with a rise that stretches out and a sharp finish.
-     *
-     * <pre>
-     * {@code VibrationEffect patternToRepeat = VibrationEffect.startWaveform(targetAmplitude(0.2f))
-     *     .addSustain(Duration.ofMillis(10))
-     *     .addTransition(Duration.ofMillis(20), targetAmplitude(0.4f))
-     *     .addSustain(Duration.ofMillis(30))
-     *     .addTransition(Duration.ofMillis(40), targetAmplitude(0.8f))
-     *     .addSustain(Duration.ofMillis(50))
-     *     .addTransition(Duration.ofMillis(60), targetAmplitude(0.2f))
-     *     .build();
-     *
-     * VibrationEffect effect = VibrationEffect.startComposition()
-     *     .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK)
-     *     .addOffDuration(Duration.ofMillis(20))
-     *     .repeatEffectIndefinitely(patternToRepeat)
-     *     .compose();}</pre>
-     *
-     * <p>The amplitude step waveforms that can be created via
-     * {@link VibrationEffect#createWaveform(long[], int[], int)} can also be created with
-     * {@link WaveformBuilder} by adding zero duration transitions:
-     *
-     * <pre>
-     * {@code // These two effects are the same
-     * VibrationEffect waveform = VibrationEffect.createWaveform(
-     *     new long[] { 10, 20, 30 },  // timings in milliseconds
-     *     new int[] { 51, 102, 204 }, // amplitudes in [0,255]
-     *     -1);                        // repeat index
-     *
-     * VibrationEffect sameWaveform = VibrationEffect.startWaveform(targetAmplitude(0.2f))
-     *     .addSustain(Duration.ofMillis(10))
-     *     .addTransition(Duration.ZERO, targetAmplitude(0.4f))
-     *     .addSustain(Duration.ofMillis(20))
-     *     .addTransition(Duration.ZERO, targetAmplitude(0.8f))
-     *     .addSustain(Duration.ofMillis(30))
-     *     .build();}</pre>
-     *
-     * @see VibrationEffect#startWaveform
-     * @hide
-     */
-    @TestApi
-    public static final class WaveformBuilder {
-        // Epsilon used for float comparison of amplitude and frequency values on transitions.
-        private static final float EPSILON = 1e-5f;
-
-        private ArrayList<VibrationEffectSegment> mSegments = new ArrayList<>();
-        private float mLastAmplitude = 0f;
-        private float mLastFrequencyHz = 0f;
-
-        WaveformBuilder() {}
-
-        /**
-         * Add a transition to new vibration parameter value to the end of this waveform.
-         *
-         * <p>The duration represents how long the vibrator should take to smoothly transition to
-         * the new vibration parameter. If the duration is zero then the vibrator will jump to the
-         * new value as fast as possible.
-         *
-         * <p>Vibration parameter values will be truncated to conform to the device capabilities
-         * according to the {@link VibratorFrequencyProfileLegacy}.
-         *
-         * @param duration        The length of time this transition should take. Value must be
-         *                        non-negative and will be truncated to milliseconds.
-         * @param targetParameter The new target {@link VibrationParameter} value to be reached
-         *                        after the given duration.
-         * @return This {@link WaveformBuilder} object to enable adding multiple transitions in
-         * chain.
-         * @hide
-         */
-        @TestApi
-        @SuppressWarnings("MissingGetterMatchingBuilder") // No getters to segments once created.
-        @NonNull
-        public WaveformBuilder addTransition(@NonNull Duration duration,
-                @NonNull VibrationParameter targetParameter) {
-            Preconditions.checkNotNull(duration, "Duration is null");
-            checkVibrationParameter(targetParameter, "targetParameter");
-            float amplitude = extractTargetAmplitude(targetParameter, /* target2= */ null);
-            float frequencyHz = extractTargetFrequency(targetParameter, /* target2= */ null);
-            addTransitionSegment(duration, amplitude, frequencyHz);
-            return this;
-        }
-
-        /**
-         * Add a transition to new vibration parameters to the end of this waveform.
-         *
-         * <p>The duration represents how long the vibrator should take to smoothly transition to
-         * the new vibration parameters. If the duration is zero then the vibrator will jump to the
-         * new values as fast as possible.
-         *
-         * <p>Vibration parameters values will be truncated to conform to the device capabilities
-         * according to the {@link VibratorFrequencyProfileLegacy}.
-         *
-         * @param duration         The length of time this transition should take. Value must be
-         *                         non-negative and will be truncated to milliseconds.
-         * @param targetParameter1 The first target {@link VibrationParameter} value to be reached
-         *                         after the given duration.
-         * @param targetParameter2 The second target {@link VibrationParameter} value to be reached
-         *                         after the given duration, must be a different type of parameter
-         *                         than the one specified by the first argument.
-         * @return This {@link WaveformBuilder} object to enable adding multiple transitions in
-         * chain.
-         * @hide
-         */
-        @TestApi
-        @SuppressWarnings("MissingGetterMatchingBuilder") // No getters to segments once created.
-        @NonNull
-        public WaveformBuilder addTransition(@NonNull Duration duration,
-                @NonNull VibrationParameter targetParameter1,
-                @NonNull VibrationParameter targetParameter2) {
-            Preconditions.checkNotNull(duration, "Duration is null");
-            checkVibrationParameter(targetParameter1, "targetParameter1");
-            checkVibrationParameter(targetParameter2, "targetParameter2");
-            Preconditions.checkArgument(
-                    !Objects.equals(targetParameter1.getClass(), targetParameter2.getClass()),
-                    "Parameter arguments must specify different parameter types");
-            float amplitude = extractTargetAmplitude(targetParameter1, targetParameter2);
-            float frequencyHz = extractTargetFrequency(targetParameter1, targetParameter2);
-            addTransitionSegment(duration, amplitude, frequencyHz);
-            return this;
-        }
-
-        /**
-         * Add a duration to sustain the last vibration parameters of this waveform.
-         *
-         * <p>The duration represents how long the vibrator should sustain the last set of
-         * parameters provided to this builder.
-         *
-         * @param duration   The length of time the last values should be sustained by the vibrator.
-         *                   Value must be >= 1ms.
-         * @return This {@link WaveformBuilder} object to enable adding multiple transitions in
-         * chain.
-         * @hide
-         */
-        @TestApi
-        @SuppressWarnings("MissingGetterMatchingBuilder") // No getters to segments once created.
-        @NonNull
-        public WaveformBuilder addSustain(@NonNull Duration duration) {
-            int durationMs = (int) duration.toMillis();
-            Preconditions.checkArgument(durationMs >= 1, "Sustain duration must be >= 1ms");
-            mSegments.add(new StepSegment(mLastAmplitude, mLastFrequencyHz, durationMs));
-            return this;
-        }
-
-        /**
-         * Build the waveform as a single {@link VibrationEffect}.
-         *
-         * <p>The {@link WaveformBuilder} object is still valid after this call, so you can
-         * continue adding more primitives to it and generating more {@link VibrationEffect}s by
-         * calling this method again.
-         *
-         * @return The {@link VibrationEffect} resulting from the list of transitions.
-         * @hide
-         */
-        @TestApi
-        @NonNull
-        public VibrationEffect build() {
-            if (mSegments.isEmpty()) {
-                throw new IllegalStateException(
-                        "WaveformBuilder must have at least one transition to build.");
-            }
-            VibrationEffect effect = new Composed(mSegments, /* repeatIndex= */ -1);
-            effect.validate();
-            return effect;
-        }
-
-        private void checkVibrationParameter(@NonNull VibrationParameter vibrationParameter,
-                String paramName) {
-            Preconditions.checkNotNull(vibrationParameter, "%s is null", paramName);
-            Preconditions.checkArgument(
-                    (vibrationParameter instanceof AmplitudeVibrationParameter)
-                            || (vibrationParameter instanceof FrequencyVibrationParameter),
-                    "%s is a unknown parameter", paramName);
-        }
-
-        private float extractTargetAmplitude(@Nullable VibrationParameter target1,
-                @Nullable VibrationParameter target2) {
-            if (target2 instanceof AmplitudeVibrationParameter) {
-                return ((AmplitudeVibrationParameter) target2).amplitude;
-            }
-            if (target1 instanceof AmplitudeVibrationParameter) {
-                return ((AmplitudeVibrationParameter) target1).amplitude;
-            }
-            return mLastAmplitude;
-        }
-
-        private float extractTargetFrequency(@Nullable VibrationParameter target1,
-                @Nullable VibrationParameter target2) {
-            if (target2 instanceof FrequencyVibrationParameter) {
-                return ((FrequencyVibrationParameter) target2).frequencyHz;
-            }
-            if (target1 instanceof FrequencyVibrationParameter) {
-                return ((FrequencyVibrationParameter) target1).frequencyHz;
-            }
-            return mLastFrequencyHz;
-        }
-
-        private void addTransitionSegment(Duration duration, float targetAmplitude,
-                float targetFrequency) {
-            Preconditions.checkNotNull(duration, "Duration is null");
-            Preconditions.checkArgument(!duration.isNegative(),
-                    "Transition duration must be non-negative");
-            int durationMs = (int) duration.toMillis();
-
-            // Ignore transitions with zero duration, but keep values for next additions.
-            if (durationMs > 0) {
-                if ((Math.abs(mLastAmplitude - targetAmplitude) < EPSILON)
-                        && (Math.abs(mLastFrequencyHz - targetFrequency) < EPSILON)) {
-                    // No value is changing, this can be best represented by a step segment.
-                    mSegments.add(new StepSegment(targetAmplitude, targetFrequency, durationMs));
-                } else {
-                    mSegments.add(new RampSegment(mLastAmplitude, targetAmplitude,
-                            mLastFrequencyHz, targetFrequency, durationMs));
-                }
-            }
-
-            mLastAmplitude = targetAmplitude;
-            mLastFrequencyHz = targetFrequency;
-        }
-    }
-
-    /**
-     * A representation of a single vibration parameter.
-     *
-     * <p>This is to describe a waveform haptic effect, which consists of one or more timed
-     * transitions to a new set of {@link VibrationParameter}s.
-     *
-     * <p>Examples of concrete parameters are the vibration amplitude or frequency.
-     *
-     * @see VibrationEffect.WaveformBuilder
-     * @hide
-     */
-    @TestApi
-    @SuppressWarnings("UserHandleName") // This is not a regular set of parameters, no *Params.
-    public static class VibrationParameter {
-        VibrationParameter() {
-        }
-
-        /**
-         * The target vibration amplitude.
-         *
-         * @param amplitude The amplitude value, between 0 and 1, inclusive, where 0 represents the
-         *                  vibrator turned off and 1 represents the maximum amplitude the vibrator
-         *                  can reach across all supported frequencies.
-         * @return The {@link VibrationParameter} instance that represents given amplitude.
-         * @hide
-         */
-        @TestApi
-        @NonNull
-        public static VibrationParameter targetAmplitude(
-                @FloatRange(from = 0, to = 1) float amplitude) {
-            return new AmplitudeVibrationParameter(amplitude);
-        }
-
-        /**
-         * The target vibration frequency.
-         *
-         * @param frequencyHz The frequency value, in hertz.
-         * @return The {@link VibrationParameter} instance that represents given frequency.
-         * @hide
-         */
-        @TestApi
-        @NonNull
-        public static VibrationParameter targetFrequency(@FloatRange(from = 1) float frequencyHz) {
-            return new FrequencyVibrationParameter(frequencyHz);
-        }
-    }
-
-    /** The vibration amplitude, represented by a value in [0,1]. */
-    private static final class AmplitudeVibrationParameter extends VibrationParameter {
-        public final float amplitude;
-
-        AmplitudeVibrationParameter(float amplitude) {
-            Preconditions.checkArgument((amplitude >= 0) && (amplitude <= 1),
-                    "Amplitude must be within [0,1]");
-            this.amplitude = amplitude;
-        }
-    }
-
-    /** The vibration frequency, in hertz, or zero to represent undefined frequency. */
-    private static final class FrequencyVibrationParameter extends VibrationParameter {
-        public final float frequencyHz;
-
-        FrequencyVibrationParameter(float frequencyHz) {
-            Preconditions.checkArgument(frequencyHz >= 1, "Frequency must be >= 1");
-            Preconditions.checkArgument(Float.isFinite(frequencyHz), "Frequency must be finite");
-            this.frequencyHz = frequencyHz;
-        }
-    }
-
     @NonNull
     public static final Parcelable.Creator<VibrationEffect> CREATOR =
             new Parcelable.Creator<VibrationEffect>() {
@@ -2511,9 +1978,7 @@ public abstract class VibrationEffect implements Parcelable {
                         case PARCEL_TOKEN_COMPOSED:
                             return new Composed(in);
                         case PARCEL_TOKEN_VENDOR_EFFECT:
-                            if (Flags.vendorVibrationEffects()) {
-                                return new VendorEffect(in);
-                            } // else fall through
+                            return new VendorEffect(in);
                         default:
                             throw new IllegalStateException(
                                     "Unexpected vibration effect type token in parcel.");

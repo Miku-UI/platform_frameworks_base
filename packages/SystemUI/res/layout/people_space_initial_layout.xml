@@ -50,7 +50,7 @@
                 android:paddingTop="2dp"
                 android:text="@string/empty_user_name"
                 android:textAppearance="@*android:style/TextAppearance.DeviceDefault.Notification.Title"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/materialColorOnSurface"
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="end"
@@ -60,7 +60,7 @@
 
         <TextView
             android:text="@string/status_before_loading"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="@color/materialColorOnSurface"
             android:textAppearance="@*android:style/TextAppearance.DeviceDefault.Notification.Title"
             android:textSize="12sp"
             android:layout_width="wrap_content"

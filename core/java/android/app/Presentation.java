@@ -19,7 +19,6 @@ package android.app;
 import static android.view.WindowManager.LayoutParams.INVALID_WINDOW_TYPE;
 import static android.view.WindowManager.LayoutParams.TYPE_PRESENTATION;
 import static android.view.WindowManager.LayoutParams.TYPE_PRIVATE_PRESENTATION;
-import static android.window.DesktopExperienceFlags.ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS;
 
 import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -46,9 +45,15 @@ import java.util.Objects;
  * Base class for presentations.
  * <p>
  * A presentation is a special kind of dialog whose purpose is to present
- * content on a secondary display.  A {@link Presentation} is associated with
- * the target {@link Display} at creation time and configures its context and
- * resource configuration according to the display's metrics.
+ * content on another display. While traditionally used for external displays,
+ * starting from {@link android.os.Build.VERSION_CODES#BAKLAVA},
+ * {@link android.view.Display#FLAG_PRESENTATION} can now also be attached to built-in
+ * internal displays, allowing presentations to be shown on them as well.
+ * On earlier releases, internal displays were not suitable for presentations
+ * and attempting to show one would always result in an exception.
+ * A {@link Presentation} is associated with the target {@link Display} at creation
+ * time and configures its context and resource configuration according to the
+ * display's metrics.
  * </p><p>
  * Notably, the {@link Context} of a presentation is different from the context
  * of its containing {@link Activity}.  It is important to inflate the layout
@@ -57,7 +62,8 @@ import java.util.Objects;
  * are loaded.
  * </p><p>
  * A presentation is automatically canceled (see {@link Dialog#cancel()}) when
- * the display to which it is attached is removed.  An activity should take
+ * the display to which it is attached is removed or when the application's
+ * associated task is removed.  An activity should take
  * care of pausing and resuming whatever content is playing within the presentation
  * whenever the activity itself is paused or resumed.
  * </p>
@@ -84,7 +90,7 @@ import java.util.Objects;
  * a presentation on the preferred presentation display automatically.
  * </p><p>
  * The preferred presentation display is the display that the media router recommends
- * that the application should use if it wants to show content on the secondary display.
+ * that the application should use if it wants to show content on another display.
  * Sometimes there may not be a preferred presentation display in which
  * case the application should show its content locally without using a presentation.
  * </p><p>
@@ -103,7 +109,7 @@ import java.util.Objects;
  * }</pre>
  * <p>
  * The following sample code from <code>ApiDemos</code> demonstrates how to use the media
- * router to automatically switch between showing content in the main activity and showing
+ * router to automatically switch between showing content in the application's activity and showing
  * the content in a presentation when a presentation display is available.
  * </p>
  * {@sample development/samples/ApiDemos/src/com/example/android/apis/app/PresentationWithMediaRouterActivity.java
@@ -117,11 +123,16 @@ import java.util.Objects;
  * for presentations.
  * </p><p>
  * The display manager keeps track of all displays in the system.  However, not all
- * displays are appropriate for showing presentations.  For example, if an activity
- * attempted to show a presentation on the main display it might obscure its own content
- * (it's like opening a dialog on top of your activity).  Creating a presentation on the main
- * display will result in {@link android.view.WindowManager.InvalidDisplayException} being thrown
- * when invoking {@link #show()}.
+ * displays are appropriate for showing presentations.  For example, a presentation is
+ * disallowed on the same display as the application's top visible task to prevent
+ * it from obscuring its own content. Additionally, presentations on internal displays are
+ * restricted and may require the application's task to be focused on a different display
+ * to ensure the user is actively interacting with the application. Violating these rules
+ * will result in {@link android.view.WindowManager.InvalidDisplayException} being thrown
+ * when invoking {@link #show()}. If the conditions for showing a presentation are no longer
+ * met while it is already visible, the system will automatically dismiss it and the
+ * application will receive the {@link #onStop()} callback. When shown, a presentation
+ * will occlude other activities on the target display for security reasons.
  * </p><p>
  * Here's how to identify suitable displays for showing presentations using
  * {@link DisplayManager#getDisplays(String)} and the
@@ -166,7 +177,8 @@ public class Presentation extends Dialog {
      *
      * @param outerContext The context of the application that is showing the presentation.
      * The presentation will create its own context (see {@link #getContext()}) based
-     * on this context and information about the associated display.
+     * on this context and information about the associated display. The presentation
+     * is associated with the UID of this context for policy enforcement.
      * @param display The display to which the presentation should be attached.
      */
     public Presentation(Context outerContext, Display display) {
@@ -179,7 +191,8 @@ public class Presentation extends Dialog {
      *
      * @param outerContext The context of the application that is showing the presentation.
      * The presentation will create its own context (see {@link #getContext()}) based
-     * on this context and information about the associated display.
+     * on this context and information about the associated display. The presentation
+     * is associated with the UID of this context for policy enforcement.
      * From {@link android.os.Build.VERSION_CODES#S}, the presentation will create its own window
      * context based on this context, information about the associated display. Customizing window
      * type by {@link Window#setType(int) #getWindow#setType(int)} causes the mismatch of the window
@@ -202,7 +215,8 @@ public class Presentation extends Dialog {
      * presentation.
      * @param outerContext The context of the application that is showing the presentation.
      * The presentation will create its own context (see {@link #getContext()}) based
-     * on this context and information about the associated display.
+     * on this context and information about the associated display. The presentation
+     * is associated with the UID of this context for policy enforcement.
      * From {@link android.os.Build.VERSION_CODES#S}, the presentation will create its own window
      * context based on this context, information about the associated display and the window type.
      * If the window type is not specified, the presentation will choose the default type for the
@@ -274,15 +288,17 @@ public class Presentation extends Dialog {
 
     /**
      * Inherited from {@link Dialog#show}. Will throw
-     * {@link android.view.WindowManager.InvalidDisplayException} if the specified secondary
-     * {@link Display} can't be found or if it does not have {@link Display#FLAG_PRESENTATION} set.
+     * {@link android.view.WindowManager.InvalidDisplayException} if the specified
+     * {@link Display} can't be found, if it does not have {@link Display#FLAG_PRESENTATION} set,
+     * or if it is currently not allowed to show a presentation on the display (e.g. it would
+     * obscure the application's own task).
      */
     @Override
     public void show() {
         super.show();
 
         WindowInsetsController controller = getWindow().getInsetsController();
-        if (controller != null && ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS.isTrue()) {
+        if (controller != null) {
             controller.hide(WindowInsets.Type.systemBars());
         }
     }

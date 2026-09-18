@@ -19,9 +19,9 @@ package com.android.wm.shell.flicker.bubble
 import android.content.Context
 import android.graphics.Point
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.subject.layers.LayersTraceSubject
 import android.tools.traces.component.ComponentNameMatcher
 import android.util.DisplayMetrics
@@ -64,7 +64,7 @@ class DragToDismissBubbleScreenTest(flicker: FlickerTest) : BaseBubbleScreen(fli
                 val showBubble =
                     device.wait(
                         Until.findObject(By.res(SYSTEM_UI_PACKAGE, BUBBLE_RES_NAME)),
-                        FIND_OBJECT_TIMEOUT
+                        FIND_OBJECT_TIMEOUT,
                     )
                 showBubble?.run { drag(dist, 1000) } ?: error("Show bubble not found")
             }

@@ -3,6 +3,7 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_label" msgid="8016145283189546017">"Улазни уређаји"</string>
     <string name="keyboard_layouts_label" msgid="6688773268302087545">"Android тастатура"</string>
+    <string name="keyboard_layout_english_ca_label" msgid="2415799429045326926">"енглески (Канада)"</string>
     <string name="keyboard_layout_english_uk_label" msgid="6664258463319999632">"енглеска (УК)"</string>
     <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"енглеска (САД)"</string>
     <string name="keyboard_layout_english_us_intl" msgid="3705168594034233583">"енглеска (САД), међународни стил"</string>
@@ -34,6 +35,7 @@
     <string name="keyboard_layout_brazilian" msgid="5117896443147781939">"бразилска"</string>
     <string name="keyboard_layout_portuguese" msgid="2888198587329660305">"португалска"</string>
     <string name="keyboard_layout_slovak" msgid="2469379934672837296">"словачка"</string>
+    <string name="keyboard_layout_slovak_qwerty" msgid="2786027565675359502">"Словачка, QWERTY стил"</string>
     <string name="keyboard_layout_slovenian" msgid="1735933028924982368">"словеначка"</string>
     <string name="keyboard_layout_turkish" msgid="7736163250907964898">"турска"</string>
     <string name="keyboard_layout_turkish_f" msgid="9130320856010776018">"турска F"</string>
@@ -43,7 +45,7 @@
     <string name="keyboard_layout_hebrew" msgid="7241473985890173812">"хебрејски"</string>
     <string name="keyboard_layout_lithuanian" msgid="6943110873053106534">"литвански"</string>
     <string name="keyboard_layout_spanish_latin" msgid="5690539836069535697">"шпански (Латинска Америка)"</string>
-    <string name="keyboard_layout_latvian" msgid="4405417142306250595">"летонски"</string>
+    <string name="keyboard_layout_latvian" msgid="4405417142306250595">"летонска"</string>
     <string name="keyboard_layout_persian" msgid="3920643161015888527">"персијска"</string>
     <string name="keyboard_layout_azerbaijani" msgid="7315895417176467567">"азербејџанска"</string>
     <string name="keyboard_layout_polish" msgid="1121588624094925325">"пољски"</string>
@@ -58,4 +60,20 @@
     <string name="keyboard_layout_montenegrin_cyrillic" msgid="2391253952894077421">"црногорски (ћирилица)"</string>
     <string name="keyboard_layout_romanian" msgid="8698989892731726903">"румунски"</string>
     <string name="keyboard_layout_english_india" msgid="7962353311188603367">"енглески (Индија)"</string>
+    <string name="playstation_controller_circle_button" msgid="3436949457993997215">"Дугме са кругом"</string>
+    <string name="playstation_controller_triangle_button" msgid="7058016183388142515">"Дугме са троуглом"</string>
+    <string name="playstation_controller_square_button" msgid="1611460593522078301">"Дугме са квадратом"</string>
+    <string name="playstation_controller_cross_button" msgid="5263132258994089833">"Дугме са крстом"</string>
+    <string name="default_game_controller_down_button" msgid="5298575601656661456">"Дугме за кретање надоле"</string>
+    <string name="default_game_controller_left_button" msgid="8135197345326445929">"Дугме за кретање налево"</string>
+    <string name="default_game_controller_right_button" msgid="7213665536684737133">"Дугме за кретање надесно"</string>
+    <string name="default_game_controller_up_button" msgid="5466016771871639338">"Дугме за кретање нагоре"</string>
+    <string name="nintendo_game_controller_l_button" msgid="4725333055757177703">"Дугме L"</string>
+    <string name="nintendo_game_controller_r_button" msgid="1916817307166823755">"Дугме R"</string>
+    <string name="nintendo_game_controller_zl_button" msgid="7980363034784417011">"Дугме ZL"</string>
+    <string name="nintendo_game_controller_zr_button" msgid="301860128142672009">"Дугме ZR"</string>
+    <string name="xbox_game_controller_lb_button" msgid="3531058576782769049">"Дугме LB"</string>
+    <string name="xbox_game_controller_rb_button" msgid="7009478913470850721">"Дугме RB"</string>
+    <string name="xbox_game_controller_lt_button" msgid="6613016668751667815">"Дугме LT"</string>
+    <string name="xbox_game_controller_rt_button" msgid="1259415225164057316">"Дугме RT"</string>
 </resources>

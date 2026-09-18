@@ -28,14 +28,14 @@
 
     <ImageView android:id="@+id/icon"
                android:alpha="0.54"
-               android:tint="?android:attr/textColorPrimary"
+               android:tint="@color/materialColorOnSurface"
                android:layout_marginEnd="16dp"
                android:layout_width="24dp"
                android:layout_height="24dp"/>
 
     <TextView android:id="@+id/text"
               android:textAppearance="?android:attr/textAppearanceSmall"
-              android:textColor="?android:attr/textColorPrimary"
+              android:textColor="@color/materialColorOnSurface"
               android:textSize="16sp"
               android:maxLines="2"
               android:ellipsize="end"

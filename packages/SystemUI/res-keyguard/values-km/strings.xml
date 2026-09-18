@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"ពាក្យសម្ងាត់​ឧបករណ៍"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"ប្រអប់​បំពេញ​កូដ PIN របស់​ស៊ីម"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"ប្រអប់​បំពេញ​កូដ PUK របស់​ស៊ីម"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"ចុច​ឱ្យយូរ ដើម្បីលុបទាំងអស់"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"លុប"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"បិទ eSIM"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"មិនអាច​បិទ eSIM បាន​ទេ"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"មិនអាចដោះសោដោយប្រើស្នាមម្រាមដៃទេ។ ព្យាយាមច្រើនដងពេក។"</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"ភ្នាក់ងារទុកចិត្តមិនទំនេរទេ"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ព្យាយាមដោយប្រើកូដ PIN មិនត្រឹមត្រូវច្រើនដងពេក"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"បានព្យាយាមប្រើកូដ PIN នោះរួចហើយ។ សូម​សាកល្បងកូដ PIN ​ផ្សេង។"</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"បានសាកល្បងប្រើលំនាំនោះរួចហើយ។ សូមសាកល្បងប្រើលំនាំផ្សេង។"</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"បានសាកល្បងប្រើពាក្យ​សម្ងាត់នោះរួចហើយ។ សូមសាកល្បងប្រើពាក្យសម្ងាត់ផ្សេង។"</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"ព្យាយាមដោយប្រើលំនាំមិនត្រឹមត្រូវច្រើនដងពេក"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"ព្យាយាមដោយប្រើពាក្យសម្ងាត់មិនត្រឹមត្រូវច្រើនដងពេក"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"ព្យាយាមប្រើកូដ PIN មិនត្រឹមត្រូវច្រើនដងពេក\nស្វែងយល់បន្ថែមតាមរយៈ <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"ព្យាយាមប្រើលំនាំមិនត្រឹមត្រូវច្រើនដងពេក\nស្វែងយល់បន្ថែមតាមរយៈ <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"ព្យាយាមប្រើពាក្យសម្ងាត់មិនត្រឹមត្រូវច្រើនដងពេក\nស្វែងយល់បន្ថែមតាមរយៈ <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{ព្យាយាមម្តងទៀតក្នុងរយៈពេល # វិនាទីទៀត។}other{ព្យាយាមម្តងទៀតក្នុងរយៈពេល # វិនាទីទៀត។}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # វិនាទី}other{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # វិនាទី}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # នាទី}other{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # នាទី}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # ម៉ោងទៀត}other{សូមព្យាយាម​ម្ដងទៀត​ក្នុងរយៈពេល ​​# ម៉ោង}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{ព្យាយាមម្ដងទៀត​ក្នុងរយៈពេល # ថ្ងៃទៀត}other{ព្យាយាមម្ដងទៀត​ក្នុងរយៈពេល # ថ្ងៃទៀត}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # ឆ្នាំ}other{ព្យាយាមម្ដងទៀតក្នុងរយៈពេល # ឆ្នាំ}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"បញ្ចូល​កូដ PIN របស់​ស៊ីម។"</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"បញ្ចូល​កូដ PIN របស់​ស៊ីម​សម្រាប់ \"<xliff:g id="CARRIER">%1$s</xliff:g>\"។"</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> បិទ eSIM ដើម្បី​ប្រើ​ឧបករណ៍​ដោយ​គ្មាន​សេវាកម្ម​ទូរសព្ទ​ចល័ត។"</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"ត្រូវការលំនាំក្រោយពេលឧបករណ៍ចាប់ផ្ដើមឡើងវិញ"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"ត្រូវការកូដ PIN ក្រោយពេលឧបករណ៍ចាប់ផ្ដើមឡើងវិញ"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"ត្រូវការពាក្យសម្ងាត់ក្រោយពេលឧបករណ៍ចាប់ផ្ដើមឡើងវិញ"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"តម្រូវឱ្យគូរលំនាំ ដើម្បីចូលគណនី"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"តម្រូវឱ្យបញ្ចូលកូដ PIN ដើម្បីចូលគណនី"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"តម្រូវឱ្យបញ្ចូលពាក្យសម្ងាត់ ដើម្បីចូលគណនី"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"ដើម្បីសុវត្ថិភាពបន្ថែម សូមប្រើលំនាំជំនួសវិញ"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"ដើម្បីសុវត្ថិភាពបន្ថែម សូមប្រើកូដ PIN ជំនួសវិញ"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"ដើម្បីសុវត្ថិភាពបន្ថែម សូមប្រើពាក្យសម្ងាត់ជំនួសវិញ"</string>

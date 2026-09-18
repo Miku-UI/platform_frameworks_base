@@ -13,13 +13,10 @@
  */
 package com.android.systemui.plugins
 
-import android.content.ComponentName
 import android.text.TextUtils
 import com.android.systemui.plugins.annotations.ProvidesInterface
 
 interface PluginManager {
-    val config: Config
-
     fun <T : Plugin> addPluginListener(
         listener: PluginListener<T>,
         cls: Class<T>,
@@ -29,36 +26,6 @@ interface PluginManager {
     fun removePluginListener(listener: PluginListener<*>)
 
     fun <T> dependsOn(p: Plugin, cls: Class<T>): Boolean
-
-    class Config(privilegedNames: List<String> = listOf()) {
-        private val privilegedPackages: Set<String>
-        private val privilegedComponents: Set<ComponentName>
-
-        init {
-            val packages = mutableSetOf<String>()
-            val components = mutableSetOf<ComponentName>()
-            for (name in privilegedNames) {
-                val component = ComponentName.unflattenFromString(name)
-                if (component != null) {
-                    components.add(component)
-                    packages.add(component.packageName)
-                } else {
-                    packages.add(name)
-                }
-            }
-
-            privilegedPackages = packages
-            privilegedComponents = components
-        }
-
-        fun isPrivileged(pluginName: ComponentName): Boolean {
-            return pluginName in privilegedComponents || isPackagePrivileged(pluginName.packageName)
-        }
-
-        fun isPackagePrivileged(packageName: String): Boolean {
-            return packageName in privilegedPackages
-        }
-    }
 
     companion object {
         const val PLUGIN_CHANGED: String = "com.android.systemui.action.PLUGIN_CHANGED"

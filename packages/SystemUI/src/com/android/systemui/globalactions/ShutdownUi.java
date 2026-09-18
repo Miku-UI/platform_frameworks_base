@@ -18,8 +18,6 @@ package com.android.systemui.globalactions;
 
 import static android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
 
-import static com.android.systemui.Flags.globalActionsEmphasizedFont;
-
 import android.annotation.Nullable;
 import android.annotation.StringRes;
 import android.app.Dialog;
@@ -115,12 +113,10 @@ public class ShutdownUi {
         reasonView.setTextColor(color);
         messageView.setTextColor(color);
 
-        if (globalActionsEmphasizedFont()) {
-            Typeface typeface = Typeface.create(FontStyles.GSF_LABEL_LARGE_EMPHASIZED,
-                    Typeface.NORMAL);
-            reasonView.setTypeface(typeface);
-            messageView.setTypeface(typeface);
-        }
+        Typeface typeface = Typeface.create(FontStyles.GSF_LABEL_LARGE_EMPHASIZED,
+                Typeface.NORMAL);
+        reasonView.setTypeface(typeface);
+        messageView.setTypeface(typeface);
 
         messageView.setText(getRebootMessage(isReboot, reason));
         String rebootReasonMessage = getReasonMessage(reason);

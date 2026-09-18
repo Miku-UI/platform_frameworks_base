@@ -11,6 +11,11 @@
         {"exclude-annotation": "org.junit.Ignore"}
       ]
     }
+  ],
+  "ravenwood-presubmit": [
+    {
+      "name": "FrameworksVibratorCoreTestsRavenwood",
+      "host": true
+    }
   ]
 }
-

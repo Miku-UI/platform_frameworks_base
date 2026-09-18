@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!--
+    This defines the format of the XML file used to define available and unavailable protections in
+    Advanced Protection. It is parsed in
+    com/android/server/security/AdvancedProtectionConfigLoader.java.
+-->
+<xs:schema version="2.0"
+    elementFormDefault="qualified"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="advanced-protection-config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element type="protections" name="available-protections" minOccurs="0" />
+      </xs:sequence>
+    </xs:complexType>
+
+    <xs:unique name="unique-protection-id">
+        <xs:selector xpath="available-protections/protections" />
+        <xs:field xpath="@id" />
+    </xs:unique>
+  </xs:element>
+
+  <xs:complexType name="protections">
+    <xs:sequence>
+      <xs:element name="protection" maxOccurs="100" minOccurs="0">
+        <xs:complexType>
+          <xs:attribute type="protection-id" name="id" use="required" />
+          <xs:attribute type="xs:string" name="featureFlag" />
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="protection-id">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="DISALLOW_CELLULAR_2G"/>
+      <xs:enumeration value="DISALLOW_INSECURE_WIFI_AUTOJOIN"/>
+      <xs:enumeration value="DISALLOW_INSTALL_UNKNOWN_SOURCES"/>
+      <xs:enumeration value="DISALLOW_USB"/>
+      <xs:enumeration value="ENABLE_MTE"/>
+      <xs:enumeration value="DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICES"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

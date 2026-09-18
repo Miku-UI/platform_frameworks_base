@@ -36,9 +36,8 @@ message ProfilerInfoProto {
     optional bool streaming_output = 5;
     // Denotes an agent (and its parameters) to attach for profiling.
     optional string agent = 6;
-    optional int32 clock_type = 7;
-    optional int32 profiler_output_version = 8;
-    optional bool profile_long_running_methods = 9;
+    optional int32 profiler_flags = 7;
+    optional bool profile_long_running_methods = 8;
     // Duration in microseconds for which the tracing needs to run.
-    optional int64 duration_micros = 10;
+    optional int64 duration_micros = 9;
 }

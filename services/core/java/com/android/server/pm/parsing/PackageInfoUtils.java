@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.content.pm.ActivityInfo;
+import android.content.pm.AllowComponentAccessPolicyInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.Attribution;
 import android.content.pm.ComponentInfo;
@@ -41,12 +42,16 @@ import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.SharedLibraryInfo;
 import android.content.pm.Signature;
+import android.content.pm.SignedPackage;
 import android.content.pm.SigningDetails;
 import android.content.pm.SigningInfo;
+import android.content.pm.UsesPermissionPurposeInfo;
+import android.content.pm.ValidGeneralPurposeInfo;
 import android.content.pm.ValidPurposeInfo;
 import android.content.pm.overlay.OverlayPaths;
 import android.os.Environment;
 import android.os.PatternMatcher;
+import android.os.Process;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -58,6 +63,7 @@ import com.android.internal.pm.parsing.pkg.AndroidPackageLegacyUtils;
 import com.android.internal.pm.parsing.pkg.PackageImpl;
 import com.android.internal.pm.pkg.component.ComponentParseUtils;
 import com.android.internal.pm.pkg.component.ParsedActivity;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicy;
 import com.android.internal.pm.pkg.component.ParsedAttribution;
 import com.android.internal.pm.pkg.component.ParsedComponent;
 import com.android.internal.pm.pkg.component.ParsedInstrumentation;
@@ -68,12 +74,14 @@ import com.android.internal.pm.pkg.component.ParsedProcess;
 import com.android.internal.pm.pkg.component.ParsedProvider;
 import com.android.internal.pm.pkg.component.ParsedService;
 import com.android.internal.pm.pkg.component.ParsedUsesPermission;
+import com.android.internal.pm.pkg.component.ParsedValidGeneralPurpose;
 import com.android.internal.pm.pkg.component.ParsedValidPurpose;
 import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.pm.pkg.parsing.ParsingUtils;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.CollectionUtils;
 import com.android.server.SystemConfig;
+import com.android.server.pm.AppLockPackageHelper;
 import com.android.server.pm.PackageArchiver;
 import com.android.server.pm.parsing.pkg.AndroidPackageUtils;
 import com.android.server.pm.pkg.AndroidPackage;
@@ -199,6 +207,9 @@ public class PackageInfoUtils {
             if (size > 0) {
                 info.requestedPermissions = new String[size];
                 info.requestedPermissionsFlags = new int[size];
+                if (android.permission.flags.Flags.ppdManifestEnabled()) {
+                    info.requestedPermissionsPurposes = new ArrayMap<>();
+                }
                 int index = 0;
                 for (ParsedUsesPermission usesPermission : usesPermissions) {
                     info.requestedPermissions[index] = usesPermission.getName();
@@ -215,9 +226,35 @@ public class PackageInfoUtils {
                         info.requestedPermissionsFlags[index] |=
                                 PackageInfo.REQUESTED_PERMISSION_NEVER_FOR_LOCATION;
                     }
+                    if ((usesPermission.getUsesPermissionFlags()
+                            & ParsedUsesPermission.FLAG_ONLY_FOR_LOCATION_BUTTON) != 0) {
+                        info.requestedPermissionsFlags[index] |=
+                                PackageInfo.REQUESTED_PERMISSION_ONLY_FOR_LOCATION_BUTTON;
+                    }
                     if (pkg.getImplicitPermissions().contains(info.requestedPermissions[index])) {
                         info.requestedPermissionsFlags[index] |=
                                 PackageInfo.REQUESTED_PERMISSION_IMPLICIT;
+                    }
+                    if (android.permission.flags.Flags.ppdManifestEnabled()) {
+                        Set<String> purposes = Set.of();
+                        Set<String> generalPurposes = Set.of();
+                        int purposeStringResource = usesPermission.getPurposeStringResource();
+                        if (!usesPermission.getPurposes().isEmpty()) {
+                            purposes = usesPermission.getPurposes();
+                        }
+                        if (!usesPermission.getGeneralPurposes().isEmpty()) {
+                            generalPurposes = usesPermission.getGeneralPurposes();
+                        }
+                        // only add entry if any purpose info exists for this permission
+                        if (!generalPurposes.isEmpty() || !purposes.isEmpty()
+                                || purposeStringResource != 0) {
+                            UsesPermissionPurposeInfo ppi =
+                                    new UsesPermissionPurposeInfo(usesPermission.getName(),
+                                            purposes,
+                                            generalPurposes,
+                                            purposeStringResource);
+                            info.requestedPermissionsPurposes.put(usesPermission.getName(), ppi);
+                        }
                     }
                     index++;
                 }
@@ -382,7 +419,7 @@ public class PackageInfoUtils {
     }
 
     private static void updateApplicationInfo(ApplicationInfo ai, long flags,
-            PackageUserState state) {
+            PackageUserState state, AndroidPackage pkg, int userId) {
         if ((flags & PackageManager.GET_META_DATA) == 0) {
             ai.metaData = null;
         }
@@ -432,6 +469,15 @@ public class PackageInfoUtils {
             // The data dir has been deleted
             ai.dataDir = null;
         }
+        if ((flags & PackageManager.GET_APP_LOCK_INFO) != 0) {
+            if (pkg != null) {
+                ai.isAppLockSupported = AppLockPackageHelper.isAppLockSupported(
+                        pkg.getPackageName(),
+                        userId,
+                        pkg.getActivities());
+            }
+            ai.isAppLockEnabled = state.isAppLockEnabled();
+        }
     }
 
     @Nullable
@@ -446,7 +492,7 @@ public class PackageInfoUtils {
         ai.initForUser(userId);
         ai.icon = (ParsingPackageUtils.sUseRoundIcon && ai.roundIconRes != 0) ? ai.roundIconRes
                 : ai.iconRes;
-        updateApplicationInfo(ai, flags, state);
+        updateApplicationInfo(ai, flags, state, /* pkg= */ null, userId);
         return ai;
     }
 
@@ -471,9 +517,9 @@ public class PackageInfoUtils {
         // Make shallow copy so we can store the metadata/libraries safely
         ApplicationInfo info = AndroidPackageUtils.generateAppInfoWithoutState(pkg);
 
-        updateApplicationInfo(info, flags, state);
+        updateApplicationInfo(info, flags, state, pkg, userId);
 
-        initForUser(info, pkg, userId, state);
+        initForUser(info, pkg, pkgSetting, userId, state);
 
         // TODO(b/135203078): Remove PackageParser1/toAppInfoWithoutState and clean all this up
         PackageStateUnserialized pkgState = pkgSetting.getTransientState();
@@ -785,8 +831,9 @@ public class PackageInfoUtils {
         pi.descriptionRes = p.getDescriptionRes();
         pi.flags = p.getFlags();
         pi.knownCerts = p.getKnownCerts();
-        pi.requiresPurpose = p.isPurposeRequired();
         pi.requiresPurposeTargetSdkVersion = p.getRequiresPurposeTargetSdkVersion();
+        pi.requiresPurposeStringTargetSdkVersion = p.getRequiresPurposeStringTargetSdkVersion();
+        pi.requiresGeneralPurposeTargetSdkVersion = p.getRequiresGeneralPurposeTargetSdkVersion();
         for (ParsedValidPurpose validPurpose : p.getValidPurposes()) {
             if (validPurpose != null) {
                 pi.validPurposes =
@@ -794,6 +841,15 @@ public class PackageInfoUtils {
                                 new ValidPurposeInfo(
                                         validPurpose.getName(),
                                         validPurpose.getMaxTargetSdkVersion()));
+            }
+        }
+        for (ParsedValidGeneralPurpose validGeneralPurpose : p.getValidGeneralPurposes()) {
+            if (validGeneralPurpose != null) {
+                pi.validGeneralPurposes =
+                        CollectionUtils.add(pi.validGeneralPurposes, validGeneralPurpose.getName(),
+                                new ValidGeneralPurposeInfo(
+                                        validGeneralPurpose.getName(),
+                                        validGeneralPurpose.getMaxTargetSdkVersion()));
             }
         }
 
@@ -1056,7 +1112,6 @@ public class PackageInfoUtils {
                 | flag(pkg.hasRequestForegroundServiceExemption(), ApplicationInfo.PRIVATE_FLAG_EXT_REQUEST_FOREGROUND_SERVICE_EXEMPTION)
                 | flag(pkg.isAttributionsUserVisible(), ApplicationInfo.PRIVATE_FLAG_EXT_ATTRIBUTIONS_ARE_USER_VISIBLE)
                 | flag(pkg.isOnBackInvokedCallbackEnabled(), ApplicationInfo.PRIVATE_FLAG_EXT_ENABLE_ON_BACK_INVOKED_CALLBACK)
-                | flag(pkg.shouldRunInPccSandbox(), ApplicationInfo.PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX)
                 | flag(isAllowlistedForHiddenApis, ApplicationInfo.PRIVATE_FLAG_EXT_ALLOWLISTED_FOR_HIDDEN_APIS);
         return appInfoPrivateFlagsExt(pkgWithoutStateFlags, pkgSetting);
         // @formatter:on
@@ -1075,10 +1130,21 @@ public class PackageInfoUtils {
     }
 
     private static void initForUser(ApplicationInfo output, AndroidPackage input,
-            @UserIdInt int userId, PackageUserStateInternal state) {
+            PackageStateInternal pkgSetting, @UserIdInt int userId,
+            PackageUserStateInternal state) {
         PackageImpl pkg = ((PackageImpl) input);
         String packageName = input.getPackageName();
         output.uid = UserHandle.getUid(userId, UserHandle.getAppId(input.getUid()));
+        int pccId = pkgSetting.getPccId();
+        if (Process.isPrivateComputeCoreUid(pccId)) {
+            output.pccUid = UserHandle.getUid(userId, pccId);
+        } else {
+            // The only other expected value is INVALID_UID
+            if (pccId != Process.INVALID_UID) {
+                Slog.wtf(TAG, "Package " + packageName + " has a non-PCC uid assigned: " + pccId);
+            }
+            output.pccUid = Process.INVALID_UID;
+        }
 
         if ("android".equals(packageName)) {
             output.dataDir = SYSTEM_DATA_PATH;
@@ -1194,6 +1260,29 @@ public class PackageInfoUtils {
             return Environment.getDataUserCePackageDirectory(ps.getVolumeUuid(), userId,
                     ps.getPackageName());
         }
+    }
+
+    /**
+     * Converts a {@link ParsedAllowComponentAccessPolicy} into a shared
+     * {@link AllowComponentAccessPolicyInfo} object. The shared object is an immutable,
+     * optimized representation of the policy that is suitable for use by the system server.
+     *
+     * @param parsedPolicy The parsed policy object from the manifest.
+     * @return The shared, immutable policy object, or null if the parsed policy is null.
+     * @hide
+     */
+    @Nullable
+    public static AllowComponentAccessPolicyInfo generateAllowComponentAccessPolicyInfo(
+            @Nullable ParsedAllowComponentAccessPolicy parsedPolicy) {
+        if (parsedPolicy == null) {
+            return null;
+        }
+
+        final List<SignedPackage> allowlistedSignedPackages =
+                parsedPolicy.getParsedAllowlistedSignedPackages();
+
+        return new AllowComponentAccessPolicyInfo(allowlistedSignedPackages);
+
     }
 
     /**

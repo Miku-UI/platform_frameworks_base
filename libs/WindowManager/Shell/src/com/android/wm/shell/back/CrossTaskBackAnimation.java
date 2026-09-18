@@ -18,6 +18,7 @@ package com.android.wm.shell.back;
 
 import static android.view.RemoteAnimationTarget.MODE_CLOSING;
 import static android.view.RemoteAnimationTarget.MODE_OPENING;
+import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL;
 import static android.window.BackEvent.EDGE_RIGHT;
 
 import static com.android.internal.jank.InteractionJankMonitor.CUJ_PREDICTIVE_BACK_CROSS_TASK;
@@ -56,7 +57,9 @@ import com.android.internal.dynamicanimation.animation.SpringForce;
 import com.android.internal.policy.ScreenDecorationsUtils;
 import com.android.internal.policy.SystemBarUtils;
 import com.android.internal.protolog.ProtoLog;
+import com.android.systemui.Flags;
 import com.android.wm.shell.R;
+import com.android.wm.shell.common.split.SplitScreenUtils;
 import com.android.wm.shell.shared.animation.Interpolators;
 import com.android.wm.shell.shared.annotations.ShellMainThread;
 
@@ -169,8 +172,15 @@ public class CrossTaskBackAnimation extends ShellBackAnimation {
         mStartTaskRect.set(mClosingTarget.windowConfiguration.getBounds());
         mStartTaskRect.offsetTo(0, 0);
 
+        boolean isGestureNav = mContext.getResources().getInteger(
+                com.android.internal.R.integer.config_navBarInteractionMode)
+                == NAV_BAR_MODE_GESTURAL;
+        boolean isLargeScreen = SplitScreenUtils.isLargeScreen(mContext.getResources());
+
         // inset bottom in case of pinned taskbar being present
-        mStartTaskRect.inset(0, 0, 0, mClosingTarget.contentInsets.bottom);
+        if (!Flags.fixPredictiveBackClipping() || (isGestureNav || isLargeScreen)) {
+            mStartTaskRect.inset(0, 0, 0, mClosingTarget.contentInsets.bottom);
+        }
 
         // Draw background.
         mBackground.ensureBackground(mClosingTarget.windowConfiguration.getBounds(),

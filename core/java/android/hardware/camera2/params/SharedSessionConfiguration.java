@@ -69,7 +69,6 @@ import java.util.List;
  *  @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
 public final class SharedSessionConfiguration {
     private static final String TAG = "SharedSessionConfiguration";
     // Metadata android.info.availableSharedOutputConfigurations has list of shared output

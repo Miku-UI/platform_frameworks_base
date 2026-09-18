@@ -63,4 +63,11 @@ public class AppUtils {
                 ? context.getString(R.string.accessibility_work_profile_app_description, appLabel)
                 : appLabel.toString();
     }
+
+    public static Boolean isDebuggable() {
+        // Build.IS_DEBUGGABLE is a hidden API and cannot be used here because this module
+        // is built against "system_current". We check Build.TYPE instead to identify
+        // debuggable builds (userdebug/eng).
+        return Build.TYPE.equals("eng") || Build.TYPE.equals("userdebug");
+    }
 }

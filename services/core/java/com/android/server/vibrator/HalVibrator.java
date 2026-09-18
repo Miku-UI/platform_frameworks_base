@@ -24,7 +24,6 @@ import android.os.VibratorInfo;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.util.IndentingPrintWriter;
 
 import com.android.tools.r8.keepanno.annotations.KeepItemKind;
@@ -153,17 +152,6 @@ interface HalVibrator {
      * do not support the input or a negative number if the operation failed.
      */
     long on(long vibrationId, long stepId, PrimitiveSegment[] primitives);
-
-    /**
-     * Plays a composition of pwle primitives, using {@code vibrationId} and {@code stepId} for
-     * completion callback.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The positive duration of the vibration started, if successful, zero if the vibrator
-     * do not support the input or a negative number if the operation failed.
-     */
-    long on(long vibrationId, long stepId, RampSegment[] primitives);
 
     /**
      * Plays a composition of pwle v2 points, using {@code vibrationId} and {@code stepId} for

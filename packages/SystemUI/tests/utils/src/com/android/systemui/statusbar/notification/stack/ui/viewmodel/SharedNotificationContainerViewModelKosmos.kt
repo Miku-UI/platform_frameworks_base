@@ -24,6 +24,7 @@ import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
+import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.keyguard.ui.viewmodel.alternateBouncerToGoneTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.alternateBouncerToPrimaryBouncerTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.aodBurnInViewModel
@@ -33,6 +34,7 @@ import com.android.systemui.keyguard.ui.viewmodel.aodToLockscreenTransitionViewM
 import com.android.systemui.keyguard.ui.viewmodel.aodToOccludedTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.aodToPrimaryBouncerTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.dozingToGlanceableHubTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.dozingToGoneTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.dozingToLockscreenTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.dozingToOccludedTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.dozingToPrimaryBouncerTransitionViewModel
@@ -54,10 +56,15 @@ import com.android.systemui.keyguard.ui.viewmodel.occludedToLockscreenTransition
 import com.android.systemui.keyguard.ui.viewmodel.offToLockscreenTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.primaryBouncerToGoneTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.primaryBouncerToLockscreenTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.toAodEndStateTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.toDozingEndStateTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.toLockscreenEndStateTransitionViewModel
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.media.controls.domain.pipeline.legacyMediaDataManagerImpl
+import com.android.systemui.notifications.ui.notificationPlaceholderStateStorage
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
@@ -67,6 +74,7 @@ import com.android.systemui.statusbar.notification.stack.domain.interactor.heads
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackAppearanceInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.sharedNotificationContainerInteractor
 import com.android.systemui.unfold.domain.interactor.unfoldTransitionInteractor
+import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 import com.android.systemui.window.ui.viewmodel.fakeBouncerTransitions
 
 val Kosmos.sharedNotificationContainerViewModel by Fixture {
@@ -92,6 +100,7 @@ val Kosmos.sharedNotificationContainerViewModel by Fixture {
         aodToOccludedTransitionViewModel = aodToOccludedTransitionViewModel,
         aodToPrimaryBouncerTransitionViewModel = aodToPrimaryBouncerTransitionViewModel,
         dozingToGlanceableHubTransitionViewModel = dozingToGlanceableHubTransitionViewModel,
+        dozingToGoneTransitionViewModel = dozingToGoneTransitionViewModel,
         dozingToLockscreenTransitionViewModel = dozingToLockscreenTransitionViewModel,
         dozingToOccludedTransitionViewModel = dozingToOccludedTransitionViewModel,
         dozingToPrimaryBouncerTransitionViewModel = dozingToPrimaryBouncerTransitionViewModel,
@@ -122,7 +131,14 @@ val Kosmos.sharedNotificationContainerViewModel by Fixture {
         unfoldTransitionInteractor = unfoldTransitionInteractor,
         glanceableHubToAodTransitionViewModel = glanceableHubToAodTransitionViewModel,
         aodToGlanceableHubTransitionViewModel = aodToGlanceableHubTransitionViewModel,
+        toAodEndStateTransitionViewModel = toAodEndStateTransitionViewModel,
+        toDozingEndStateTransitionViewModel = toDozingEndStateTransitionViewModel,
+        toLockscreenEndStateTransitionViewModel = toLockscreenEndStateTransitionViewModel,
         activeNotificationsInteractor = activeNotificationsInteractor,
         mediaDataManager = legacyMediaDataManagerImpl,
+        notificationPlaceholderStateStorage = notificationPlaceholderStateStorage,
+        alphaTableLogger = logcatTableLogBuffer(this, "NotificationAlphaTableLog"),
+        windowRootViewBlurInteractor = windowRootViewBlurInteractor,
+        blurConfig = blurConfig,
     )
 }

@@ -71,10 +71,10 @@ final class StartCombinedVibrationStep extends Step {
             }
 
             mVibratorsOnMaxDuration = startVibrating(effectMapping, nextSteps);
+            conductor.vibratorManagerHooks.noteVibratorOn(
+                    conductor.getVibration().callerInfo.uid, mVibratorsOnMaxDuration);
         } finally {
             if (mVibratorsOnMaxDuration > 0) {
-                conductor.vibratorManagerHooks.noteVibratorOn(
-                        conductor.getVibration().callerInfo.uid, mVibratorsOnMaxDuration);
                 // It least one vibrator was started then add a finish step to wait for all
                 // active vibrators to finish their individual steps before finishing.
                 nextSteps.add(new FinishCombinedVibrationStep(conductor));

@@ -16,23 +16,9 @@
 
 package com.android.systemui.statusbar.window.data.repository
 
-import android.view.Display
 import com.android.systemui.statusbar.window.shared.model.StatusBarWindowState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-class FakeStatusBarWindowStateRepositoryStore : StatusBarWindowStateRepositoryStore {
-
-    private val perDisplayRepos = mutableMapOf<Int, FakeStatusBarWindowStatePerDisplayRepository>()
-
-    override val defaultDisplay: FakeStatusBarWindowStatePerDisplayRepository =
-        forDisplay(Display.DEFAULT_DISPLAY)
-
-    override fun forDisplay(displayId: Int): FakeStatusBarWindowStatePerDisplayRepository =
-        perDisplayRepos.computeIfAbsent(displayId) {
-            FakeStatusBarWindowStatePerDisplayRepository()
-        }
-}
 
 class FakeStatusBarWindowStatePerDisplayRepository : StatusBarWindowStatePerDisplayRepository {
 

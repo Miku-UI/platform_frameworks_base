@@ -17,25 +17,96 @@
 package com.android.systemui.bluetooth.qsdialog
 
 import android.view.LayoutInflater
+import android.view.View
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.viewinterop.AndroidView
+import com.android.compose.modifiers.skipToLookaheadSize
 import com.android.systemui.bluetooth.ui.viewModel.BluetoothDetailsContentViewModel
 import com.android.systemui.res.R
 
+/**
+ * Displays the content for the Bluetooth details dialog.
+ *
+ * @param detailsContentViewModel The ViewModel managing the state and view binding for this
+ *   content.
+ * @param onContentReady Callback invoked when the content is initially updated and ready to be
+ *   displayed.
+ */
 @Composable
-fun BluetoothDetailsContent(detailsContentViewModel: BluetoothDetailsContentViewModel) {
+fun BluetoothDetailsContent(
+    detailsContentViewModel: BluetoothDetailsContentViewModel,
+    onContentReady: () -> Unit,
+) {
+    val onContentReadyCallback by rememberUpdatedState(onContentReady)
+
+    var isContentReady by remember { mutableStateOf(false) }
+
+    // Tracks the AndroidView's height to invalidate the Compose lookahead pass.
+    // Updating this state forces Compose to remeasure when the view resizes.
+    val lookaheadInvalidator = remember { mutableStateOf(0) }
+
+    val layoutListener = remember {
+        View.OnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+            lookaheadInvalidator.value = view.height
+        }
+    }
+
     AndroidView(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier.fillMaxWidth()
+                .then(
+                    if (isContentReady) {
+                        Modifier.skipToLookaheadSize().layout { measurable, constraints ->
+                            if (isLookingAhead) {
+                                // Read `lookaheadInvalidator.value` to establish a state
+                                // dependency.
+                                // When the underlying AndroidView's height changes, the state
+                                // updates, forcing Compose to re-run the lookahead pass.
+                                @Suppress("UNUSED_EXPRESSION") lookaheadInvalidator.value
+                            }
+
+                            measurable.measure(constraints).run {
+                                layout(width, height) { place(IntOffset.Zero) }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    }
+                ),
         factory = { context ->
-            // Inflate with the existing dialog xml layout
+            // Inflate with the existing dialog xml layout.
             val view =
                 LayoutInflater.from(context)
                     .inflate(R.layout.bluetooth_tile_details, /* root= */ null)
-            detailsContentViewModel.bindDetailsView(view)
+
+            view.addOnLayoutChangeListener(layoutListener)
+
+            val listener =
+                object : BluetoothDetailsContentManager.Listener {
+                    override fun onContentUpdated() {
+                        // Mark the content as ready upon the first update.
+                        isContentReady = true
+                        onContentReadyCallback()
+                        detailsContentViewModel.contentManager.removeListener(this)
+                    }
+                }
+
+            detailsContentViewModel.bindDetailsView(view, listener)
+
             view
         },
-        onRelease = { detailsContentViewModel.unbindDetailsView() },
+        onRelease = {
+            it.removeOnLayoutChangeListener(layoutListener)
+            detailsContentViewModel.unbindDetailsView()
+        },
     )
 }

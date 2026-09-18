@@ -20,7 +20,7 @@
 #include <input/InputTransport.h>
 
 namespace android {
-extern std::shared_ptr<InputChannel> createInputChannel(
+extern std::unique_ptr<InputChannel> createInputChannel(
         const sp<IBinder>& clientToken, const InputTransferToken& hostInputTransferToken,
         const SurfaceControl& surfaceControl,
         const InputTransferToken& clientInputTransferTokenObj);

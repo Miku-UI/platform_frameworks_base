@@ -16,7 +16,6 @@
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
 import com.android.app.concurrent.benchmark.base.ConcurrentBenchmarkRule
 import com.android.app.concurrent.benchmark.event.BaseEventBenchmark
 import com.android.app.concurrent.benchmark.event.EventContextProvider
@@ -25,9 +24,9 @@ import com.android.app.concurrent.benchmark.event.SampleOperator
 import com.android.app.concurrent.benchmark.event.SimpleEvent
 import com.android.app.concurrent.benchmark.event.SimpleWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.WritableEventFactory
-import com.android.app.concurrent.benchmark.util.ExecutorServiceCoroutineScopeBuilder
-import com.android.app.concurrent.benchmark.util.ExecutorThreadBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.dbg
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
@@ -39,14 +38,13 @@ import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
-@OptIn(ExperimentalBlackHoleApi::class)
 private sealed interface SampleEventBenchmark<T, E : Any>
     where T : WritableEventFactory<E>, T : EventContextProvider<E>, T : SampleOperator<E> {
     val benchmarkRule: ConcurrentBenchmarkRule
     val context: T
 
     /**
-     * Tests the performance of System UI's [sample] operator, which is used to snapshot a flow's
+     * Tests the performance of System UI's `sample` operator, which is used to snapshot a flow's
      * value based on a trigger.
      */
     @Test
@@ -96,7 +94,7 @@ private sealed interface SampleEventBenchmark<T, E : Any>
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class SimpleSampleEventBenchmark(param: ThreadFactory<Any, Executor>) :
+class SimpleSampleEventBenchmark(param: ThreadBuilder<Executor>) :
     BaseEventBenchmark<Executor, SimpleWritableEventBuilder>(
         param,
         { SimpleWritableEventBuilder(it) },
@@ -104,13 +102,15 @@ class SimpleSampleEventBenchmark(param: ThreadFactory<Any, Executor>) :
     SampleEventBenchmark<SimpleWritableEventBuilder, SimpleEvent<*>> {
 
     companion object {
-        @Parameters(name = "{0}") @JvmStatic fun getDispatchers() = listOf(ExecutorThreadBuilder)
+        @Parameters(name = "{0}")
+        @JvmStatic
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorBuilder)
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class FlowSampleEventBenchmark(param: ThreadFactory<Any, CoroutineScope>) :
+class FlowSampleEventBenchmark(param: ThreadBuilder<CoroutineScope>) :
     BaseEventBenchmark<CoroutineScope, FlowWritableEventBuilder>(
         param,
         { FlowWritableEventBuilder(it) },
@@ -120,6 +120,6 @@ class FlowSampleEventBenchmark(param: ThreadFactory<Any, CoroutineScope>) :
     companion object {
         @Parameters(name = "{0}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorServiceCoroutineScopeBuilder)
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder)
     }
 }

@@ -20,9 +20,7 @@ import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.EXTRA_CHANGED_COMPONENT_NAME_LIST;
 import static android.content.pm.PackageManager.MATCH_SYSTEM_ONLY;
 import static android.view.KeyEvent.KEYCODE_BACK;
-import static android.view.MotionEvent.ACTION_CANCEL;
 import static android.view.MotionEvent.ACTION_DOWN;
-import static android.view.MotionEvent.ACTION_UP;
 import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_3BUTTON;
 import static android.window.BackEvent.EDGE_NONE;
 
@@ -33,14 +31,17 @@ import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_B
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_COMMUNAL_HUB_SHOWING;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_DEVICE_DOZING;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_DEVICE_DREAMING;
+import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_DUAL_SHADE_ENABLED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_FREEFORM_ACTIVE_IN_DESKTOP_MODE;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_NAVIGATION_BAR_DISABLED;
+import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_STATUS_BAR_KEYGUARD_GOING_AWAY;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_VOICE_INTERACTION_WINDOW_SHOWING;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_WAKEFULNESS_TRANSITION;
 import static com.android.systemui.shared.system.QuickStepContract.addInterface;
+import static com.android.window.flags.Flags.betterDeskDeactivationInRecentsTransition;
 
 import android.annotation.FloatRange;
 import android.annotation.Nullable;
@@ -76,7 +77,6 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
-import android.view.View;
 import android.view.accessibility.AccessibilityManager;
 import android.view.inputmethod.InputMethodManager;
 
@@ -115,9 +115,8 @@ import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shade.ShadeViewController;
 import com.android.systemui.shade.display.StatusBarTouchShadeDisplayPolicy;
-import com.android.systemui.shade.domain.interactor.ShadeInteractor;
+import com.android.systemui.shade.display.domain.interactor.ShadeExpansionTargetDisplayInteractor;
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround;
 import com.android.systemui.shared.recents.ILauncherProxy;
 import com.android.systemui.shared.recents.ISystemUiProxy;
 import com.android.systemui.shared.system.QuickStepContract;
@@ -176,9 +175,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
     private final ScreenPinningRequest mScreenPinningRequest;
     private final NotificationShadeWindowController mStatusBarWinController;
     private final Provider<SceneInteractor> mSceneInteractor;
-    private final Provider<ShadeInteractor> mShadeInteractor;
-    private final Provider<ShadeModeInteractor> mShadeModeInteractor;
     private final StatusBarTouchShadeDisplayPolicy mShadeDisplayPolicy;
+
+    private final ShadeExpansionTargetDisplayInteractor mShadeExpansionTargetDisplayInteractor;
 
     private final Runnable mConnectionRunnable = () ->
             internalConnectToCurrentUser("runnable: startConnectionToCurrentUser");
@@ -198,6 +197,7 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
     private final BackAnimation mBackAnimation;
 
     private final DesktopState mDesktopState;
+    private final ShadeModeInteractor mShadeModeInteractor;
 
     private ILauncherProxy mLauncherProxy;
     private int mConnectionBackoffAttempts;
@@ -210,9 +210,6 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
 
     private boolean mIsSystemOrVisibleBgUser;
     private int mCurrentBoundedUserId = -1;
-    private boolean mInputFocusTransferStarted;
-    private float mInputFocusTransferStartY;
-    private long mInputFocusTransferStartMillis;
     private int mNavBarMode = NAV_BAR_MODE_3BUTTON;
 
     @VisibleForTesting
@@ -234,7 +231,6 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             });
         }
 
-        // TODO: change the method signature to use (boolean inputFocusTransferStarted)
         @Override
         public void onStatusBarTouchEvent(MotionEvent event) {
             moveShadeWindowIfNeeded(event);
@@ -243,66 +239,39 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                         + " on display without notification shade");
                 return;
             }
-            verifyCallerAndClearCallingIdentity("onStatusBarTouchEvent", () -> {
+            verifyCallerAndClearCallingIdentityPostMain("onStatusBarTouchEvent", () -> {
                 if (SceneContainerFlag.isEnabled()) {
                     //TODO(b/329863123) implement latency tracking for shade scene
                     Log.i(TAG_OPS, "Scene container enabled. Latency tracking not started.");
-                } else if (event.getActionMasked() == ACTION_DOWN) {
-                    mShadeViewControllerLazy.get().startExpandLatencyTracking();
-                }
-                mHandler.post(() -> {
+
                     int action = event.getActionMasked();
                     if (action == ACTION_DOWN) {
-                        mInputFocusTransferStarted = true;
-                        mInputFocusTransferStartY = event.getY();
-                        mInputFocusTransferStartMillis = event.getEventTime();
-
                         // If scene framework is enabled, set the scene container window to
-                        // visible and let the touch "slip" into that window.
-                        if (SceneContainerFlag.isEnabled()) {
-                            mSceneInteractor.get().onRemoteUserInputStarted("launcher swipe");
-                        } else {
-                            mShadeViewControllerLazy.get().startInputFocusTransfer();
-                        }
+                        // visible so we can start dispatching touches to it.
+                        mSceneInteractor.get().onRemoteUserInputStarted("launcher swipe");
                     }
-                    if (action == ACTION_UP || action == ACTION_CANCEL) {
-                        mInputFocusTransferStarted = false;
-
-                        if (!SceneContainerFlag.isEnabled()) {
-                            float velocity = (event.getY() - mInputFocusTransferStartY)
-                                    / (event.getEventTime() - mInputFocusTransferStartMillis);
-                            if (action == ACTION_CANCEL) {
-                                mShadeViewControllerLazy.get().cancelInputFocusTransfer();
-                            } else {
-                                mShadeViewControllerLazy.get().finishInputFocusTransfer(velocity);
-                            }
-                        } else if (action == ACTION_UP) {
-                            // Gesture was too short to be picked up by scene container touch
-                            // handling; programmatically start the transition to the shade.
-                            onShadeExpansionGesture(event, "short launcher swipe");
-                        }
-                    }
-                    event.recycle();
-                });
+                    mStatusBarWinController.getWindowRootView().dispatchTouchEvent(event);
+                } else {
+                    mShadeViewControllerLazy.get().handleExternalTouch(event);
+                }
             });
         }
 
         @VisibleForTesting
         public void moveShadeWindowIfNeeded(MotionEvent event) {
-            if (ShadeWindowGoesAround.isEnabled()) {
-                Trace.beginSection("LauncherProxyService#moveShadeWindowIfNeeded");
-                // TODO: b/407496148 - Refactor to use DisplayMetricsRepository instead
-                final DisplayInfo displayInfo = new DisplayInfo();
-                mDisplayTracker.getDisplay(event.getDisplayId()).getDisplayInfo(displayInfo);
-                int displayWidth = displayInfo.logicalWidth;
-                mShadeDisplayPolicy.onStatusBarOrLauncherTouched(event, displayWidth);
-                Trace.endSection();
-            }
+            Trace.beginSection("LauncherProxyService#moveShadeWindowIfNeeded");
+            // TODO: b/407496148 - Refactor to use DisplayMetricsRepository instead
+            final DisplayInfo displayInfo = new DisplayInfo();
+            mDisplayTracker.getDisplay(event.getDisplayId()).getDisplayInfo(displayInfo);
+            // Gestures on the launcher homescreen always open the notifications shade.
+            mShadeExpansionTargetDisplayInteractor.setExpansionIntentForNotificationElement(
+                    event.getDisplayId());
+            Trace.endSection();
         }
 
         @VisibleForTesting
         public boolean shouldIgnoreEvent(MotionEvent event) {
-            if (ShadeWindowGoesAround.isEnabled() && !SceneContainerFlag.isEnabled()) {
+            if (!SceneContainerFlag.isEnabled()) {
                 // For legacy shade case, don't attempt to handle touch events on display that
                 // doesn't have the shade. They're handled with SceneContainerFlag enabled.
                 return event.getDisplayId() != mShadeDisplayPolicy.getDisplayId().getValue();
@@ -317,9 +286,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                 if (SceneContainerFlag.isEnabled()) {
                     int action = event.getActionMasked();
                     if (action == ACTION_DOWN) {
+                        // If scene framework is enabled, set the scene container window to
+                        // visible so we can start dispatching touches to it.
                         mSceneInteractor.get().onRemoteUserInputStarted("trackpad swipe");
-                    } else if (action == ACTION_UP) {
-                        onShadeExpansionGesture(event, "short trackpad swipe");
                     }
                     mStatusBarWinController.getWindowRootView().dispatchTouchEvent(event);
                 } else {
@@ -400,6 +369,7 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             // Launcher/Taskbar isn't display aware.
             mContext.getSystemService(InputMethodManager.class)
                     .showInputMethodPickerFromSystem(true /* showAuxiliarySubtypes */,
+                            InputMethodManager.IM_PICKER_ENTRY_POINT_DEFAULT,
                             mDisplayTracker.getDefaultDisplayId());
             mUiEventLogger.log(
                     KeyButtonView.NavBarButtonEvent.NAVBAR_IME_SWITCHER_BUTTON_LONGPRESS);
@@ -452,11 +422,31 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         }
 
         @Override
-        public void onOverviewShown(boolean fromHome) {
+        public void onOverviewShownDeprecated(boolean fromHome) {
+            if (betterDeskDeactivationInRecentsTransition()) return;
+            verifyCallerAndClearCallingIdentityPostMain("onOverviewShownDeprecated", () -> {
+                for (int i = mConnectionCallbacks.size() - 1; i >= 0; --i) {
+                    mConnectionCallbacks.get(i).onOverviewShown();
+                }
+            });
+        }
+
+        @Override
+        public void onOverviewShown(int displayId) {
+            if (!betterDeskDeactivationInRecentsTransition()) return;
             verifyCallerAndClearCallingIdentityPostMain("onOverviewShown", () -> {
                 for (int i = mConnectionCallbacks.size() - 1; i >= 0; --i) {
-                    mConnectionCallbacks.get(i).onOverviewShown(fromHome);
+                    mConnectionCallbacks.get(i).onOverviewShown();
                 }
+                mShellInterface.onOverviewShown(displayId);
+            });
+        }
+
+        @Override
+        public void onOverviewHidden(int displayId) {
+            if (!betterDeskDeactivationInRecentsTransition()) return;
+            verifyCallerAndClearCallingIdentityPostMain("onOverviewHidden", () -> {
+                mShellInterface.onOverviewHidden(displayId);
             });
         }
 
@@ -529,35 +519,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                     mCommandQueue.toggleQuickSettingsPanel());
         }
 
-        private void onShadeExpansionGesture(MotionEvent event, String reason) {
-            if (!SceneContainerFlag.isEnabled()) {
-                return;
-            }
-            if (!mShadeModeInteractor.get().isDualShade()) {
-                mShadeInteractor.get().expandNotificationsShade(reason, null);
-                return;
-            }
-
-            final DisplayInfo displayInfo = new DisplayInfo();
-            mDisplayTracker.getDisplay(event.getDisplayId()).getDisplayInfo(displayInfo);
-            boolean isLeftSide = event.getX() < displayInfo.logicalWidth / 2f;
-
-            boolean isRtlLayout =
-                    mContext.getResources().getConfiguration().getLayoutDirection()
-                            == View.LAYOUT_DIRECTION_RTL;
-
-            boolean isStartSide = (isLeftSide && !isRtlLayout) || (!isLeftSide && isRtlLayout);
-
-            if (isStartSide) {
-                mShadeInteractor.get().expandNotificationsShade(reason, null);
-            } else {
-                mShadeInteractor.get().expandQuickSettingsShade(reason, null);
-            }
-        }
-
         private boolean verifyCaller(String reason) {
             final int callerId = Binder.getCallingUserHandle().getIdentifier();
-            if (callerId != mCurrentBoundedUserId) {
+            if (callerId != mCurrentBoundedUserId || mLauncherProxy == null) {
                 Log.w(TAG_OPS, "Launcher called sysui with invalid user: " + callerId + ", reason: "
                         + reason);
                 return false;
@@ -663,7 +627,11 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                 return;
             }
 
-            mCurrentBoundedUserId = mUserTracker.getUserId();
+            if (!Flags.launcherProxyServiceShortReconnect()) {
+                // NOTE: When the flag is enabled, `mCurrentBoundedUSerId` is set when service
+                // binding starts.
+                mCurrentBoundedUserId = mUserTracker.getUserId();
+            }
             mLauncherProxy = ILauncherProxy.Stub.asInterface(service);
 
             Bundle params = new Bundle();
@@ -684,12 +652,7 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
 
             // Force-update the systemui state flags
             updateSystemUiStateFlags();
-            if (ShadeWindowGoesAround.isEnabled()) {
-               notifySysUiStateFlagsForAllDisplays();
-            } else {
-                notifySystemUiStateFlags(mDefaultDisplaySysUIState.getFlags(),
-                        Display.DEFAULT_DISPLAY);
-            }
+            notifySysUiStateFlagsForAllDisplays();
             notifyConnectionChanged();
         }
 
@@ -766,6 +729,10 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             new UserTracker.Callback() {
                 @Override
                 public void onUserChanged(int newUser, @NonNull Context userContext) {
+                    if (Flags.launcherProxyServiceShortReconnect()
+                            && newUser == mCurrentBoundedUserId) {
+                        return;
+                    }
                     mConnectionBackoffAttempts = 0;
                     internalConnectToCurrentUser("User changed");
                 }
@@ -791,9 +758,8 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             NotificationShadeWindowController statusBarWinController,
             PerDisplayRepository<SysUiState> perDisplaySysUiStateRepository,
             Provider<SceneInteractor> sceneInteractor,
-            Provider<ShadeInteractor> shadeInteractor,
-            Provider<ShadeModeInteractor> shadeModeInteractor,
             StatusBarTouchShadeDisplayPolicy shadeDisplayPolicy,
+            ShadeExpansionTargetDisplayInteractor shadeExpansionTargetDisplayInteractor,
             UserTracker userTracker,
             UserManager userManager,
             WakefulnessLifecycle wakefulnessLifecycle,
@@ -809,7 +775,8 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             ProcessWrapper processWrapper,
             DisplayRepository displayRepository,
             DesktopState desktopState,
-            HeadlessSystemUserMode headlessSystemUserMode
+            HeadlessSystemUserMode headlessSystemUserMode,
+            ShadeModeInteractor shadeModeInteractor
     ) {
         mHeadlessSystemUserMode = headlessSystemUserMode;
         // b/241601880: This component should only be running for primary users or
@@ -835,9 +802,8 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         mScreenPinningRequest = screenPinningRequest;
         mStatusBarWinController = statusBarWinController;
         mSceneInteractor = sceneInteractor;
-        mShadeInteractor = shadeInteractor;
-        mShadeModeInteractor = shadeModeInteractor;
         mShadeDisplayPolicy = shadeDisplayPolicy;
+        mShadeExpansionTargetDisplayInteractor = shadeExpansionTargetDisplayInteractor;
         mUserTracker = userTracker;
         mConnectionBackoffAttempts = 0;
         mRecentsComponentName = ComponentName.unflattenFromString(context.getString(
@@ -854,6 +820,7 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         mBroadcastDispatcher = broadcastDispatcher;
         mBackAnimation = backAnimation.orElse(null);
         mDesktopState = desktopState;
+        mShadeModeInteractor = shadeModeInteractor;
 
         if (!KeyguardWmStateRefactor.isEnabled()) {
             mSysuiUnlockAnimationController = sysuiUnlockAnimationController;
@@ -934,13 +901,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
     }
 
     private void updateSysUIStateForNavbars() {
-        if (ShadeWindowGoesAround.isEnabled()) {
-            var displays = mDisplayRepository.getDisplayIds().getValue();
-            for (int displayId : displays) {
-                updateSysUIStateForNavbarWithDisplayId(displayId);
-            }
-        } else {
-            updateSysUIStateForNavbarWithDisplayId(Display.DEFAULT_DISPLAY);
+        var displays = mDisplayRepository.getDisplayIds().getValue();
+        for (int displayId : displays) {
+            updateSysUIStateForNavbarWithDisplayId(displayId);
         }
     }
 
@@ -973,6 +936,8 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
     /** Force updates SystemUI state flags prior to sending them to Launcher. */
     public void updateSystemUiStateFlags() {
         updateSysUIStateForNavbars();
+        mDefaultDisplaySysUIState.setFlag(SYSUI_STATE_DUAL_SHADE_ENABLED,
+                mShadeModeInteractor.isDualShade());
         mShadeViewControllerLazy.get().updateSystemUiStateFlags();
         if (mStatusBarWinController != null) {
             mStatusBarWinController.notifyStateChangedCallbacks();
@@ -1008,6 +973,10 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                 .setFlag(SYSUI_STATE_DEVICE_DREAMING, isDreaming)
                 .setFlag(SYSUI_STATE_COMMUNAL_HUB_SHOWING, communalShowing)
                 .commitUpdate(mContext.getDisplayId());
+        if (SceneContainerFlag.isEnabled()) {
+            mDefaultDisplaySysUIState.setFlag(SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED,
+                    panelExpanded);
+        }
     }
 
     /**
@@ -1043,12 +1012,6 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
     }
 
     public void cleanupAfterDeath() {
-        if (mInputFocusTransferStarted) {
-            mHandler.post(() -> {
-                mInputFocusTransferStarted = false;
-                mShadeViewControllerLazy.get().cancelInputFocusTransfer();
-            });
-        }
         mIsPrevServiceCleanedUp = true;
         startConnectionToCurrentUser();
     }
@@ -1111,6 +1074,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             Log.e(TAG_OPS, "Unable to bind because of security error", e);
         }
         if (mBound) {
+            if (Flags.launcherProxyServiceShortReconnect()) {
+                mCurrentBoundedUserId = mUserTracker.getUserId();
+            }
             mIsPrevServiceCleanedUp = false;
             // Ensure that connection has been established even if it thinks it is bound
             mHandler.postDelayed(mDeferredConnectionCallback, DEFERRED_CALLBACK_MILLIS);
@@ -1165,6 +1131,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
             // Always unbind the service (ie. if called through onNullBinding or onBindingDied)
             mContext.unbindService(mLauncherServiceConnection);
             mBound = false;
+            if (Flags.launcherProxyServiceShortReconnect()) {
+                mCurrentBoundedUserId = -1;
+            }
             if (mLauncherProxy != null) {
                 try {
                     mLauncherProxy.onUnbind(new IRemoteCallback.Stub() {
@@ -1182,6 +1151,9 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                     Log.w(TAG_OPS, "disconnectFromLauncherService failed to notify Launcher");
                     mIsPrevServiceCleanedUp = true;
                 }
+            } else if (Flags.launcherProxyServiceShortReconnect()) {
+                mHandler.removeCallbacks(mDeferredConnectionCallback);
+                mIsPrevServiceCleanedUp = true;
             }
         }
 
@@ -1413,9 +1385,6 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         pw.print("  mBound="); pw.println(mBound);
         pw.print("  mCurrentBoundedUserId="); pw.println(mCurrentBoundedUserId);
         pw.print("  mConnectionBackoffAttempts="); pw.println(mConnectionBackoffAttempts);
-        pw.print("  mInputFocusTransferStarted="); pw.println(mInputFocusTransferStarted);
-        pw.print("  mInputFocusTransferStartY="); pw.println(mInputFocusTransferStartY);
-        pw.print("  mInputFocusTransferStartMillis="); pw.println(mInputFocusTransferStartMillis);
         pw.print("  mActiveNavBarRegion="); pw.println(mActiveNavBarRegion);
         pw.print("  mNavBarMode="); pw.println(mNavBarMode);
         pw.print("  mIsPrevServiceCleanedUp="); pw.println(mIsPrevServiceCleanedUp);
@@ -1425,7 +1394,7 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
     public interface LauncherProxyListener {
         default void onConnectionChanged(boolean isConnected) {}
         default void onPrioritizedRotation(@Surface.Rotation int rotation) {}
-        default void onOverviewShown(boolean fromHome) {}
+        default void onOverviewShown() {}
         /** Notify the recents app (overview) is started by 3-button navigation. */
         default void onToggleRecentApps() {}
         default void onHomeRotationEnabled(boolean enabled) {}

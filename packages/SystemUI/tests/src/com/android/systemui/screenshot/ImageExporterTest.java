@@ -39,6 +39,7 @@ import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.provider.MediaStore;
 import android.testing.AndroidTestingRunner;
 import android.view.Display;
@@ -46,6 +47,7 @@ import android.view.Display;
 import androidx.exifinterface.media.ExifInterface;
 import androidx.test.filters.MediumTest;
 
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -203,6 +205,58 @@ public class ImageExporterTest extends SysuiTestCase {
         assertEquals("Filename should contain the correct filename",
                 createSystemFileDisplayName(customizedFileName, CompressFormat.PNG),
                 result.fileName);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_SCREENSHOT_SAVE_LOCATION)
+    public void testImageExport_validCustomSaveUri()
+            throws InterruptedException, ExecutionException {
+        String uriStr = "content://com.android.externalstorage.documents/tree/primary%3ARecordings";
+        Uri customUri = Uri.parse(uriStr);
+        ContentResolver contentResolver = mContext.getContentResolver();
+        ImageExporter exporter = new ImageExporter(contentResolver);
+
+        UUID requestId = UUID.fromString("3c11da99-9284-4863-b1d5-6f3684976814");
+        Bitmap original = createCheckerBitmap(10, 10, 10);
+
+        ListenableFuture<ImageExporter.Result> direct =
+                exporter.export(DIRECT_EXECUTOR, requestId, original,
+                        Process.myUserHandle(), Display.DEFAULT_DISPLAY, customUri);
+        assertTrue("future should be done", direct.isDone());
+        assertFalse("future should not be canceled", direct.isCancelled());
+        ImageExporter.Result result = direct.get();
+
+        String resultUriString = result.uri.toString();
+        String customUriString = customUri.toString();
+        assertTrue("Result URI should be a child of the custom URI",
+                resultUriString.startsWith(customUriString));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_SCREENSHOT_SAVE_LOCATION)
+    public void testImageExport_invalidCustomSaveUri()
+            throws InterruptedException, ExecutionException {
+        String uriStr =
+                "content://com.android.externalstorage.documents/tree/primary%3ANonExistentFolder";
+        Uri customUri = Uri.parse(uriStr);
+        ContentResolver contentResolver = mContext.getContentResolver();
+        ImageExporter exporter = new ImageExporter(contentResolver);
+
+        UUID requestId = UUID.fromString("3c11da99-9284-4863-b1d5-6f3684976814");
+        Bitmap original = createCheckerBitmap(10, 10, 10);
+
+        ListenableFuture<ImageExporter.Result> direct =
+                exporter.export(DIRECT_EXECUTOR, requestId, original,
+                        Process.myUserHandle(), Display.DEFAULT_DISPLAY, customUri);
+        assertTrue("future should be done", direct.isDone());
+        assertFalse("future should not be canceled", direct.isCancelled());
+        ImageExporter.Result result = direct.get();
+
+        String resultUriString = result.uri.toString();
+        String customUriString = customUri.toString();
+        assertFalse("Result URI should not be a child of the custom URI",
+                resultUriString.startsWith(customUriString));
+        assertNotNull("Uri should not be null", result.uri);
     }
 
     @Test

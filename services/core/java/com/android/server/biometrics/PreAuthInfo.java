@@ -31,16 +31,16 @@ import android.content.Context;
 import android.hardware.biometrics.BiometricAuthenticator;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.Flags;
+import android.hardware.biometrics.IdentityCheckInfo;
 import android.hardware.biometrics.PromptInfo;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.util.Pair;
 import android.util.Slog;
 import android.view.Display;
-import android.window.DesktopExperienceFlags.DesktopExperienceFlag;
 
-import com.android.internal.R;
 import com.android.server.biometrics.sensors.LockoutTracker;
+import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -66,11 +66,8 @@ class PreAuthInfo {
     static final int BIOMETRIC_LOCKOUT_PERMANENT = 11;
     static final int BIOMETRIC_SENSOR_PRIVACY_ENABLED = 12;
     static final int MANDATORY_BIOMETRIC_UNAVAILABLE_ERROR = 13;
-    private static final DesktopExperienceFlag BIOMETRIC_PROMPT_EXTERNAL_DISPLAY_FLAG =
-            new DesktopExperienceFlag(
-                    com.android.server.biometrics.Flags::biometricPromptExternalDisplay,
-                    /* shouldOverrideByDevOption= */ false,
-                    com.android.server.biometrics.Flags.FLAG_BIOMETRIC_PROMPT_EXTERNAL_DISPLAY);
+    static final int BIOMETRIC_COMPUTER_CONTROLLED = 14;
+
     private static final String TAG = "BiometricService/PreAuthInfo";
     final boolean credentialRequested;
     // Sensors that can be used for this request (e.g. strong enough, enrolled, enabled).
@@ -120,7 +117,25 @@ class PreAuthInfo {
             int userId, PromptInfo promptInfo, String opPackageName,
             boolean checkDevicePolicyManager, Context context,
             BiometricCameraManager biometricCameraManager,
-            UserManager userManager)
+            UserManager userManager,
+            VirtualDeviceManagerInternal virtualDeviceManagerInternal)
+            throws RemoteException {
+        return create(trustManager, devicePolicyManager, settingObserver, sensors, userId,
+                promptInfo, opPackageName, checkDevicePolicyManager, context,
+                biometricCameraManager, userManager, virtualDeviceManagerInternal,
+                false /* authenticationRequested */);
+    }
+
+    static PreAuthInfo create(ITrustManager trustManager,
+            DevicePolicyManager devicePolicyManager,
+            BiometricService.SettingObserver settingObserver,
+            List<BiometricSensor> sensors,
+            int userId, PromptInfo promptInfo, String opPackageName,
+            boolean checkDevicePolicyManager, Context context,
+            BiometricCameraManager biometricCameraManager,
+            UserManager userManager,
+            VirtualDeviceManagerInternal virtualDeviceManagerInternal,
+            boolean authenticationRequested)
             throws RemoteException {
 
         final boolean isOnlyMandatoryBiometricsRequested = promptInfo.getAuthenticators()
@@ -138,14 +153,9 @@ class PreAuthInfo {
                 updateAuthenticatorsIfIdentityCheckIsActive(promptInfo, effectiveUserId,
                         trustManager, settingObserver);
 
-        if (!Flags.bpFallbackOptions() && isMandatoryBiometricsAuthentication
-                && promptInfo.getNegativeButtonText() == null) {
-            promptInfo.setNegativeButtonText(context.getString(R.string.cancel));
-        }
-
         final boolean biometricRequested = Utils.isBiometricRequested(promptInfo);
         final int requestedStrength = Utils.getPublicBiometricStrength(promptInfo);
-        final boolean credentialRequested = Utils.isCredentialRequested(promptInfo);
+        boolean credentialRequested = Utils.isCredentialRequested(promptInfo);
 
         final boolean credentialAvailable = trustManager.isDeviceSecure(userId,
                 context.getDeviceId());
@@ -157,7 +167,9 @@ class PreAuthInfo {
         // priority-order.
 
         final List<BiometricSensor> eligibleSensors = new ArrayList<>();
-        final List<Pair<BiometricSensor, Integer>> ineligibleSensors = new ArrayList<>();
+        List<Pair<BiometricSensor, Integer>> ineligibleSensors = new ArrayList<>();
+        final boolean isComputerControlledDisplay = virtualDeviceManagerInternal != null
+                && virtualDeviceManagerInternal.isComputerControlDisplay(promptInfo.getDisplayId());
 
         if (biometricRequested) {
             for (BiometricSensor sensor : sensors) {
@@ -189,6 +201,35 @@ class PreAuthInfo {
             }
         }
 
+        if (authenticationRequested && (!eligibleSensors.isEmpty()
+                || (credentialAvailable && credentialRequested))) {
+            promptInfo.notifyVdmAuthenticationRequested();
+        }
+
+        if (com.android.server.biometrics.Flags.bpComputerControlled()
+                && isComputerControlledDisplay) {
+            Slog.d(TAG, "Disabling auth since display is computer controlled.");
+
+            List<Pair<BiometricSensor, Integer>> updatedIneligibleSensors = new ArrayList<>();
+            for (BiometricSensor biometricSensor : eligibleSensors) {
+                ineligibleSensors.add(new Pair<>(biometricSensor, BIOMETRIC_COMPUTER_CONTROLLED));
+            }
+            for (Pair<BiometricSensor, Integer> ineligibleSensor : ineligibleSensors) {
+                if (ineligibleSensor.second == BIOMETRIC_LOCKOUT_TIMED
+                        || ineligibleSensor.second == BIOMETRIC_LOCKOUT_PERMANENT) {
+                    updatedIneligibleSensors.add(new Pair<>(ineligibleSensor.first,
+                            BIOMETRIC_COMPUTER_CONTROLLED));
+                } else {
+                    updatedIneligibleSensors.add(ineligibleSensor);
+                }
+            }
+            ineligibleSensors = updatedIneligibleSensors;
+            eligibleSensors.clear();
+            if (credentialAvailable) {
+                credentialRequested = false;
+            }
+        }
+
         return new PreAuthInfo(biometricRequested, requestedStrength, credentialRequested,
                 eligibleSensors, ineligibleSensors, credentialAvailable, promptInfo,
                 effectiveUserId, userId, context, biometricCameraManager,
@@ -200,14 +241,21 @@ class PreAuthInfo {
             BiometricService.SettingObserver settingObserver) {
         if (!Flags.identityCheckTestApi() && dropCredentialFallback(promptInfo.getAuthenticators(),
                 settingObserver.getMandatoryBiometricsEnabledAndRequirementsSatisfiedForUser(
-                        effectiveUserId), trustManager)) {
+                        promptInfo, effectiveUserId), trustManager)) {
             promptInfo.setAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG);
             promptInfo.setIdentityCheckActive(true);
-        } else if (Flags.identityCheckTestApi()
-                && Utils.shouldApplyIdentityCheck(promptInfo.getAuthenticators())
-                && settingObserver.isIdentityCheckActive(effectiveUserId)) {
-            promptInfo.setAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG);
-            promptInfo.setIdentityCheckActive(true);
+        } else if (Flags.identityCheckTestApi()) {
+            final boolean shouldApplyIdentityCheck =
+                    Utils.shouldApplyIdentityCheck(promptInfo.getAuthenticators());
+            if (!shouldApplyIdentityCheck) {
+                promptInfo.setIdentityCheckInactiveReason(
+                        IdentityCheckInfo.IDENTITY_CHECK_AUTHENTICATORS_INVALID);
+            }
+            if (shouldApplyIdentityCheck
+                    && settingObserver.isIdentityCheckActive(promptInfo, effectiveUserId)) {
+                promptInfo.setAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG);
+                promptInfo.setIdentityCheckActive(true);
+            }
         }
 
         return promptInfo.isIdentityCheckActive();
@@ -284,9 +332,6 @@ class PreAuthInfo {
                     sensor.impl.getLockoutModeForUser(userId);
             if (lockoutMode == LockoutTracker.LOCKOUT_TIMED) {
                 return BIOMETRIC_LOCKOUT_TIMED;
-            } else if (lockoutMode == LockoutTracker.LOCKOUT_PERMANENT
-                    && !Flags.bpFallbackOptions()) {
-                return BIOMETRIC_LOCKOUT_PERMANENT;
             }
         } catch (RemoteException e) {
             return BIOMETRIC_HARDWARE_NOT_DETECTED;
@@ -350,6 +395,7 @@ class PreAuthInfo {
         Pair<BiometricSensor, Integer> sensorLockout = null;
         Pair<BiometricSensor, Integer> hardwareNotDetected = null;
         Pair<BiometricSensor, Integer> biometricAppNotAllowed = null;
+        Pair<BiometricSensor, Integer> biometricComputerControlled = null;
         for (Pair<BiometricSensor, Integer> pair : ineligibleSensors) {
             final int status = pair.second;
             if (status == BIOMETRIC_LOCKOUT_TIMED || status == BIOMETRIC_LOCKOUT_PERMANENT) {
@@ -364,6 +410,14 @@ class PreAuthInfo {
             if (status == BIOMETRIC_NOT_ENABLED_FOR_APPS) {
                 biometricAppNotAllowed = pair;
             }
+            if (status == BIOMETRIC_COMPUTER_CONTROLLED) {
+                biometricComputerControlled = pair;
+            }
+        }
+
+        if (com.android.server.biometrics.Flags.bpComputerControlled()
+                && biometricComputerControlled != null) {
+            return biometricComputerControlled;
         }
 
         // If there is a sensor locked out, prioritize lockout over other sensor's error.
@@ -406,7 +460,7 @@ class PreAuthInfo {
             cameraPrivacyEnabled = mBiometricCameraManager.isCameraPrivacyEnabled();
         }
 
-        if (BIOMETRIC_PROMPT_EXTERNAL_DISPLAY_FLAG.isTrue() && isExternalDisplay()) {
+        if (!Flags.externalBp() && isExternalDisplay()) {
             status = BIOMETRIC_HARDWARE_NOT_DETECTED;
             modality = TYPE_ANY_BIOMETRIC | TYPE_CREDENTIAL;
         } else if (mBiometricRequested && credentialRequested) {
@@ -432,8 +486,15 @@ class PreAuthInfo {
                 // Pick the first sensor error if it exists
                 if (!ineligibleSensors.isEmpty()) {
                     final Pair<BiometricSensor, Integer> pair = calculateErrorByPriority();
-                    modality |= pair.first.modality;
-                    status = pair.second;
+                    if (com.android.server.biometrics.Flags.returnCredentialNotEnrolled()
+                            && (pair.second == BIOMETRIC_INSUFFICIENT_STRENGTH
+                            || pair.second == BIOMETRIC_INSUFFICIENT_STRENGTH_AFTER_DOWNGRADE)) {
+                        modality |= TYPE_CREDENTIAL;
+                        status = CREDENTIAL_NOT_ENROLLED;
+                    } else {
+                        modality |= pair.first.modality;
+                        status = pair.second;
+                    }
                 } else {
                     modality |= TYPE_CREDENTIAL;
                     status = CREDENTIAL_NOT_ENROLLED;

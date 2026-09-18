@@ -61,7 +61,6 @@ import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.provider.Settings;
 import android.test.mock.MockContentResolver;
 
@@ -89,8 +88,6 @@ import java.util.function.Supplier;
 @SmallTest
 @DisabledOnRavenwood(blockedBy = LockPatternUtils.class)
 public class LockPatternUtilsTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
@@ -429,7 +426,6 @@ public class LockPatternUtilsTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testGetLockoutEndTime_once() throws Exception {
         configureTest(true, false, 2);
         Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(USER_ID);
@@ -439,7 +435,6 @@ public class LockPatternUtilsTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testGetLockoutEndTime_multipleTimesHitCache() throws Exception {
         configureTest(true, false, 2);
         for (int i = 0; i < 5; i++) {
@@ -451,7 +446,6 @@ public class LockPatternUtilsTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testGetLockoutEndTime_newQueryAfterEndTime() throws Exception {
         configureTest(true, false, 2);
         for (int i = 0; i < 5; i++) {
@@ -470,7 +464,6 @@ public class LockPatternUtilsTest {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
     public void testInvalidateLockoutEndTimeCache_causesNewQuery() throws Exception {
         configureTest(true, false, 2);
         for (int i = 0; i < 5; i++) {

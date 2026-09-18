@@ -16,14 +16,18 @@
 
 package com.android.systemui.volume.dagger
 
+import android.content.Context
 import android.media.session.MediaSessionManager
 import com.android.settingslib.bluetooth.LocalBluetoothManager
+import com.android.settingslib.media.InfoMediaManager
 import com.android.settingslib.volume.data.repository.MediaControllerRepository
 import com.android.settingslib.volume.data.repository.MediaControllerRepositoryImpl
 import com.android.settingslib.volume.shared.AudioManagerEventsReceiver
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.volume.panel.component.mediainput.data.repository.MediaInputComponentRepository
+import com.android.systemui.volume.panel.component.mediainput.data.repository.MediaInputComponentRepositoryImpl
 import com.android.systemui.volume.panel.component.mediaoutput.data.repository.LocalMediaRepositoryFactory
 import com.android.systemui.volume.panel.component.mediaoutput.data.repository.LocalMediaRepositoryFactoryImpl
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaControllerInteractor
@@ -47,6 +51,12 @@ interface MediaDevicesModule {
         impl: MediaControllerInteractorImpl
     ): MediaControllerInteractor
 
+    @Binds
+    @SysUISingleton
+    fun bindMediaInputComponentRepository(
+        impl: MediaInputComponentRepositoryImpl
+    ): MediaInputComponentRepository
+
     companion object {
 
         @Provides
@@ -64,6 +74,20 @@ interface MediaDevicesModule {
                 localBluetoothManager,
                 coroutineScope,
                 backgroundContext,
+            )
+
+        @Provides
+        @SysUISingleton
+        fun provideInfoMediaManager(
+            context: Context,
+            localBluetoothManager: LocalBluetoothManager?,
+        ): InfoMediaManager =
+            InfoMediaManager.createInstance(
+                context,
+                context.packageName,
+                context.user,
+                localBluetoothManager,
+                null,
             )
     }
 }

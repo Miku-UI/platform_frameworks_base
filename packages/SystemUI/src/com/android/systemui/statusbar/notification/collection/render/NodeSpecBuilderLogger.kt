@@ -16,49 +16,52 @@
 
 package com.android.systemui.statusbar.notification.collection.render
 
-import com.android.systemui.log.dagger.NotificationLog
+import com.android.systemui.Flags
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
-import com.android.systemui.statusbar.notification.NotifPipelineFlags
+import com.android.systemui.log.dagger.NotificationLog
 import com.android.systemui.statusbar.notification.collection.listbuilder.NotifSection
 import com.android.systemui.util.Compile
 import javax.inject.Inject
 
-class NodeSpecBuilderLogger @Inject constructor(
-    notifPipelineFlags: NotifPipelineFlags,
-    @NotificationLog private val buffer: LogBuffer
-) {
-    private val devLoggingEnabled by lazy { notifPipelineFlags.isDevLoggingEnabled() }
+class NodeSpecBuilderLogger @Inject constructor(@NotificationLog private val buffer: LogBuffer) {
+    private val devLoggingEnabled by lazy { Flags.notificationDeveloperLogging() }
 
     fun logBuildNodeSpec(
         oldSections: Set<NotifSection?>,
         newHeaders: Map<NotifSection?, NodeController?>,
         newCounts: Map<NotifSection?, Int>,
-        newSectionOrder: List<NotifSection?>
+        newSectionOrder: List<NotifSection?>,
     ) {
-        if (!(Compile.IS_DEBUG && devLoggingEnabled))
-            return
+        if (!(Compile.IS_DEBUG && devLoggingEnabled)) return
 
-        buffer.log(TAG, LogLevel.DEBUG, {
-            int1 = newSectionOrder.size
-        }, { "buildNodeSpec finished with $int1 sections" })
+        buffer.log(
+            TAG,
+            LogLevel.DEBUG,
+            { int1 = newSectionOrder.size },
+            { "buildNodeSpec finished with $int1 sections" },
+        )
 
         for (section in newSectionOrder) {
-            buffer.log(TAG, LogLevel.DEBUG, {
-                str1 = section?.sectioner?.name ?: "(null)"
-                str2 = newHeaders[section]?.nodeLabel ?: "(none)"
-                int1 = newCounts[section] ?: -1
-            }, {
-                "  section $str1 has header $str2, $int1 entries"
-            })
+            buffer.log(
+                TAG,
+                LogLevel.DEBUG,
+                {
+                    str1 = section?.sectioner?.name ?: "(null)"
+                    str2 = newHeaders[section]?.nodeLabel ?: "(none)"
+                    int1 = newCounts[section] ?: -1
+                },
+                { "  section $str1 has header $str2, $int1 entries" },
+            )
         }
 
         for (section in oldSections - newSectionOrder.toSet()) {
-            buffer.log(TAG, LogLevel.DEBUG, {
-                str1 = section?.sectioner?.name ?: "(null)"
-            }, {
-                "  section $str1 was removed since last run"
-            })
+            buffer.log(
+                TAG,
+                LogLevel.DEBUG,
+                { str1 = section?.sectioner?.name ?: "(null)" },
+                { "  section $str1 was removed since last run" },
+            )
         }
     }
 }

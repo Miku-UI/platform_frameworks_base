@@ -25,10 +25,11 @@ import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
-import com.android.systemui.communal.data.repository.communalSceneRepository
 import com.android.systemui.communal.data.repository.fakeCommunalSceneRepository
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
@@ -46,6 +47,7 @@ import com.android.systemui.res.R
 import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.setSceneTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
@@ -77,7 +79,6 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     private val bouncerRepository = kosmos.keyguardBouncerRepository
     private val powerRepository = kosmos.fakePowerRepository
     private val biometricSettingsRepository = kosmos.biometricSettingsRepository
-    private val communalSceneRepository = kosmos.communalSceneRepository
     private val mockedContext = kosmos.mockedContext
     private val mockedActivityStarter = kosmos.activityStarter
 
@@ -92,8 +93,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun fingerprintSuccess_goToHomeScreen() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(true)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(true)
             fingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
@@ -106,8 +107,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
         testScope.runTest {
             whenever(mockedResources.getBoolean(R.bool.config_goToHomeFromOccludedApps))
                 .thenReturn(false)
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(true)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(true)
             fingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
@@ -118,8 +119,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun fingerprintSuccess_notInteractive_doesNotGoToHomeScreen() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(true)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(true)
             powerRepository.setInteractive(false)
             fingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
@@ -129,11 +130,27 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun fingerprintSuccess_dreaming_doesNotGoToHomeScreen() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(true)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(true)
             keyguardRepository.setDreaming(true)
+            fingerprintAuthRepository.setAuthenticationStatus(
+                SuccessFingerprintAuthenticationStatus(0, true)
+            )
+            runCurrent()
+            verifyNeverGoToHomeScreen()
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun fingerprintSuccess_dreamScene_doesNotGoToHomeScreen() =
+        testScope.runTest {
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(true)
+            kosmos.sceneInteractor.changeScene(Scenes.Dream, "Test")
+            kosmos.setSceneTransition(Idle(Scenes.Dream))
             fingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
@@ -144,8 +161,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun fingerprintSuccess_notOnOccludingApp_doesNotGoToHomeScreen() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(false)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(false)
             fingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
@@ -156,8 +173,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun lockout_goToHomeScreenOnDismissAction() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(true)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(true)
             fingerprintAuthRepository.setAuthenticationStatus(
                 ErrorFingerprintAuthenticationStatus(
                     FingerprintManager.FINGERPRINT_ERROR_LOCKOUT,
@@ -171,8 +188,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun lockout_notOnOccludingApp_neverGoToHomeScreen() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(false)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(false)
             fingerprintAuthRepository.setAuthenticationStatus(
                 ErrorFingerprintAuthenticationStatus(
                     FingerprintManager.FINGERPRINT_ERROR_LOCKOUT,
@@ -186,8 +203,8 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun lockout_onOccludingApp_onCommunal_neverGoToHomeScreen() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
-            givenOnOccludingApp(isOnOccludingApp = true, isOnCommunal = true)
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            givenOnOccludingAppAndNotDreaming(isOnOccludingApp = true, isOnCommunal = true)
             fingerprintAuthRepository.setAuthenticationStatus(
                 ErrorFingerprintAuthenticationStatus(
                     FingerprintManager.FINGERPRINT_ERROR_LOCKOUT,
@@ -201,17 +218,17 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun message_fpFailOnOccludingApp_thenNotOnOccludingApp() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
             val message by collectLastValue(underTest.message)
 
-            givenOnOccludingApp(true)
+            givenOnOccludingAppAndNotDreaming(true)
             givenFingerprintAllowed(true)
             runCurrent()
             // WHEN a fp failure come in
             fingerprintAuthRepository.setAuthenticationStatus(FailFingerprintAuthenticationStatus)
 
-            // GIVEN fingerprint shouldn't run
-            givenOnOccludingApp(false)
+            // GIVEN not on an occluding app or dreaming
+            givenOnOccludingAppAndNotDreaming(false)
             runCurrent()
             // WHEN another fp failure arrives
             fingerprintAuthRepository.setAuthenticationStatus(FailFingerprintAuthenticationStatus)
@@ -223,10 +240,10 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun message_fpErrorHelpFailOnOccludingApp() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
             val message by collectLastValue(underTest.message)
 
-            givenOnOccludingApp(true)
+            givenOnOccludingAppAndNotDreaming(true)
             givenFingerprintAllowed(true)
             runCurrent()
 
@@ -256,10 +273,10 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
     @Test
     fun message_fpError_lockoutFilteredOut() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
             val message by collectLastValue(underTest.message)
 
-            givenOnOccludingApp(true)
+            givenOnOccludingAppAndNotDreaming(true)
             givenFingerprintAllowed(true)
             runCurrent()
 
@@ -283,12 +300,13 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun noMessage_fpErrorsWhileDozing() =
         testScope.runTest {
-            underTest = kosmos.occludingAppDeviceEntryInteractor
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
             val message by collectLastValue(underTest.message)
 
-            givenOnOccludingApp(true)
+            givenOnOccludingAppAndNotDreaming(true)
             givenFingerprintAllowed(true)
             keyguardRepository.setIsDozing(true)
             kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
@@ -321,43 +339,95 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
             assertThat(message).isNull()
         }
 
-    private suspend fun givenOnOccludingApp(
+    @Test
+    @EnableSceneContainer
+    fun noMessage_fpErrorsWhileOnLockscreen() =
+        testScope.runTest {
+            underTest = kosmos.occludingAppDeviceEntryInteractorWithMockedContext
+            val message by collectLastValue(underTest.message)
+
+            givenOnOccludingAppAndNotDreaming(true)
+            kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "Test")
+            kosmos.setSceneTransition(Idle(Scenes.Lockscreen))
+            runCurrent()
+
+            // ERROR message
+            fingerprintAuthRepository.setAuthenticationStatus(
+                ErrorFingerprintAuthenticationStatus(
+                    FingerprintManager.FINGERPRINT_ERROR_HW_UNAVAILABLE,
+                    "testError",
+                )
+            )
+            assertThat(message).isNull()
+
+            // HELP message
+            fingerprintAuthRepository.setAuthenticationStatus(
+                HelpFingerprintAuthenticationStatus(
+                    FingerprintManager.FINGERPRINT_ACQUIRED_PARTIAL,
+                    "testHelp",
+                )
+            )
+            assertThat(message).isNull()
+
+            // FAIL message
+            fingerprintAuthRepository.setAuthenticationStatus(FailFingerprintAuthenticationStatus)
+            assertThat(message).isNull()
+        }
+
+    private suspend fun givenOnOccludingAppAndNotDreaming(
         isOnOccludingApp: Boolean,
         isOnCommunal: Boolean = false,
     ) {
-        powerRepository.setInteractive(true)
-        keyguardRepository.setIsDozing(false)
-        keyguardRepository.setKeyguardOccluded(isOnOccludingApp)
-        keyguardRepository.setKeyguardShowing(isOnOccludingApp)
-        keyguardRepository.setDreaming(false)
-        bouncerRepository.setPrimaryShow(!isOnOccludingApp)
-        bouncerRepository.setAlternateVisible(!isOnOccludingApp)
-
-        if (isOnCommunal) {
-            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
-            kosmos.setSceneTransition(Idle(Scenes.Communal))
-        }
-        kosmos.fakeCommunalSceneRepository.setTransitionState(
-            flowOf(
-                ObservableTransitionState.Idle(
-                    if (isOnCommunal) CommunalScenes.Communal else CommunalScenes.Blank
+        if (SceneContainerFlag.isEnabled) {
+            if (isOnOccludingApp) {
+                kosmos.sceneInteractor.changeScene(Scenes.Occluded, "Test")
+                kosmos.setSceneTransition(Idle(Scenes.Occluded))
+            } else {
+                // Set the scene so that it's not dreaming:
+                kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "Test")
+                kosmos.setSceneTransition(Idle(Scenes.Lockscreen))
+            }
+            if (isOnCommunal) {
+                kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
+                kosmos.setSceneTransition(Idle(Scenes.Communal))
+            }
+            kosmos.fakeCommunalSceneRepository.setTransitionState(
+                flowOf(
+                    ObservableTransitionState.Idle(
+                        if (isOnCommunal) CommunalScenes.Communal else CommunalScenes.Blank
+                    )
                 )
             )
-        )
-
-        if (isOnOccludingApp) {
-            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.OCCLUDED,
-                testScope,
-            )
         } else {
-            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
-                from = KeyguardState.OCCLUDED,
-                to = KeyguardState.LOCKSCREEN,
-                testScope,
+            powerRepository.setInteractive(true)
+            keyguardRepository.setIsDozing(false)
+            keyguardRepository.setKeyguardOccluded(isOnOccludingApp)
+            keyguardRepository.setKeyguardShowing(isOnOccludingApp)
+            keyguardRepository.setDreaming(false)
+            bouncerRepository.setPrimaryShow(!isOnOccludingApp)
+            kosmos.fakeCommunalSceneRepository.setTransitionState(
+                flowOf(
+                    ObservableTransitionState.Idle(
+                        if (isOnCommunal) CommunalScenes.Communal else CommunalScenes.Blank
+                    )
+                )
             )
+            if (isOnOccludingApp) {
+                kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                    from = KeyguardState.LOCKSCREEN,
+                    to = KeyguardState.OCCLUDED,
+                    testScope,
+                )
+            } else {
+                kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                    from = KeyguardState.OCCLUDED,
+                    to = KeyguardState.LOCKSCREEN,
+                    testScope,
+                )
+            }
         }
+
+        bouncerRepository.setAlternateVisible(!isOnOccludingApp)
     }
 
     private fun givenFingerprintAllowed(allowed: Boolean) {

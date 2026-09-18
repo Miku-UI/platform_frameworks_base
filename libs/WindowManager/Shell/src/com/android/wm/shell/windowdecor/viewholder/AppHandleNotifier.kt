@@ -17,7 +17,6 @@
 package com.android.wm.shell.windowdecor.viewholder
 
 import android.util.Log
-import android.window.DesktopExperienceFlags
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.desktopmode.CaptionState
@@ -51,19 +50,23 @@ class AppHandleNotifier(
     private val appHandleImpl = AppHandlesImpl()
 
     init {
-        if (DesktopExperienceFlags.ENABLE_APP_HANDLE_POSITION_REPORTING.isTrue()) {
-            mainScope.launch {
-                windowDecorCaptionRepository.captionStateFlow.collect { captionState ->
-                    when (captionState) {
-                        is CaptionState.NoCaption -> {
-                            removeHandle(captionState.taskId)
-                        }
-                        is CaptionState.AppHeader -> {
-                            removeHandle(captionState.runningTaskInfo.taskId)
-                        }
-                        is CaptionState.AppHandle -> {
-                            addHandle(captionState.appHandleIdentifier)
-                        }
+        mainScope.launch {
+            windowDecorCaptionRepository.captionStateFlow.collect { captionState ->
+                when (captionState) {
+                    is CaptionState.NoCaption -> {
+                        removeHandle(captionState.taskId)
+                    }
+
+                    is CaptionState.AppHeader -> {
+                        removeHandle(captionState.runningTaskInfo.taskId)
+                    }
+
+                    is CaptionState.AppHandle -> {
+                        addHandle(captionState.appHandleIdentifier)
+                    }
+
+                    is CaptionState.FullscreenHeader -> {
+                        removeHandle(captionState.runningTaskInfo.taskId)
                     }
                 }
             }
@@ -101,7 +104,7 @@ class AppHandleNotifier(
         val key = handle.taskId
         ProtoLog.v(
             ShellProtoLogGroup.WM_SHELL_APP_HANDLES,
-            "Requesting add/update handle for taskId:%s",
+            "Requesting add/update handle for taskId:%d",
             key,
         )
         val existingHandle = currentHandles[key]
@@ -121,7 +124,7 @@ class AppHandleNotifier(
     private fun removeHandle(taskId: Int) {
         ProtoLog.v(
             ShellProtoLogGroup.WM_SHELL_APP_HANDLES,
-            "Requesting remove handle for taskId:%s",
+            "Requesting remove handle for taskId:%d",
             taskId,
         )
         // Use taskId to remove from the map

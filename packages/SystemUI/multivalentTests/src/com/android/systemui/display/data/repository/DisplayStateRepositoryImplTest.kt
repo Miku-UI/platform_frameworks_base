@@ -18,8 +18,6 @@ package com.android.systemui.display.data.repository
 
 import android.content.res.Configuration
 import android.content.testableContext
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.util.DisplayMetrics
 import android.util.Size
 import android.view.Display
@@ -28,7 +26,6 @@ import android.view.DisplayInfo
 import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.coroutines.collectLastValue
@@ -135,61 +132,6 @@ class DisplayStateRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
-    fun updatesIsLargeScreen_whenDisplayStateChanges() =
-        kosmos.runTest {
-            val isLargeScreen by collectLastValue(underTest.isLargeScreen)
-
-            whenever(display.getDisplayInfo(any())).then {
-                val info = it.getArgument<DisplayInfo>(0)
-                info.rotation = Surface.ROTATION_0
-                info.logicalWidth = 100
-                info.logicalHeight = 700
-                return@then true
-            }
-            displayRepository.emitDisplayChangeEvent(DEFAULT_DISPLAY)
-            assertThat(isLargeScreen).isFalse()
-
-            whenever(display.getDisplayInfo(any())).then {
-                val info = it.getArgument<DisplayInfo>(0)
-                info.rotation = Surface.ROTATION_0
-                info.logicalWidth = 800
-                info.logicalHeight = 700
-                return@then true
-            }
-            displayRepository.emitDisplayChangeEvent(DEFAULT_DISPLAY)
-            assertThat(isLargeScreen).isTrue()
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
-    fun updatesIsWideScreen_whenDisplayStateChanges() =
-        kosmos.runTest {
-            val isWideScreen by collectLastValue(underTest.isWideScreen)
-
-            whenever(display.getDisplayInfo(any())).then {
-                val info = it.getArgument<DisplayInfo>(0)
-                info.rotation = Surface.ROTATION_0
-                info.logicalWidth = 200
-                info.logicalHeight = 700
-                return@then true
-            }
-            displayRepository.emitDisplayChangeEvent(DEFAULT_DISPLAY)
-            assertThat(isWideScreen).isFalse()
-
-            whenever(display.getDisplayInfo(any())).then {
-                val info = it.getArgument<DisplayInfo>(0)
-                info.rotation = Surface.ROTATION_90
-                info.logicalWidth = 700
-                info.logicalHeight = 200
-                return@then true
-            }
-            displayRepository.emitDisplayChangeEvent(DEFAULT_DISPLAY)
-            assertThat(isWideScreen).isTrue()
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun currentRotation_anotherDisplaychanged_noChange() =
         kosmos.runTest {
             val currentRotation by collectLastValue(underTest.currentRotation)
@@ -215,7 +157,6 @@ class DisplayStateRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun isWideScreen_fromConfiguration() =
         kosmos.runTest {
             val isWideScreen by collectLastValue(underTest.isWideScreen)
@@ -232,7 +173,6 @@ class DisplayStateRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun isLargeScreen_fromConfiguration() =
         kosmos.runTest {
             val isLargeScreen by collectLastValue(underTest.isLargeScreen)

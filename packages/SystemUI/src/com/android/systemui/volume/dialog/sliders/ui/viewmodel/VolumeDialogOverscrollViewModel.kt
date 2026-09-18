@@ -20,7 +20,7 @@ import android.content.Context
 import android.view.MotionEvent
 import android.view.animation.PathInterpolator
 import com.android.systemui.res.R
-import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.domain.interactor.VolumeDialogSliderInputEventsInteractor
 import com.android.systemui.volume.dialog.sliders.shared.model.SliderInputEvent
@@ -43,11 +43,11 @@ class VolumeDialogOverscrollViewModel
 constructor(
     context: Context,
     private val inputEventsInteractor: VolumeDialogSliderInputEventsInteractor,
-    desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+    expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
 
     // Use horizontal volume dialog if the audio tile details view is enabled
-    private val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
+    private val isVolumeDialogVertical = !expandedAudioTileDetailsFeatureInteractor.isEnabled()
 
     /**
      * This is the ratio between the pointer distance and the dialog offset. The pointer has to

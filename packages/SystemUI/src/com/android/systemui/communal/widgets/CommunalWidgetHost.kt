@@ -23,7 +23,6 @@ import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTI
 import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE
 import android.content.ComponentName
 import android.os.Bundle
-import android.os.DeadObjectException
 import android.os.UserHandle
 import android.widget.RemoteViews
 import androidx.annotation.WorkerThread
@@ -156,9 +155,13 @@ constructor(
 
                     // Fetch provider info of the widget
                     newProviders[appWidgetId] = getAppWidgetInfo(appWidgetId)
-                } catch (exception: DeadObjectException) {
-                    logger.e("failed to add listener for $appWidgetId", exception)
-                    newProviders.remove(appWidgetId)
+                } catch (exception: Exception) {
+                    if (exception.isBinderSizeError()) {
+                        logger.e("failed to add listener for $appWidgetId", exception)
+                        newProviders.remove(appWidgetId)
+                    } else {
+                        throw exception
+                    }
                 }
             }
 
@@ -185,8 +188,12 @@ constructor(
     override fun onAllocateAppWidgetId(appWidgetId: Int) {
         try {
             addListener(appWidgetId)
-        } catch (exception: DeadObjectException) {
-            logger.e("Could not add listener upon allocation", exception)
+        } catch (exception: Exception) {
+            if (exception.isBinderSizeError()) {
+                logger.e("Could not add listener upon allocation", exception)
+            } else {
+                throw exception
+            }
         }
     }
 

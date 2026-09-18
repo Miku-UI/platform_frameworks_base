@@ -326,9 +326,8 @@ public final class CarrierMessagingServiceWrapper implements AutoCloseable {
          * @param result a bitmask integer to indicate how the incoming text SMS should be handled
          *               by the platform. Bits set can be
          *               {@link CarrierMessagingService#RECEIVE_OPTIONS_DROP} and
-         *               {@link CarrierMessagingService#
-         *               RECEIVE_OPTIONS_SKIP_NOTIFY_WHEN_CREDENTIAL_PROTECTED_STORAGE_UNAVAILABLE}.
-         *               {@link CarrierMessagingService#onReceiveTextSms}.
+         * {@link CarrierMessagingService#RECEIVE_OPTIONS_SKIP_NOTIFY_WHEN_CREDENTIAL_PROTECTED_STORAGE_UNAVAILABLE}.
+         *               See {@link CarrierMessagingService#onReceiveTextSms}.
          */
         default void onReceiveSmsComplete(
                 @CarrierMessagingService.FilterCompleteResult int result) {

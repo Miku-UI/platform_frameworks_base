@@ -102,7 +102,6 @@ public final class DeviceConfigService extends Binder {
         }
     }
 
-    // TODO(b/364399200): add unit test
     @Override
     protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         String filter = null;
@@ -146,7 +145,6 @@ public final class DeviceConfigService extends Binder {
         }
 
         if (filter != null) {
-            // TODO(b/364399200): use filter to skip instead?
             return;
         }
    }

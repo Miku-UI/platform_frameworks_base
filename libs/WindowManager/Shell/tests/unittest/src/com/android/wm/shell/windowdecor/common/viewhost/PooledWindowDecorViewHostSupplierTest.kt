@@ -18,8 +18,6 @@ package com.android.wm.shell.windowdecor.common.viewhost
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Region
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Display
@@ -28,14 +26,12 @@ import android.view.SurfaceControl
 import android.view.View
 import android.view.WindowManager
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags
-import com.android.window.flags.Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL
+import com.android.testing.wm.util.StubTransaction
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestShellExecutor
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellInit
-import com.android.wm.shell.util.StubTransaction
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -87,8 +83,7 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun onInit_warmsAndPoolsViewHosts_perDisplayPoolDisabled() = runTest {
+    fun onInit_warmsAndPoolsViewHosts() = runTest {
         supplier = createSupplier(maxPoolSize = 5, preWarmSize = 2)
 
         testExecutor.flushAll()
@@ -103,14 +98,12 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
     }
 
     @Test(expected = Throwable::class)
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun onInit_warmUpSizeExceedsPoolSize_throws_perDisplayPoolDisabled() = runTest {
+    fun onInit_warmUpSizeExceedsPoolSize_throws() = runTest {
         createSupplier(maxPoolSize = 3, preWarmSize = 4)
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun acquire_poolBelowLimit_caches_perDisplayPoolDisabled() = runTest {
+    fun acquire_poolBelowLimit_caches() = runTest {
         supplier = createSupplier(maxPoolSize = 5)
 
         val viewHost = FakeWindowDecorViewHost()
@@ -120,8 +113,7 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_poolBelowLimit_doesNotReleaseViewHost_perDisplayPoolDisabled() = runTest {
+    fun release_poolBelowLimit_doesNotReleaseViewHost() = runTest {
         supplier = createSupplier(maxPoolSize = 5)
 
         val viewHost = FakeWindowDecorViewHost()
@@ -132,8 +124,7 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_poolAtLimit_doesNotCache_perDisplayPoolDisabled() = runTest {
+    fun release_poolAtLimit_doesNotCache() = runTest {
         supplier = createSupplier(maxPoolSize = 1)
         val viewHost = FakeWindowDecorViewHost()
         supplier.release(viewHost, StubTransaction()) // Maxes pool.
@@ -147,8 +138,7 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_poolAtLimit_releasesViewHost_perDisplayPoolDisabled() = runTest {
+    fun release_poolAtLimit_releasesViewHost() = runTest {
         supplier = createSupplier(maxPoolSize = 1)
         val viewHost = FakeWindowDecorViewHost()
         supplier.release(viewHost, StubTransaction()) // Maxes pool.
@@ -162,9 +152,7 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CLEAR_REUSABLE_SCVH_ON_RELEASE)
-    @DisableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_resetsViewHost_perDisplayPoolDisabled() = runTest {
+    fun release_resetsViewHost() = runTest {
         supplier = createSupplier(maxPoolSize = 5)
 
         val viewHost = FakeWindowDecorViewHost()
@@ -175,97 +163,6 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun onInit_warmsAndPoolsViewHosts_perDisplayPoolEnabled() = runTest {
-        supplier = createSupplier(maxPoolSize = 5, preWarmSize = 2)
-
-        testExecutor.flushAll()
-        advanceUntilIdle()
-
-        val viewHost1 = supplier.acquire(context, context.display) as ReusableWindowDecorViewHost
-        val viewHost2 = supplier.acquire(context, context.display) as ReusableWindowDecorViewHost
-
-        // Acquired warmed up view hosts from the pool.
-        assertThat(viewHost1.viewHostAdapter.isInitialized()).isTrue()
-        assertThat(viewHost2.viewHostAdapter.isInitialized()).isTrue()
-    }
-
-    @Test(expected = Throwable::class)
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun onInit_warmUpSizeExceedsPoolSize_throws_perDisplayPoolEnabled() = runTest {
-        createSupplier(maxPoolSize = 3, preWarmSize = 4)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun acquire_poolBelowLimit_caches_perDisplayPoolEnabled() = runTest {
-        supplier = createSupplier(maxPoolSize = 5)
-
-        val viewHost = FakeWindowDecorViewHost()
-        supplier.release(viewHost, StubTransaction())
-
-        assertThat(supplier.acquire(context, context.display)).isEqualTo(viewHost)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_poolBelowLimit_doesNotReleaseViewHost_perDisplayPoolEnabled() = runTest {
-        supplier = createSupplier(maxPoolSize = 5)
-
-        val viewHost = FakeWindowDecorViewHost()
-        val mockT = mock<SurfaceControl.Transaction>()
-        supplier.release(viewHost, mockT)
-
-        assertThat(viewHost.released).isFalse()
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_poolAtLimit_doesNotCache_perDisplayPoolEnabled() = runTest {
-        supplier = createSupplier(maxPoolSize = 1)
-        val viewHost = FakeWindowDecorViewHost()
-        supplier.release(viewHost, StubTransaction()) // Maxes pool.
-
-        val viewHost2 = FakeWindowDecorViewHost()
-        supplier.release(viewHost2, StubTransaction()) // Beyond limit.
-
-        assertThat(supplier.acquire(context, context.display)).isEqualTo(viewHost)
-        // Second one wasn't cached, so the acquired one should've been a new instance.
-        assertThat(supplier.acquire(context, context.display)).isNotEqualTo(viewHost2)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
-    fun release_poolAtLimit_releasesViewHost_perDisplayPoolEnabled() = runTest {
-        supplier = createSupplier(maxPoolSize = 1)
-        val viewHost = FakeWindowDecorViewHost()
-        supplier.release(viewHost, StubTransaction()) // Maxes pool.
-
-        val viewHost2 = FakeWindowDecorViewHost()
-        val mockT = mock<SurfaceControl.Transaction>()
-        supplier.release(viewHost2, mockT) // Beyond limit.
-
-        // Second one doesn't fit, so it needs to be released.
-        assertThat(viewHost2.released).isTrue()
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_CLEAR_REUSABLE_SCVH_ON_RELEASE,
-        Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL,
-    )
-    fun release_resetsViewHost_perDisplayPoolEnabled() = runTest {
-        supplier = createSupplier(maxPoolSize = 5)
-
-        val viewHost = FakeWindowDecorViewHost()
-        supplier.release(viewHost, StubTransaction())
-
-        assertThat(viewHost.reset).isEqualTo(true)
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
     fun acquire_differentDisplay_differentPools() = runTest {
         supplier = createSupplier(maxPoolSize = 5, preWarmSize = 1, hasSecondaryDisplay = true)
 
@@ -283,7 +180,6 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_WINDOW_DECOR_VIEW_HOST_POOL)
     fun removeDisplayCallback_clearPool() = runTest {
         supplier = createSupplier(maxPoolSize = 5, preWarmSize = 2, hasSecondaryDisplay = true)
 
@@ -319,15 +215,11 @@ class PooledWindowDecorViewHostSupplierTest : ShellTestCase() {
             .also {
                 testShellInit.init()
 
-                if (Flags.enablePerDisplayWindowDecorViewHostPool()) {
-                    verify(mockDisplayController)
-                        .addDisplayWindowListener(onDisplaysChangedListenerCaptor.capture())
-                    onDisplaysChangedListenerCaptor.lastValue.onDisplayAdded(
-                        context.display.displayId
-                    )
-                    if (hasSecondaryDisplay) {
-                        prepareSecondaryDisplay()
-                    }
+                verify(mockDisplayController)
+                    .addDisplayWindowListener(onDisplaysChangedListenerCaptor.capture())
+                onDisplaysChangedListenerCaptor.lastValue.onDisplayAdded(context.display.displayId)
+                if (hasSecondaryDisplay) {
+                    prepareSecondaryDisplay()
                 }
             }
 

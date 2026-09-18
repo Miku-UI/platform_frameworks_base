@@ -25,9 +25,14 @@ import android.os.RemoteException
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.android.internal.statusbar.IAddTileResultCallback
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.qs.QSHost
+import com.android.systemui.qs.external.TileServiceRequestController.TileRequestResponse.NegativeTileRequestResponse
+import com.android.systemui.qs.external.TileServiceRequestController.TileRequestResponse.PositiveTileRequestResponse
 import com.android.systemui.qs.external.ui.dialog.TileRequestDialogDelegate
+import com.android.systemui.qs.panels.domain.interactor.IconTilesInteractor
+import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.statusbar.commandline.Command
 import com.android.systemui.statusbar.commandline.CommandRegistry
@@ -42,6 +47,7 @@ private const val TAG = "TileServiceRequestController"
 /** Controller to interface between [TileRequestDialogDelegate] and [QSHost]. */
 class TileServiceRequestController(
     private val qsHost: QSHost,
+    private val iconTilesInteractor: IconTilesInteractor,
     private val commandQueue: CommandQueue,
     private val commandRegistry: CommandRegistry,
     private val eventLogger: TileRequestDialogEventLogger,
@@ -91,7 +97,10 @@ class TileServiceRequestController(
         commandQueue.removeCallback(commandQueueCallback)
     }
 
-    private fun addTile(componentName: ComponentName) {
+    private fun addTile(componentName: ComponentName, asLarge: Boolean) {
+        if (Flags.qsSizesInTileRequestDialog() && asLarge) {
+            iconTilesInteractor.addLargeTile(TileSpec.create(componentName))
+        }
         qsHost.addTile(componentName, true)
     }
 
@@ -112,13 +121,13 @@ class TileServiceRequestController(
             return null
         }
         val dialogResponse =
-            SingleShotConsumer<Int> { response ->
-                if (response == ADD_TILE) {
-                    addTile(componentName)
+            SingleShotConsumer<TileRequestResponse> { response ->
+                if (response is PositiveTileRequestResponse) {
+                    addTile(componentName, response.asLarge)
                 }
                 dialogCanceller = null
-                eventLogger.logUserResponse(response, packageName, instanceId)
-                callback.accept(response)
+                eventLogger.logUserResponse(response.result, packageName, instanceId)
+                callback.accept(response.result)
             }
         val tileData = TileData(callingUid, appName, label, icon, componentName.packageName)
         return createComposeDialog(tileData, dialogResponse).also { dialog ->
@@ -135,14 +144,14 @@ class TileServiceRequestController(
 
     private fun createComposeDialog(
         tileData: TileData,
-        responseHandler: SingleShotConsumer<Int>,
+        responseHandler: SingleShotConsumer<TileRequestResponse>,
     ): SystemUIDialog {
         val dialogClickListener =
-            DialogInterface.OnClickListener { _, which ->
+            DialogInterface.OnMultiChoiceClickListener { _, which, asLarge ->
                 if (which == Dialog.BUTTON_POSITIVE) {
-                    responseHandler.accept(ADD_TILE)
+                    responseHandler.accept(PositiveTileRequestResponse(asLarge))
                 } else {
-                    responseHandler.accept(DONT_ADD_TILE)
+                    responseHandler.accept(NegativeTileRequestResponse(DONT_ADD_TILE))
                 }
             }
         return tileRequestDialogComposeDelegateFactory
@@ -151,12 +160,16 @@ class TileServiceRequestController(
             .apply {
                 setShowForAllUsers(true)
                 setCanceledOnTouchOutside(true)
-                setOnCancelListener { responseHandler.accept(DISMISSED) }
+                setOnCancelListener {
+                    responseHandler.accept(NegativeTileRequestResponse(DISMISSED))
+                }
                 // We want this in case the dialog is dismissed without it being cancelled (for
                 // example
                 // by going home or locking the device). We use a SingleShotConsumer so the response
                 // is only sent once, with the first value.
-                setOnDismissListener { responseHandler.accept(DISMISSED) }
+                setOnDismissListener {
+                    responseHandler.accept(NegativeTileRequestResponse(DISMISSED))
+                }
             }
     }
 
@@ -184,6 +197,16 @@ class TileServiceRequestController(
         }
     }
 
+    private sealed interface TileRequestResponse {
+        val result: Int
+
+        data class PositiveTileRequestResponse(val asLarge: Boolean) : TileRequestResponse {
+            override val result: Int = ADD_TILE
+        }
+
+        data class NegativeTileRequestResponse(override val result: Int) : TileRequestResponse
+    }
+
     private class SingleShotConsumer<T>(private val consumer: Consumer<T>) : Consumer<T> {
         private val dispatched = AtomicBoolean(false)
 
@@ -198,6 +221,7 @@ class TileServiceRequestController(
     class Builder
     @Inject
     constructor(
+        private val iconTilesInteractor: IconTilesInteractor,
         private val commandQueue: CommandQueue,
         private val commandRegistry: CommandRegistry,
         private val tileRequestDialogComposeDelegateFactory: TileRequestDialogDelegate.Factory,
@@ -205,6 +229,7 @@ class TileServiceRequestController(
         fun create(qsHost: QSHost): TileServiceRequestController {
             return TileServiceRequestController(
                 qsHost,
+                iconTilesInteractor,
                 commandQueue,
                 commandRegistry,
                 TileRequestDialogEventLogger(),

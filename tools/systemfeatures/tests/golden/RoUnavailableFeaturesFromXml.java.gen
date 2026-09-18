@@ -45,6 +45,7 @@ public final class RoUnavailableFeaturesFromXml {
      */
     @Nullable
     public static Boolean maybeHasFeature(String featureName, int version) {
+        if (featureName == null) return null;
         switch (featureName) {
             case PackageManager.FEATURE_PC: return false;
             case PackageManager.FEATURE_WATCH: return false;

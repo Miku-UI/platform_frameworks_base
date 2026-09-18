@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.permission
 
 import android.Manifest
 import android.health.connect.HealthPermissions
 import android.os.Build
+import android.permission.flags.Flags
 import android.util.Slog
+import com.android.internal.pm.pkg.component.ParsedUsesPermission
+import com.android.server.permission.access.AccessState
 import com.android.server.permission.access.GetStateScope
 import com.android.server.permission.access.MutateStateScope
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.andInv
 import com.android.server.permission.access.util.hasAnyBit
 import com.android.server.permission.access.util.hasBits
@@ -85,6 +90,28 @@ class AppIdPermissionUpgrade(private val policy: AppIdPermissionPolicy) {
                     ", version: $version, user: $userId",
             )
             upgradeBodySensorReadHeartRatePermissions(packageState, userId)
+        }
+        // TODO Enable isAtLeastC check, when moving subsystem to mainline.
+        if (
+            version <= 18 /*&& SdkLevel.isAtLeastC()*/ &&
+                Flags.accessLocalNetworkPermissionEnabled()
+        ) {
+            Slog.v(
+                LOG_TAG,
+                "Clearing user flags for nearby devices permissions for package: $packageName" +
+                    ", version: $version, user: $userId",
+            )
+            clearNearbyDevicesPermissionsUserFlags(packageState, userId)
+        }
+
+        // TODO Enable isAtLeastC check, when moving subsystem to mainline.
+        if (version <= 19 /*&& SdkLevel.isAtLeastC()*/ && Flags.locationButtonEnabled()) {
+            Slog.v(
+                LOG_TAG,
+                "Checking ACCESS_FINE_LOCATION with onlyForLocationButton for package: " +
+                    "$packageName, version: $version, user: $userId",
+            )
+            revokePermissionIfOnlyForLocationButton(packageState, userId)
         }
 
         // Add a new upgrade step: if (packageVersion <= LATEST_VERSION) { .... }
@@ -368,6 +395,70 @@ class AppIdPermissionUpgrade(private val policy: AppIdPermissionPolicy) {
         }
     }
 
+    private fun MutateStateScope.clearNearbyDevicesPermissionsUserFlags(
+        packageState: PackageState,
+        userId: Int,
+    ) {
+        val androidPackage = packageState.androidPackage!!
+        val isAccessLocalNetworkExplicitlyRequested =
+            Manifest.permission.ACCESS_LOCAL_NETWORK in androidPackage.requestedPermissions &&
+                Manifest.permission.ACCESS_LOCAL_NETWORK !in androidPackage.implicitPermissions
+        if (!isAccessLocalNetworkExplicitlyRequested) {
+            return
+        }
+
+        val isNearbyDevicesPermissionGroupRevoked =
+            AppIdPermissionPolicy.NEARBY_DEVICES_PERMISSIONS.noneIndexed { _, permissionName ->
+                isRuntimePermissionGranted(packageState, userId, permissionName)
+            }
+        if (isNearbyDevicesPermissionGroupRevoked) {
+            with(policy) {
+                AppIdPermissionPolicy.NEARBY_DEVICES_PERMISSIONS.forEachIndexed { _, permissionName
+                    ->
+                    updatePermissionFlags(
+                        packageState.appId,
+                        userId,
+                        permissionName,
+                        PermissionFlags.USER_SET or PermissionFlags.USER_FIXED,
+                        0,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun MutateStateScope.revokePermissionIfOnlyForLocationButton(
+        packageState: PackageState,
+        userId: Int,
+    ) {
+        val onlyForLocationButton =
+            allPackagesInAppId(packageState.appId) { packageState ->
+                val usesPermission =
+                    packageState.androidPackage!!
+                        .usesPermissionMapping[Manifest.permission.ACCESS_FINE_LOCATION]
+                        ?: return@allPackagesInAppId false
+                usesPermission.usesPermissionFlags.hasBits(
+                    ParsedUsesPermission.FLAG_ONLY_FOR_LOCATION_BUTTON
+                )
+            }
+        if (
+            onlyForLocationButton &&
+                isRuntimePermissionGranted(
+                    packageState,
+                    userId,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                )
+        ) {
+            Slog.d(
+                LOG_TAG,
+                "Revoking ACCESS_FINE_LOCATION with onlyForLocationButton for " +
+                    "package: ${packageState.packageName}" +
+                    ", user: $userId",
+            )
+            revokeRuntimePermission(packageState, userId, Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
     private fun GetStateScope.isRuntimePermissionGranted(
         packageState: PackageState,
         userId: Int,
@@ -451,6 +542,18 @@ class AppIdPermissionUpgrade(private val policy: AppIdPermissionPolicy) {
         return true
     }
 
+    private inline fun MutateStateScope.allPackagesInAppId(
+        appId: Int,
+        state: AccessState = newState,
+        predicate: (PackageState) -> Boolean,
+    ): Boolean {
+        val packageNames = state.externalState.appIdPackageNames[appId]!!
+        return packageNames.allIndexed { _, packageName ->
+            val packageState = state.externalState.packageStates[packageName]!!
+            packageState.androidPackage != null && predicate(packageState)
+        }
+    }
+
     companion object {
         private val LOG_TAG = AppIdPermissionUpgrade::class.java.simpleName
 
@@ -470,7 +573,9 @@ class AppIdPermissionUpgrade(private val policy: AppIdPermissionPolicy) {
                 PermissionFlags.APP_OP_REVOKED or
                 PermissionFlags.ONE_TIME or
                 PermissionFlags.HIBERNATION or
-                PermissionFlags.USER_SELECTED
+                PermissionFlags.USER_SELECTED or
+                PermissionFlags.TRUSTED_UI_SHOWN or
+                PermissionFlags.TRUSTED_UI_CONSENTED
 
         private val LEGACY_RESTRICTED_PERMISSIONS =
             indexedSetOf(

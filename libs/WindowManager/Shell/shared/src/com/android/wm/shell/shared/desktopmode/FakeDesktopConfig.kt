@@ -21,7 +21,6 @@ import java.io.PrintWriter
 
 class FakeDesktopConfig : DesktopConfig {
 
-    override var shouldMaximizeWhenDragToTopEdge: Boolean = false
     override var useDesktopOverrideDensity: Boolean = false
 
     override var windowDecorPreWarmSize: Int = 0
@@ -48,8 +47,5 @@ class FakeDesktopConfig : DesktopConfig {
 
     override var desktopDensityOverride: Int = 284
 
-    override fun dump(
-        pw: PrintWriter,
-        prefix: String,
-    ) { }
+    override fun dump(pw: PrintWriter, prefix: String) {}
 }

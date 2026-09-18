@@ -24,8 +24,6 @@ import static android.app.StatusBarManager.EXTRA_KM_PRIVATE_NOTIFS_ALLOWED;
 import static android.app.admin.DevicePolicyManager.ACTION_DEVICE_POLICY_MANAGER_STATE_CHANGED;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_SECURE_NOTIFICATIONS;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_UNREDACTED_NOTIFICATIONS;
-import static android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_FEATURES;
-import static android.os.Flags.FLAG_ALLOW_PRIVATE_PROFILE;
 import static android.os.UserHandle.USER_ALL;
 import static android.provider.Settings.Secure.LOCK_SCREEN_ALLOW_PRIVATE_NOTIFICATIONS;
 import static android.provider.Settings.Secure.LOCK_SCREEN_SHOW_NOTIFICATIONS;
@@ -63,9 +61,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.FlagsParameterization;
 import android.provider.Settings;
 import android.util.SparseArray;
 
@@ -81,7 +76,6 @@ import com.android.systemui.dump.DumpManager;
 import com.android.systemui.flags.DisableSceneContainer;
 import com.android.systemui.flags.EnableSceneContainer;
 import com.android.systemui.flags.FakeFeatureFlagsClassic;
-import com.android.systemui.flags.SceneContainerFlagParameterizationKt;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.settings.UserTracker;
@@ -107,13 +101,9 @@ import kotlinx.coroutines.flow.StateFlow;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -122,20 +112,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4.class)
 public class NotificationLockscreenUserManagerTest extends SysuiTestCase {
 
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        List<FlagsParameterization> aconfigCombinations = FlagsParameterization.allCombinationsOf(
-                FLAG_ALLOW_PRIVATE_PROFILE,
-                FLAG_ENABLE_PRIVATE_SPACE_FEATURES);
-        return SceneContainerFlagParameterizationKt.andSceneContainer(aconfigCombinations);
-    }
-
-    public NotificationLockscreenUserManagerTest(FlagsParameterization flags) {
-        mSetFlagsRule.setFlagsParameterization(flags);
-    }
+    public NotificationLockscreenUserManagerTest() {}
 
     private static final int TEST_PROFILE_USERHANDLE = 12;
     @Mock
@@ -1103,7 +1082,6 @@ public class NotificationLockscreenUserManagerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags({FLAG_ALLOW_PRIVATE_PROFILE, FLAG_ENABLE_PRIVATE_SPACE_FEATURES})
     public void testProfileAvailabilityIntent() {
         mLockscreenUserManager.mCurrentProfiles.clear();
         assertEquals(0, mLockscreenUserManager.mCurrentProfiles.size());
@@ -1114,7 +1092,6 @@ public class NotificationLockscreenUserManagerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags({FLAG_ALLOW_PRIVATE_PROFILE, FLAG_ENABLE_PRIVATE_SPACE_FEATURES})
     public void testProfileUnAvailabilityIntent() {
         mLockscreenUserManager.mCurrentProfiles.clear();
         assertEquals(0, mLockscreenUserManager.mCurrentProfiles.size());
@@ -1122,34 +1099,6 @@ public class NotificationLockscreenUserManagerTest extends SysuiTestCase {
         simulateProfileAvailabilityActions(Intent.ACTION_PROFILE_UNAVAILABLE);
         int numProfiles = android.multiuser.Flags.supportCommunalProfile() ? 3 : 2;
         assertEquals(numProfiles, mLockscreenUserManager.mCurrentProfiles.size());
-    }
-
-    @Test
-    @DisableFlags({FLAG_ALLOW_PRIVATE_PROFILE, FLAG_ENABLE_PRIVATE_SPACE_FEATURES})
-    public void testManagedProfileAvailabilityIntent() {
-        mLockscreenUserManager.mCurrentProfiles.clear();
-        mLockscreenUserManager.mCurrentManagedProfiles.clear();
-        assertEquals(0, mLockscreenUserManager.mCurrentProfiles.size());
-        assertEquals(0, mLockscreenUserManager.mCurrentManagedProfiles.size());
-        mLockscreenUserManager.mCurrentProfiles.append(0, mock(UserInfo.class));
-        simulateProfileAvailabilityActions(Intent.ACTION_MANAGED_PROFILE_AVAILABLE);
-        int numProfiles = android.multiuser.Flags.supportCommunalProfile() ? 3 : 2;
-        assertEquals(numProfiles, mLockscreenUserManager.mCurrentProfiles.size());
-        assertEquals(1, mLockscreenUserManager.mCurrentManagedProfiles.size());
-    }
-
-    @Test
-    @DisableFlags({FLAG_ALLOW_PRIVATE_PROFILE, FLAG_ENABLE_PRIVATE_SPACE_FEATURES})
-    public void testManagedProfileUnAvailabilityIntent() {
-        mLockscreenUserManager.mCurrentProfiles.clear();
-        mLockscreenUserManager.mCurrentManagedProfiles.clear();
-        assertEquals(0, mLockscreenUserManager.mCurrentProfiles.size());
-        assertEquals(0, mLockscreenUserManager.mCurrentManagedProfiles.size());
-        mLockscreenUserManager.mCurrentProfiles.append(0, mock(UserInfo.class));
-        simulateProfileAvailabilityActions(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE);
-        int numProfiles = android.multiuser.Flags.supportCommunalProfile() ? 3 : 2;
-        assertEquals(numProfiles, mLockscreenUserManager.mCurrentProfiles.size());
-        assertEquals(1, mLockscreenUserManager.mCurrentManagedProfiles.size());
     }
 
     private void simulateProfileAvailabilityActions(String intentAction) {

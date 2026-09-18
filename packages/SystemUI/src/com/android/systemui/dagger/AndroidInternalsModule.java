@@ -38,6 +38,12 @@ public class AndroidInternalsModule {
     @Provides
     @Singleton
     public LockPatternUtils provideLockPatternUtils(Context context) {
+        // LockPatternUtils is not thread-safe and must be initialized on the main thread because it
+        // makes an assumption that it has a Handler when used in checkCredential with a non-null
+        // progressCallback.
+        //
+        // To compensate for this, code is added to get LockPatterUtils early in the lifecycle of
+        // the process. That code gets this instance on the main thread as early as possible.
         return new LockPatternUtils(context);
     }
 

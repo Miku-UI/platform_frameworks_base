@@ -18,12 +18,18 @@ package com.android.systemui.shade.data.repository
 
 import android.content.res.mainResources
 import com.android.systemui.common.ui.data.repository.configurationRepository
+import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.shared.settings.data.repository.secureSettingsRepository
 
 var Kosmos.shadeConfigRepository: ShadeConfigRepository by
     Kosmos.Fixture {
         ShadeConfigRepository(
+            backgroundDispatcher = testDispatcher,
             resources = mainResources,
             configurationRepository = configurationRepository,
+            secureSettingsRepository = secureSettingsRepository,
+            featureFlags = featureFlagsClassic,
         )
     }

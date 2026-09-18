@@ -16,24 +16,22 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import android.telephony.SubscriptionManager.PROFILE_CLASS_UNSET
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.settingslib.mobile.TelephonyIcons
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.phone.StatusBarLocation
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.FakeMobileIconsInteractor
-import com.android.systemui.statusbar.pipeline.mobile.domain.model.NetworkTypeIconModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.VerboseMobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
-import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
@@ -46,6 +44,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
@@ -54,13 +53,16 @@ import org.mockito.MockitoAnnotations
 @Suppress("EXPERIMENTAL_IS_NOT_ENABLED")
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableFlags(StatusBarMobileIconKairos.FLAG_NAME)
 class MobileIconsViewModelTest : SysuiTestCase() {
+
+    @get:Rule val setFlagsRule = SetFlagsRule()
+
     private val kosmos = testKosmos()
 
     private lateinit var underTest: MobileIconsViewModel
     private val interactor = FakeMobileIconsInteractor(FakeMobileMappingsProxy(), mock())
 
-    private lateinit var airplaneModeInteractor: AirplaneModeInteractor
     @Mock private lateinit var logger: MobileViewLogger
     @Mock private lateinit var verboseLogger: VerboseMobileViewLogger
 
@@ -71,19 +73,12 @@ class MobileIconsViewModelTest : SysuiTestCase() {
     fun setUp() {
         MockitoAnnotations.initMocks(this)
 
-        airplaneModeInteractor =
-            AirplaneModeInteractor(
-                FakeAirplaneModeRepository(),
-                FakeConnectivityRepository(),
-                kosmos.fakeMobileConnectionsRepository,
-            )
-
         underTest =
             MobileIconsViewModel(
                 logger,
                 verboseLogger,
                 interactor,
-                airplaneModeInteractor,
+                kosmos.airplaneModeInteractor,
                 object : ConnectivityConstants {
                     override val hasDataCapabilities = true
                     override val shouldShowActivityConfig = false
@@ -190,174 +185,6 @@ class MobileIconsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun firstMobileSubShowingNetworkTypeIcon_noSubs_false() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = emptyList()
-
-            assertThat(latest).isFalse()
-
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_oneSub_notShowingRat_false() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1)
-            // The unknown icon group doesn't show a RAT
-            interactor.getInteractorForSubId(1)!!.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-
-            assertThat(latest).isFalse()
-
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_oneSub_showingRat_true() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1)
-            // The 3G icon group will show a RAT
-            interactor.getInteractorForSubId(1)!!.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.THREE_G)
-
-            assertThat(latest).isTrue()
-
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_updatesAsSubUpdates() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1)
-            val sub1Interactor = interactor.getInteractorForSubId(1)!!
-
-            sub1Interactor.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.THREE_G)
-            assertThat(latest).isTrue()
-
-            sub1Interactor.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-            assertThat(latest).isFalse()
-
-            sub1Interactor.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.LTE)
-            assertThat(latest).isTrue()
-
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_multipleSubs_lastSubNotShowingRat_false() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
-            interactor.getInteractorForSubId(1)?.networkTypeIconGroup?.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.THREE_G)
-            interactor.getInteractorForSubId(2)!!.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-
-            assertThat(latest).isFalse()
-
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_multipleSubs_lastSubShowingRat_true() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
-            interactor.getInteractorForSubId(1)?.networkTypeIconGroup?.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-            interactor.getInteractorForSubId(2)!!.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.THREE_G)
-
-            assertThat(latest).isTrue()
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_subListUpdates_valAlsoUpdates() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
-            interactor.getInteractorForSubId(1)?.networkTypeIconGroup?.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-            interactor.getInteractorForSubId(2)!!.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.THREE_G)
-
-            assertThat(latest).isTrue()
-
-            // WHEN the sub list gets new subscriptions where the last subscription is not showing
-            // the network type icon
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2, SUB_3)
-            interactor.getInteractorForSubId(3)!!.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-
-            // THEN the flow updates
-            assertThat(latest).isFalse()
-
-            job.cancel()
-        }
-
-    @Test
-    fun firstMobileSubShowingNetworkTypeIcon_subListReorders_valAlsoUpdates() =
-        testScope.runTest {
-            var latest: Boolean? = null
-            val job =
-                underTest.firstMobileSubShowingNetworkTypeIcon.onEach { latest = it }.launchIn(this)
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
-            // Immediately switch the order so that we've created both interactors
-            interactor.filteredSubscriptions.value = listOf(SUB_2, SUB_1)
-            val sub1Interactor = interactor.getInteractorForSubId(1)!!
-            val sub2Interactor = interactor.getInteractorForSubId(2)!!
-
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
-            sub1Interactor.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.UNKNOWN)
-            sub2Interactor.networkTypeIconGroup.value =
-                NetworkTypeIconModel.DefaultIcon(TelephonyIcons.THREE_G)
-            assertThat(latest).isTrue()
-
-            // WHEN sub1 becomes last and sub1 has no network type icon
-            interactor.filteredSubscriptions.value = listOf(SUB_2, SUB_1)
-
-            // THEN the flow updates
-            assertThat(latest).isFalse()
-
-            // WHEN sub2 becomes last and sub2 has a network type icon
-            interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
-
-            assertThat(latest).isTrue()
-            job.cancel()
-        }
-
-    @Test
     fun isStackable_apmEnabled_false() =
         testScope.runTest {
             var latest: Boolean? = null
@@ -367,7 +194,7 @@ class MobileIconsViewModelTest : SysuiTestCase() {
             interactor.isStackable.value = true
 
             // Enable APM
-            airplaneModeInteractor.setIsAirplaneMode(true)
+            kosmos.airplaneModeInteractor.setIsAirplaneMode(true)
 
             interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
 
@@ -385,7 +212,7 @@ class MobileIconsViewModelTest : SysuiTestCase() {
             interactor.isStackable.value = true
 
             // Disable APM
-            airplaneModeInteractor.setIsAirplaneMode(false)
+            kosmos.airplaneModeInteractor.setIsAirplaneMode(false)
 
             interactor.filteredSubscriptions.value = listOf(SUB_1, SUB_2)
 
@@ -407,13 +234,6 @@ class MobileIconsViewModelTest : SysuiTestCase() {
                 subscriptionId = 2,
                 isOpportunistic = false,
                 carrierName = "Carrier 2",
-                profileClass = PROFILE_CLASS_UNSET,
-            )
-        private val SUB_3 =
-            SubscriptionModel(
-                subscriptionId = 3,
-                isOpportunistic = false,
-                carrierName = "Carrier 3",
                 profileClass = PROFILE_CLASS_UNSET,
             )
     }

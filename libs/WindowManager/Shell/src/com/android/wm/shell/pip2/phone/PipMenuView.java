@@ -193,8 +193,6 @@ public class PipMenuView extends FrameLayout {
             }
         });
 
-        findViewById(R.id.resize_handle).setAlpha(0);
-
         mActionsGroup = findViewById(R.id.actions_group);
         mBetweenActionPaddingLand = getResources().getDimensionPixelSize(
                 R.dimen.pip_between_action_padding_land);
@@ -261,7 +259,7 @@ public class PipMenuView extends FrameLayout {
     }
 
     void showMenu(int menuState, Rect stackBounds, boolean allowMenuTimeout,
-            boolean resizeMenuOnShow, boolean withDelay, boolean showResizeHandle) {
+            boolean resizeMenuOnShow, boolean withDelay) {
         mAllowMenuTimeout = allowMenuTimeout;
         mDidLastShowMenuResize = resizeMenuOnShow;
         if (mMenuState != menuState) {

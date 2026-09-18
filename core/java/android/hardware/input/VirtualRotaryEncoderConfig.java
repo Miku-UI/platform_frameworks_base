@@ -16,10 +16,8 @@
 
 package android.hardware.input;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtualdevice.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -30,7 +28,6 @@ import android.os.Parcelable;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_VIRTUAL_ROTARY)
 @SystemApi
 public final class VirtualRotaryEncoderConfig extends VirtualInputDeviceConfig
         implements Parcelable {

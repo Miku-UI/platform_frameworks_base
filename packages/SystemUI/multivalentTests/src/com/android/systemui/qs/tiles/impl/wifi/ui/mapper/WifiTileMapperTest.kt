@@ -42,7 +42,7 @@ class WifiTileMapperTest : SysuiTestCase() {
             uiConfig =
                 QSTileUIConfig.Resource(
                     iconRes = WifiIcons.WIFI_NO_SIGNAL,
-                    labelRes = R.string.quick_settings_internet_label,
+                    labelRes = R.string.quick_settings_wifi_label,
                 )
         }
     private var underTest: WifiTileMapper =
@@ -101,9 +101,7 @@ class WifiTileMapperTest : SysuiTestCase() {
 
         assertThat(outputState.secondaryLabel).isEqualTo(secondaryLabel)
         assertThat(outputState.contentDescription)
-            .isEqualTo(
-                "${context.getString(R.string.quick_settings_internet_label)},$secondaryLabel"
-            )
+            .isEqualTo("${context.getString(R.string.quick_settings_wifi_label)},$secondaryLabel")
         assertThat(outputState.stateDescription).isEqualTo(secondaryLabel)
     }
 
@@ -112,7 +110,7 @@ class WifiTileMapperTest : SysuiTestCase() {
         icon: Icon?,
         secondaryLabel: CharSequence?,
     ): QSTileState {
-        val label = context.getString(R.string.quick_settings_internet_label)
+        val label = context.getString(R.string.quick_settings_wifi_label)
         val supportedActions =
             setOf(
                 QSTileState.UserAction.CLICK,

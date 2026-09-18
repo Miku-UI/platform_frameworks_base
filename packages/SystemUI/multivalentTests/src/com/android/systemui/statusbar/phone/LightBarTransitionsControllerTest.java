@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.os.Handler;
 import android.testing.TestableLooper;
@@ -41,6 +42,7 @@ import com.android.systemui.settings.FakeDisplayTracker;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.phone.LightBarTransitionsController.DarkIntensityApplier;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
+import com.android.systemui.util.time.FakeSystemClock;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -50,7 +52,7 @@ import org.mockito.MockitoAnnotations;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
-@TestableLooper.RunWithLooper
+@TestableLooper.RunWithLooper(setAsMainLooper = true)
 public class LightBarTransitionsControllerTest extends SysuiTestCase {
 
     @Mock
@@ -64,13 +66,20 @@ public class LightBarTransitionsControllerTest extends SysuiTestCase {
     @Mock
     private Handler mBgHandler;
 
+    private final FakeSystemClock mSystemClock = new FakeSystemClock();
+
     private LightBarTransitionsController mLightBarTransitionsController;
+
+    private final CommandQueue mCommandQueue = new CommandQueue(
+            mContext,
+            new FakeDisplayTracker(mContext)
+    );
 
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
         mLightBarTransitionsController = new LightBarTransitionsController(mContext, mMainHandler,
-                mBgHandler, mApplier, new CommandQueue(mContext, new FakeDisplayTracker(mContext)),
+                mBgHandler, mApplier, mSystemClock, mCommandQueue,
                 mKeyguardStateController, mStatusBarStateController);
     }
 
@@ -128,5 +137,104 @@ public class LightBarTransitionsControllerTest extends SysuiTestCase {
         mLightBarTransitionsController.setNavigationSettingsObserver(observer);
         assertTrue(mLightBarTransitionsController.supportsIconTintForNavMode(
                 NAV_BAR_MODE_3BUTTON));
+    }
+
+    @Test
+    public void appTransitionWhileKeyguardIsGoingAway_notForced_pendingTransitionNotSet() {
+        int displayId = mContext.getDisplayId();
+        when(mKeyguardStateController.isKeyguardGoingAway()).thenReturn(true);
+
+        mCommandQueue.appTransitionPending(displayId, /*forced */ false);
+        TestableLooper.get(this).processAllMessages();
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+
+        mCommandQueue.appTransitionStarting(
+                displayId,
+                /* startTime */ 0,
+                /* duration */ 0,
+                /* forced */ false);
+        TestableLooper.get(this).processAllMessages();
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+
+        mCommandQueue.appTransitionFinished(displayId);
+        TestableLooper.get(this).processAllMessages();
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+    }
+
+    @Test
+    public void appTransitionOnOtherDisplay_keyguardNotGoingAway_noTransitionPending() {
+        int displayId = mContext.getDisplayId();
+        when(mKeyguardStateController.isKeyguardGoingAway()).thenReturn(true);
+
+        mCommandQueue.appTransitionPending(displayId, /*forced */ false);
+        TestableLooper.get(this).processAllMessages();
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+
+        mCommandQueue.appTransitionStarting(
+                displayId,
+                /* startTime */ 0,
+                /* duration */ 0,
+                /* forced */ false);
+        TestableLooper.get(this).processAllMessages();
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+
+        mCommandQueue.appTransitionFinished(displayId);
+        TestableLooper.get(this).processAllMessages();
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+    }
+
+    /**
+     * See b/457816397
+     * The default expected behavior is that appTransitionPending is called before
+     * appTransitionStarting. This is in fact the case typically when those calls come in over
+     * the Binder.
+     *
+     * However, the assumption baked into LightBarTransitions is that at some point
+     * appTransitionStarting will _also_ be called internally to our process. Those calls always
+     * have `forced = true`, and will catch pending tint changes.
+     *
+     * This test checks specifically for cases when that *internal* call does not happen.
+     */
+    @Test
+    public void setIconsDarkWhileTransitionIsPendingWithoutForce_animationEndCatchesTintChange() {
+        int displayId = mContext.getDisplayId();
+
+        // Initially light icons
+        mLightBarTransitionsController.setIconsDark(false, false);
+
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+        assertFalse(mLightBarTransitionsController.isTintChangePending());
+
+        mCommandQueue.appTransitionPending(displayId);
+
+        TestableLooper.get(this).processAllMessages();
+
+        assertTrue(mLightBarTransitionsController.isTransitionPending());
+
+        when(mKeyguardStateController.isKeyguardGoingAway()).thenReturn(true);
+
+        // WHEN an app transition starts, but we are *not* told to force.
+        mCommandQueue.appTransitionStarting(displayId, 0, 0);
+
+        // WHEN setIconsDark comes in during that transition
+        mLightBarTransitionsController.setIconsDark(true, true);
+
+        assertTrue(mLightBarTransitionsController.isTransitionPending());
+        assertTrue(mLightBarTransitionsController.isTintChangePending());
+
+        // WHEN the transition finishes
+        mCommandQueue.appTransitionFinished(displayId);
+
+        TestableLooper.get(this).processAllMessages();
+
+        // THEN we catch the pending tint change and process it
+        assertFalse(mLightBarTransitionsController.isTransitionPending());
+        assertFalse(mLightBarTransitionsController.isTintChangePending());
     }
 }

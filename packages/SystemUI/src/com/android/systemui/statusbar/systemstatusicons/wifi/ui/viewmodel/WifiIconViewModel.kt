@@ -19,8 +19,7 @@ package com.android.systemui.statusbar.systemstatusicons.wifi.ui.viewmodel
 import android.content.Context
 import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.statusbar.pipeline.wifi.ui.model.WifiIcon
 import com.android.systemui.statusbar.pipeline.wifi.ui.viewmodel.WifiViewModel
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
@@ -37,21 +36,36 @@ import dagger.assisted.AssistedInject
 class WifiIconViewModel
 @AssistedInject
 constructor(@Assisted private val context: Context, wifiViewModel: WifiViewModel) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Wifi, HydratedActivatable() {
 
     init {
         SystemStatusIconsInCompose.expectInNewMode()
     }
 
-    private val hydrator = Hydrator("WifiIconViewModel.hydrator")
-
     override val slotName = context.getString(com.android.internal.R.string.status_bar_wifi)
 
     private val wifiIcon: WifiIcon by
-        hydrator.hydratedStateOf(
+        wifiViewModel.wifiIcon.hydratedStateOf(
             traceName = "SystemStatus.wifiIcon",
             initialValue = WifiIcon.Hidden,
-            source = wifiViewModel.wifiIcon,
+        )
+
+    override val isActivityContainerVisible: Boolean by
+        wifiViewModel.isActivityContainerVisible.hydratedStateOf(
+            traceName = "SystemStatus.wifiIcon.activityContainerVisible",
+            initialValue = false,
+        )
+
+    override val isActivityInVisible: Boolean by
+        wifiViewModel.isActivityInViewVisible.hydratedStateOf(
+            traceName = "SystemStatus.wifiIcon.activityInVisible",
+            initialValue = false,
+        )
+
+    override val isActivityOutVisible: Boolean by
+        wifiViewModel.isActivityOutViewVisible.hydratedStateOf(
+            traceName = "SystemStatus.wifiIcon.activityOutVisible",
+            initialValue = false,
         )
 
     override val visible: Boolean
@@ -59,10 +73,6 @@ constructor(@Assisted private val context: Context, wifiViewModel: WifiViewModel
 
     override val icon: Icon?
         get() = (wifiIcon as? WifiIcon.Visible)?.icon
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
 
     @AssistedFactory
     interface Factory {

@@ -17,7 +17,8 @@
 <keyboard-glyph-map xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
     <key-glyph
         androidprv:keycode="KEYCODE_BACK"
-        androidprv:glyphDrawable="@drawable/test_key_drawable" />
+        androidprv:glyphDrawable="@drawable/test_key_drawable"
+        androidprv:displayName="Back" />
     <modifier-glyph
         androidprv:modifier="META"
         androidprv:glyphDrawable="@drawable/test_modifier_drawable" />

@@ -30,6 +30,7 @@ import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telecom.ParcelUtils;
 
 import java.util.Objects;
 
@@ -37,6 +38,9 @@ import java.util.Objects;
  * Contains status label and icon displayed in the in-call UI.
  */
 public final class StatusHints implements Parcelable {
+
+    /** An undefined user id from UserHandle.USER_NULL */
+    private static final int USER_NULL = -10000;
 
     private final CharSequence mLabel;
     private Icon mIcon;
@@ -179,13 +183,13 @@ public final class StatusHints implements Parcelable {
             return Integer.parseInt(userIdString);
         } catch (NumberFormatException e) {
             Log.w(TAG, "Error parsing userId." + e);
-            return UserHandle.USER_NULL;
+            return USER_NULL;
         }
     }
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeCharSequence(mLabel);
+        ParcelUtils.writeCharSequence(out, mLabel);
         out.writeParcelable(mIcon, 0);
         out.writeParcelable(mExtras, 0);
     }
@@ -202,7 +206,7 @@ public final class StatusHints implements Parcelable {
     };
 
     private StatusHints(Parcel in) {
-        mLabel = in.readCharSequence();
+        mLabel = ParcelUtils.readCharSequence(in);
         mIcon = in.readParcelable(getClass().getClassLoader(), android.graphics.drawable.Icon.class);
         mExtras = in.readParcelable(getClass().getClassLoader(), android.os.Bundle.class);
     }

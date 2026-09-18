@@ -25,6 +25,8 @@ import android.telephony.satellite.stub.ISatelliteListener;
 import android.telephony.satellite.stub.SatelliteDatagram;
 import android.telephony.satellite.stub.SystemSelectionSpecifier;
 import android.telephony.satellite.stub.SatelliteModemEnableRequestAttributes;
+import android.telephony.satellite.stub.SatelliteNetworkInfo;
+import android.telephony.satellite.stub.PrioritizedNetworkScanRequest;
 
 /**
  * @hide
@@ -456,4 +458,105 @@ oneway interface ISatellite {
       */
      void updateSystemSelectionChannels(in List<SystemSelectionSpecifier> systemSelectionSpecifiers,
             in IIntegerConsumer resultCallback);
+
+     /**
+     * Request to suspend or resume satellite mode.
+     *
+     * @param enabled  {@code true} to enable suspension while satellite mode is on
+     * and {@code false} to resume satellite mode
+     * @param resultCallback The callback to receive the error code result of the operation.
+     */
+    void requestSatelliteSuspended(in boolean enabled,
+        in IIntegerConsumer errorCallback);
+
+    /**
+     * Set the satellite network information including PLMNs, supported technologies and
+     * frequencies.
+     *
+     * <p>This API replaces {@link #setSatellitePlmn} to provide more detailed information about
+     * satellite networks, such as satellite technology and frequencies, to help the modem
+     * prioritize network scanning.
+     *
+     * <p>MCC/MNC broadcast by the non-terrestrial networks may not be included in OPLMNwACT file on
+     * SIM profile. Acquisition of satellite based system is lower priority to terrestrial
+     * networks. UE shall make all attempts to acquire terrestrial service prior to camping on
+     * satellite service.
+     *
+     * One usecase in which modem can identify satellite PLMNs outside
+     * of {@code satelliteNetworkInfo.allowedPlmns} and {@code satelliteNetworkInfo.disallowedPlmns}
+     * is NR NTN Networks. The modem shall attempt to attach to any non-terrestrial network not
+     * defined in {@code satelliteNetworkInfo.allowedPlmns} as well as
+     * {@code satelliteNetworkInfo.disallowedPlmns} and wait for the attach response to confirm
+     * whether user is allowed to attach or not.
+     *
+     * @param simSlot Indicates the SIM slot to which this API will be applied. The modem will use
+     *                this information to determine the relevant carrier.
+     * @param satelliteNetworkInfo Configuration containing allowed and all known satellite PLMNs
+     *        with their respective technologies and frequencies.
+     * @param resultCallback The callback to receive the error code result of the operation.
+     *
+     * Valid result codes returned:
+     *   SatelliteResult:SATELLITE_RESULT_SUCCESS
+     *   SatelliteResult:SATELLITE_RESULT_SERVICE_ERROR
+     *   SatelliteResult:SATELLITE_RESULT_MODEM_ERROR
+     *   SatelliteResult:SATELLITE_RESULT_INVALID_MODEM_STATE
+     *   SatelliteResult:SATELLITE_RESULT_INVALID_ARGUMENTS
+     *   SatelliteResult:SATELLITE_RESULT_RADIO_NOT_AVAILABLE
+     *   SatelliteResult:SATELLITE_RESULT_REQUEST_NOT_SUPPORTED
+     *   SatelliteResult:SATELLITE_RESULT_NO_RESOURCES
+     */
+    void setSatelliteNetworkInfo(int simSlot, in SatelliteNetworkInfo satelliteNetworkInfo,
+            in IIntegerConsumer resultCallback);
+
+    /**
+     * Enable a prioritized scanning mode for specific networks.
+     * This is an optional API. If this API is implemented,
+     * {@link #disablePrioritizedNetworkScan} must also be implemented.
+     *
+     * <p>The modem shall prioritize scanning for the target networks,
+     * overriding standard power-saving back-off timers. This scanning must persist until
+     * an attachment is successful or the mode is explicitly disabled using
+     * {@link disablePrioritizedNetworkScan}. After successful attachment, if the network
+     * is lost, modem must go back to prioritized scanning.
+     *
+     * <p>The modem should do the prioritized scanning only when it is in out of service state.
+     * <p> Note: A "limited service" state is considered out-of-service for this operation.
+     * <p> Note: The cell reselection priority must not be changed based upon scanRequest.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     * @param scanRequest The prioritized scan request info.
+     * @param resultCallback The callback to receive the error code result of the operation.
+     *
+     * Valid result codes returned:
+     *   SatelliteResult:SATELLITE_RESULT_SUCCESS
+     *   SatelliteResult:SATELLITE_RESULT_SERVICE_ERROR
+     *   SatelliteResult:SATELLITE_RESULT_MODEM_ERROR
+     *   SatelliteResult:SATELLITE_RESULT_INVALID_MODEM_STATE
+     *   SatelliteResult:SATELLITE_RESULT_INVALID_ARGUMENTS
+     *   SatelliteResult:SATELLITE_RESULT_RADIO_NOT_AVAILABLE
+     *   SatelliteResult:SATELLITE_RESULT_REQUEST_NOT_SUPPORTED
+     *   SatelliteResult:SATELLITE_RESULT_NO_RESOURCES
+     */
+    void enablePrioritizedNetworkScan(int simSlot, in PrioritizedNetworkScanRequest scanRequest,
+            in IIntegerConsumer resultCallback);
+
+    /**
+     * Disable a prioritized scanning mode for specific networks.
+     * This is an optional API. It must be implemented if
+     * {@link #enablePrioritizedNetworkScan} is implemented.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     * @param resultCallback The callback to receive the error code result of the operation.
+     *
+     * Valid result codes returned:
+     *   SatelliteResult:SATELLITE_RESULT_SUCCESS
+     *   SatelliteResult:SATELLITE_RESULT_SERVICE_ERROR
+     *   SatelliteResult:SATELLITE_RESULT_MODEM_ERROR
+     *   SatelliteResult:SATELLITE_RESULT_INVALID_MODEM_STATE
+     *   SatelliteResult:SATELLITE_RESULT_INVALID_ARGUMENTS
+     *   SatelliteResult:SATELLITE_RESULT_RADIO_NOT_AVAILABLE
+     *   SatelliteResult:SATELLITE_RESULT_REQUEST_NOT_SUPPORTED
+     *   SatelliteResult:SATELLITE_RESULT_NO_RESOURCES
+     */
+    void disablePrioritizedNetworkScan(int simSlot, in IIntegerConsumer resultCallback);
 }

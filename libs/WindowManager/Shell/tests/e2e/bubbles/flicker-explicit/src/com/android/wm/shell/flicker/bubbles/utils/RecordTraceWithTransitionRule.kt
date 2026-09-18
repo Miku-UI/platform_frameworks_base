@@ -19,23 +19,20 @@ package com.android.wm.shell.flicker.bubbles.utils
 import android.tools.io.Reader
 import android.tools.traces.monitors.PerfettoTraceMonitor
 import android.tools.traces.monitors.ScreenRecorder
+import android.tools.traces.monitors.TraceMonitor
 import android.tools.traces.monitors.events.EventLogMonitor
 import android.tools.traces.monitors.withTracing
-import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.AssumptionViolatedException
 import org.junit.rules.TestRule
 import org.junit.runner.Description
-import org.junit.runners.model.MultipleFailureException
 import org.junit.runners.model.Statement
 
 /**
  * A [org.junit.ClassRule] to record trace with transition.
  *
  * @sample com.android.wm.shell.flicker.bubbles.samples.recordTraceWithTransitionRuleSample
- *
- * @property setUpBeforeTransition the operation to initialize the environment before transition
- *                                   if specified
+ * @property setUpBeforeTransition the operation to initialize the environment before transition if
+ *   specified
  * @property transition the transition to execute
  * @property tearDownAfterTransition the operation to clean up after transition if specified
  */
@@ -45,73 +42,62 @@ class RecordTraceWithTransitionRule(
     private val tearDownAfterTransition: () -> Unit = {},
 ) : TestRule {
 
-    /**
-     * The reader to read trace from.
-     */
+    /** The reader to read trace from. */
     lateinit var reader: Reader
 
     override fun apply(base: Statement, description: Description?): Statement {
         return object : Statement() {
+            @Throws(Throwable::class)
             override fun evaluate() {
-                val errors = ArrayList<Throwable>()
                 try {
                     recordTraceWithTransition()
-                } catch (e: Throwable) {
-                    errors.add(e)
                 } finally {
-                    // In case the crash during transition and test App is not removed.
                     tearDownAfterTransition()
                 }
 
-                try {
-                    // Ensure the base is executed even if #recordTraceWithTransition crashes.
-                    base.evaluate()
-                } catch (e: Throwable) {
-                    errors.add(e)
-                }
-                // If the tests should be skipped, don't need to throw exceptions.
-                if (!errors.any {e -> e is AssumptionViolatedException}) {
-                    MultipleFailureException.assertEmpty(errors)
-                }
+                base.evaluate()
             }
         }
     }
 
+    @Throws(Throwable::class)
     private fun recordTraceWithTransition() {
         setUpBeforeTransition()
-        reader = runTransitionWithTrace {
-            try {
-                transition()
-            } catch (e: Throwable) {
-                Log.e(TAG, "Transition is aborted due to the exception:\n $e", e)
-            }
-        }
+        reader = runTransitionWithTrace { transition() }
     }
 
     /**
      * A helper method to record the trace while [transition] is running.
      *
      * @sample com.android.wm.shell.flicker.bubbles.samples.runTransitionWithTraceSample
-     *
      * @param transition the transition to verify.
      * @return a [Reader] that can read the trace data from.
      */
     private fun runTransitionWithTrace(transition: () -> Unit): Reader =
         withTracing(
-            traceMonitors = listOf(
-                ScreenRecorder(InstrumentationRegistry.getInstrumentation().targetContext),
-                PerfettoTraceMonitor.newBuilder()
-                    .enableTransitionsTrace()
-                    .enableLayersTrace()
-                    .enableWindowManagerTrace()
-                    .enableViewCaptureTrace()
-                    .build(),
-                EventLogMonitor()
-            ),
-            predicate = transition
-        )
+            traceMonitors =
+                mutableListOf<TraceMonitor>(
+                    ScreenRecorder(InstrumentationRegistry.getInstrumentation().targetContext)
+                )
+                .apply {
+                    add(
+                        PerfettoTraceMonitor.newBuilder()
+                            .enableTransitionsTrace()
+                            .enableLayersTrace()
+                            .enableWindowManagerTrace()
+                            .enableViewCaptureTrace()
+                            .enableCujTrace()
+                            .enableProtoLog()
+                            .build()
+                    )
 
-    companion object {
-        private const val TAG = "TransitionRule"
-    }
+                    if (!android.tracing.Flags.nativeProtoLogging()) {
+                        // If native protologging is enabled, then we collect the focus events in
+                        // Perfetto through ProtoLog and don't need to collect event logs separately
+                        // for that data.
+                        add(EventLogMonitor())
+                    }
+                },
+            predicate = transition,
+        )
 }

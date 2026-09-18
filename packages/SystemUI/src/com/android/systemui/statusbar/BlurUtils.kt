@@ -146,9 +146,7 @@ constructor(
             SyncRtSurfaceTransactionApplier.SurfaceParams.Builder(viewRootImpl.surfaceControl)
         if (shouldBlur(radius)) {
             builder.withBackgroundBlurRadius(radius)
-            if (shouldScaleWithTransaction()) {
-                builder.withBackgroundBlurScale(scale)
-            }
+            builder.withBackgroundBlurScale(scale)
             if (lastAppliedBlur == 0 && radius != 0) {
                 Trace.instantForTrack(TRACE_TAG_APP, TRACK_NAME, "notifyRendererForGpuLoadUp")
                 viewRootImpl.notifyRendererForGpuLoadUp("applyBlur")
@@ -234,10 +232,6 @@ constructor(
                 supportsBlursOnWindowsBase() &&
                 lastAppliedBlur > 0 &&
                 radius == 0)
-    }
-
-    private fun shouldScaleWithTransaction(): Boolean {
-        return Flags.spatialModelAppPushback()
     }
 
     /**

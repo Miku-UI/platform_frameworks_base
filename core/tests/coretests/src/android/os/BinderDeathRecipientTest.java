@@ -26,7 +26,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.ArraySet;
 import android.util.Log;
 import android.util.Pair;
@@ -38,7 +37,6 @@ import com.android.frameworks.coretests.bdr_helper_app.TestCommsReceiver;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -63,8 +61,6 @@ public class BinderDeathRecipientTest {
     private static final String TEST_PACKAGE_NAME_2 =
             "com.android.frameworks.coretests.bdr_helper_app2";
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Context mContext;
     private Handler mHandler;

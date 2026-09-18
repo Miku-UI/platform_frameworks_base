@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_edit"
+        android:icon="@drawable/ic_edit"
+        android:title="@string/more_options_edit" />
+    <item
+        android:id="@+id/action_move"
+        android:icon="@drawable/ic_move"
+        android:title="@string/more_options_move" />
+    <item
+        android:id="@+id/action_remove_all"
+        android:icon="@drawable/ic_remove"
+        android:title="@string/more_options_remove_all" />
+</menu>

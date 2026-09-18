@@ -4,6 +4,7 @@ import android.util.FloatProperty
 import android.view.View
 import androidx.annotation.FloatRange
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.notification.SourceType.Companion.from
 import com.android.systemui.statusbar.notification.stack.AnimationProperties
 import com.android.systemui.statusbar.notification.stack.StackStateAnimator
 import kotlin.math.abs
@@ -275,7 +276,23 @@ interface Roundable {
 
     /** @return true if top or bottom roundness is not zero. */
     fun hasRoundedCorner(): Boolean {
-        return topRoundness != 0f || bottomRoundness != 0f
+        return hasRoundedTopCorners() || hasRoundedBottomCorners()
+    }
+
+    fun hasRoundedTopCorners(): Boolean {
+        return topRoundness > 0.5f
+    }
+
+    fun hasRoundedBottomCorners(): Boolean {
+        return bottomRoundness > 0.5f
+    }
+
+    fun getTopRoundnessSources(): Set<SourceType> {
+        return roundableState.topRoundnessMap.filter { it.value >= .5 }.keys
+    }
+
+    fun getBottomRoundnessSources(): Set<SourceType> {
+        return roundableState.bottomRoundnessMap.filter { it.value >= .5 }.keys
     }
 
     /**

@@ -17,10 +17,33 @@
 package com.android.systemui.qs.pipeline.domain.autoaddable
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.qs.pipeline.data.model.cellTileRestoreProcessor
 import com.android.systemui.qs.pipeline.data.model.workTileRestoreProcessor
+import com.android.systemui.qs.pipeline.data.repository.tileSpecRepository
+import com.android.systemui.qs.pipeline.domain.model.AutoAddable
 import com.android.systemui.settings.userTracker
+import com.android.systemui.statusbar.pipeline.shared.connectivityConstants
 
 val Kosmos.workTileAutoAddable by
     Kosmos.Fixture { WorkTileAutoAddable(userTracker, workTileRestoreProcessor) }
 
-var Kosmos.autoAddables by Kosmos.Fixture { setOf(workTileAutoAddable) }
+val Kosmos.cellAutoAddable by
+    Kosmos.Fixture {
+        CellAutoAddable(
+            connectivityConstants,
+            tileSpecRepository,
+            cellTileRestoreProcessor,
+            testDispatcher,
+        )
+    }
+
+var Kosmos.autoAddables by Kosmos.Fixture { mutableSetOf<AutoAddable>() }
+
+fun Kosmos.withWorkTileAutoAddable() {
+    autoAddables.add(workTileAutoAddable)
+}
+
+fun Kosmos.withCellAutoAddable() {
+    autoAddables.add(cellAutoAddable)
+}

@@ -24,6 +24,7 @@ enum class VolumePanelUiEvent(val metricId: Int) : UiEventLogger.UiEventEnum {
     @UiEvent(doc = "The volume panel is shown") VOLUME_PANEL_SHOWN(1634),
     @UiEvent(doc = "The volume panel is gone") VOLUME_PANEL_GONE(1635),
     @UiEvent(doc = "Media output is clicked") VOLUME_PANEL_MEDIA_OUTPUT_CLICKED(1636),
+    @UiEvent(doc = "Media input is clicked") VOLUME_PANEL_MEDIA_INPUT_CLICKED(2507),
     @UiEvent(doc = "Audio mode changed to normal") VOLUME_PANEL_AUDIO_MODE_CHANGE_TO_NORMAL(1680),
     @UiEvent(doc = "Audio mode changed to calling") VOLUME_PANEL_AUDIO_MODE_CHANGE_TO_CALLING(1681),
     @UiEvent(doc = "Sound settings is clicked") VOLUME_PANEL_SOUND_SETTINGS_CLICKED(1638),
@@ -36,6 +37,8 @@ enum class VolumePanelUiEvent(val metricId: Int) : UiEventLogger.UiEventEnum {
     @UiEvent(doc = "The alarm volume slider is touched") VOLUME_PANEL_ALARM_SLIDER_TOUCHED(1643),
     @UiEvent(doc = "The audio sharing volume slider is touched")
     VOLUME_PANEL_AUDIO_SHARING_SLIDER_TOUCHED(2068),
+    @UiEvent(doc = "The accessibility volume slider is touched")
+    VOLUME_PANEL_ACCESSIBILITY_SLIDER_TOUCHED(2528),
     @UiEvent(doc = "Live caption toggle is shown") VOLUME_PANEL_LIVE_CAPTION_TOGGLE_SHOWN(1644),
     @UiEvent(doc = "Live caption toggle is gone") VOLUME_PANEL_LIVE_CAPTION_TOGGLE_GONE(1645),
     @UiEvent(doc = "Live caption toggle is clicked") VOLUME_PANEL_LIVE_CAPTION_TOGGLE_CLICKED(1646),

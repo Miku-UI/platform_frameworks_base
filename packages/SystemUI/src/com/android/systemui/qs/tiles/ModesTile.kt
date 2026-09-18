@@ -133,6 +133,7 @@ constructor(
 
     override fun getDetailsViewModel(): TileDetailsViewModel {
         return ModesDetailsViewModel(
+            context = mContext,
             onSettingsClick = { userActionInteractor.handleLongClick(null) },
             viewModel = modesDialogViewModel,
         )

@@ -539,6 +539,20 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    fun defaultDisplayType_changes() =
+        testScope.runTest {
+            val defaultDisplayType by latestDefaultDisplayTypeFlowValue()
+
+            whenever(defaultDisplay.type).thenReturn(Display.TYPE_INTERNAL)
+            displayListener.value.onDisplayChanged(DEFAULT_DISPLAY)
+            assertThat(defaultDisplayType).isEqualTo(Display.TYPE_INTERNAL)
+
+            whenever(defaultDisplay.type).thenReturn(Display.TYPE_EXTERNAL)
+            displayListener.value.onDisplayChanged(DEFAULT_DISPLAY)
+            assertThat(defaultDisplayType).isEqualTo(Display.TYPE_EXTERNAL)
+        }
+
+    @Test
     fun displayFlow_startsWithDefaultDisplayBeforeAnyEvent() =
         testScope.runTest {
             setDisplays(DEFAULT_DISPLAY)
@@ -959,6 +973,13 @@ class DisplayRepositoryTest : SysuiTestCase() {
         return flowValue
     }
 
+    // Wrapper to capture the displayListener.
+    private fun TestScope.latestDefaultDisplayTypeFlowValue(): FlowValue<Int?> {
+        val flowValue = collectLastValue(displayRepository.defaultDisplayType)
+        captureAddedRemovedListener()
+        return flowValue
+    }
+
     private fun TestScope.lastPendingDisplay(): FlowValue<PendingDisplay?> {
         val flowValue = collectLastValue(displayRepository.pendingDisplay)
         captureAddedRemovedListener()
@@ -1008,6 +1029,14 @@ class DisplayRepositoryTest : SysuiTestCase() {
         whenever(displayManager.getDisplay(eq(id))).thenReturn(mockDisplay)
         displayListener.value.onDisplayAdded(id)
     }
+
+    // There is no test for isMirroringEnabled as we can't really set the Secure setting to true on
+    // real devices. It would require implement an abstraction just to mock this, which is not worth
+    // it. Note this abstraction is already there in SystemUI (SettingsProxy), but as this is from a
+    // different lib (displaylib), it's not worth duplicating it or moving it to a shared lib.
+    //
+    // @Test
+    // fun isMirroringEnabled_settingChange_propagated()
 
     private fun sendOnDisplayAdded(id: Int) {
         displayListener.value.onDisplayAdded(id)

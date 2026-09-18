@@ -60,7 +60,7 @@ import java.util.concurrent.ExecutionException;
 
 /**
  * A {@link TransportConnection} manages the connection to a {@link BackupTransportClient},
- * obtained via the {@param bindIntent} parameter provided in the constructor. A
+ * obtained via the {@code bindIntent} parameter provided in the constructor. A
  * {@link TransportConnection} is responsible for only one connection to the transport service,
  * not more.
  *
@@ -173,7 +173,7 @@ public class TransportConnection {
      * framework has not yet returned (meaning we're bound but still trying to connect) it won't
      * trigger another one, just piggyback on the original request.
      *
-     * <p>It's guaranteed that you are going to get a call back to {@param listener} after this
+     * <p>It's guaranteed that you are going to get a call back to {@code listener} after this
      * call. However, the {@link BackupTransportClient} parameter in
      * {@link TransportConnectionListener#onTransportConnectionResult(BackupTransportClient,
      * TransportConnection)}, the transport client, is not guaranteed to be non-null, or if it's

@@ -106,10 +106,7 @@ class WifiInteractorImplTest : SysuiTestCase() {
     fun ssid_unknownSsid_outputsNull() =
         testScope.runTest {
             wifiRepository.setWifiNetwork(
-                WifiNetworkModel.Active.of(
-                    level = 1,
-                    ssid = WifiManager.UNKNOWN_SSID,
-                )
+                WifiNetworkModel.Active.of(level = 1, ssid = WifiManager.UNKNOWN_SSID)
             )
 
             var latest: String? = "default"
@@ -125,10 +122,7 @@ class WifiInteractorImplTest : SysuiTestCase() {
     fun ssid_validSsid_outputsSsid() =
         testScope.runTest {
             wifiRepository.setWifiNetwork(
-                WifiNetworkModel.Active.of(
-                    level = 1,
-                    ssid = "MyAwesomeWifiNetwork",
-                )
+                WifiNetworkModel.Active.of(level = 1, ssid = "MyAwesomeWifiNetwork")
             )
 
             var latest: String? = null
@@ -186,11 +180,7 @@ class WifiInteractorImplTest : SysuiTestCase() {
     fun wifiNetwork_matchesRepoWifiNetwork() =
         testScope.runTest {
             val wifiNetwork =
-                WifiNetworkModel.Active.of(
-                    isValidated = true,
-                    level = 3,
-                    ssid = "AB",
-                )
+                WifiNetworkModel.Active.of(showExclamation = true, level = 3, ssid = "AB")
             wifiRepository.setWifiNetwork(wifiNetwork)
 
             var latest: WifiNetworkModel? = null
@@ -294,12 +284,7 @@ class WifiInteractorImplTest : SysuiTestCase() {
                     WifiScanEntry(ssid = "ssid 3"),
                 )
 
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.Active.of(
-                    ssid = "ssid 2",
-                    level = 2,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(ssid = "ssid 2", level = 2))
 
             assertThat(latest).isTrue()
         }
@@ -309,17 +294,9 @@ class WifiInteractorImplTest : SysuiTestCase() {
         testScope.runTest {
             val latest by collectLastValue(underTest.areNetworksAvailable)
 
-            wifiRepository.wifiScanResults.value =
-                listOf(
-                    WifiScanEntry(ssid = "ssid 2"),
-                )
+            wifiRepository.wifiScanResults.value = listOf(WifiScanEntry(ssid = "ssid 2"))
 
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.Active.of(
-                    ssid = "ssid 2",
-                    level = 2,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(ssid = "ssid 2", level = 2))
 
             assertThat(latest).isFalse()
         }

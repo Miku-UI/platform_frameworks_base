@@ -27,7 +27,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.keyguard.KeyguardWmStateRefactor
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -50,7 +49,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
@@ -85,7 +83,6 @@ constructor(
 
     override fun start() {
         listenForLockscreenToGone()
-        listenForLockscreenToGoneDragging()
         listenForLockscreenToOccludedOrDreaming()
         listenForLockscreenToAodOrDozing()
         listenForLockscreenToPrimaryBouncer()
@@ -126,21 +123,19 @@ constructor(
     }
 
     private fun listenForLockscreenToDreaming() {
-        if (KeyguardWmStateRefactor.isEnabled) {
-            return
-        }
+        if (SceneContainerFlag.isEnabled) return
 
         val invalidFromStates = setOf(KeyguardState.AOD, KeyguardState.DOZING)
         scope.launch("$TAG#listenForLockscreenToDreaming") {
-            keyguardInteractor.isAbleToDream.filterRelevantKeyguardState().collect { isAbleToDream
-                ->
+            keyguardInteractor.isDreamingNotDozing.filterRelevantKeyguardState().collect {
+                isDreaming ->
                 val isOnLockscreen =
                     transitionInteractor.finishedKeyguardState.value == KeyguardState.LOCKSCREEN
                 val transitionInfo = internalTransitionInteractor.currentTransitionInfoInternal()
                 val isTransitionInterruptible =
                     transitionInfo.to == KeyguardState.LOCKSCREEN &&
                         !invalidFromStates.contains(transitionInfo.from)
-                if (isAbleToDream && (isOnLockscreen || isTransitionInterruptible)) {
+                if (isDreaming && (isOnLockscreen || isTransitionInterruptible)) {
                     startTransitionTo(KeyguardState.DREAMING)
                 }
             }
@@ -274,6 +269,7 @@ constructor(
     }
 
     fun dismissKeyguard() {
+        if (SceneContainerFlag.isEnabled) return
         scope.launch("$TAG#dismissKeyguard") {
             startTransitionTo(KeyguardState.GONE, ownerReason = "#dismissKeyguard()")
         }
@@ -281,7 +277,6 @@ constructor(
 
     private fun listenForLockscreenToGone() {
         if (SceneContainerFlag.isEnabled) return
-        if (KeyguardWmStateRefactor.isEnabled) return
         scope.launch("$TAG#listenForLockscreenToGone") {
             keyguardInteractor.isKeyguardGoingAway
                 .filterRelevantKeyguardStateAnd { isKeyguardGoingAway -> isKeyguardGoingAway }
@@ -295,63 +290,29 @@ constructor(
         }
     }
 
-    private fun listenForLockscreenToGoneDragging() {
-        if (SceneContainerFlag.isEnabled) return
-        if (KeyguardWmStateRefactor.isEnabled) {
-            // When the refactor is enabled, we no longer use isKeyguardGoingAway.
-            scope.launch("$TAG#listenForLockscreenToGoneDragging") {
-                swipeToDismissInteractor.dismissFling
-                    .filterNotNull()
-                    .filterRelevantKeyguardState()
-                    .collect { _ ->
-                        startTransitionTo(KeyguardState.GONE, ownerReason = "dismissFling != null")
-                    }
-            }
-        }
-    }
-
     private fun listenForLockscreenToOccludedOrDreaming() {
         if (SceneContainerFlag.isEnabled) return
-        if (KeyguardWmStateRefactor.isEnabled) {
-            scope.launch("$TAG#listenForLockscreenToOccludedOrDreaming") {
-                keyguardOcclusionInteractor.showWhenLockedActivityInfo
-                    .filterRelevantKeyguardStateAnd { it.isOnTop }
-                    .collect { taskInfo ->
-                        startTransitionTo(
-                            if (taskInfo.isDream()) {
-                                KeyguardState.DREAMING
-                            } else {
-                                KeyguardState.OCCLUDED
-                            }
-                        )
+        scope.launch("$TAG#listenForLockscreenToOccludedOrDreaming") {
+            keyguardInteractor.isKeyguardOccluded
+                .filterRelevantKeyguardStateAnd { isOccluded -> isOccluded }
+                .collect { startTransitionTo(KeyguardState.OCCLUDED) }
+        }
+        // Safety check added for incoming phone calls while on AOD/DOZING. If a transition has
+        // begun to LOCKSCREEN but keyguard is occluded then make sure we change the transition
+        // to go to OCCLUDED. This intentionally uses the [startedKeyguardTransitionStep] to
+        // ensure that the transition has really begun
+        scope.launch("$TAG#listenForLockscreenToOccludedOrDreamingFailSafe") {
+            transitionInteractor.startedKeyguardTransitionStep
+                .filter {
+                    it.from != KeyguardState.OCCLUDED &&
+                        it.from != KeyguardState.DREAMING &&
+                        it.to == KeyguardState.LOCKSCREEN
+                }
+                .collect {
+                    if (keyguardInteractor.isKeyguardOccluded.value) {
+                        startTransitionTo(KeyguardState.OCCLUDED, ownerReason = "occluded failsafe")
                     }
-            }
-        } else {
-            scope.launch("$TAG#listenForLockscreenToOccludedOrDreaming") {
-                keyguardInteractor.isKeyguardOccluded
-                    .filterRelevantKeyguardStateAnd { isOccluded -> isOccluded }
-                    .collect { startTransitionTo(KeyguardState.OCCLUDED) }
-            }
-            // Safety check added for incoming phone calls while on AOD/DOZING. If a transition has
-            // begun to LOCKSCREEN but keyguard is occluded then make sure we change the transition
-            // to go to OCCLUDED. This intentionally uses the [startedKeyguardTransitionStep] to
-            // ensure that the transition has really begun
-            scope.launch("$TAG#listenForLockscreenToOccludedOrDreamingFailSafe") {
-                transitionInteractor.startedKeyguardTransitionStep
-                    .filter {
-                        it.from != KeyguardState.OCCLUDED &&
-                            it.from != KeyguardState.DREAMING &&
-                            it.to == KeyguardState.LOCKSCREEN
-                    }
-                    .collect {
-                        if (keyguardInteractor.isKeyguardOccluded.value) {
-                            startTransitionTo(
-                                KeyguardState.OCCLUDED,
-                                ownerReason = "occluded failsafe",
-                            )
-                        }
-                    }
-            }
+                }
         }
     }
 

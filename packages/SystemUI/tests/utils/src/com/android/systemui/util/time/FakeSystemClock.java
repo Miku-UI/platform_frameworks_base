@@ -18,6 +18,7 @@ package com.android.systemui.util.time;
 
 import com.android.systemui.util.concurrency.FakeExecutor;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,6 +70,10 @@ public class FakeSystemClock implements SystemClock {
 
     public void setCurrentTimeMillis(long millis) {
         mCurrentTimeMillis = millis;
+    }
+
+    public void setCurrentTime(Instant instant) {
+        mCurrentTimeMillis = instant.toEpochMilli();
     }
 
     public void setElapsedRealtime(long millis) {

@@ -24,8 +24,7 @@ import org.mockito.kotlin.mock
 /**
  * Tests for [NoOpTransitionHandler]
  *
- * Build/Install/Run:
- *   atest WMShellUnitTests:NoOpTransitionHandlerTest
+ * Build/Install/Run: atest WMShellUnitTests:NoOpTransitionHandlerTest
  */
 class NoOpTransitionHandlerTest : ShellTestCase() {
 

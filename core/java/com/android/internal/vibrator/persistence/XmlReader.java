@@ -31,6 +31,7 @@ import java.io.IOException;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class XmlReader {
 
     /**

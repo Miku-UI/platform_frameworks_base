@@ -83,6 +83,11 @@ public class FullScreenMagnificationPointerMotionEventFilter implements
             return new float[]{dx, dy};
         }
 
+        if (com.android.server.accessibility.Flags
+                .enableMagnificationViewportPrioritization()) {
+            mController.onCursorMoveViewport();
+        }
+
         final int currentMode = mMode.get();
         final boolean continuousMode =
                 currentMode == ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE_CONTINUOUS;

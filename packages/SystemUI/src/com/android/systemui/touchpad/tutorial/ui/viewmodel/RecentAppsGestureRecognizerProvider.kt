@@ -16,6 +16,7 @@
 
 package com.android.systemui.touchpad.tutorial.ui.viewmodel
 
+import com.android.systemui.Flags
 import com.android.systemui.res.R
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureRecognizer
 import com.android.systemui.touchpad.tutorial.ui.gesture.RecentAppsGestureRecognizer
@@ -35,7 +36,11 @@ constructor(val resources: TouchpadGestureResources, val velocityTracker: Veloci
             .distanceThreshold()
             .combine(
                 resources.velocityThreshold(
-                    R.dimen.touchpad_recent_apps_gesture_velocity_threshold
+                    if (Flags.touchpadGestureTutorialBugFixes()) {
+                        R.dimen.touchpad_home_gesture_velocity_threshold
+                    } else {
+                        R.dimen.touchpad_recent_apps_gesture_velocity_threshold
+                    }
                 ),
                 { distance, velocity -> distance to velocity },
             )

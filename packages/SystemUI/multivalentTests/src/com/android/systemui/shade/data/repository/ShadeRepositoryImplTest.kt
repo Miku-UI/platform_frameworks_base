@@ -20,6 +20,8 @@ import android.graphics.Rect
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.dump.DumpManager
+import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -34,7 +36,7 @@ class ShadeRepositoryImplTest : SysuiTestCase() {
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)
 
-    private val underTest by lazy { ShadeRepositoryImpl(testScope) }
+    private val underTest by lazy { ShadeRepositoryImpl(testScope, mock<DumpManager>()) }
 
     @Test
     fun setShadeOverlayBounds_notifiesListener() =

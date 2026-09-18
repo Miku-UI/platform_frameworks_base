@@ -19,34 +19,33 @@ package com.android.wm.shell.flicker.exit
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher.Companion.DESKTOP_WALLPAPER_ACTIVITY
+import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appWindowBecomesInvisible
-import com.android.wm.shell.flicker.utils.appWindowOnTopAtStart
 import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
+import com.android.wm.shell.flicker.utils.appWindowOnTopAtStart
 import com.android.wm.shell.flicker.utils.layerCoversFullScreenAtEnd
 import com.android.wm.shell.scenarios.ExitDesktopWithDragToTopDragZone
-import com.android.wm.shell.Utils
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Exit the app in desktop mode to full screen by dragging it to the top drag zone.
- */
+/** Exit the app in desktop mode to full screen by dragging it to the top drag zone. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class ExitDesktopToFullScreenWithDragToTopDragZoneFlickerTest(flicker: FlickerTest) :
     DesktopModeBaseTest(flicker) {
-    inner class ExitDesktopToFullScreenWithDragToTopDragZoneScenario : ExitDesktopWithDragToTopDragZone(flicker.scenario.startRotation)
+    inner class ExitDesktopToFullScreenWithDragToTopDragZoneScenario :
+        ExitDesktopWithDragToTopDragZone(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -56,25 +55,16 @@ class ExitDesktopToFullScreenWithDragToTopDragZoneFlickerTest(flicker: FlickerTe
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.exitDesktopWithDragToTopDragZone()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.exitDesktopWithDragToTopDragZone() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(testApp)
+    @Test fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(testApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
 
-    @Test
-    fun layerCoversFullScreenAtEnd() = flicker.layerCoversFullScreenAtEnd(testApp)
+    @Test fun layerCoversFullScreenAtEnd() = flicker.layerCoversFullScreenAtEnd(testApp)
 
     @Test
     fun wallpaperBecomesInvisible() = flicker.appWindowBecomesInvisible(DESKTOP_WALLPAPER_ACTIVITY)

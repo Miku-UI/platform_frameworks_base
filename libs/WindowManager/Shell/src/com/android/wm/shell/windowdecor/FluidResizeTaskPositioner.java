@@ -18,9 +18,13 @@ package com.android.wm.shell.windowdecor;
 
 import static android.view.WindowManager.TRANSIT_CHANGE;
 
+import static com.android.internal.jank.Cuj.CUJ_DESKTOP_MODE_DRAG_WINDOW;
+import static com.android.internal.jank.Cuj.CUJ_DESKTOP_MODE_RESIZE_WINDOW;
+
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.os.Handler;
 import android.os.IBinder;
 import android.view.Surface;
 import android.view.SurfaceControl;
@@ -31,12 +35,16 @@ import android.window.WindowContainerTransaction;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.internal.jank.Cuj;
+import com.android.internal.jank.InteractionJankMonitor;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.DisplayController;
+import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.shared.desktopmode.DesktopState;
 import com.android.wm.shell.transition.Transitions;
 
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -52,10 +60,14 @@ import java.util.function.Supplier;
  * callback.
  */
 class FluidResizeTaskPositioner implements TaskPositioner, Transitions.TransitionHandler {
+    // Timeout used for resize and drag CUJs, this is longer than the default timeout to avoid
+    // timing out in the middle of a resize or drag action.
+    private static final long LONG_CUJ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10L);
     private final ShellTaskOrganizer mTaskOrganizer;
     private final Transitions mTransitions;
     private final WindowDecorationWrapper mWindowDecoration;
     private final Supplier<SurfaceControl.Transaction> mTransactionSupplier;
+    private final InteractionJankMonitor mInteractionJankMonitor;
     private DisplayController mDisplayController;
     private ArrayList<DragPositioningCallbackUtility.DragEventListener> mDragEventListeners =
             new ArrayList<>();
@@ -63,18 +75,23 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
     private final Rect mTaskBoundsAtDragStart = new Rect();
     private final PointF mRepositionStartPoint = new PointF();
     private final Rect mRepositionTaskBounds = new Rect();
+    private final DragPositioningCallbackUtility.ChangeBoundsResult mChangeBoundsResult =
+            new DragPositioningCallbackUtility.ChangeBoundsResult();
     private final DesktopState mDesktopState;
     private boolean mHasDragResized;
     private boolean mIsResizingOrAnimatingResize;
     private int mCtrlType;
     private IBinder mDragResizeEndTransition;
     @Surface.Rotation private int mRotation;
+    @ShellMainThread
+    private final Handler mHandler;
 
     FluidResizeTaskPositioner(ShellTaskOrganizer taskOrganizer, Transitions transitions,
             WindowDecorationWrapper windowDecoration, DisplayController displayController,
-            DesktopState desktopState) {
+            DesktopState desktopState, InteractionJankMonitor interactionJankMonitor,
+            @ShellMainThread Handler handler) {
         this(taskOrganizer, transitions, windowDecoration, displayController,
-                SurfaceControl.Transaction::new, desktopState);
+                SurfaceControl.Transaction::new, desktopState, interactionJankMonitor, handler);
     }
 
     FluidResizeTaskPositioner(ShellTaskOrganizer taskOrganizer,
@@ -82,13 +99,16 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
             WindowDecorationWrapper windowDecoration,
             DisplayController displayController,
             Supplier<SurfaceControl.Transaction> supplier,
-            DesktopState desktopState) {
+            DesktopState desktopState, InteractionJankMonitor interactionJankMonitor,
+            @ShellMainThread Handler handler) {
         mTaskOrganizer = taskOrganizer;
         mTransitions = transitions;
         mWindowDecoration = windowDecoration;
         mDisplayController = displayController;
         mTransactionSupplier = supplier;
         mDesktopState = desktopState;
+        mInteractionJankMonitor = interactionJankMonitor;
+        mHandler = handler;
     }
 
     @Override
@@ -98,6 +118,11 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
         mTaskBoundsAtDragStart.set(
                 mWindowDecoration.getTaskInfo().configuration.windowConfiguration.getBounds());
         mRepositionStartPoint.set(x, y);
+        if (isResizing()) {
+            // Capture CUJ for re-sizing window in DW mode.
+            mInteractionJankMonitor.begin(
+                    createLongTimeoutJankConfigBuilder(CUJ_DESKTOP_MODE_RESIZE_WINDOW));
+        }
         mRepositionTaskBounds.set(mTaskBoundsAtDragStart);
         int rotation = mWindowDecoration
                 .getTaskInfo().configuration.windowConfiguration.getDisplayRotation();
@@ -113,10 +138,10 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
     public Rect onDragPositioningMove(int displayId, float x, float y) {
         final WindowContainerTransaction wct = new WindowContainerTransaction();
         PointF delta = DragPositioningCallbackUtility.calculateDelta(x, y, mRepositionStartPoint);
-        if (isResizing() && DragPositioningCallbackUtility.changeBounds(mCtrlType,
-                mRepositionTaskBounds, mTaskBoundsAtDragStart, mStableBounds, delta,
-                mDisplayController, mWindowDecoration,
-                mDesktopState.canEnterDesktopMode())) {
+        DragPositioningCallbackUtility.changeBounds(mCtrlType, mRepositionTaskBounds,
+                mTaskBoundsAtDragStart, mStableBounds, delta, mDisplayController, mWindowDecoration,
+                mDesktopState.canEnterDesktopMode(), mChangeBoundsResult);
+        if (isResizing() && mChangeBoundsResult.boundsChanged) {
             // The task is being resized, send the |dragResizing| hint to core with the first
             // bounds-change wct.
             if (!mHasDragResized) {
@@ -132,6 +157,9 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
             mHasDragResized = true;
             mIsResizingOrAnimatingResize = true;
         } else if (mCtrlType == CTRL_TYPE_UNDEFINED) {
+            // Begin window drag CUJ instrumentation only when drag position moves.
+            mInteractionJankMonitor.begin(
+                    createLongTimeoutJankConfigBuilder(CUJ_DESKTOP_MODE_DRAG_WINDOW));
             final SurfaceControl.Transaction t = mTransactionSupplier.get();
             DragPositioningCallbackUtility.setPositionOnDrag(mWindowDecoration,
                     mRepositionTaskBounds, mTaskBoundsAtDragStart, mRepositionStartPoint, t, x, y);
@@ -149,15 +177,17 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
             wct.setDragResizing(mWindowDecoration.getTaskInfo().token, false /* dragResizing */);
             PointF delta = DragPositioningCallbackUtility.calculateDelta(x, y,
                     mRepositionStartPoint);
-            if (DragPositioningCallbackUtility.changeBounds(mCtrlType, mRepositionTaskBounds,
+            DragPositioningCallbackUtility.changeBounds(mCtrlType, mRepositionTaskBounds,
                     mTaskBoundsAtDragStart, mStableBounds, delta, mDisplayController,
-                    mWindowDecoration, mDesktopState.canEnterDesktopMode())) {
+                    mWindowDecoration, mDesktopState.canEnterDesktopMode(), mChangeBoundsResult);
+            if (mChangeBoundsResult.boundsChanged) {
                 wct.setBounds(mWindowDecoration.getTaskInfo().token, mRepositionTaskBounds);
             }
             mDragResizeEndTransition = mTransitions.startTransition(TRANSIT_CHANGE, wct, this);
         } else if (mCtrlType == CTRL_TYPE_UNDEFINED) {
             DragPositioningCallbackUtility.updateTaskBounds(mRepositionTaskBounds,
                     mTaskBoundsAtDragStart, mRepositionStartPoint, x, y);
+            mInteractionJankMonitor.end(CUJ_DESKTOP_MODE_DRAG_WINDOW);
         }
 
         mTaskBoundsAtDragStart.setEmpty();
@@ -173,6 +203,14 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
     private boolean isResizing() {
         return (mCtrlType & CTRL_TYPE_TOP) != 0 || (mCtrlType & CTRL_TYPE_BOTTOM) != 0
                 || (mCtrlType & CTRL_TYPE_LEFT) != 0 || (mCtrlType & CTRL_TYPE_RIGHT) != 0;
+    }
+
+    private InteractionJankMonitor.Configuration.Builder createLongTimeoutJankConfigBuilder(
+            @Cuj.CujType int cujType) {
+        return InteractionJankMonitor.Configuration.Builder
+                .withSurface(cujType, mWindowDecoration.getDecorWindowContext(),
+                        mWindowDecoration.getTaskSurface(), mHandler)
+                .setTimeout(LONG_CUJ_TIMEOUT_MS);
     }
 
     @Override
@@ -196,6 +234,9 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
             mDragResizeEndTransition = null;
         }
         finishCallback.onTransitionFinished(null);
+        // This is only called when drag resize ends as the class is working as the transition
+        // handler of the drag resize end event only.
+        mInteractionJankMonitor.end(CUJ_DESKTOP_MODE_RESIZE_WINDOW);
         return true;
     }
 
@@ -216,6 +257,7 @@ class FluidResizeTaskPositioner implements TaskPositioner, Transitions.Transitio
         if (transition.equals(mDragResizeEndTransition)) {
             mIsResizingOrAnimatingResize = false;
             mDragResizeEndTransition = null;
+            mInteractionJankMonitor.end(CUJ_DESKTOP_MODE_RESIZE_WINDOW);
         }
     }
 

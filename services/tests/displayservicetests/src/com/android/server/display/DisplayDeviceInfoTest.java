@@ -16,6 +16,10 @@
 
 package com.android.server.display;
 
+import static android.view.Display.Mode.FLAG_ANISOTROPY_CORRECTION;
+import static android.view.Display.Mode.FLAG_SIZE_OVERRIDE;
+import static android.view.Display.Mode.INVALID_MODE_ID;
+
 import static com.android.server.display.DisplayDeviceInfo.DIFF_COLOR_MODE;
 import static com.android.server.display.DisplayDeviceInfo.DIFF_COMMITTED_STATE;
 import static com.android.server.display.DisplayDeviceInfo.DIFF_HDR_SDR_RATIO;
@@ -29,8 +33,8 @@ import static com.google.common.truth.Truth.assertThat;
 import android.view.Display;
 import android.view.Surface;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -125,6 +129,89 @@ public class DisplayDeviceInfoTest {
 
         newDdi.modeId = 9;
         assertThat(oldDdi.diff(newDdi)).isEqualTo(DIFF_MODE_ID);
+    }
+
+    @Test
+    public void testDisplayModeForSizeOverride_noUserPreferredMode() {
+        var ddi = createInfo();
+
+        assertThat(ddi.getDisplayModeForSizeOverride()).isNull();
+    }
+
+    @Test
+    public void testDisplayModeForSizeOverride_sizeOverride() {
+        var ddi = createInfo();
+        var mode = TestUtilsKt.createDisplayMode(
+                /* id= */ 1, /* parentId= */ 2, /* sfModeId= */ INVALID_MODE_ID,
+                FLAG_SIZE_OVERRIDE, 100, 100);
+        ddi.supportedModes = new Display.Mode[] { mode };
+        ddi.userPreferredModeId = mode.getModeId();
+
+        assertThat(ddi.getDisplayModeForSizeOverride()).isEqualTo(mode);
+    }
+
+    @Test
+    public void testDisplayModeForSizeOverride_sizeOverrideNotMatching() {
+        var ddi = createInfo();
+        var mode1 = TestUtilsKt.createDisplayMode(
+                /* id= */ 1, /* parentId= */ 2, /* sfModeId= */ INVALID_MODE_ID,
+                FLAG_SIZE_OVERRIDE, 100, 100);
+        ddi.supportedModes = new Display.Mode[] { mode1 };
+        ddi.userPreferredModeId = 100;
+
+        assertThat(ddi.getDisplayModeForSizeOverride()).isNull();
+    }
+
+    @Test
+    public void testDisplayModeForSizeOverride_anisotropyCorrected_baseModeActive() {
+        var ddi = createInfo();
+        var baseMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 1, /* parentId= */ INVALID_MODE_ID, /* sfModeId= */ INVALID_MODE_ID,
+                0, 100, 100);
+        var anisotropyCorrectedMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 2, /* parentId= */ 1, /* sfModeId= */ INVALID_MODE_ID,
+                FLAG_ANISOTROPY_CORRECTION, 200, 200);
+        ddi.supportedModes = new Display.Mode[] { baseMode, anisotropyCorrectedMode };
+        ddi.userPreferredModeId = anisotropyCorrectedMode.getModeId();
+        ddi.modeId = baseMode.getModeId();
+
+        assertThat(ddi.getDisplayModeForSizeOverride()).isEqualTo(anisotropyCorrectedMode);
+    }
+
+    @Test
+    public void testDisplayModeForSizeOverride_anisotropyCorrected_matchingSizeModeActive() {
+        var ddi = createInfo();
+        var baseMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 1, /* parentId= */ INVALID_MODE_ID, /* sfModeId= */ INVALID_MODE_ID,
+                0, 100, 100);
+        var anisotropyCorrectedMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 2, /* parentId= */ 1, /* sfModeId= */ INVALID_MODE_ID,
+                FLAG_ANISOTROPY_CORRECTION, 200, 200);
+        var matchingSizeMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 3, /* parentId= */ INVALID_MODE_ID, /* sfModeId= */ INVALID_MODE_ID,
+                0, 100, 100);
+        ddi.supportedModes = new Display.Mode[] { baseMode, anisotropyCorrectedMode,
+                matchingSizeMode };
+        ddi.userPreferredModeId = anisotropyCorrectedMode.getModeId();
+        ddi.modeId = matchingSizeMode.getModeId();
+
+        assertThat(ddi.getDisplayModeForSizeOverride()).isEqualTo(anisotropyCorrectedMode);
+    }
+
+    @Test
+    public void testDisplayModeForSizeOverride_anisotropyCorrected_baseModeNotActive() {
+        var ddi = createInfo();
+        var baseMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 1, /* parentId= */ INVALID_MODE_ID, /* sfModeId= */ INVALID_MODE_ID,
+                0, 100, 100);
+        var anisotropyCorrectedMode = TestUtilsKt.createDisplayMode(
+                /* id= */ 2, /* parentId= */ 1, /* sfModeId= */ INVALID_MODE_ID,
+                FLAG_ANISOTROPY_CORRECTION, 200, 200);
+        ddi.supportedModes = new Display.Mode[] { baseMode, anisotropyCorrectedMode };
+        ddi.userPreferredModeId = anisotropyCorrectedMode.getModeId();
+        ddi.modeId = 100;
+
+        assertThat(ddi.getDisplayModeForSizeOverride()).isNull();
     }
 
     private static DisplayDeviceInfo createInfo() {

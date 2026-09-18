@@ -34,7 +34,7 @@ enum class BundleInteractedEvent(private val _id: Int) : UiEventLogger.UiEventEn
 
 class BundleInteractionLogger @Inject constructor() {
 
-    fun logBundleExpansionChanged(@Adjustment.Types bundleType: Int, nowExpanded: Boolean) {
+    fun logBundleExpansionChanged(bundleType: Int, nowExpanded: Boolean) {
         FrameworkStatsLog.write(
             FrameworkStatsLog.NOTIFICATION_BUNDLE_INTERACTED,
             /* optional int32 event_id */ if (nowExpanded)

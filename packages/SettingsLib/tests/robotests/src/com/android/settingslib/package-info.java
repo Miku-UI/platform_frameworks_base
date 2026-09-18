@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-@LooperMode(LooperMode.Mode.LEGACY)
+@LooperMode(LooperMode.Mode.PAUSED)
 package com.android.settingslib;
 
 import org.robolectric.annotation.LooperMode;

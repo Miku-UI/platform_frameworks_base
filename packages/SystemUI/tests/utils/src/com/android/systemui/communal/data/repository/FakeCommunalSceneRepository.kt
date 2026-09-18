@@ -6,6 +6,7 @@ import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
 import com.android.systemui.communal.shared.model.CommunalScenes
+import com.android.systemui.lifecycle.HydratedActivatable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -22,22 +23,11 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class FakeCommunalSceneRepository(
     private val applicationScope: CoroutineScope,
-    override val currentScene: MutableStateFlow<SceneKey> =
-        MutableStateFlow(CommunalScenes.Default),
-    override val currentOverlays: MutableStateFlow<Set<OverlayKey>> = MutableStateFlow(emptySet()),
-) : CommunalSceneRepository {
+    override val currentScene: MutableStateFlow<SceneKey> = MutableStateFlow(CommunalScenes.Default),
+) : CommunalSceneRepository, HydratedActivatable() {
 
     override fun changeScene(toScene: SceneKey, transitionKey: TransitionKey?) =
         instantlyTransitionTo(scene = toScene)
-
-    override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
-
-    override fun hideOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
-
-    override fun replaceOverlay(from: OverlayKey, to: OverlayKey, transitionKey: TransitionKey?) =
-        Unit
-
-    override fun freezeAndAnimateToCurrentState() = Unit
 
     override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) {
         applicationScope.launch {
@@ -45,10 +35,9 @@ class FakeCommunalSceneRepository(
                 currentScene.value = scene
             }
             if (overlays != null) {
-                currentOverlays.value = overlays
+                throw UnsupportedOperationException("Overlays aren't supported in ")
             }
-            _transitionState.value =
-                flowOf(ObservableTransitionState.Idle(currentScene.value, currentOverlays.value))
+            _transitionState.value = flowOf(ObservableTransitionState.Idle(currentScene.value))
         }
     }
 
@@ -56,10 +45,9 @@ class FakeCommunalSceneRepository(
         instantlyTransitionTo(CommunalScenes.Communal)
     }
 
-    private val defaultTransitionState =
-        ObservableTransitionState.Idle(currentScene.value, currentOverlays.value)
+    private val defaultTransitionState = ObservableTransitionState.Idle(currentScene.value)
     private val _transitionState = MutableStateFlow<Flow<ObservableTransitionState>?>(null)
-    override val transitionState: StateFlow<ObservableTransitionState> =
+    override val transitionStateFlow: StateFlow<ObservableTransitionState> =
         _transitionState
             .flatMapLatest { innerFlowOrNull -> innerFlowOrNull ?: flowOf(defaultTransitionState) }
             .stateIn(

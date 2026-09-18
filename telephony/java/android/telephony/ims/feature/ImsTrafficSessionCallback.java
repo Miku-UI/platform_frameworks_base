@@ -16,17 +16,13 @@
 
 package android.telephony.ims.feature;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-
-import com.android.internal.telephony.flags.Flags;
 
 /**
  * A callback class used to receive the result of {@link MmTelFeature#startImsTrafficSession}.
  * @hide
  */
-@FlaggedApi(Flags.FLAG_SUPPORT_IMS_MMTEL_INTERFACE)
 @SystemApi
 public interface ImsTrafficSessionCallback {
 

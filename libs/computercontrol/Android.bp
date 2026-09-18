@@ -47,3 +47,42 @@ prebuilt_etc {
     src: "computercontrol.extension.xml",
     filename_from_src: true,
 }
+
+droidstubs {
+    name: "computercontrol.extension.stubs",
+    srcs: [
+        "src/com/android/extensions/computercontrol/**/*.java",
+    ],
+    libs: [
+        "androidx.annotation_annotation",
+        "framework",
+    ],
+    flags: [
+        "--hide InternalClasses",
+        "--hide UnflaggedApi",
+    ],
+    check_api: {
+        current: {
+            api_file: "api_extension/current.txt",
+            removed_api_file: "api_extension/removed.txt",
+        },
+        last_released: {
+            api_file: ":computercontrol.extension.api.latest",
+            removed_api_file: "api_extension/removed.txt",
+            baseline_file: "api_extension/incompatibilities.txt",
+        },
+        api_lint: {
+            enabled: true,
+            new_since: ":computercontrol.extension.api.latest",
+        },
+    },
+}
+
+genrule {
+    name: "computercontrol.extension.api.latest",
+    srcs: ["api_extension/*.txt"],
+    cmd: "cp -f $$(echo $(in) | tr ' ' '\\n' | sort -n | grep '[0-9][.]txt$$' | tail -1) $(genDir)/last-released-api.txt",
+    out: [
+        "last-released-api.txt",
+    ],
+}

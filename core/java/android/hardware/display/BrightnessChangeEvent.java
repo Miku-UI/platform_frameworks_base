@@ -28,7 +28,7 @@ import java.util.Objects;
 /**
  * Data about a brightness settings change.
  *
- * {@see DisplayManager.getBrightnessEvents()}
+ * @see DisplayManager#getBrightnessEvents()
  * @hide
  */
 @SystemApi
@@ -36,12 +36,15 @@ public final class BrightnessChangeEvent implements Parcelable {
     /** Brightness in nits */
     public final float brightness;
 
-    /** Timestamp of the change {@see System.currentTimeMillis()} */
+    /**
+     * Timestamp of the change.
+     * @see System#currentTimeMillis()
+     */
     public final long timeStamp;
 
     /** Package name of focused activity when brightness was changed.
-     *  This will be null if the caller of {@see DisplayManager.getBrightnessEvents()}
-     *  does not have access to usage stats {@see UsageStatsManager} */
+     *  This will be null if the caller of {@link DisplayManager#getBrightnessEvents()}
+     *  does not have access to usage stats see {@link android.app.usage.UsageStatsManager} */
     public final String packageName;
 
     /** User id of of the user running when brightness was changed.
@@ -55,7 +58,10 @@ public final class BrightnessChangeEvent implements Parcelable {
     /** Lux values of recent sensor data */
     public final float[] luxValues;
 
-    /** Timestamps of the lux sensor readings {@see System.currentTimeMillis()} */
+    /**
+     * Timestamps of the lux sensor readings.
+     * @see System#currentTimeMillis()
+     */
     public final long[] luxTimestamps;
 
     /** Most recent battery level when brightness was changed or Float.NaN */
@@ -108,7 +114,7 @@ public final class BrightnessChangeEvent implements Parcelable {
      * For example if we had {100, 50, 30, 20}, value component was onscreen for 100 pixel
      * milliseconds in range 0x00->0x3F, 30 pixel milliseconds in range 0x40->0x7F, etc.
      *
-     * {@see #colorSampleDuration}
+     * @see #colorSampleDuration
      */
     @Nullable
     public final long[] colorValueBuckets;
@@ -118,7 +124,7 @@ public final class BrightnessChangeEvent implements Parcelable {
      * not support color sampling or {@link BrightnessConfiguration#shouldCollectColorSamples()} is
      * false the value will be 0L.
      *
-     * {@see #colorValueBuckets}
+     * @see #colorValueBuckets
      */
     public final long colorSampleDuration;
 
@@ -281,110 +287,112 @@ public final class BrightnessChangeEvent implements Parcelable {
         private long[] mColorValueBuckets;
         private long mColorSampleDuration;
 
-        /** {@see BrightnessChangeEvent#brightness} */
+        /** @see BrightnessChangeEvent#brightness */
         public Builder setBrightness(float brightness) {
             mBrightness = brightness;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#timeStamp} */
+        /** @see BrightnessChangeEvent#timeStamp */
         public Builder setTimeStamp(long timeStamp) {
             mTimeStamp = timeStamp;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#packageName} */
+        /** @see BrightnessChangeEvent#packageName */
         public Builder setPackageName(String packageName) {
             mPackageName = packageName;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#userId} */
+        /** @see BrightnessChangeEvent#userId */
         public Builder setUserId(int userId) {
             mUserId = userId;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#uniqueScreenId} */
+        /** @see BrightnessChangeEvent#uniqueScreenId */
         public Builder setUniqueDisplayId(String uniqueId) {
             mUniqueDisplayId = uniqueId;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#luxValues} */
+        /** @see BrightnessChangeEvent#luxValues */
         public Builder setLuxValues(float[] luxValues) {
             mLuxValues = luxValues;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#luxTimestamps} */
+        /** @see BrightnessChangeEvent#luxTimestamps */
         public Builder setLuxTimestamps(long[] luxTimestamps) {
             mLuxTimestamps = luxTimestamps;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#batteryLevel} */
+        /** @see BrightnessChangeEvent#batteryLevel */
         public Builder setBatteryLevel(float batteryLevel) {
             mBatteryLevel = batteryLevel;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#powerSaveBrightness} */
+        /** @see BrightnessChangeEvent#powerSaveBrightness */
         public Builder setPowerBrightnessFactor(float powerBrightnessFactor) {
             mPowerBrightnessFactor = powerBrightnessFactor;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#nightMode} */
+        /** @see BrightnessChangeEvent#nightMode */
         public Builder setNightMode(boolean nightMode) {
             mNightMode = nightMode;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#colorTemperature} */
+        /** @see BrightnessChangeEvent#colorTemperature */
         public Builder setColorTemperature(int colorTemperature) {
             mColorTemperature = colorTemperature;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#reduceBrightColors} */
+        /** @see BrightnessChangeEvent#reduceBrightColors */
         public Builder setReduceBrightColors(boolean reduceBrightColors) {
             mReduceBrightColors = reduceBrightColors;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#reduceBrightColorsStrength} */
+        /** @see BrightnessChangeEvent#reduceBrightColorsStrength */
         public Builder setReduceBrightColorsStrength(int strength) {
             mReduceBrightColorsStrength = strength;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#reduceBrightColorsOffset} */
+        /** @see BrightnessChangeEvent#reduceBrightColorsOffset */
         public Builder setReduceBrightColorsOffset(float offset) {
             mReduceBrightColorsOffset = offset;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#lastBrightness} */
+        /** @see BrightnessChangeEvent#lastBrightness */
         public Builder setLastBrightness(float lastBrightness) {
             mLastBrightness = lastBrightness;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#isDefaultBrightnessConfig} */
+        /** @see BrightnessChangeEvent#isDefaultBrightnessConfig */
         public Builder setIsDefaultBrightnessConfig(boolean isDefaultBrightnessConfig) {
             mIsDefaultBrightnessConfig = isDefaultBrightnessConfig;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#userBrightnessPoint} */
+        /** @see BrightnessChangeEvent#userBrightnessPoint */
         public Builder setUserBrightnessPoint(boolean isUserSetBrightness) {
             mIsUserSetBrightness = isUserSetBrightness;
             return this;
         }
 
-        /** {@see BrightnessChangeEvent#colorValueBuckets}
-         *  {@see BrightnessChangeEvent#colorSampleDuration} */
+        /**
+         * @see BrightnessChangeEvent#colorValueBuckets
+         * @see BrightnessChangeEvent#colorSampleDuration
+         */
         public Builder setColorValues(@NonNull long[] colorValueBuckets, long colorSampleDuration) {
             Objects.requireNonNull(colorValueBuckets);
             mColorValueBuckets = colorValueBuckets;

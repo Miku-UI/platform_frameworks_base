@@ -49,6 +49,7 @@ import android.view.WindowlessWindowManager;
 import android.view.inputmethod.ImeTracker;
 
 import com.android.internal.os.IResultReceiver;
+import com.android.internal.view.WindowClientTransactionHandler;
 
 import java.util.HashMap;
 
@@ -133,7 +134,7 @@ public class SystemWindows {
     }
 
     /**
-     * Sets the accessibility window for the given {@param shellRootLayer}.
+     * Sets the accessibility window for the given {@code shellRootLayer}.
      */
     public void setShellRootAccessibilityWindow(int displayId,
             @WindowManager.ShellRootLayer int shellRootLayer, View view) {
@@ -338,7 +339,7 @@ public class SystemWindows {
         }
     }
 
-    static class ContainerWindow extends IWindow.Stub {
+    static class ContainerWindow extends WindowClientTransactionHandler {
         ContainerWindow() {}
 
         @Override
@@ -383,9 +384,6 @@ public class SystemWindows {
         public void dispatchDragEvent(DragEvent event) {}
 
         @Override
-        public void dispatchWindowShown() {}
-
-        @Override
         public void requestAppKeyboardShortcuts(IResultReceiver receiver, int deviceId) {}
 
         @Override
@@ -405,5 +403,19 @@ public class SystemWindows {
         public void dumpWindow(ParcelFileDescriptor pfd) {
 
         }
+
+        @Override
+        public void dispatchScrollToTop(int x) {
+            // no-op
+        }
+
+        @Override
+        public void requestHardwareRendererOutputDisabled(boolean disabled) {}
+
+        @Override
+        public void requestViewAnimationsDisabled(boolean disabled) {}
+
+        @Override
+        public void requestAccessibilityEmbeddedConnection(IResultReceiver receiver) {}
     }
 }

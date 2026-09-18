@@ -31,6 +31,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.UserHandle;
 import android.test.mock.MockContext;
 import android.util.ArrayMap;
@@ -255,6 +256,8 @@ public class DpmMockContext extends MockContext {
                 return mMockSystemServices.usbManager;
             case Context.EUICC_SERVICE:
                 return mMockSystemServices.euiccManager;
+            case Context.ACCESSIBILITY_SERVICE:
+                return mMockSystemServices.accessibilityManagerInternal;
         }
         throw new UnsupportedOperationException();
     }
@@ -530,6 +533,11 @@ public class DpmMockContext extends MockContext {
     @Override
     public Executor getMainExecutor() {
         return mMockSystemServices.executor;
+    }
+
+    @Override
+    public Looper getMainLooper() {
+        return Looper.getMainLooper();
     }
 
     @Override

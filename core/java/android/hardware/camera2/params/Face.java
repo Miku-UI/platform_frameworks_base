@@ -183,7 +183,7 @@ public final class Face {
      * An unique id per face while the face is visible to the tracker.
      *
      * <p>
-     * If the face leaves the field-of-view and comes back, it will get a new
+     * If the face leaves the field-of-view and comes back, it may get a new
      * id.</p>
      *
      * <p>This is an optional field and may not be supported on all devices.

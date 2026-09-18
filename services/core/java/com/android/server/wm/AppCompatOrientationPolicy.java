@@ -99,11 +99,9 @@ class AppCompatOrientationPolicy {
             return candidate;
         }
 
-        if (displayContent != null
+        if (displayContent != null && !shouldCameraCompatControlOrientation
                 && mAppCompatOverrides.getCameraOverrides()
-                    .isOverrideOrientationOnlyForCameraEnabled()
-                && !AppCompatCameraPolicy
-                    .isActivityEligibleForOrientationOverride(mActivityRecord)) {
+                        .isOverrideOrientationOnlyForCameraEnabled()) {
             return candidate;
         }
 
@@ -180,7 +178,7 @@ class AppCompatOrientationPolicy {
                 return true;
             }
 
-            if (AppCompatCameraPolicy.isTreatmentEnabledForActivity(mActivityRecord)) {
+            if (AppCompatCameraPolicy.shouldIgnoreReqOrientationForCameraCompat(mActivityRecord)) {
                 Slog.w(TAG, "Ignoring orientation update to "
                         + screenOrientationToString(requestedOrientation)
                         + " due to camera compat treatment for " + mActivityRecord);

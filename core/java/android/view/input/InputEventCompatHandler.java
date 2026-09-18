@@ -139,7 +139,7 @@ public class InputEventCompatHandler {
                     new MouseToTouchProcessor(context, handler), chainHead);
         }
 
-        if (LetterboxScrollProcessor.isCompatibilityNeeded()) {
+        if (LetterboxScrollProcessor.isCompatibilityNeeded(context)) {
             chainHead = new InputEventCompatHandler(
                     new LetterboxScrollProcessor(context, handler), chainHead);
         }

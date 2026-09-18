@@ -66,7 +66,7 @@
     <string name="connected_via_app" msgid="3532267661404276584">"<xliff:g id="NAME">%1$s</xliff:g> ಆ್ಯಪ್ ಮೂಲಕ ಸಂಪರ್ಕಿಸಲಾಗಿದೆ"</string>
     <string name="tap_to_sign_up" msgid="5356397741063740395">"ಸೈನ್ ಅಪ್ ಮಾಡಲು ಟ್ಯಾಪ್‌ ಮಾಡಿ"</string>
     <string name="wifi_connected_no_internet" msgid="5087420713443350646">"ಇಂಟರ್ನೆಟ್ ಇಲ್ಲ"</string>
-    <string name="private_dns_broken" msgid="1984159464346556931">"ಖಾಸಗಿ DNS ಸರ್ವರ್ ಅನ್ನು ಪ್ರವೇಶಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
+    <string name="private_dns_broken" msgid="1984159464346556931">"ಖಾಸಗಿ DNS ಸರ್ವರ್ ಅನ್ನು ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
     <string name="wifi_limited_connection" msgid="1184778285475204682">"ಸೀಮಿತ ಸಂಪರ್ಕ"</string>
     <string name="wifi_status_no_internet" msgid="3799933875988829048">"ಇಂಟರ್ನೆಟ್ ಇಲ್ಲ"</string>
     <string name="wifi_status_sign_in_required" msgid="2236267500459526855">"ಸೈನ್ ಇನ್ ಮಾಡುವ ಅಗತ್ಯವಿದೆ"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"ವೈಫೈ ಮೂರು ಪಟ್ಟಿಗಳು."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"ವೈಫೈ ಸಿಗ್ನಲ್‌‌ ಪೂರ್ತಿ ಇದೆ."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"ನಿಮ್ಮ ಸಾಧನಕ್ಕೆ ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"ಈ ಸಾಧನದಲ್ಲಿರುವ ಎಲ್ಲಾ ಬಳಕೆದಾರರು ವೀಕ್ಷಿಸಬಹುದು ಮತ್ತು ಕನೆಕ್ಟ್ ಮಾಡಬಹುದು."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"ನೆಟ್‌ವರ್ಕ್‌ ತೆರೆಯಿರಿ"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"ಸುರಕ್ಷಿತ ನೆಟ್‌ವರ್ಕ್"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -257,7 +258,7 @@
     <string name="choose_profile" msgid="343803890897657450">"ಪ್ರೊಫೈಲ್ ಆಯ್ಕೆ ಮಾಡಿ"</string>
     <string name="category_personal" msgid="6236798763159385225">"ವೈಯಕ್ತಿಕ"</string>
     <string name="category_work" msgid="4014193632325996115">"ಕೆಲಸ"</string>
-    <string name="category_private" msgid="4244892185452788977">"ಪ್ರೈವೆಟ್"</string>
+    <string name="category_private" msgid="4244892185452788977">"ಖಾಸಗಿ"</string>
     <string name="category_clone" msgid="1554511758987195974">"ಕ್ಲೋನ್"</string>
     <string name="development_settings_title" msgid="140296922921597393">"ಡೆವಲಪರ್ ಆಯ್ಕೆಗಳು"</string>
     <string name="development_settings_enable" msgid="4285094651288242183">"ಡೆವಲಪರ್ ಆಯ್ಕೆಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ"</string>
@@ -268,17 +269,17 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"ಆ್ಯಕ್ಸೆಸ್ ಬಿಂದು ಹೆಸರಿನ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಈ ಬಳಕೆದಾರರಿಗೆ ಲಭ್ಯವಿಲ್ಲ"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB ಡೀಬಗ್ ಮಾಡುವಿಕೆ"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB ಸಂಪರ್ಕಗೊಂಡಾಗ ಡೀಬಗ್ ಮೋಡ್"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB ಡೀಬಗ್‌ ಮಾಡುವಿಕೆಯ ಅಧಿಕೃತಗೊಳಿಸುವಿಕೆಗಳನ್ನು ಹಿಂತೆಗೆದುಕೊಳ್ಳಿ"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb ಡೀಬಗ್ ಮಾಡುವಿಕೆಯ ದೃಢೀಕರಣಗಳನ್ನು ಹಿಂತೆಗೆದುಕೊಳ್ಳಿ"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"ವೈರ್‌ಲೆಸ್ ಡೀಬಗಿಂಗ್"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"ವೈ-ಫೈ ಕನೆಕ್ಟ್ ಆದಾಗ ಡೀಬಗ್ ಮೋಡ್"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"ದೋಷ"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"ವೈರ್‌ಲೆಸ್ ಡೀಬಗಿಂಗ್"</string>
     <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"ಲಭ್ಯವಿರುವ ಸಾಧನಗಳನ್ನು ನೋಡಲು ಮತ್ತು ಬಳಸಲು, ವೈರ್‌ಲೆಸ್ ಡೀಬಗ್ ಮಾಡುವಿಕೆಯನ್ನು ಆನ್ ಮಾಡಿ"</string>
-    <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"QR ಕೋಡ್ ಬಳಸಿ ಸಾಧನವನ್ನು ಜೋಡಿಸಿ"</string>
-    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"QR ಕೋಡ್ ಸ್ಕ್ಯಾನರ್ ಬಳಸಿ ಹೊಸ ಸಾಧನಗಳನ್ನು ಜೋಡಿಸಿ"</string>
-    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"ಜೋಡಿಸುವ ಕೋಡ್ ಬಳಸಿ ಸಾಧನವನ್ನು ಜೋಡಿಸಿ"</string>
-    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"ಆರು ಅಂಕಿಯ ಕೋಡ್ ಬಳಸಿ ಹೊಸ ಸಾಧನಗಳನ್ನು ಜೋಡಿಸಿ"</string>
-    <string name="adb_paired_devices_title" msgid="5268997341526217362">"ಜೋಡಿಸಲಾದ ಸಾಧನಗಳು"</string>
+    <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"QR ಕೋಡ್ ಬಳಸಿ ಸಾಧನವನ್ನು ಪೇರ್ ಮಾಡಿ"</string>
+    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"QR ಕೋಡ್ ಸ್ಕ್ಯಾನರ್ ಬಳಸಿ ಹೊಸ ಸಾಧನಗಳನ್ನು ಪೇರ್ ಮಾಡಿ"</string>
+    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"ಪೇರ್ ಮಾಡುವ ಕೋಡ್ ಬಳಸಿ ಸಾಧನವನ್ನು ಪೇರ್ ಮಾಡಿ"</string>
+    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"ಆರು ಅಂಕಿಯ ಕೋಡ್ ಬಳಸಿ ಹೊಸ ಸಾಧನಗಳನ್ನು ಪೇರ್ ಮಾಡಿ"</string>
+    <string name="adb_paired_devices_title" msgid="5268997341526217362">"ಪೇರ್ ಮಾಡಲಾದ ಸಾಧನಗಳು"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"ಪ್ರಸ್ತುತ ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ"</string>
     <string name="adb_wireless_device_details_title" msgid="7129369670526565786">"ಸಾಧನದ ವಿವರಗಳು"</string>
     <string name="adb_device_forget" msgid="193072400783068417">"ಮರೆತುಬಿಡಿ"</string>
@@ -293,8 +294,10 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"ಸಾಧನವನ್ನು ಜೋಡಿಸಲಾಗುತ್ತಿದೆ…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"ಸಾಧನವನ್ನು ಜೋಡಿಸಲು ವಿಫಲವಾಗಿದೆ. QR ಕೋಡ್ ತಪ್ಪಾಗಿದೆ ಅಥವಾ ಸಾಧನವು ಒಂದೇ ನೆಟ್‌ವರ್ಕ್‌ಗೆ ಕನೆಕ್ಟ್ ಆಗಿಲ್ಲ."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP ವಿಳಾಸ ಮತ್ತು ಪೋರ್ಟ್"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"ಲಭ್ಯವಿಲ್ಲ (ಅನುಮತಿಸಲಾಗುವುದಿಲ್ಲ)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"ಲಭ್ಯವಿಲ್ಲ (ವೈ-ಫೈ ಕನೆಕ್ಷನ್‌ ಕಡಿತಗೊಂಡಿದೆ)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR ಕೋಡ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ"</string>
-    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR ಕೋಡ್ ಅನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡುವ ಮೂಲಕ ವೈ-ಫೈ ಮೂಲಕ ಸಾಧನವನ್ನು ಜೋಡಿಸಿ"</string>
+    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR ಕೋಡ್ ಅನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡುವ ಮೂಲಕ ವೈ-ಫೈ ಮೂಲಕ ಸಾಧನವನ್ನು ಪೇರ್ ಮಾಡಿ"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"ವೈ-ಫೈ ನೆಟ್‌ವರ್ಕ್‌ಗೆ ಸಂಪರ್ಕಿಸಿ"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, ಡೀಬಗ್, dev"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"ಬಗ್ ವರದಿಯ ಶಾರ್ಟ್‌ಕಟ್‌‌"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB ಡೀಬಗ್ ಮಾಡುವಿಕೆಯು ಅಭಿವೃದ್ಧಿ ಉದ್ದೇಶಗಳಿಗೆ ಮಾತ್ರ ಆಗಿದೆ. ನಿಮ್ಮ ಕಂಪ್ಯೂಟರ್ ಮತ್ತು ನಿಮ್ಮ ಸಾಧನದ ನಡುವೆ ಡೇಟಾವನ್ನು ನಕಲಿಸಲು, ನೋಟಿಫಿಕೇಶನ್ ಇಲ್ಲದೆ ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಆ್ಯಪ್‍ಗಳನ್ನು ಇನ್‍ಸ್ಟಾಲ್ ಮಾಡಲು ಮತ್ತು ಲಾಗ್ ಡೇಟಾ ಓದಲು ಅದನ್ನು ಬಳಸಿ."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"ವೈರ್‌ಲೆಸ್ ಡೀಬಗ್ ಮಾಡುವಿಕೆಯನ್ನು ಅನುಮತಿಸಬೇಕೆ?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"ವೈರ್‌ಲೆಸ್ ಡೀಬಗ್ ಮಾಡುವಿಕೆಯು ಅಭಿವೃದ್ಧಿ ಉದ್ದೇಶಗಳಿಗೆ ಮಾತ್ರ ಆಗಿದೆ. ನಿಮ್ಮ ಕಂಪ್ಯೂಟರ್ ಮತ್ತು ನಿಮ್ಮ ಸಾಧನದ ನಡುವೆ ಡೇಟಾವನ್ನು ಕಾಪಿ ಮಾಡಲು, ನೋಟಿಫಿಕೇಶನ್‌ ಇಲ್ಲದೆ ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಮತ್ತು ಲಾಗ್ ಡೇಟಾ ಓದಲು ಅದನ್ನು ಬಳಸಿ."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"ನೀವು ಹಿಂದೆ ಅಧಿಕೃತಗೊಳಿಸಿದ ಎಲ್ಲ ಕಂಪ್ಯೂಟರ್‌ಗಳಿಂದ USB ಡೀಬಗ್‌ಗೆ ಪ್ರವೇಶವನ್ನು ರದ್ದುಗೊಳಿಸುವುದೇ?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"ನೀವು ಈ ಹಿಂದೆ ದೃಢೀಕರಿಸಿರುವ ಎಲ್ಲ ಕಂಪ್ಯೂಟರ್‌ಗಳು ಮತ್ತು ನೆಟ್‌ವರ್ಕ್‌ಗಳಿಂದ adb ಡೀಬಗ್ ಮಾಡುವಿಕೆಗೆ ಆ್ಯಕ್ಸೆಸ್ ಅನ್ನು ಹಿಂತೆಗೆದುಕೊಳ್ಳಬೇಕೆ?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"ಅಭಿವೃದ್ಧಿಯ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಅನುಮತಿಸುವುದೇ?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"ಈ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಅಭಿವೃದ್ಧಿಯ ಬಳಕೆಗೆ ಮಾತ್ರ. ಅವುಗಳು ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಅಪ್ಲಿಕೇಶನ್‌‌ಗಳಿಗೆ ಧಕ್ಕೆ ಮಾಡಬಹುದು ಅಥವಾ ಅವು ಸರಿಯಾಗಿ ಕಾರ್ಯನಿರ್ವಹಿಸದಿರುವಂತೆ ಮಾಡಬಹುದು."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB ಮೂಲಕ ಆ್ಯಪ್‌ ಪರಿಶೀಲಿಸಿ"</string>
@@ -680,7 +683,7 @@
     <string name="profile_info_settings_title" msgid="105699672534365099">"ಪ್ರೊಫೈಲ್‌‌ ಮಾಹಿತಿ"</string>
     <string name="user_need_lock_message" msgid="4311424336209509301">"ನೀವು ನಿರ್ಬಂಧಿತ ಪ್ರೊಫೈಲ್ ಅನ್ನು ರಚಿಸಬಹುದಾದರ ಮೊದಲು, ನಿಮ್ಮ ಅಪ್ಲಿಕೇಶನ್‌ಗಳು ಮತ್ತು ವೈಯಕ್ತಿಕ ಡೇಟಾವನ್ನು ರಕ್ಷಿಸಲು ನೀವು ಪರದೆಯ ಲಾಕ್‌ ಹೊಂದಿಸುವ ಅಗತ್ಯವಿದೆ."</string>
     <string name="user_set_lock_button" msgid="1427128184982594856">"ಲಾಕ್ ಸೆಟ್ ಮಾಡಿ"</string>
-    <string name="user_switch_to_user" msgid="6975428297154968543">"<xliff:g id="USER_NAME">%s</xliff:g>ಗೆ ಬದಲಿಸಿ"</string>
+    <string name="user_switch_to_user" msgid="6975428297154968543">"<xliff:g id="USER_NAME">%s</xliff:g> ಗೆ ಬದಲಿಸಿ"</string>
     <string name="creating_new_user_dialog_message" msgid="7232880257538970375">"ಹೊಸ ಬಳಕೆದಾರರನ್ನು ರಚಿಸಲಾಗುತ್ತಿದೆ…"</string>
     <string name="creating_new_guest_dialog_message" msgid="1114905602181350690">"ಹೊಸ ಅತಿಥಿಯನ್ನು ರಚಿಸಲಾಗುತ್ತಿದೆ…"</string>
     <string name="add_user_failed" msgid="4809887794313944872">"ಹೊಸ ಬಳಕೆದಾರರನ್ನು ರಚಿಸಲು ವಿಫಲವಾಗಿದೆ"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"ಇಥರ್ನೆಟ್ ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಲಾಗಿದೆ."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"ಇಥರ್ನೆಟ್."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"ಕರೆ ಮಾಡಲಾಗುವುದಿಲ್ಲ."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"ಭೌತಿಕ ಕೀಬೋರ್ಡ್"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"ಕೀಬೋರ್ಡ್ ಲೇಔಟ್ ಆರಿಸಿ"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"ಡೀಫಾಲ್ಟ್"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"ಸ್ಕ್ರೀನ್-ಆನ್ ನಿಯಂತ್ರಣ"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"ಸ್ಕ್ರೀನ್ ಅನ್ನು ಆನ್ ಮಾಡಲು ಅನುಮತಿಸಿ"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"ಸ್ಕ್ರೀನ್ ಅನ್ನು ಆನ್ ಮಾಡಲು ಆ್ಯಪ್‌ಗೆ ಅನುಮತಿಸಿ. ಅನುಮತಿಸಿದರೆ, ನಿಮಗೆ ಅಗತ್ಯವಿಲ್ಲದಿದ್ದಾಗಲೂ ಆ್ಯಪ್ ಯಾವುದೇ ಸಮಯದಲ್ಲಿ ಸ್ಕ್ರೀನ್ ಅನ್ನು ಆನ್ ಮಾಡಬಹುದು."</string>

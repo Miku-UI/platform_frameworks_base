@@ -16,6 +16,7 @@
 
 package com.android.compose.animation.scene
 
+import androidx.compose.runtime.key
 import androidx.compose.runtime.snapshotFlow
 import com.android.compose.animation.scene.content.state.TransitionState
 import kotlinx.coroutines.flow.Flow
@@ -90,6 +91,9 @@ sealed interface ObservableTransitionState {
 
         /** Whether the transition is currently in the preview stage or not */
         val isInPreviewStage: Flow<Boolean>,
+
+        /** The [key][TransitionKey] of this transition. */
+        val key: TransitionKey?,
     ) : ObservableTransitionState {
         override fun toString(): String =
             """Transition
@@ -111,6 +115,7 @@ sealed interface ObservableTransitionState {
             isUserInputOngoing: Flow<Boolean>,
             previewProgress: Flow<Float>,
             isInPreviewStage: Flow<Boolean>,
+            key: TransitionKey? = null,
         ) :
             Transition(
                 fromScene,
@@ -120,6 +125,7 @@ sealed interface ObservableTransitionState {
                 isUserInputOngoing,
                 previewProgress,
                 isInPreviewStage,
+                key,
             )
 
         /**
@@ -136,6 +142,7 @@ sealed interface ObservableTransitionState {
             isUserInputOngoing: Flow<Boolean>,
             previewProgress: Flow<Float>,
             isInPreviewStage: Flow<Boolean>,
+            key: TransitionKey? = null,
         ) :
             Transition(
                 fromContent,
@@ -145,6 +152,7 @@ sealed interface ObservableTransitionState {
                 isUserInputOngoing,
                 previewProgress,
                 isInPreviewStage,
+                key,
             )
 
         /** The [overlay] is either showing from [currentScene] or hiding into [currentScene]. */
@@ -159,6 +167,7 @@ sealed interface ObservableTransitionState {
             isUserInputOngoing: Flow<Boolean>,
             previewProgress: Flow<Float>,
             isInPreviewStage: Flow<Boolean>,
+            key: TransitionKey? = null,
         ) :
             OverlayTransition(
                 fromContent,
@@ -170,6 +179,7 @@ sealed interface ObservableTransitionState {
                 isUserInputOngoing,
                 previewProgress,
                 isInPreviewStage,
+                key,
             )
 
         /** We are transitioning from [fromOverlay] to [toOverlay]. */
@@ -183,6 +193,7 @@ sealed interface ObservableTransitionState {
             isUserInputOngoing: Flow<Boolean>,
             previewProgress: Flow<Float>,
             isInPreviewStage: Flow<Boolean>,
+            key: TransitionKey? = null,
         ) :
             OverlayTransition(
                 fromOverlay,
@@ -194,6 +205,7 @@ sealed interface ObservableTransitionState {
                 isUserInputOngoing,
                 previewProgress,
                 isInPreviewStage,
+                key,
             )
 
         companion object {
@@ -207,6 +219,7 @@ sealed interface ObservableTransitionState {
                 previewProgress: Flow<Float> = flowOf(0f),
                 isInPreviewStage: Flow<Boolean> = flowOf(false),
                 currentOverlays: Set<OverlayKey> = emptySet(),
+                key: TransitionKey? = null,
             ): ChangeScene {
                 return ChangeScene(
                     fromScene,
@@ -218,6 +231,7 @@ sealed interface ObservableTransitionState {
                     isUserInputOngoing,
                     previewProgress,
                     isInPreviewStage,
+                    key,
                 )
             }
 
@@ -230,6 +244,7 @@ sealed interface ObservableTransitionState {
                 isUserInputOngoing: Flow<Boolean>,
                 previewProgress: Flow<Float> = flowOf(0f),
                 isInPreviewStage: Flow<Boolean> = flowOf(false),
+                key: TransitionKey? = null,
             ): ShowOrHideOverlay {
                 return ShowOrHideOverlay(
                     overlay = overlay,
@@ -242,6 +257,7 @@ sealed interface ObservableTransitionState {
                     isUserInputOngoing = isUserInputOngoing,
                     previewProgress = previewProgress,
                     isInPreviewStage = isInPreviewStage,
+                    key = key,
                 )
             }
 
@@ -254,6 +270,7 @@ sealed interface ObservableTransitionState {
                 isUserInputOngoing: Flow<Boolean>,
                 previewProgress: Flow<Float> = flowOf(0f),
                 isInPreviewStage: Flow<Boolean> = flowOf(false),
+                key: TransitionKey? = null,
             ): ShowOrHideOverlay {
                 return ShowOrHideOverlay(
                     overlay = overlay,
@@ -266,6 +283,7 @@ sealed interface ObservableTransitionState {
                     isUserInputOngoing = isUserInputOngoing,
                     previewProgress = previewProgress,
                     isInPreviewStage = isInPreviewStage,
+                    key = key,
                 )
             }
         }
@@ -325,6 +343,7 @@ fun SceneTransitionLayoutState.observableTransitionState(): Flow<ObservableTrans
                         currentScene = snapshotFlow { state.currentScene },
                         currentOverlays = state.currentOverlays,
                         progress = snapshotFlow { state.progress },
+                        key = state.key,
                         isInitiatedByUserInput = state.isInitiatedByUserInput,
                         isUserInputOngoing = snapshotFlow { state.isUserInputOngoing },
                         previewProgress = snapshotFlow { state.previewProgress },
@@ -340,6 +359,7 @@ fun SceneTransitionLayoutState.observableTransitionState(): Flow<ObservableTrans
                         currentScene = state.currentScene,
                         currentOverlays = snapshotFlow { state.currentOverlays },
                         progress = snapshotFlow { state.progress },
+                        key = state.key,
                         isInitiatedByUserInput = state.isInitiatedByUserInput,
                         isUserInputOngoing = snapshotFlow { state.isUserInputOngoing },
                         previewProgress = snapshotFlow { state.previewProgress },
@@ -353,6 +373,7 @@ fun SceneTransitionLayoutState.observableTransitionState(): Flow<ObservableTrans
                         currentScene = state.currentScene,
                         currentOverlays = snapshotFlow { state.currentOverlays },
                         progress = snapshotFlow { state.progress },
+                        key = state.key,
                         isInitiatedByUserInput = state.isInitiatedByUserInput,
                         isUserInputOngoing = snapshotFlow { state.isUserInputOngoing },
                         previewProgress = snapshotFlow { state.previewProgress },

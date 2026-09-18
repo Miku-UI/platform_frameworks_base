@@ -35,15 +35,16 @@ import java.util.Objects;
  * to the "best" available remote process.
  *
  * <p>Threading guarantees provided / required by this interface:
+ *
  * <ul>
- *     <li>All public methods defined by this class must be invoked using the {@link Handler} thread
- *     from the {@link ThreadingDomain} passed to the constructor, excluding
- *     {@link #dump(IndentingPrintWriter, String[])}</li>
- *     <li>Non-static public methods that make binder calls to remote processes (e.g.
- *     {@link #setRequest(TimeZoneProviderRequest)}) are executed asynchronously and will return
- *     immediately.</li>
- *     <li>Callbacks received via binder are delivered via {@link Listener} are delivered on the
- *     {@link Handler} thread from the {@link ThreadingDomain} passed to the constructor.
+ *   <li>All public methods defined by this class must be invoked using the {@link Handler} thread
+ *       from the {@link ThreadingDomain} passed to the constructor, excluding {@link
+ *       #dump(IndentingPrintWriter, String[])}
+ *   <li>Non-static public methods that make binder calls to remote processes (e.g. {@link
+ *       #setRequest(TimeZoneProviderRequest)}) are executed asynchronously and will return
+ *       immediately.
+ *   <li>Callbacks received via binder are delivered via {@link Listener} are delivered on the
+ *       {@link Handler} thread from the {@link ThreadingDomain} passed to the constructor.
  * </ul>
  *
  * <p>This class exists to enable the introduction of test implementations of {@link
@@ -101,20 +102,14 @@ abstract class LocationTimeZoneProviderProxy implements Dumpable {
         }
     }
 
-    /**
-     * Implemented by subclasses to destroy the proxy.
-     */
+    /** Implemented by subclasses to destroy the proxy. */
     @GuardedBy("mSharedLock")
     abstract void onDestroy();
 
-    /**
-     * Sets a new request for the provider.
-     */
+    /** Sets a new request for the provider. */
     abstract void setRequest(@NonNull TimeZoneProviderRequest request);
 
-    /**
-     * Handles a {@link TimeZoneProviderEvent} from a remote process.
-     */
+    /** Handles a {@link TimeZoneProviderEvent} from a remote process. */
     final void handleTimeZoneProviderEvent(@NonNull TimeZoneProviderEvent timeZoneProviderEvent) {
         // These calls are invoked on a binder thread. Move to the mThreadingDomain thread as
         // required by the guarantees for this class.
@@ -127,14 +122,10 @@ abstract class LocationTimeZoneProviderProxy implements Dumpable {
      */
     interface Listener {
 
-        /**
-         * Called when a provider receives a {@link TimeZoneProviderEvent}.
-         */
+        /** Called when a provider receives a {@link TimeZoneProviderEvent}. */
         void onReportTimeZoneProviderEvent(@NonNull TimeZoneProviderEvent timeZoneProviderEvent);
 
-        /**
-         * Called when a provider is (re)bound.
-         */
+        /** Called when a provider is (re)bound. */
         void onProviderBound();
 
         /** Called when a provider is unbound. */

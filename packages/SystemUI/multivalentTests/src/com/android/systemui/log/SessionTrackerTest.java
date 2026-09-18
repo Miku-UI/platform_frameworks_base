@@ -42,6 +42,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.logging.InstanceId;
 import com.android.internal.logging.UiEventLogger;
 import com.android.internal.statusbar.IStatusBarService;
+import com.android.internal.widget.LockPatternUtils;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.systemui.SysuiTestCase;
@@ -76,6 +77,8 @@ public class SessionTrackerTest extends SysuiTestCase {
     private ProcessWrapper mProcessWrapper;
     @Mock
     private BiometricPromptLogger mBiometricPromptLogger;
+    @Mock
+    private KeyguardUpdateMonitor.StrongAuthTracker mStrongAuthTracker;
 
     @Captor
     ArgumentCaptor<KeyguardUpdateMonitorCallback> mKeyguardUpdateMonitorCallbackCaptor;
@@ -95,6 +98,8 @@ public class SessionTrackerTest extends SysuiTestCase {
     public void setup() throws RemoteException {
         MockitoAnnotations.initMocks(this);
         when(mProcessWrapper.isSystemUser()).thenReturn(true);
+        when(mKeyguardUpdateMonitor.getStrongAuthTracker()).thenReturn(mStrongAuthTracker);
+        when(mStrongAuthTracker.hasUserAuthenticatedSinceBoot()).thenReturn(true);
 
         mSessionTracker = new SessionTracker(
                 mStatusBarService,
@@ -105,6 +110,18 @@ public class SessionTrackerTest extends SysuiTestCase {
                 mProcessWrapper,
                 mBiometricPromptLogger
         );
+    }
+
+    @Test
+    public void testStartSessionWhenUserHasNotAuthenticatedSinceBoot() {
+        when(mStrongAuthTracker.hasUserAuthenticatedSinceBoot()).thenReturn(false);
+
+        // WHEN started
+        mSessionTracker.start();
+
+        // THEN keyguard session has a session id
+        assertNotNull(mSessionTracker.getSessionId(SESSION_KEYGUARD));
+
     }
 
     @Test
@@ -163,14 +180,16 @@ public class SessionTrackerTest extends SysuiTestCase {
 
         // WHEN auth controller shows the biometric prompt and then hides it
         int reason = BiometricPrompt.DISMISSED_REASON_USER_CANCEL;
+        int credentialType = LockPatternUtils.CREDENTIAL_TYPE_PIN;
         mAuthControllerCallback.onBiometricPromptShown(new PromptInfo());
-        mAuthControllerCallback.onBiometricPromptDismissed(reason);
+        mAuthControllerCallback.onBiometricPromptDismissed(reason, credentialType);
 
         // THEN the biometric prompt session no longer has a session id
         assertNull(mSessionTracker.getSessionId(SESSION_BIOMETRIC_PROMPT));
 
         // THEN session end event gets sent to status bar service
-        verify(mBiometricPromptLogger).logPromptEnd(any(InstanceId.class), eq(reason));
+        verify(mBiometricPromptLogger).logPromptEnd(any(InstanceId.class), eq(reason),
+                eq(credentialType));
         verify(mStatusBarService).onSessionEnded(
                 eq(SESSION_BIOMETRIC_PROMPT), any(InstanceId.class));
     }

@@ -156,10 +156,6 @@
     <string name="bubble_accessibility_action_move_bar_left">Move left</string>
     <!-- Action in accessibility menu to move the bubble bar to the right side of the screen. [CHAR_LIMIT=30] -->
     <string name="bubble_accessibility_action_move_bar_right">Move right</string>
-    <!-- Accessibility announcement when the stack of bubbles expands. [CHAR LIMIT=NONE]-->
-    <string name="bubble_accessibility_announce_expand">expand <xliff:g id="bubble_title" example="Messages">%1$s</xliff:g></string>
-    <!-- Accessibility announcement when the stack of bubbles collapses. [CHAR LIMIT=NONE]-->
-    <string name="bubble_accessibility_announce_collapse">collapse <xliff:g id="bubble_title" example="Messages">%1$s</xliff:g></string>
     <!-- Label for the button that takes the user to the notification settings for the given app. -->
     <string name="bubbles_app_settings"><xliff:g id="notification_title" example="Android Messages">%1$s</xliff:g> settings</string>
     <!-- Text used for the bubble dismiss area. Bubbles dragged to, or flung towards, this area will go away. [CHAR LIMIT=30] -->
@@ -197,15 +193,6 @@
 
     <!-- The text for the manage bubbles link. [CHAR LIMIT=NONE] -->
     <string name="manage_bubbles_text">Manage</string>
-
-    <!-- Content description to tell the user a bubble has been dismissed. -->
-    <string name="accessibility_bubble_dismissed">Bubble dismissed.</string>
-
-    <!-- Label used to for bubbles shortcut [CHAR_LIMIT=10] -->
-    <string name="bubble_shortcut_label">Bubbles</string>
-
-    <!-- Longer label used to for bubbles shortcut, shown if there is enough space [CHAR_LIMIT=25] -->
-    <string name="bubble_shortcut_long_label">Show Bubbles</string>
 
     <!-- Description of the restart button in the hint of size compatibility mode. [CHAR LIMIT=NONE] -->
     <string name="restart_button_description">Tap to restart this app for a better view</string>
@@ -286,8 +273,10 @@
     <string name="maximize_button_text">Maximize <xliff:g id="app_name" example="Chrome">%1$s</xliff:g></string>
     <!-- Accessibility text for the restore window button [CHAR LIMIT=NONE] -->
     <string name="restore_button_text">Restore <xliff:g id="app_name" example="Chrome">%1$s</xliff:g></string>
-     <!-- Accessibility text for the minimize window button [CHAR LIMIT=NONE] -->
-     <string name="minimize_button_text">Minimize <xliff:g id="app_name" example="Chrome">%1$s</xliff:g></string>
+    <!-- Accessibility text for the minimize window button [CHAR LIMIT=NONE] -->
+    <string name="minimize_button_text">Minimize <xliff:g id="app_name" example="Chrome">%1$s</xliff:g></string>
+    <!-- Accessibility text for the exit fullscreen window button [CHAR LIMIT=NONE] -->
+    <string name="exit_fullscreen_button_text">Exit fullscreen for <xliff:g id="app_name" example="Chrome">%1$s</xliff:g></string>
     <!-- Accessibility text for the close window button [CHAR LIMIT=NONE] -->
     <string name="close_button_text">Close <xliff:g id="app_name" example="Chrome">%1$s</xliff:g></string>
     <!-- Accessibility text for the caption back button [CHAR LIMIT=NONE] -->
@@ -320,6 +309,8 @@
     <string name="manage_windows_text">Manage Windows</string>
     <!-- Accessibility text for the handle menu change aspect ratio button [CHAR LIMIT=NONE] -->
     <string name="change_aspect_ratio_text">Change aspect ratio</string>
+    <!-- Accessibility text for the handle menu game controls button [CHAR LIMIT=NONE] -->
+    <string name="handle_menu_game_controls_text">Game Controls</string>
     <!-- Accessibility text for the handle menu restart button [CHAR LIMIT=NONE] -->
     <string name="handle_menu_restart_text">Optimize View</string>
     <!-- Accessibility text for the handle menu error icon [CHAR LIMIT=NONE] -->
@@ -329,16 +320,14 @@
     <!-- Accessibility text for the handle menu close menu button [CHAR LIMIT=NONE] -->
     <string name="collapse_menu_text">Close Menu</string>
     <!-- Accessibility text for the App Header's App Chip [CHAR LIMIT=NONE] -->
-    <string name="desktop_mode_app_header_chip_text"><xliff:g id="app_name" example="Chrome">%1$s</xliff:g> (Desktop windowing)</string>
-    <!-- Maximize menu maximize button string. -->
-    <string name="desktop_mode_maximize_menu_maximize_text">Maximize Screen</string>
-    <!-- Maximize menu snap buttons string. -->
-    <string name="desktop_mode_maximize_menu_snap_text">Resize</string>
+    <string name="desktop_mode_header_chip_text"><xliff:g id="app_name" example="Chrome">%1$s</xliff:g> (Desktop windowing)</string>
+    <!-- Layout menu maximize button string. -->
+    <string name="desktop_mode_layout_menu_maximize_text">Maximize Screen</string>
+    <!-- Layout menu snap buttons string. -->
+    <string name="desktop_mode_layout_menu_snap_text">Resize</string>
     <!-- Snap resizing non-resizable string. -->
     <string name="desktop_mode_non_resizable_snap_text">App can\'t be moved here</string>
 
-    <!-- State description for app window opening. -->
-    <string name="desktop_mode_talkback_state_opening">Opening new app window</string>
     <!-- State description for app window closing. -->
     <string name="desktop_mode_talkback_state_closing">Closing app window</string>
     <!-- State description for app window minimizing. -->
@@ -348,35 +337,44 @@
     <!-- State description for app window losing focus. -->
     <string name="desktop_mode_talkback_state_not_focused"><xliff:g id="app_name" example="Chrome">%1$s</xliff:g> (Not Focused)</string>
 
-    <!-- Accessibility text for the Maximize Menu's immersive button [CHAR LIMIT=NONE] -->
-    <string name="desktop_mode_maximize_menu_immersive_button_text">Immersive</string>
-    <!-- Accessibility text for the Maximize Menu's immersive restore button [CHAR LIMIT=NONE] -->
-    <string name="desktop_mode_maximize_menu_immersive_restore_button_text">Restore</string>
-    <string name="desktop_mode_maximize_menu_maximize_button_text">Maximize</string>
-    <!-- Accessibility text for the Maximize Menu's restore button [CHAR LIMIT=NONE] -->
-    <string name="desktop_mode_maximize_menu_restore_button_text">Restore</string>
-    <!-- Accessibility text for the Maximize Menu's snap left button [CHAR LIMIT=NONE] -->
-    <string name="desktop_mode_maximize_menu_snap_left_button_text">Snap left</string>
-    <!-- Accessibility text for the Maximize Menu's snap right button [CHAR LIMIT=NONE] -->
-    <string name="desktop_mode_maximize_menu_snap_right_button_text">Snap right</string>
+    <!-- Accessibility text for the Layout Menu's immersive button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_layout_menu_immersive_button_text">Immersive</string>
+    <!-- Accessibility text for the Layout Menu's immersive restore button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_layout_menu_immersive_restore_button_text">Restore</string>
+    <!-- Accessibility text for the Layout Menu's maximize button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_layout_menu_maximize_button_text">Maximize</string>
+    <!-- Accessibility text for the Layout Menu's restore button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_layout_menu_restore_button_text">Restore</string>
+    <!-- Accessibility text for the Layout Menu's snap left button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_layout_menu_snap_left_button_text">Snap left</string>
+    <!-- Accessibility text for the Layout Menu's snap right button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_layout_menu_snap_right_button_text">Snap right</string>
 
-    <!-- Accessibility text for the Maximize Menu's snap left button [CHAR LIMIT=NONE] -->
+    <!-- Accessibility text for the Layout Menu's snap left button [CHAR LIMIT=NONE] -->
     <string name="desktop_mode_a11y_action_snap_left">Resize app window left</string>
-    <!-- Accessibility text for the Maximize Menu's snap right button [CHAR LIMIT=NONE] -->
+    <!-- Accessibility text for the Layout Menu's snap right button [CHAR LIMIT=NONE] -->
     <string name="desktop_mode_a11y_action_snap_right">Resize app window right</string>
-    <!-- Accessibility text for the Maximize Menu's snap maximize/restore [CHAR LIMIT=NONE] -->
+    <!-- Accessibility text for the Layout Menu's snap maximize/restore [CHAR LIMIT=NONE] -->
     <string name="desktop_mode_a11y_action_maximize_restore">Maximize or restore window size</string>
+    <!-- Accessibility text for the fullscreen header exit fullscreen button [CHAR LIMIT=NONE] -->
+    <string name="desktop_mode_a11y_action_exit_fullscreen">Exit Fullscreen</string>
 
     <!-- Accessibility action replacement for caption handle app chip buttons [CHAR LIMIT=NONE] -->
     <string name="app_handle_chip_accessibility_announce">Open Menu</string>
     <!-- Accessibility action replacement for caption handle menu buttons [CHAR LIMIT=NONE] -->
     <string name="app_handle_menu_accessibility_announce">Enter <xliff:g id="windowing_mode" example="Desktop windowing">%1$s</xliff:g></string>
-    <!-- Accessibility action replacement for maximize menu enter snap left button [CHAR LIMIT=NONE] -->
-    <string name="maximize_menu_talkback_action_snap_left_text">Resize window to left</string>
-    <!-- Accessibility action replacement for maximize menu enter snap right button [CHAR LIMIT=NONE] -->
-    <string name="maximize_menu_talkback_action_snap_right_text">Resize window to right</string>
-    <!-- Accessibility action replacement for maximize menu enter maximize/restore button [CHAR LIMIT=NONE] -->
-    <string name="maximize_menu_talkback_action_maximize_restore_text">Maximize or restore window size</string>
+    <!-- Accessibility action replacement for layout menu enter snap left button [CHAR LIMIT=NONE] -->
+    <string name="layout_menu_talkback_action_snap_left_text">Resize window to left</string>
+    <!-- Accessibility action replacement for layout menu enter snap right button [CHAR LIMIT=NONE] -->
+    <string name="layout_menu_talkback_action_snap_right_text">Resize window to right</string>
+    <!-- Accessibility action replacement for layout menu maximize button [CHAR LIMIT=NONE] -->
+    <string name="layout_menu_talkback_action_maximize_restore_text">Maximize app window size</string>
+    <!-- Accessibility action replacement for layout menu restore button [CHAR LIMIT=NONE] -->
+    <string name="layout_menu_talkback_action_restore_text">Restore window size</string>
+    <!-- Accessibility action replacement for layout menu immersive mode enter button [CHAR LIMIT=NONE] -->
+    <string name="layout_menu_talkback_action_immersive_enter_text">Enter immersive mode</string>
+    <!-- Accessibility action replacement for layout menu immersive mode restore button [CHAR LIMIT=NONE] -->
+    <string name="layout_menu_talkback_action_immersive_restore_text">Restore window size</string>
     <!-- Accessibility action replacement for app header maximize button [CHAR LIMIT=NONE] -->
     <string name="app_header_talkback_action_maximize_button_text">Maximize app window size</string>
     <!-- Accessibility action replacement for app header restore button [CHAR LIMIT=NONE] -->
@@ -385,6 +383,8 @@
     <string name="app_header_talkback_action_minimize_button_text">Minimize app window</string>
     <!-- Accessibility action replacement for app header close button [CHAR LIMIT=NONE] -->
     <string name="app_header_talkback_action_close_button_text">Close app window</string>
+    <!-- Accessibility action replacement for fullscreen header exit fullscreen button [CHAR LIMIT=NONE] -->
+    <string name="fullscreen_header_talkback_action_exit_fullscreen_button_text">Exit Fullscreen</string>
 
     <!-- Accessibility text for open by default settings button [CHAR LIMIT=NONE] -->
     <string name="open_by_default_settings_text">Open by default settings</string>
@@ -399,4 +399,18 @@
 
     <!-- Text for the App-to-Web education promo. -->
     <string name="desktop_windowing_app_to_web_education_text">Quickly open apps in your browser here</string>
+
+    <!-- Text for open by default splash dialog title. -->
+    <string name="open_by_default_splash_dialog_title_text">How do you want to open &lt;b><xliff:g id="app_name" example="Chrome">%1$s</xliff:g>&lt;/b> links?</string>
+    <!-- Text for open by default splash dialog checkbox. -->
+    <string name="open_by_default_splash_dialog_checkbox_text">Remember my choice</string>
+     <!-- Text for open by default splash dialog option. -->
+    <string name="open_by_default_splash_dialog_browser_text">Open in browser</string>
+     <!-- Text for open by default splash dialog option. -->
+    <string name="open_by_default_splash_dialog_app_text">Stay in app</string>
+    <!-- Text for open by default splash dialog option. -->
+    <string name="open_by_default_splash_dialog_ask_me_later_text">Ask me later</string>
+
+    <!-- Text to show during package update. -->
+    <string name="package_update_text">Updating...</string>
 </resources>

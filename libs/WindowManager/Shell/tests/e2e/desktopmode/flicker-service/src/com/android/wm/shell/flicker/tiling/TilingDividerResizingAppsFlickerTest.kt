@@ -19,11 +19,11 @@ package com.android.wm.shell.flicker.tiling
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.leftTiledAppLargerThanRightAtEnd
@@ -35,15 +35,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Tile two apps left and right with drag and ensure dragging the divider is resizing both apps.
- */
+/** Tile two apps left and right with drag and ensure dragging the divider is resizing both apps. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class TilingDividerResizingAppsFlickerTest(flicker: FlickerTest) :
-    DesktopModeBaseTest(flicker) {
+class TilingDividerResizingAppsFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
     inner class TileResizingWithDragScenario : TilingTestBase(flicker.scenario.startRotation)
 
     @Rule
@@ -63,14 +60,11 @@ class TilingDividerResizingAppsFlickerTest(flicker: FlickerTest) :
             teardown { scenario.teardown() }
         }
 
-    @Test
-    fun dividerVisibleAtStart() = flicker.tilingDividerIsVisibleAtStart()
+    @Test fun dividerVisibleAtStart() = flicker.tilingDividerIsVisibleAtStart()
 
-    @Test
-    fun dividerStaysVisibleAtEnd() = flicker.tilingDividerIsVisibleAtEnd()
+    @Test fun dividerStaysVisibleAtEnd() = flicker.tilingDividerIsVisibleAtEnd()
 
-    @Test
-    fun leftAppLargerThanRight() = flicker.leftTiledAppLargerThanRightAtEnd(leftApp, rightApp)
+    @Test fun leftAppLargerThanRight() = flicker.leftTiledAppLargerThanRightAtEnd(leftApp, rightApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

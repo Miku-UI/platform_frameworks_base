@@ -29,15 +29,11 @@ import com.android.server.companion.securechannel.SecureChannel;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 
 class SecureTransport extends Transport implements SecureChannel.Callback {
     private final SecureChannel mSecureChannel;
 
     private volatile boolean mShouldProcessRequests = false;
-
-    private final BlockingQueue<byte[]> mRequestQueue = new ArrayBlockingQueue<>(500);
 
     SecureTransport(int associationId, ParcelFileDescriptor fd, Context context, int flags) {
         super(associationId, fd, context);
@@ -77,34 +73,27 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
     }
 
     @Override
-    protected void sendMessage(int message, int sequence, @NonNull byte[] data)
+    @TransportEvent
+    protected int translateError(Throwable error) {
+        // IMPORTANT: Be careful with oversharing error to prevent malicious apps from
+        // determining the state of the device.
+        if (error instanceof AttestationVerificationException) {
+            int flags = ((AttestationVerificationException) error).getFlags();
+            if ((flags & FLAG_FAILURE_PATCH_LEVEL_DIFF) > 0) {
+                return ERROR_UPDATE_REQUIRED;
+            }
+        }
+        return super.translateError(error);
+    }
+
+    @Override
+    protected void enqueueMessage(int message, int sequence, @NonNull byte[] data)
             throws IOException {
+        super.enqueueMessage(message, sequence, data);
+
         // Check if channel is secured; otherwise start securing
         if (!mShouldProcessRequests) {
             establishSecureConnection();
-        }
-
-        if (DEBUG) {
-            Slog.d(TAG, "Queueing message 0x" + Integer.toHexString(message)
-                    + " sequence " + sequence + " length " + data.length
-                    + " to association " + mAssociationId);
-        }
-
-        // Queue up a message to send
-        try {
-            mRequestQueue.add(ByteBuffer.allocate(HEADER_LENGTH + data.length)
-                    .putInt(message)
-                    .putInt(sequence)
-                    .putInt(data.length)
-                    .put(data)
-                    .array());
-        } catch (IllegalStateException e) {
-            // Request buffer can only be full if too many requests are being added or
-            // the request processing thread is dead. Assume latter and detach the transport.
-            Slog.w(TAG, "Failed to queue message 0x" + Integer.toHexString(message)
-                    + " . Request buffer is full; detaching transport.", e);
-            eventCallback(translateError(e));
-            close();
         }
     }
 
@@ -119,17 +108,14 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
         }
     }
 
-    @TransportEvent
-    private int translateError(Throwable error) {
-        // IMPORTANT: Be careful with oversharing error to prevent malicious apps from
-        // determining the state of the device.
-        if (error instanceof AttestationVerificationException) {
-            int flags = ((AttestationVerificationException) error).getFlags();
-            if ((flags & FLAG_FAILURE_PATCH_LEVEL_DIFF) > 0) {
-                return ERROR_UPDATE_REQUIRED;
-            }
-        }
-        return ERROR_UNKNOWN;
+    @Override
+    public byte[] getSessionKey() {
+        return mSecureChannel.getSessionUnique();
+    }
+
+    @Override
+    public String getSessionRole() {
+        return mSecureChannel.getRole();
     }
 
     @Override
@@ -137,11 +123,10 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
         mShouldProcessRequests = true;
         Slog.d(TAG, "Secure connection established.");
 
-        // TODO: find a better way to handle incoming requests than a dedicated thread.
         new Thread(() -> {
             while (mShouldProcessRequests) {
                 try {
-                    byte[] request = mRequestQueue.take();
+                    byte[] request = mMessageQueue.take();
                     mSecureChannel.sendSecureMessage(request);
                 } catch (Exception e) {
                     Slog.e(TAG, "Failed to send secure message.", e);

@@ -17,6 +17,7 @@
 package com.android.server.pm.test.parsing.parcelling
 
 import android.content.pm.ActivityInfo
+import android.view.Gravity
 import com.android.internal.pm.pkg.component.ParsedActivity
 import com.android.internal.pm.pkg.component.ParsedActivityImpl
 import kotlin.contracts.ExperimentalContracts
@@ -63,7 +64,10 @@ class ParsedActivityTest : ParsedMainComponentTest(
         getSetByValue(
             ParsedActivity::getWindowLayout,
             ParsedActivityImpl::setWindowLayout,
-            ActivityInfo.WindowLayout(1, 1f, 2, 1f, 3, 4, 5),
+            ActivityInfo.WindowLayout(1 /* complexWith */, 1f /* widthFraction */,
+                2 /* complexHeight */, 1f /* heightFraction */, Gravity.TOP,
+                4 /* complexMinWidth */, 5 /* complexMinHeight */, "TEST_AFFINITY",
+                null /* displayMetrics */),
             compare = { first, second ->
                 equalBy(
                     first, second,
@@ -73,7 +77,8 @@ class ParsedActivityTest : ParsedMainComponentTest(
                     ActivityInfo.WindowLayout::heightFraction,
                     ActivityInfo.WindowLayout::gravity,
                     ActivityInfo.WindowLayout::minWidth,
-                    ActivityInfo.WindowLayout::minHeight
+                    ActivityInfo.WindowLayout::minHeight,
+                    ActivityInfo.WindowLayout::windowLayoutAffinity
                 )
             }
         ),

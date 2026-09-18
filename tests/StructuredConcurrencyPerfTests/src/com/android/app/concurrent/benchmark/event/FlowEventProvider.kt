@@ -15,7 +15,7 @@
  */
 package com.android.app.concurrent.benchmark.event
 
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.systemui.util.kotlin.sample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -127,7 +127,7 @@ class FlowWriteContext : WriteContext<Flow<*>> {
     }
 }
 
-abstract class BaseFlowEventBenchmark(threadParam: ThreadFactory<Any, CoroutineScope>) :
+abstract class BaseFlowEventBenchmark(threadParam: ThreadBuilder<CoroutineScope>) :
     BaseEventBenchmark<CoroutineScope, FlowWritableEventBuilder>(
         threadParam,
         { FlowWritableEventBuilder(it) },

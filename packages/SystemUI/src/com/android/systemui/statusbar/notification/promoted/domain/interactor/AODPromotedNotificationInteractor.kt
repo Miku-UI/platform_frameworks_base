@@ -16,11 +16,13 @@
 
 package com.android.systemui.statusbar.notification.promoted.domain.interactor
 
+import com.android.systemui.Flags.adaptiveLowFreqModeOnAod
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.keyguard.domain.interactor.BiometricUnlockInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
+import com.android.systemui.statusbar.notification.promoted.AODLowFrequencyModeDelayMs
 import com.android.systemui.statusbar.notification.promoted.ShowPromotedNotificationsOnAOD
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel
 import com.android.systemui.statusbar.policy.domain.interactor.SensitiveNotificationProtectionInteractor
@@ -29,9 +31,12 @@ import com.android.systemui.util.kotlin.FlowDumperImpl
 import com.android.systemui.util.println
 import java.io.PrintWriter
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
@@ -43,6 +48,7 @@ constructor(
     keyguardInteractor: KeyguardInteractor,
     sensitiveNotificationProtectionInteractor: SensitiveNotificationProtectionInteractor,
     showPromotedNotificationsOnAOD: ShowPromotedNotificationsOnAOD,
+    aodLowFrequencyModeDelayMs: AODLowFrequencyModeDelayMs,
     dumpManager: DumpManager,
     biometricUnlockInteractor: BiometricUnlockInteractor,
 ) : FlowDumperImpl(dumpManager) {
@@ -83,6 +89,26 @@ constructor(
         super.dump(pw, args)
         pw.asIndenting().println("showPromotedNotificationsOnAOD", promotedNotifsAODEnabled)
     }
+
+    /** Whether to use low frequency mode for Chronometers. */
+    val useLowFrequencyMode: Flow<Boolean> =
+        if (!adaptiveLowFreqModeOnAod()) {
+            flowOf(true)
+        } else {
+            keyguardInteractor.isDozing
+                .flatMapLatest { isDozing ->
+                    if (isDozing) {
+                        flow {
+                            emit(false)
+                            delay(aodLowFrequencyModeDelayMs.value)
+                            emit(true)
+                        }
+                    } else {
+                        flowOf(false)
+                    }
+                }
+                .distinctUntilChanged()
+        }
 
     val isPresent: Flow<Boolean> = content.map { it != null }.dumpWhileCollecting("isPresent")
 

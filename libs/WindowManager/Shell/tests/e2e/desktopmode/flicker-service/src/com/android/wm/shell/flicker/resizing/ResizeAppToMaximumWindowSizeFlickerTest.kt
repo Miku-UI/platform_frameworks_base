@@ -19,21 +19,21 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.appLayerHasMaxDisplayHeightAtEnd
+import com.android.wm.shell.flicker.utils.appLayerHasMaxDisplayWidthAtEnd
+import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
 import com.android.wm.shell.scenarios.MaximiseAppWithCornerResize
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.appLayerHasMaxDisplayHeightAtEnd
-import com.android.wm.shell.flicker.utils.appLayerHasMaxDisplayWidthAtEnd
-import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
 
 /**
  * Resize app window using corner resize to the greatest possible height and width.
@@ -44,12 +44,9 @@ import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class ResizeAppToMaximumWindowSizeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
-    inner class MaximizeStandardAppWithCornerResize : MaximiseAppWithCornerResize(
-        rotation = flicker.scenario.startRotation
-    )
+class ResizeAppToMaximumWindowSizeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+    inner class MaximizeStandardAppWithCornerResize :
+        MaximiseAppWithCornerResize(rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -59,25 +56,16 @@ class ResizeAppToMaximumWindowSizeFlickerTest(flicker: FlickerTest) : DesktopMod
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.resizeAppWithCornerResizeToMaximumSize()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.resizeAppWithCornerResizeToMaximumSize() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appLayerHasMaxDisplayHeightAtEnd() = flicker.appLayerHasMaxDisplayHeightAtEnd(testApp)
+    @Test fun appLayerHasMaxDisplayHeightAtEnd() = flicker.appLayerHasMaxDisplayHeightAtEnd(testApp)
 
-    @Test
-    fun appLayerHasMaxDisplayWidthAtEnd() = flicker.appLayerHasMaxDisplayWidthAtEnd(testApp)
+    @Test fun appLayerHasMaxDisplayWidthAtEnd() = flicker.appLayerHasMaxDisplayWidthAtEnd(testApp)
 
-    @Test
-    fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
+    @Test fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

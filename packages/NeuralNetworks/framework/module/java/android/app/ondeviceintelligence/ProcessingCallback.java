@@ -16,8 +16,12 @@
 
 package android.app.ondeviceintelligence;
 
+import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
+import android.app.ondeviceintelligence.InferenceInfo;
 import android.os.Bundle;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.InferenceParams;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.ResponseParams;
@@ -64,5 +68,18 @@ public interface ProcessingCallback {
             @NonNull @ResponseParams Bundle processedContent,
             @NonNull Consumer<@InferenceParams Bundle> contentConsumer) {
         contentConsumer.accept(Bundle.EMPTY);
+    }
+
+    /**
+     * Invoked when inference info is available for the given request.
+     * This callback is invoked only when the
+     * {@link OnDeviceIntelligenceManager#KEY_REQUEST_INFERENCE_INFO}
+     * is set to true in the associated request {@link Bundle}.
+     *
+     * @param info the inference info associated with the request.
+     * @see InferenceInfo
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    default void onInferenceInfo(@NonNull InferenceInfo info) {
     }
 }

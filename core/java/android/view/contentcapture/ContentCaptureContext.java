@@ -16,7 +16,9 @@
 package android.view.contentcapture;
 
 import static android.view.contentcapture.ContentCaptureManager.NO_SESSION_ID;
+import static android.view.contentcapture.flags.Flags.deprecateSetContentCaptureEnabled;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -59,8 +61,14 @@ public final class ContentCaptureContext implements Parcelable {
      * in which case the service will just receive activity-level events.
      *
      * @hide
+     *
+     * @deprecated For apps targeting SDK 37 and higher, this flag is deprecated. To opt
+     * out of content capture, you should use
+     * {@link android.view.WindowManager.LayoutParams#FLAG_SECURE}.
      */
     @SystemApi
+    @Deprecated
+    @FlaggedApi("android.view.contentcapture.flags.deprecate_set_content_capture_enabled")
     public static final int FLAG_DISABLED_BY_APP = 0x1;
 
     /**
@@ -82,19 +90,13 @@ public final class ContentCaptureContext implements Parcelable {
     @SystemApi
     public static final int FLAG_RECONNECTED = 0x4;
 
-    /**
-     * Flag used to disable flush when receiving a VIEW_TREE_APPEARING event.
-     *
-     * @hide
-     */
-    public static final int FLAG_DISABLED_FLUSH_FOR_VIEW_TREE_APPEARING = 1 << 3;
+
 
     /** @hide */
     @IntDef(flag = true, prefix = { "FLAG_" }, value = {
             FLAG_DISABLED_BY_APP,
             FLAG_DISABLED_BY_FLAG_SECURE,
-            FLAG_RECONNECTED,
-            FLAG_DISABLED_FLUSH_FOR_VIEW_TREE_APPEARING
+            FLAG_RECONNECTED
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface ContextCreationFlags{}
@@ -260,8 +262,7 @@ public final class ContentCaptureContext implements Parcelable {
      * Gets the flags associated with this context.
      *
      * @return any combination of {@link #FLAG_DISABLED_BY_FLAG_SECURE},
-     * {@link #FLAG_DISABLED_BY_APP}, {@link #FLAG_RECONNECTED} and {@link
-     * #FLAG_DISABLED_FLUSH_FOR_VIEW_TREE_APPEARING}.
+     * {@link #FLAG_DISABLED_BY_APP} and {@link #FLAG_RECONNECTED}.
      *
      * @hide
      */

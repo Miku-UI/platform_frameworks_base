@@ -22,6 +22,8 @@ LIBANDROID_NET {
     android_tag_socket_with_uid; # llndk
     android_tag_socket;  # llndk
     android_untag_socket; # llndk
+    # These functions have been part of the LL-NDK since API 37.
+    android_getnetworkblockedreason; # llndk
   local:
     *;
 };

@@ -75,6 +75,7 @@ public final class RoFeaturesFromXml {
      */
     @Nullable
     public static Boolean maybeHasFeature(String featureName, int version) {
+        if (featureName == null) return null;
         switch (featureName) {
             case PackageManager.FEATURE_EMBEDDED: return 1 >= version;
             case PackageManager.FEATURE_PC: return false;

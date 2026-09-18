@@ -21,7 +21,6 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runner.Runner;
 import org.junit.runner.notification.RunNotifier;
-import org.junit.runners.model.Statement;
 import org.junit.runners.model.TestClass;
 
 /**
@@ -31,17 +30,7 @@ import org.junit.runners.model.TestClass;
  * This is only used when a real device-side test has Ravenizer enabled.
  */
 public class RavenwoodAwareTestRunner extends RavenwoodAwareTestRunnerBase {
-    private static class NopRule implements TestRule {
-        @Override
-        public Statement apply(Statement base, Description description) {
-            return base;
-        }
-    }
-
-    public static final TestRule sImplicitClassOuterRule = new NopRule();
-    public static final TestRule sImplicitClassInnerRule = sImplicitClassOuterRule;
-    public static final TestRule sImplicitInstOuterRule = sImplicitClassOuterRule;
-    public static final TestRule sImplicitInstInnerRule = sImplicitClassOuterRule;
+    public static final TestRule sImplicitInstOuterRule = (base, desc) -> base;
 
     private final Runner mRealRunner;
 

@@ -20,8 +20,8 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiState
 import javax.inject.Inject
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -31,7 +31,7 @@ class ScreenCaptureUiRepository @Inject constructor() {
     private val _uiStates =
         mutableMapOf<ScreenCaptureType, MutableStateFlow<ScreenCaptureUiState>>()
 
-    fun uiState(type: ScreenCaptureType): Flow<ScreenCaptureUiState> =
+    fun uiState(type: ScreenCaptureType): StateFlow<ScreenCaptureUiState> =
         obtainState(type).asStateFlow()
 
     fun updateStateForType(
@@ -42,5 +42,5 @@ class ScreenCaptureUiRepository @Inject constructor() {
     }
 
     private fun obtainState(type: ScreenCaptureType): MutableStateFlow<ScreenCaptureUiState> =
-        _uiStates.getOrPut(type, { MutableStateFlow(ScreenCaptureUiState.Invisible) })
+        _uiStates.getOrPut(type, { MutableStateFlow(ScreenCaptureUiState.Invisible()) })
 }

@@ -16,15 +16,26 @@
 
 package com.android.systemui.statusbar.notification.collection.coordinator
 
-import android.app.NotificationChannel.NEWS_ID
-import android.app.NotificationChannel.PROMOTIONS_ID
-import android.app.NotificationChannel.RECS_ID
-import android.app.NotificationChannel.SOCIAL_MEDIA_ID
+import android.app.INotificationManager
+import android.app.NotificationManager.ACTION_DYNAMIC_BUNDLE_MODIFIED
+import android.app.NotificationManager.DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED
+import android.app.NotificationManager.DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED
+import android.app.NotificationManager.EXTRA_DYNAMIC_BUNDLE
+import android.app.NotificationManager.EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.SystemProperties
 import android.os.UserHandle
+import android.service.notification.DynamicBundle
 import androidx.annotation.VisibleForTesting
+import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.notification.Bundles
 import com.android.systemui.statusbar.notification.OnboardingAffordanceManager
 import com.android.systemui.statusbar.notification.collection.BundleEntry
@@ -40,20 +51,11 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.OnBefo
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Invalidator
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifBundler
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifFilter
-import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifSectioner
 import com.android.systemui.statusbar.notification.collection.render.BundleBarn
-import com.android.systemui.statusbar.notification.collection.render.NodeController
-import com.android.systemui.statusbar.notification.dagger.NewsHeader
-import com.android.systemui.statusbar.notification.dagger.PromoHeader
-import com.android.systemui.statusbar.notification.dagger.RecsHeader
-import com.android.systemui.statusbar.notification.dagger.SocialHeader
 import com.android.systemui.statusbar.notification.row.data.model.AppData
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
-import com.android.systemui.statusbar.notification.stack.BUCKET_NEWS
-import com.android.systemui.statusbar.notification.stack.BUCKET_PROMO
-import com.android.systemui.statusbar.notification.stack.BUCKET_RECS
-import com.android.systemui.statusbar.notification.stack.BUCKET_SOCIAL
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay
 import com.android.systemui.util.time.SystemClock
+import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -63,71 +65,29 @@ import kotlinx.coroutines.launch
 class BundleCoordinator
 @Inject
 constructor(
-    @NewsHeader private val newsHeaderController: NodeController,
-    @SocialHeader private val socialHeaderController: NodeController,
-    @RecsHeader private val recsHeaderController: NodeController,
-    @PromoHeader private val promoHeaderController: NodeController,
     private val bundleBarn: BundleBarn,
     private val systemClock: SystemClock,
     @Application private val coroutineScope: CoroutineScope,
     @Bundles private val onboardingAffordanceManager: OnboardingAffordanceManager,
+    private val notificationManager: INotificationManager,
+    @Main private val mainExecutor: Executor,
+    @Background private val backgroundExecutor: Executor,
+    private val userTracker: UserTracker,
+    private val broadcastDispatcher: BroadcastDispatcher,
 ) : Coordinator {
-
-    val newsSectioner =
-        object : NotifSectioner("News", BUCKET_NEWS) {
-            override fun isInSection(entry: PipelineEntry): Boolean {
-                return entry.asListEntry()?.representativeEntry?.channel?.id == NEWS_ID
-            }
-
-            override fun getHeaderNodeController(): NodeController {
-                return newsHeaderController
-            }
-        }
-
-    val socialSectioner =
-        object : NotifSectioner("Social", BUCKET_SOCIAL) {
-            override fun isInSection(entry: PipelineEntry): Boolean {
-                return entry.asListEntry()?.representativeEntry?.channel?.id == SOCIAL_MEDIA_ID
-            }
-
-            override fun getHeaderNodeController(): NodeController {
-                return socialHeaderController
-            }
-        }
-
-    val recsSectioner =
-        object : NotifSectioner("Recommendations", BUCKET_RECS) {
-            override fun isInSection(entry: PipelineEntry): Boolean {
-                return entry.asListEntry()?.representativeEntry?.channel?.id == RECS_ID
-            }
-
-            override fun getHeaderNodeController(): NodeController {
-                return recsHeaderController
-            }
-        }
-
-    val promoSectioner =
-        object : NotifSectioner("Promotions", BUCKET_PROMO) {
-            override fun isInSection(entry: PipelineEntry): Boolean {
-                return entry.asListEntry()?.representativeEntry?.channel?.id == PROMOTIONS_ID
-            }
-
-            override fun getHeaderNodeController(): NodeController {
-                return promoHeaderController
-            }
-        }
 
     val bundler =
         object : NotifBundler("NotifBundler") {
             // Use list instead of set to keep fixed order
-            override val bundleSpecs: List<BundleSpec> = buildList {
-                add(BundleSpec.NEWS)
-                add(BundleSpec.SOCIAL_MEDIA)
-                add(BundleSpec.PROMOTIONS)
-                add(BundleSpec.RECOMMENDED)
-            }
+            override val bundleSpecs: MutableList<BundleSpec> =
+                mutableListOf(
+                    BundleSpec.NEWS,
+                    BundleSpec.SOCIAL_MEDIA,
+                    BundleSpec.PROMOTIONS,
+                    BundleSpec.RECOMMENDED,
+                )
 
-            private val bundleIds = this.bundleSpecs.map { it.key }
+            private val bundleIds = this.bundleSpecs.map { it.key }.toMutableList()
 
             /**
              * Return the id string of the bundle this ListEntry belongs in Or null if this
@@ -154,6 +114,54 @@ constructor(
 
             private fun getBundleIdForNotifEntry(notifEntry: NotificationEntry): String? {
                 return notifEntry.representativeEntry?.channel?.id?.takeIf { it in this.bundleIds }
+            }
+
+            private val invalidator = object : Invalidator("dynamic bundles") {}
+
+            private val broadcastReceiver: BroadcastReceiver =
+                object : BroadcastReceiver() {
+                    override fun onReceive(context: Context, intent: Intent) {
+                        val dynamicBundle =
+                            intent.getParcelableExtra(
+                                EXTRA_DYNAMIC_BUNDLE,
+                                DynamicBundle::class.java,
+                            )!!
+                        val modificationType =
+                            intent.getIntExtra(EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE, -1)
+                        when (modificationType) {
+                            DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED -> {
+                                val bundleSpec = BundleSpec.fromDynamicBundle(dynamicBundle)
+                                bundleSpecs.add(bundleSpec)
+                                bundleIds.add(bundleSpec.key)
+                            }
+                            DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED -> {
+                                val bundleSpec = BundleSpec.fromDynamicBundle(dynamicBundle)
+                                bundleSpecs.remove(bundleSpec)
+                                bundleIds.remove(bundleSpec.key)
+                            }
+                        }
+                        invalidator.invalidateList("dynamic bundle list changed")
+                    }
+                }
+
+            init {
+                if (NmContextualDisplay.isEnabled) {
+                    backgroundExecutor.execute {
+                        val dynamicBundles =
+                            notificationManager.getDynamicBundles(null, userTracker.userHandle)
+                        for (dynamicBundle in dynamicBundles) {
+                            val bundleSpec = BundleSpec.fromDynamicBundle(dynamicBundle)
+                            bundleSpecs.add(bundleSpec)
+                            bundleIds.add(bundleSpec.key)
+                        }
+                        mainExecutor.execute {
+                            invalidator.invalidateList("dynamic bundles loaded")
+                        }
+                    }
+                    val intentFilter = IntentFilter()
+                    intentFilter.addAction(ACTION_DYNAMIC_BUNDLE_MODIFIED)
+                    broadcastDispatcher.registerReceiver(broadcastReceiver, intentFilter)
+                }
             }
         }
 
@@ -303,15 +311,13 @@ constructor(
     }
 
     override fun attach(pipeline: NotifPipeline) {
-        if (NotificationBundleUi.isEnabled) {
-            pipeline.setNotifBundler(bundler)
-            pipeline.addOnBeforeFinalizeFilterListener(this::inflateAllBundleEntries)
-            pipeline.addOnBeforeFinalizeFilterListener(bundleCountUpdater)
-            pipeline.addFinalizeFilter(bundleFilter)
-            pipeline.addOnBeforeRenderListListener(bundleMembershipUpdater)
-            pipeline.addOnBeforeRenderListListener(bundleAppDataUpdater)
-            bindOnboardingAffordanceInvalidator(pipeline)
-        }
+        pipeline.setNotifBundler(bundler)
+        pipeline.addOnBeforeFinalizeFilterListener(this::inflateAllBundleEntries)
+        pipeline.addOnBeforeFinalizeFilterListener(bundleCountUpdater)
+        pipeline.addFinalizeFilter(bundleFilter)
+        pipeline.addOnBeforeRenderListListener(bundleMembershipUpdater)
+        pipeline.addOnBeforeRenderListListener(bundleAppDataUpdater)
+        bindOnboardingAffordanceInvalidator(pipeline)
     }
 
     private fun bindOnboardingAffordanceInvalidator(pipeline: NotifPipeline) {
@@ -335,8 +341,6 @@ constructor(
     companion object {
         @JvmField val TAG: String = "BundleCoordinator"
 
-        @JvmField var debugBundleLogs: Boolean = false
-
         /**
          * All notifications that contain this String in the key are bundled into the recommended
          * bundle such that bundle code can be easily and deterministically tested.
@@ -349,6 +353,8 @@ constructor(
             if (Build.IS_USERDEBUG || Build.IS_ENG)
                 SystemProperties.get("persist.debug.notification_bundle_ui_debug_app_name")
             else null
+
+        @JvmField var debugBundleLogs: Boolean = false
 
         @JvmStatic
         fun debugBundleLog(tag: String, stringLambda: () -> String) {

@@ -450,10 +450,12 @@ class TextFileFilterPolicyParser {
      */
     private fun parseClassPolicy(s: String): FilterPolicy {
         val p = parsePolicy(s)
-        if (p == FilterPolicy.Experimental) {
-            return FilterPolicy.ExperimentalClass
+        return when (p) {
+            FilterPolicy.Throw -> FilterPolicy.ThrowClass
+            FilterPolicy.Ignore -> FilterPolicy.IgnoreClass
+            FilterPolicy.Experimental -> FilterPolicy.ExperimentalClass
+            else -> p
         }
-        return p
     }
 
     private fun parsePackage(fields: Array<String>) {

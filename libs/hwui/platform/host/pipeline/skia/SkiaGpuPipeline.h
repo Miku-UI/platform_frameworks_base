@@ -76,6 +76,10 @@ public:
         return sSnapMatrix;
     }
     static void prepareToDraw(const renderthread::RenderThread& thread, Bitmap* bitmap) {}
+
+    ANativeWindow* getSurface() override {
+        return nullptr;
+    }
 };
 
 } /* namespace skiapipeline */

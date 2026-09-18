@@ -23,7 +23,9 @@ import com.android.systemui.statusbar.notification.headsup.HeadsUpTouchHelper.He
 class HeadsUpNotificationViewControllerEmptyImpl : HeadsUpNotificationViewController {
     override fun setHeadsUpDraggingStartingHeight(startHeight: Int) {}
 
-    override fun setTrackedHeadsUp(expandableNotificationRow: ExpandableNotificationRow?) {}
+    override fun setTrackedHeadsUp(
+        expandableNotificationRow: ExpandableNotificationRow?, reason: String
+    ) {}
 
     override fun startExpand(
         newX: Float,

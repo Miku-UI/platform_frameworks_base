@@ -273,25 +273,6 @@ class SideFpsOverlayViewModelTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_BP_COLORS)
-    fun updatesLottieCallbacks_onShowIndicatorForDeviceEntry() {
-        kosmos.testScope.runTest {
-            val lottieCallbacks by collectLastValue(kosmos.sideFpsOverlayViewModel.lottieCallbacks)
-
-            updateSfpsIndicatorRequests(kosmos, mContext, primaryBouncerRequest = true)
-            runCurrent()
-
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".blue600", "**"), indicatorColor))
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".blue400", "**"), outerRimColor))
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".black", "**"), chevronFill))
-        }
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_BP_COLORS)
     fun updatesLottieCallbacks_dynamicSfps() {
         kosmos.testScope.runTest {
             val lottieCallbacks by collectLastValue(kosmos.sideFpsOverlayViewModel.lottieCallbacks)
@@ -305,42 +286,6 @@ class SideFpsOverlayViewModelTest : SysuiTestCase() {
                 .contains(LottieCallback(KeyPath(".blue400", "**"), dynamicOuterRimColor))
             assertThat(lottieCallbacks)
                 .contains(LottieCallback(KeyPath(".black", "**"), dynamicChevronFill))
-        }
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_BP_COLORS)
-    fun updatesLottieCallbacks_onShowIndicatorForSystemServer_inDarkMode() {
-        kosmos.testScope.runTest {
-            val lottieCallbacks by collectLastValue(kosmos.sideFpsOverlayViewModel.lottieCallbacks)
-            setDarkMode(true)
-
-            updateSfpsIndicatorRequests(kosmos, mContext, biometricPromptRequest = true)
-            runCurrent()
-
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".blue600", "**"), color_blue400))
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".blue400", "**"), color_blue400))
-        }
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_BP_COLORS)
-    fun updatesLottieCallbacks_onShowIndicatorForSystemServer_inLightMode() {
-        kosmos.testScope.runTest {
-            val lottieCallbacks by collectLastValue(kosmos.sideFpsOverlayViewModel.lottieCallbacks)
-            setDarkMode(false)
-
-            updateSfpsIndicatorRequests(kosmos, mContext, biometricPromptRequest = true)
-            runCurrent()
-
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".black", "**"), Color.WHITE))
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".blue600", "**"), color_blue400))
-            assertThat(lottieCallbacks)
-                .contains(LottieCallback(KeyPath(".blue400", "**"), color_blue400))
         }
     }
 

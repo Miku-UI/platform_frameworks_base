@@ -26,7 +26,6 @@ import com.android.systemui.statusbar.data.repository.NotificationListenerSettin
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationListRepository
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.NotificationsKeyguardViewStateRepository
-import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.AODPromotedNotificationInteractor
 import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationEntryModel
@@ -37,11 +36,13 @@ import java.util.Optional
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlin.jvm.optionals.getOrNull
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 /** Domain logic related to notification icons. */
 class NotificationIconsInteractor
@@ -49,7 +50,6 @@ class NotificationIconsInteractor
 constructor(
     private val activeNotificationsRepository: ActiveNotificationListRepository,
     private val bubbles: Optional<Bubbles>,
-    private val headsUpNotificationIconInteractor: HeadsUpNotificationIconInteractor,
     aodPromotedNotificationInteractor: AODPromotedNotificationInteractor,
     private val keyguardViewStateRepository: NotificationsKeyguardViewStateRepository,
     @Application private val appContext: Context,
@@ -68,7 +68,6 @@ constructor(
 
     /** Returns a subset of all active notifications based on the supplied filtration parameters. */
     fun filteredNotifSet(
-        forceShowHeadsUp: Boolean = false,
         showAmbient: Boolean = true,
         showLowPriority: Boolean = true,
         showDismissed: Boolean = true,
@@ -78,10 +77,9 @@ constructor(
     ): Flow<Set<ActiveNotificationIconModel>> {
         return combine(
             activeNotificationsRepository.activeNotifications,
-            headsUpNotificationIconInteractor.isolatedNotification,
             if (showAodPromoted) flowOf(null) else aodPromotedKeyToHide,
             keyguardViewStateRepository.areNotificationsFullyHidden,
-        ) { store, isolatedNotifKey, aodPromotedKeyToHide, notifsFullyHidden ->
+        ) { store, aodPromotedKeyToHide, notifsFullyHidden ->
             store.renderList
                 .asSequence()
                 .mapNotNull { key: ActiveNotificationsStore.Key ->
@@ -107,13 +105,11 @@ constructor(
                                 .takeIf {
                                     shouldShowNotificationIcon(
                                         model = notifModel,
-                                        forceShowHeadsUp = forceShowHeadsUp,
                                         showAmbient = showAmbient,
                                         showLowPriority = showLowPriority,
                                         showDismissed = showDismissed,
                                         showRepliedMessages = showRepliedMessages,
                                         showPulsing = showPulsing,
-                                        isolatedNotifKey = isolatedNotifKey,
                                         aodPromotedKeyToHide = aodPromotedKeyToHide,
                                         notifsFullyHidden = notifsFullyHidden,
                                     )
@@ -146,18 +142,15 @@ constructor(
 
     private fun shouldShowNotificationIcon(
         model: ActiveNotificationModel,
-        forceShowHeadsUp: Boolean,
         showAmbient: Boolean,
         showLowPriority: Boolean,
         showDismissed: Boolean,
         showRepliedMessages: Boolean,
         showPulsing: Boolean,
-        isolatedNotifKey: String?,
         aodPromotedKeyToHide: String?,
         notifsFullyHidden: Boolean,
     ): Boolean {
         return when {
-            forceShowHeadsUp && model.key == isolatedNotifKey -> true
             !showAmbient && model.isAmbient -> false
             !showLowPriority && model.isSilent -> false
             !showDismissed && model.isRowDismissed -> false
@@ -242,11 +235,11 @@ constructor(
     iconsInteractor: NotificationIconsInteractor,
     settingsRepository: NotificationListenerSettingsRepository,
 ) {
+    @OptIn(ExperimentalCoroutinesApi::class)
     val statusBarNotifs: Flow<Set<ActiveNotificationIconModel>> =
         settingsRepository.showSilentStatusIcons
             .flatMapLatest { showSilentIcons ->
                 iconsInteractor.filteredNotifSet(
-                    forceShowHeadsUp = true,
                     showAmbient = false,
                     showLowPriority = showSilentIcons,
                     showDismissed = false,
@@ -254,4 +247,8 @@ constructor(
                 )
             }
             .flowOn(bgContext)
+
+    /** Emits `true` whenever there is at least one status bar notification. */
+    val hasStatusBarNotifications: Flow<Boolean> =
+        statusBarNotifs.map { it.isNotEmpty() }.flowOn(bgContext)
 }

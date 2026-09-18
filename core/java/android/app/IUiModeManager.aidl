@@ -238,4 +238,21 @@ interface IUiModeManager {
      * @hide
      */
     int getForceInvertOverrideState(int userId, String packageName);
+
+    /**
+     * Returns the list of force invert always disable apps.
+     *
+     * @hide
+     */
+    List<String> getAllForceInvertAlwaysDisableApps(int userId);
+
+    /**
+     * Returns if the force invert override state is updated successfully.
+     *
+     * @hide
+     */
+    @EnforcePermission("WRITE_SETTINGS")
+    boolean setForceInvertOverrideState(int userId, String packageName, int newState);
+
+
 }

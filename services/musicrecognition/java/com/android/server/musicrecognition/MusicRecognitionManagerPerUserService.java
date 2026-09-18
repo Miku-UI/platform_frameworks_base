@@ -39,6 +39,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.util.Pair;
 import android.util.Slog;
 
@@ -142,8 +143,12 @@ public final class MusicRecognitionManagerPerUserService extends
 
             try {
                 mServiceInfo =
-                        getContext().getPackageManager().getServiceInfo(
-                                mRemoteService.getComponentName(), PackageManager.GET_META_DATA);
+                        getContext()
+                                .createContextAsUser(UserHandle.of(mUserId), 0)
+                                .getPackageManager()
+                                .getServiceInfo(
+                                        mRemoteService.getComponentName(),
+                                        PackageManager.GET_META_DATA);
                 mAttributionTagFuture = mRemoteService.getAttributionTag();
                 Slog.i(TAG, "Remote service bound: " + mRemoteService.getComponentName());
             } catch (PackageManager.NameNotFoundException e) {

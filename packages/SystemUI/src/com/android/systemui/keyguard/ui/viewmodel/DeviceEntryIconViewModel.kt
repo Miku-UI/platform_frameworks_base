@@ -28,12 +28,13 @@ import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsIntera
 import com.android.systemui.keyguard.domain.interactor.BurnInInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shared.customization.data.SensorLocation
 import dagger.Lazy
@@ -63,14 +64,13 @@ constructor(
     transitions: Set<@JvmSuppressWildcards DeviceEntryIconTransition>,
     burnInInteractor: BurnInInteractor,
     shadeInteractor: ShadeInteractor,
-    deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
+    private val deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     transitionInteractor: KeyguardTransitionInteractor,
-    val keyguardInteractor: KeyguardInteractor,
-    val viewModel: AodToLockscreenTransitionViewModel,
+    private val keyguardInteractor: KeyguardInteractor,
     private val keyguardViewController: Lazy<KeyguardViewController>,
     private val deviceEntryInteractor: DeviceEntryInteractor,
     private val deviceEntrySourceInteractor: DeviceEntrySourceInteractor,
-    private val accessibilityInteractor: AccessibilityInteractor,
+    accessibilityInteractor: AccessibilityInteractor,
     @Application private val scope: CoroutineScope,
     private val sceneInteractor: Lazy<SceneInteractor>,
 ) {
@@ -81,6 +81,9 @@ constructor(
             started = SharingStarted.Eagerly,
             initialValue = null,
         )
+    val scaleFactor: Float
+        get() = deviceEntryUdfpsInteractor.scaleFactor
+
     private val intEvaluator = IntEvaluator()
     private val floatEvaluator = FloatEvaluator()
     private val showingAlternateBouncer: Flow<Boolean> =
@@ -129,13 +132,54 @@ constructor(
             )
         }
 
-    val deviceEntryViewAlpha: Flow<Float> =
-        combine(transitionAlpha, alphaMultiplierFromShadeExpansion) { alpha, alphaMultiplier ->
-                alpha * alphaMultiplier
+    private val showDeviceEntryIcon: Flow<Boolean> =
+        deviceEntryUdfpsInteractor.isUdfpsEnrolledAndEnabled.flatMapLatest {
+            if (it) {
+                // if UDFPS is enrolled, then always show icon in Lockscreen Scene
+                flowOf(true)
+            } else {
+                // if UDFPS isn't enrolled, then don't show icon while in AOD or Dozing
+                merge(
+                        transitionInteractor.transition(
+                            Edge.create(from = null, to = KeyguardState.AOD)
+                        ),
+                        transitionInteractor.transition(
+                            Edge.create(from = null, to = KeyguardState.DOZING)
+                        ),
+                        transitionInteractor.transition(
+                            Edge.create(from = KeyguardState.AOD, to = null)
+                        ),
+                        transitionInteractor.transition(
+                            Edge.create(from = KeyguardState.DOZING, to = null)
+                        ),
+                    )
+                    .map { step ->
+                        val goingToAodOrDozing =
+                            step.to == KeyguardState.AOD || step.to == KeyguardState.DOZING
+                        val leavingAodOrDozingForGone =
+                            (step.from == KeyguardState.AOD || step.from == KeyguardState.DOZING) &&
+                                step.to == KeyguardState.UNDEFINED
+                        !goingToAodOrDozing && !leavingAodOrDozingForGone
+                    }
+                    .onStart { emit(true) }
             }
-            .stateIn(scope = scope, started = SharingStarted.WhileSubscribed(), initialValue = 0f)
+        }
+    val deviceEntryViewAlpha: Flow<Float> =
+        if (SceneContainerFlag.isEnabled) {
+            showDeviceEntryIcon.map { if (it) 1f else 0f }
+        } else {
+            combine(transitionAlpha, alphaMultiplierFromShadeExpansion) { alpha, alphaMultiplier ->
+                    alpha * alphaMultiplier
+                }
+                .stateIn(
+                    scope = scope,
+                    started = SharingStarted.WhileSubscribed(),
+                    initialValue = 0f,
+                )
+        }
 
     private fun initialAlphaFromKeyguardState(keyguardState: KeyguardState): Float {
+        SceneContainerFlag.assertInLegacyMode()
         return when (keyguardState) {
             KeyguardState.OFF,
             KeyguardState.PRIMARY_BOUNCER,
@@ -147,19 +191,7 @@ constructor(
             KeyguardState.AOD,
             KeyguardState.ALTERNATE_BOUNCER,
             KeyguardState.LOCKSCREEN -> 1f
-            KeyguardState.UNDEFINED -> calculateAlphaForKeyguardStateUndefined()
-        }
-    }
-
-    private fun calculateAlphaForKeyguardStateUndefined(): Float {
-        return if (SceneContainerFlag.isEnabled) {
-            when (sceneInteractor.get().currentScene.value) {
-                Scenes.Shade,
-                Scenes.QuickSettings -> 1f
-                else -> 0f
-            }
-        } else {
-            1f
+            KeyguardState.UNDEFINED -> 0f // shouldn't get here
         }
     }
 
@@ -241,7 +273,17 @@ constructor(
                 DeviceEntryIconView.IconType.LOCK
             }
         }
-    val isVisible: Flow<Boolean> = deviceEntryViewAlpha.map { it > 0f }.distinctUntilChanged()
+    val isVisible: Flow<Boolean> =
+        if (SceneContainerFlag.isEnabled) {
+            combine(
+                sceneInteractor.get().currentOverlays,
+                deviceEntryViewAlpha.map { it > 0f }.distinctUntilChanged(),
+            ) { currentOverlays, viewShowing ->
+                !currentOverlays.contains(Overlays.Bouncer) && viewShowing
+            }
+        } else {
+            deviceEntryViewAlpha.map { it > 0f }.distinctUntilChanged()
+        }
 
     private val isInteractive: Flow<Boolean> =
         combine(iconType, isUdfpsSupported) { deviceEntryStatus, isUdfps ->
@@ -255,7 +297,17 @@ constructor(
     val accessibilityDelegateHint: Flow<DeviceEntryIconView.AccessibilityHintType> =
         accessibilityInteractor.isEnabled.flatMapLatest { touchExplorationEnabled ->
             if (touchExplorationEnabled) {
-                iconType.map { it.toAccessibilityHintType() }
+                if (SceneContainerFlag.isEnabled) {
+                    isVisible.flatMapLatest { isVisible ->
+                        if (isVisible) {
+                            iconType.map { it.toAccessibilityHintType() }
+                        } else {
+                            flowOf(DeviceEntryIconView.AccessibilityHintType.NONE)
+                        }
+                    }
+                } else {
+                    iconType.map { it.toAccessibilityHintType() }
+                }
             } else {
                 flowOf(DeviceEntryIconView.AccessibilityHintType.NONE)
             }
@@ -277,7 +329,10 @@ constructor(
 
     suspend fun onUserInteraction() {
         if (SceneContainerFlag.isEnabled) {
-            deviceEntryInteractor.attemptDeviceEntry("Device entry icon")
+            deviceEntryInteractor.attemptDeviceEntry(
+                loggingReason = "Device entry icon",
+                skipShowingAlternateBouncer = true,
+            )
         } else {
             keyguardViewController
                 .get()

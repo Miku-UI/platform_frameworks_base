@@ -108,29 +108,31 @@ public class TelephonyTimeSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noSlotIndex() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345");
         TelephonyTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noReferenceTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--slot_index 0 --unix_epoch_time 12345");
         TelephonyTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noUnixEpochTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --elapsed_realtime 54321");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--slot_index 0 --elapsed_realtime 54321");
         TelephonyTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test
     public void testParseCommandLineArg_validSuggestion() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --elapsed_realtime 54321 --unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--slot_index 0 --elapsed_realtime 54321 --unix_epoch_time 12345");
         TelephonyTimeSuggestion expectedSuggestion =
                 new TelephonyTimeSuggestion.Builder(0)
                         .setUnixEpochTime(new UnixEpochTime(54321L, 12345L))
@@ -142,8 +144,10 @@ public class TelephonyTimeSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_unknownArgument() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--slot_index 0 --elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg"
+                                + " 0");
         TelephonyTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 }

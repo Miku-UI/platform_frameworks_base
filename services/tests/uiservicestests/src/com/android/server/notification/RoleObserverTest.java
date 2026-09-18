@@ -26,7 +26,9 @@ import static junit.framework.Assert.assertTrue;
 
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.any;
@@ -41,6 +43,7 @@ import static java.util.Arrays.asList;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.AppOpsManager;
+import android.app.Flags;
 import android.app.IActivityManager;
 import android.app.IUriGrantsManager;
 import android.app.StatsManager;
@@ -58,6 +61,7 @@ import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.permission.PermissionManager;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.TelecomManager;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
@@ -86,6 +90,7 @@ import com.android.server.wm.WindowManagerInternal;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -97,8 +102,9 @@ import java.util.List;
 @SmallTest
 @RunWith(AndroidTestingRunner.class)
 @RunWithLooper
-// TODO (b/194833441): remove when notification permission is enabled
 public class RoleObserverTest extends UiServiceTestCase {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private TestableNotificationManagerService mService;
     private NotificationManagerService.RoleObserver mRoleObserver;
 
@@ -110,83 +116,31 @@ public class RoleObserverTest extends UiServiceTestCase {
     private UserManager mUm;
     @Mock
     private RoleManager mRoleManager;
-    @Mock
-    private Looper mMainLooper;
     private TestableLooper mTestableLooper;
-    NotificationRecordLoggerFake mNotificationRecordLogger = new NotificationRecordLoggerFake();
-    private InstanceIdSequence mNotificationInstanceIdSequence = new InstanceIdSequenceFake(
-            1 << 30);
     private List<UserHandle> mUsers;
-
-    private static class TestableNotificationManagerService extends NotificationManagerService {
-        TestableNotificationManagerService(Context context,
-                NotificationRecordLogger logger,
-                InstanceIdSequence notificationInstanceIdSequence) {
-            super(context, logger, notificationInstanceIdSequence);
-        }
-
-        @Override
-        protected void handleSavePolicyFile() { }
-
-        @Override
-        protected void loadPolicyFile() { }
-    }
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        // Shell permisssions will override permissions of our app, so add all necessary permissions
-        // for this test here:
-        InstrumentationRegistry.getInstrumentation().getUiAutomation().adoptShellPermissionIdentity(
-                "android.permission.READ_CONTACTS");
-
-        LocalServices.removeServiceForTest(WindowManagerInternal.class);
-        LocalServices.addService(WindowManagerInternal.class, mock(WindowManagerInternal.class));
-        mContext.addMockSystemService(AppOpsManager.class, mock(AppOpsManager.class));
 
         mUsers = new ArrayList<>();
         mUsers.add(new UserHandle(0));
         mUsers.add(new UserHandle(10));
         when(mUm.getUserHandles(anyBoolean())).thenReturn(mUsers);
 
-        when(mMainLooper.isCurrentThread()).thenReturn(true);
-
-        mService = new TestableNotificationManagerService(mContext, mNotificationRecordLogger,
-                mNotificationInstanceIdSequence);
-        mRoleObserver = mService.new RoleObserver(mContext, mRoleManager, mPm, mMainLooper);
         mTestableLooper = TestableLooper.get(this);
+        mContext.addMockSystemService(UserManager.class, mUm);
 
-        try {
-            mService.init(mService.new WorkerHandler(mTestableLooper.getLooper()),
-                    mock(RankingHandler.class), new Handler(mTestableLooper.getLooper()),
-                    mock(IPackageManager.class), mock(PackageManager.class),
-                    mock(LightsManager.class),
-                    mock(NotificationListeners.class), mock(NotificationAssistants.class),
-                    mock(ConditionProviders.class), mock(ICompanionDeviceManager.class),
-                    mock(SnoozeHelper.class), mock(NotificationUsageStats.class),
-                    mock(AtomicFile.class), mock(ActivityManager.class),
-                    mock(GroupHelper.class), mock(IActivityManager.class),
-                    mock(ActivityTaskManagerInternal.class),
-                    mock(UsageStatsManagerInternal.class),
-                    mock(DevicePolicyManagerInternal.class), mock(IUriGrantsManager.class),
-                    mock(UriGrantsManagerInternal.class),
-                    mock(AppOpsManager.class), mUm, mock(NotificationHistoryManager.class),
-                    mock(StatsManager.class),
-                    mock(ActivityManagerInternal.class),
-                    mock(MultiRateLimiter.class), mock(PermissionHelper.class),
-                    mock(UsageStatsManagerInternal.class), mock(TelecomManager.class),
-                    mock(NotificationChannelLogger.class), new TestableFlagResolver(),
-                    mock(PermissionManager.class),
-                    mock(PowerManager.class),
-                    new NotificationManagerService.PostNotificationTrackerFactory() {},
-                    mock(UiEventLogger.class),
-                    mock(BitmapOffloadInternal.class), new NotificationListenerStats());
-        } catch (SecurityException e) {
-            if (!e.getMessage().contains("Permission Denial: not allowed to send broadcast")) {
-                throw e;
-            }
-        }
+        mService = new TestableNotificationManagerService(mContext, mTestableLooper);
+        mService.init();
         mService.setPreferencesHelper(mPreferencesHelper);
+        mRoleObserver = mService.new RoleObserver(
+                mContext, mRoleManager, mPm, mTestableLooper.getLooper());
+
+        doNothing().when(mContext).sendBroadcast(any(), anyString());
+        doNothing().when(mContext).sendBroadcastAsUser(any(), any());
+        doNothing().when(mContext).sendBroadcastAsUser(any(), any(), any());
+        doNothing().when(mContext).sendBroadcastMultiplePermissions(any(), any(), any(), any());
     }
 
     @After

@@ -261,6 +261,24 @@ void CacheManager::dumpMemoryUsage(String8& log, const RenderState* renderState)
 
     log.appendFormat("Total GPU memory usage:\n");
     gpuTracer.logTotals(log);
+
+    auto stats = skiapipeline::PersistentGraphicsCache::get().getPipelineCacheStats();
+    if (stats.inUse) {
+        log.appendFormat(
+                "Pipeline Cache: active\n"
+                "  Cache Disk Size: %zu bytes\n"
+                "  Failed File Open And Truncate Operations: %" PRIu64
+                "\n"
+                "  Failed File Writes: %" PRIu64
+                "\n"
+                "  Zero Byte Writes: %" PRIu64
+                "\n"
+                "  Partial Writes: %" PRIu64 "\n",
+                stats.sizeBytes, stats.fileOpenAndTruncateFailedCount, stats.fileWriteFailedCount,
+                stats.zeroByteWriteCount, stats.partialWriteCount);
+    } else {
+        log.appendFormat("Pipeline Cache: inactive");
+    }
 }
 
 void CacheManager::onFrameCompleted() {

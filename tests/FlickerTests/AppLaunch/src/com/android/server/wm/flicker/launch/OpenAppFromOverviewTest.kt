@@ -66,9 +66,9 @@ class OpenAppFromOverviewTest(flicker: FlickerTest) : OpenAppFromLauncherTransit
         get() = {
             super.transition(this)
             setup {
-                tapl.setExpectedRotationCheckEnabled(false)
+                tapl.expectedRotationCheckEnabled = false
                 testApp.launchViaIntent(wmHelper)
-                tapl.goHome()
+                device.pressHome()
                 wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
                 // By default, launcher doesn't rotate on phones, but rotates on tablets
                 if (flicker.scenario.isTablet) {

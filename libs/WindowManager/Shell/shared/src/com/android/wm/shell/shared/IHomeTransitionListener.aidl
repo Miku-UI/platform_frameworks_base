@@ -28,8 +28,11 @@ oneway interface IHomeTransitionListener {
 
     /**
      * Called when a transition changes the visibility of the home activity on the default display.
+     * @param behindDesktop Whether home is visible, but behind desktop windows. It will false if
+     *                      home is not visible, even if device is in desktop mode.
      */
-    void onHomeVisibilityChanged(in boolean isVisible);
+    void onHomeVisibilityChanged(in boolean isVisible, in boolean keyguardGoingAwayOrWaking,
+                                 in boolean behindDesktop);
 
     /**
      * Called when the insets at display-level change.

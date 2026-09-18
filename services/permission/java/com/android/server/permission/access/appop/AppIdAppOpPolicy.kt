@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.appop
 
 import android.app.AppOpsManager
@@ -23,8 +25,8 @@ import com.android.server.permission.access.GetStateScope
 import com.android.server.permission.access.MutableAccessState
 import com.android.server.permission.access.MutateStateScope
 import com.android.server.permission.access.UidUri
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.pm.pkg.PackageState
 
 class AppIdAppOpPolicy : BaseAppOpPolicy(AppIdAppOpPersistence()) {

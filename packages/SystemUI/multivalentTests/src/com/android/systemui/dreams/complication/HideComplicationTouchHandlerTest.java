@@ -16,8 +16,6 @@
 
 package com.android.systemui.dreams.complication;
 
-import static com.android.systemui.Flags.FLAG_REMOVE_DREAM_OVERLAY_HIDE_ON_TOUCH;
-
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -25,8 +23,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.os.Handler;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -90,186 +86,8 @@ public class HideComplicationTouchHandlerTest extends SysuiTestCase {
         mFakeExecutor = new FakeExecutor(mClock);
     }
 
-    /**
-     * Ensures no actions are taken when there multiple sessions.
-     */
-    @Test
-    @DisableFlags(FLAG_REMOVE_DREAM_OVERLAY_HIDE_ON_TOUCH)
-    public void testSessionEndOnMultipleSessions() {
-        final HideComplicationTouchHandler touchHandler = new HideComplicationTouchHandler(
-                mVisibilityController,
-                RESTORE_TIMEOUT,
-                HIDE_DELAY,
-                mTouchInsetManager,
-                mStatusBarKeyguardViewManager,
-                mFakeExecutor,
-                mStateController);
-
-        // Report multiple active sessions.
-        when(mSession.getActiveSessionCount()).thenReturn(2);
-
-        // Bouncer hidden.
-        when(mStatusBarKeyguardViewManager.isBouncerShowing()).thenReturn(false);
-
-        // Start session.
-        touchHandler.onSessionStart(mSession);
-
-        // Verify session end.
-        verify(mSession).pop();
-
-        mClock.advanceTime(HIDE_DELAY);
-
-        // Verify no interaction with visibility controller.
-        verify(mVisibilityController, never()).setVisibility(anyInt());
-    }
-
-    /**
-     * Ensures no actions are taken when the bouncer is showing.
-     */
-    @Test
-    @DisableFlags(FLAG_REMOVE_DREAM_OVERLAY_HIDE_ON_TOUCH)
-    public void testSessionEndWhenBouncerShowing() {
-        final HideComplicationTouchHandler touchHandler = new HideComplicationTouchHandler(
-                mVisibilityController,
-                RESTORE_TIMEOUT,
-                HIDE_DELAY,
-                mTouchInsetManager,
-                mStatusBarKeyguardViewManager,
-                mFakeExecutor,
-                mStateController);
-
-        // Report one session.
-        when(mSession.getActiveSessionCount()).thenReturn(1);
-
-        // Bouncer is showing.
-        when(mStatusBarKeyguardViewManager.isBouncerShowing()).thenReturn(true);
-
-        // Start session.
-        touchHandler.onSessionStart(mSession);
-
-        // Verify session end.
-        verify(mSession).pop();
-
-        mClock.advanceTime(HIDE_DELAY);
-
-        // Verify no interaction with visibility controller.
-        verify(mVisibilityController, never()).setVisibility(anyInt());
-    }
-
-    /**
-     * Ensures no actions are taken when there multiple sessions.
-     */
-    @Test
-    @DisableFlags(FLAG_REMOVE_DREAM_OVERLAY_HIDE_ON_TOUCH)
-    public void testSessionEndWithTouchInInset() {
-        final HideComplicationTouchHandler touchHandler = new HideComplicationTouchHandler(
-                mVisibilityController,
-                RESTORE_TIMEOUT,
-                HIDE_DELAY,
-                mTouchInsetManager,
-                mStatusBarKeyguardViewManager,
-                mFakeExecutor,
-                mStateController);
-
-        // Report one session
-        when(mSession.getActiveSessionCount()).thenReturn(1);
-
-        // Bouncer hidden.
-        when(mStatusBarKeyguardViewManager.isBouncerShowing()).thenReturn(false);
-
-        // Start session
-        touchHandler.onSessionStart(mSession);
-
-        // Capture input listener
-        final ArgumentCaptor<InputChannelCompat.InputEventListener> inputEventListenerCaptor =
-                ArgumentCaptor.forClass(InputChannelCompat.InputEventListener.class);
-        verify(mSession).registerInputListener(inputEventListenerCaptor.capture());
-
-        // Report touch within the inset
-        when(mTouchInsetManager.checkWithinTouchRegion(anyInt(), anyInt())).thenReturn(
-                CallbackToFutureAdapter.getFuture(completer -> {
-                    completer.set(true);
-                    return "testSessionEndWithTouchInInset";
-                })
-        );
-
-        inputEventListenerCaptor.getValue().onInputEvent(mMotionEvent);
-        mFakeExecutor.runAllReady();
-
-        // Verify session ended.
-        verify(mSession).pop();
-
-        mClock.advanceTime(HIDE_DELAY);
-
-        // Verify no interaction with visibility controller.
-        verify(mVisibilityController, never()).setVisibility(anyInt());
-    }
-
-    /**
-     * Make sure visibility changes are triggered from session events.
-     */
-    @Test
-    @DisableFlags(FLAG_REMOVE_DREAM_OVERLAY_HIDE_ON_TOUCH)
-    public void testSessionLifecycle() {
-        final HideComplicationTouchHandler touchHandler = new HideComplicationTouchHandler(
-                mVisibilityController,
-                RESTORE_TIMEOUT,
-                HIDE_DELAY,
-                mTouchInsetManager,
-                mStatusBarKeyguardViewManager,
-                mFakeExecutor,
-                mStateController);
-
-        // Report one session
-        when(mSession.getActiveSessionCount()).thenReturn(1);
-
-        // Bouncer hidden.
-        when(mStatusBarKeyguardViewManager.isBouncerShowing()).thenReturn(false);
-
-        // Start session
-        touchHandler.onSessionStart(mSession);
-
-        // Capture input listener
-        final ArgumentCaptor<InputChannelCompat.InputEventListener> inputEventListenerCaptor =
-                ArgumentCaptor.forClass(InputChannelCompat.InputEventListener.class);
-        verify(mSession).registerInputListener(inputEventListenerCaptor.capture());
-
-        // Report touch outside the inset
-        when(mTouchInsetManager.checkWithinTouchRegion(anyInt(), anyInt())).thenReturn(
-                CallbackToFutureAdapter.getFuture(completer -> {
-                    completer.set(false);
-                    return "testSessionEndWithTouchInInset";
-                })
-        );
-
-        // Send down event.
-        when(mMotionEvent.getAction()).thenReturn(MotionEvent.ACTION_DOWN);
-        inputEventListenerCaptor.getValue().onInputEvent(mMotionEvent);
-        mFakeExecutor.runAllReady();
-
-        // Verify visibility controller doesn't hide until after timeout
-        verify(mVisibilityController, never()).setVisibility(eq(View.INVISIBLE));
-        mClock.advanceTime(HIDE_DELAY);
-        // Verify visibility controller told to hide complications.
-        verify(mVisibilityController).setVisibility(eq(View.INVISIBLE));
-
-        Mockito.clearInvocations(mVisibilityController, mHandler);
-
-        // Send up event.
-        when(mMotionEvent.getAction()).thenReturn(MotionEvent.ACTION_UP);
-        inputEventListenerCaptor.getValue().onInputEvent(mMotionEvent);
-        mFakeExecutor.runAllReady();
-
-        // Verify visibility controller told to show complications.
-        mClock.advanceTime(RESTORE_TIMEOUT);
-        verify(mVisibilityController).setVisibility(eq(View.VISIBLE));
-
-        // Verify session ended.
-        verify(mSession).pop();
-    }
 
     @Test
-    @EnableFlags(FLAG_REMOVE_DREAM_OVERLAY_HIDE_ON_TOUCH)
     public void testNoActionWhenDisabledByFlag() {
         final HideComplicationTouchHandler touchHandler = new HideComplicationTouchHandler(
                 mVisibilityController,

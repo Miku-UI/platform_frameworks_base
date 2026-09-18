@@ -20,7 +20,6 @@ import android.view.View
 import android.view.ViewTreeObserver
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.util.NameTag
 import com.android.systemui.kairos.util.map
 import com.android.systemui.lifecycle.WindowLifecycleState
@@ -44,7 +43,6 @@ import kotlinx.coroutines.flow.onStart
  * [block] may be run multiple times, running once per every time the [WindowLifecycleState] becomes
  * at least at [state].
  */
-@ExperimentalKairosApi
 fun BuildScope.repeatOnWindowLifecycle(
     view: View,
     state: WindowLifecycleState,
@@ -65,7 +63,6 @@ fun BuildScope.repeatOnWindowLifecycle(
  *
  * [block] may be run multiple times, running once per every time the view is attached.
  */
-@ExperimentalKairosApi
 fun BuildScope.repeatWhenAttachedToWindow(
     view: View,
     name: NameTag? = null,
@@ -88,7 +85,6 @@ fun BuildScope.repeatWhenAttachedToWindow(
  *
  * [block] may be run multiple times, running once per every time the window becomes visible.
  */
-@ExperimentalKairosApi
 fun BuildScope.repeatWhenWindowIsVisible(
     view: View,
     name: NameTag? = null,
@@ -111,7 +107,6 @@ fun BuildScope.repeatWhenWindowIsVisible(
  *
  * [block] may be run multiple times, running once per every time the window is focused.
  */
-@ExperimentalKairosApi
 fun BuildScope.repeatWhenWindowHasFocus(
     view: View,
     name: NameTag? = null,

@@ -73,26 +73,26 @@ internal class DepthTracker {
     var snapshotIndirectDepth: Int = 0
     var snapshotDirectDepth: Int = 0
 
-    private val _snapshotIndirectRoots = MutableScatterSet<MuxDeferredNode<*, *, *>>()
+    private val _snapshotIndirectRoots = MutableScatterSet<MuxDeferredNode<*, *, *, *>>()
 
-    val snapshotIndirectRoots: ScatterSet<MuxDeferredNode<*, *, *>>
+    val snapshotIndirectRoots: ScatterSet<MuxDeferredNode<*, *, *, *>>
         get() = _snapshotIndirectRoots.toScatterSet()
 
-    private val indirectAdditions = MutableScatterSet<MuxDeferredNode<*, *, *>>()
-    private val indirectRemovals = MutableScatterSet<MuxDeferredNode<*, *, *>>()
+    private val indirectAdditions = MutableScatterSet<MuxDeferredNode<*, *, *, *>>()
+    private val indirectRemovals = MutableScatterSet<MuxDeferredNode<*, *, *, *>>()
 
     private inline val trackIndirectRootDiffs
         get() = !snapshotIsDirect // && !snapshotIsIndirectRoot
 
     private val dirty_directUpstreamDepths = TreeMap<Int, Int>()
     private val dirty_indirectUpstreamDepths = TreeMap<Int, Int>()
-    private val dirty_indirectUpstreamRoots = Bag<MuxDeferredNode<*, *, *>>()
+    private val dirty_indirectUpstreamRoots = Bag<MuxDeferredNode<*, *, *, *>>()
     var dirty_directDepth = 0
     private var dirty_indirectDepth = 0
     private var dirty_depthIsDirect = false
     private var dirty_isIndirectRoot = false
 
-    fun schedule(scheduler: Scheduler, node: MuxNode<*, *, *>) {
+    fun schedule(scheduler: Scheduler, node: MuxNode<*, *, *, *>) {
         if (dirty_depthIsDirect) {
             scheduler.schedule(dirty_directDepth, node)
         } else {
@@ -167,9 +167,9 @@ internal class DepthTracker {
     }
 
     fun updateIndirectRoots(
-        additions: ScatterSet<MuxDeferredNode<*, *, *>>? = null,
-        removals: ScatterSet<MuxDeferredNode<*, *, *>>? = null,
-        butNot: MuxDeferredNode<*, *, *>? = null,
+        additions: ScatterSet<MuxDeferredNode<*, *, *, *>>? = null,
+        removals: ScatterSet<MuxDeferredNode<*, *, *, *>>? = null,
+        butNot: MuxDeferredNode<*, *, *, *>? = null,
     ): Boolean {
         val addsChanged =
             additions
@@ -205,7 +205,7 @@ internal class DepthTracker {
         return remainder
     }
 
-    fun propagateChanges(scheduler: Scheduler, muxNode: MuxNode<*, *, *>) {
+    fun propagateChanges(scheduler: Scheduler, muxNode: MuxNode<*, *, *, *>) {
         if (isDirty()) {
             schedule(scheduler, muxNode)
         }
@@ -218,12 +218,16 @@ internal class DepthTracker {
         addAll(this@toScatterSet)
     }
 
-    fun applyChanges(scheduler: Scheduler, downstreamSet: DownstreamSet, owner: MuxNode<*, *, *>) {
+    fun applyChanges(
+        scheduler: Scheduler,
+        downstreamSet: DownstreamSet,
+        owner: MuxNode<*, *, *, *>,
+    ) {
         when {
             dirty_depthIsDirect -> {
                 if (snapshotIsDirect) {
                     val oldDepth = snapshotDirectDepth
-                    reset(owner as? MuxDeferredNode<*, *, *>)
+                    reset(owner as? MuxDeferredNode<*, *, *, *>)
                     downstreamSet.adjustDirectUpstream(
                         scheduler,
                         oldDepth = oldDepth,
@@ -232,7 +236,7 @@ internal class DepthTracker {
                 } else {
                     val oldIndirectDepth = snapshotIndirectDepth
                     val oldIndirectSet = snapshotIndirectRoots
-                    reset(owner as? MuxDeferredNode<*, *, *>)
+                    reset(owner as? MuxDeferredNode<*, *, *, *>)
                     downstreamSet.moveIndirectUpstreamToDirect(
                         scheduler,
                         oldIndirectDepth = oldIndirectDepth,
@@ -248,10 +252,10 @@ internal class DepthTracker {
                     val newIndirectSet = buildScatterSet {
                         dirty_indirectUpstreamRoots.addAllKeysTo(this)
                         if (dirty_isIndirectRoot) {
-                            add(owner as MuxDeferredNode<*, *, *>)
+                            add(owner as MuxDeferredNode<*, *, *, *>)
                         }
                     }
-                    reset(owner as? MuxDeferredNode<*, *, *>)
+                    reset(owner as? MuxDeferredNode<*, *, *, *>)
                     downstreamSet.moveDirectUpstreamToIndirect(
                         scheduler,
                         oldDirectDepth = oldDirectDepth,
@@ -264,16 +268,16 @@ internal class DepthTracker {
                     val removals = buildScatterSet {
                         addAll(indirectRemovals)
                         if (wasIndirectRoot && !dirty_isIndirectRoot) {
-                            add(owner as MuxDeferredNode<*, *, *>)
+                            add(owner as MuxDeferredNode<*, *, *, *>)
                         }
                     }
                     val additions = buildScatterSet {
                         addAll(indirectAdditions)
                         if (!wasIndirectRoot && dirty_isIndirectRoot) {
-                            add(owner as MuxDeferredNode<*, *, *>)
+                            add(owner as MuxDeferredNode<*, *, *, *>)
                         }
                     }
-                    reset(owner as? MuxDeferredNode<*, *, *>)
+                    reset(owner as? MuxDeferredNode<*, *, *, *>)
                     downstreamSet.adjustIndirectUpstream(
                         scheduler,
                         oldDepth = oldDepth,
@@ -317,7 +321,7 @@ internal class DepthTracker {
             "dIndirectRoots=$dirty_indirectUpstreamRoots" +
             ")"
 
-    fun reset(owner: MuxDeferredNode<*, *, *>?) {
+    fun reset(owner: MuxDeferredNode<*, *, *, *>?) {
         snapshotIsDirect = dirty_depthIsDirect
         snapshotDirectDepth = dirty_directDepth
         snapshotIndirectDepth = dirty_indirectDepth
@@ -360,7 +364,7 @@ internal class DownstreamSet {
 
     val outputs = MutableScatterSet<Output<*>>(initialCapacity = 0)
     val stateWriters = ArrayList<StateSource<*>>(/* initialCapacity= */ 0)
-    val muxMovers = MutableScatterSet<MuxDeferredNode<*, *, *>>(initialCapacity = 0)
+    val muxMovers = MutableScatterSet<MuxDeferredNode<*, *, *, *>>(initialCapacity = 0)
     val nodes = MutableScatterSet<SchedulableNode>(initialCapacity = 0)
 
     fun add(schedulable: Schedulable) {
@@ -388,7 +392,7 @@ internal class DownstreamSet {
     fun moveIndirectUpstreamToDirect(
         scheduler: Scheduler,
         oldIndirectDepth: Int,
-        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
         newDirectDepth: Int,
     ) {
         nodes.forEach { node ->
@@ -408,8 +412,8 @@ internal class DownstreamSet {
         scheduler: Scheduler,
         oldDepth: Int,
         newDepth: Int,
-        removals: ScatterSet<MuxDeferredNode<*, *, *>>,
-        additions: ScatterSet<MuxDeferredNode<*, *, *>>,
+        removals: ScatterSet<MuxDeferredNode<*, *, *, *>>,
+        additions: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         nodes.forEach { node ->
             node.adjustIndirectUpstream(scheduler, oldDepth, newDepth, removals, additions)
@@ -423,7 +427,7 @@ internal class DownstreamSet {
         scheduler: Scheduler,
         oldDirectDepth: Int,
         newIndirectDepth: Int,
-        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         nodes.forEach { node ->
             node.moveDirectUpstreamToIndirect(
@@ -441,7 +445,7 @@ internal class DownstreamSet {
     fun removeIndirectUpstream(
         scheduler: Scheduler,
         depth: Int,
-        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         nodes.forEach { node -> node.removeIndirectUpstream(scheduler, depth, indirectSet) }
         muxMovers.forEach { mover -> mover.removeIndirectPatchNode(scheduler, depth, indirectSet) }
@@ -468,7 +472,7 @@ internal class DownstreamSet {
 internal sealed interface Schedulable {
     data class S constructor(val state: StateSource<*>) : Schedulable
 
-    data class M constructor(val muxMover: MuxDeferredNode<*, *, *>) : Schedulable
+    data class M constructor(val muxMover: MuxDeferredNode<*, *, *, *>) : Schedulable
 
     data class N constructor(val node: SchedulableNode) : Schedulable
 

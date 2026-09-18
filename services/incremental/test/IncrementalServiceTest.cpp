@@ -914,6 +914,25 @@ TEST_F(IncrementalServiceTest, testCreateStorageBindMountFails) {
     ASSERT_LT(storageId, 0);
 }
 
+TEST_F(IncrementalServiceTest, testCreateStorageFailsOnNonEmptyDirectory) {
+    // Setup: Create a non-empty directory to be used as a mount point.
+    TemporaryDir tempDir;
+    std::string filePath = std::string(tempDir.path) + "/some_file.txt";
+    ASSERT_TRUE(base::WriteStringToFile("dummy content", filePath));
+
+    // Expect that no mount operations are attempted because the directory is not empty.
+    EXPECT_CALL(*mVold, mountIncFs(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(*mVold, bindMount(_, _)).Times(0);
+
+    // Action: Attempt to create storage on a non-empty directory.
+    int storageId =
+            mIncrementalService->createStorage(tempDir.path, mDataLoaderParcel,
+                                               IncrementalService::CreateOptions::CreateNew);
+
+    // Assertion: The operation should fail and return an invalid storage ID.
+    ASSERT_EQ(IncrementalService::kInvalidStorageId, storageId);
+}
+
 TEST_F(IncrementalServiceTest, testCreateStoragePrepareDataLoaderFails) {
     mVold->mountIncFsSuccess();
     mIncFs->makeFileSuccess();

@@ -32,6 +32,7 @@ import java.util.List;
  * vibrators count. This can turn off the vibrator or slowly ramp it down to zero amplitude.
  */
 final class CompleteEffectVibratorStep extends AbstractVibratorStep {
+    private static final int STEP_DURATION_IN_MILLIS = 5;
     private final boolean mCancelled;
 
     CompleteEffectVibratorStep(VibrationStepConductor conductor, long startTime, boolean cancelled,
@@ -83,9 +84,9 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
             long rampDownDuration =
                     Math.min(remainingOnDuration,
                             conductor.vibrationSettings.getRampDownDuration());
-            long stepDownDuration = conductor.vibrationSettings.getRampStepDuration();
+
             if (currentAmplitude < VibrationStepConductor.RAMP_OFF_AMPLITUDE_MIN
-                    || rampDownDuration <= stepDownDuration) {
+                    || rampDownDuration <= STEP_DURATION_IN_MILLIS) {
                 // No need to ramp down the amplitude, just wait to turn it off.
                 if (mCancelled) {
                     // Vibration is completing because it was cancelled, turn off right away.
@@ -112,7 +113,8 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
             // turn off step will wait for the vibration completion callback and end gracefully.
             long rampOffVibratorOffDeadline =
                     mCancelled ? (now + rampDownDuration) : mPendingVibratorOffDeadline;
-            float amplitudeDelta = currentAmplitude / (rampDownDuration / stepDownDuration);
+            float amplitudeDelta =
+                    currentAmplitude / (rampDownDuration / ((float) STEP_DURATION_IN_MILLIS));
             float amplitudeTarget = currentAmplitude - amplitudeDelta;
             return Arrays.asList(
                     new RampOffVibratorStep(conductor, startTime, amplitudeTarget, amplitudeDelta,

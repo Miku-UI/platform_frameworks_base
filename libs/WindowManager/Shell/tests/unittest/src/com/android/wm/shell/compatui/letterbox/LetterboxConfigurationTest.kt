@@ -50,6 +50,11 @@ class LetterboxConfigurationTest : ShellTestCase() {
         @JvmStatic val ROUNDED_CORNER_RADIUS_VALID = 16
         @JvmStatic val ROUNDED_CORNER_RADIUS_NONE = 0
         @JvmStatic val ROUNDED_CORNER_RADIUS_INVALID = -10
+        @JvmStatic val BLUR_RADIUS_DEFAULT = 10
+        @JvmStatic val BLUR_RADIUS_OVERRIDE = 20
+        @JvmStatic val DARK_SCRIM_ALPHA_DEFAULT = 0.5f
+        @JvmStatic val DARK_SCRIM_ALPHA_OVERRIDE = 0.7f
+        @JvmStatic val BACKGROUND_TYPE_DEFAULT = 1
     }
 
     @Test
@@ -173,6 +178,108 @@ class LetterboxConfigurationTest : ShellTestCase() {
         }
     }
 
+    @Test
+    fun `default wallpaper blur radius is used if override is not set`() {
+        runTestScenario { r ->
+            r.setDefaultWallpaperBlurRadius(BLUR_RADIUS_DEFAULT)
+            r.loadConfiguration()
+            r.checkWallpaperBlurRadius(BLUR_RADIUS_DEFAULT)
+        }
+    }
+
+    @Test
+    fun `new wallpaper blur radius is used after setting a value`() {
+        runTestScenario { r ->
+            r.setDefaultWallpaperBlurRadius(BLUR_RADIUS_DEFAULT)
+            r.loadConfiguration()
+            r.overrideWallpaperBlurRadius(BLUR_RADIUS_OVERRIDE)
+            r.checkWallpaperBlurRadius(BLUR_RADIUS_OVERRIDE)
+        }
+    }
+
+    @Test
+    fun `reset wallpaper blur radius`() {
+        runTestScenario { r ->
+            r.setDefaultWallpaperBlurRadius(BLUR_RADIUS_DEFAULT)
+            r.loadConfiguration()
+            r.checkWallpaperBlurRadius(BLUR_RADIUS_DEFAULT)
+
+            r.overrideWallpaperBlurRadius(BLUR_RADIUS_OVERRIDE)
+            r.checkWallpaperBlurRadius(BLUR_RADIUS_OVERRIDE)
+
+            r.resetWallpaperBlurRadius()
+            r.checkWallpaperBlurRadius(BLUR_RADIUS_DEFAULT)
+        }
+    }
+
+    @Test
+    fun `default wallpaper dark scrim alpha is used if override is not set`() {
+        runTestScenario { r ->
+            r.setDefaultWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_DEFAULT)
+            r.loadConfiguration()
+            r.checkWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_DEFAULT)
+        }
+    }
+
+    @Test
+    fun `new wallpaper dark scrim alpha is used after setting a value`() {
+        runTestScenario { r ->
+            r.setDefaultWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_DEFAULT)
+            r.loadConfiguration()
+            r.overrideWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_OVERRIDE)
+            r.checkWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_OVERRIDE)
+        }
+    }
+
+    @Test
+    fun `reset wallpaper dark scrim alpha`() {
+        runTestScenario { r ->
+            r.setDefaultWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_DEFAULT)
+            r.loadConfiguration()
+            r.checkWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_DEFAULT)
+
+            r.overrideWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_OVERRIDE)
+            r.checkWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_OVERRIDE)
+
+            r.resetWallpaperDarkScrimAlpha()
+            r.checkWallpaperDarkScrimAlpha(DARK_SCRIM_ALPHA_DEFAULT)
+        }
+    }
+
+    @Test
+    fun `default background type is used if override is not set`() {
+        runTestScenario { r ->
+            r.setDefaultBackgroundType(BACKGROUND_TYPE_DEFAULT)
+            r.loadConfiguration()
+            r.checkBackgroundType(BACKGROUND_TYPE_DEFAULT)
+        }
+    }
+
+    @Test
+    fun `new background type is used after setting a value`() {
+        runTestScenario { r ->
+            r.setDefaultBackgroundType(BACKGROUND_TYPE_DEFAULT)
+            r.loadConfiguration()
+            r.overrideBackgroundType(BACKGROUND_TYPE_DEFAULT + 1)
+            r.checkBackgroundType(BACKGROUND_TYPE_DEFAULT + 1)
+        }
+    }
+
+    @Test
+    fun `reset background type`() {
+        runTestScenario { r ->
+            r.setDefaultBackgroundType(BACKGROUND_TYPE_DEFAULT)
+            r.loadConfiguration()
+            r.checkBackgroundType(BACKGROUND_TYPE_DEFAULT)
+
+            r.overrideBackgroundType(BACKGROUND_TYPE_DEFAULT + 1)
+            r.checkBackgroundType(BACKGROUND_TYPE_DEFAULT + 1)
+
+            r.resetBackgroundType()
+            r.checkBackgroundType(BACKGROUND_TYPE_DEFAULT)
+        }
+    }
+
     /** Runs a test scenario providing a Robot. */
     fun runTestScenario(consumer: Consumer<LetterboxConfigurationRobotTest>) {
         val robot = LetterboxConfigurationRobotTest(mContext)
@@ -201,6 +308,22 @@ class LetterboxConfigurationTest : ShellTestCase() {
                 .getInteger(R.integer.config_letterboxActivityCornersRadius)
         }
 
+        fun setDefaultWallpaperBlurRadius(radius: Int) {
+            doReturn(radius)
+                .`when`(resources)
+                .getDimensionPixelSize(R.dimen.config_letterboxBackgroundWallpaperBlurRadius)
+        }
+
+        fun setDefaultWallpaperDarkScrimAlpha(alpha: Float) {
+            doReturn(alpha)
+                .`when`(resources)
+                .getFloat(R.dimen.config_letterboxBackgroundWallaperDarkScrimAlpha)
+        }
+
+        fun setDefaultBackgroundType(type: Int) {
+            doReturn(type).`when`(resources).getInteger(R.integer.config_letterboxBackgroundType)
+        }
+
         fun loadConfiguration() {
             letterboxConfig = LetterboxConfiguration(ctx)
         }
@@ -217,12 +340,36 @@ class LetterboxConfigurationTest : ShellTestCase() {
             letterboxConfig.resetLetterboxActivityCornersRadius()
         }
 
+        fun resetWallpaperBlurRadius() {
+            letterboxConfig.resetLetterboxBackgroundWallpaperBlurRadiusPx()
+        }
+
+        fun resetWallpaperDarkScrimAlpha() {
+            letterboxConfig.resetLetterboxBackgroundWallpaperDarkScrimAlpha()
+        }
+
+        fun resetBackgroundType() {
+            letterboxConfig.resetLetterboxBackgroundType()
+        }
+
         fun overrideBackgroundColorId(@ColorRes colorId: Int) {
             letterboxConfig.setLetterboxBackgroundColorResourceId(colorId)
         }
 
         fun overrideRoundedCornersRadius(radius: Int) {
             letterboxConfig.setLetterboxActivityCornersRadius(radius)
+        }
+
+        fun overrideWallpaperBlurRadius(radius: Int) {
+            letterboxConfig.setLetterboxBackgroundWallpaperBlurRadiusPx(radius)
+        }
+
+        fun overrideWallpaperDarkScrimAlpha(alpha: Float) {
+            letterboxConfig.setLetterboxBackgroundWallpaperDarkScrimAlpha(alpha)
+        }
+
+        fun overrideBackgroundType(type: Int) {
+            letterboxConfig.setLetterboxBackgroundType(type)
         }
 
         fun checkBackgroundColor(expected: Color) {
@@ -237,6 +384,18 @@ class LetterboxConfigurationTest : ShellTestCase() {
 
         fun checkIsLetterboxActivityCornersRounded(expected: Boolean) {
             assertEquals(expected, letterboxConfig.isLetterboxActivityCornersRounded())
+        }
+
+        fun checkWallpaperBlurRadius(expected: Int) {
+            assertEquals(expected, letterboxConfig.getLetterboxBackgroundWallpaperBlurRadiusPx())
+        }
+
+        fun checkWallpaperDarkScrimAlpha(expected: Float) {
+            assertEquals(expected, letterboxConfig.getLetterboxBackgroundWallpaperDarkScrimAlpha())
+        }
+
+        fun checkBackgroundType(expected: Int) {
+            assertEquals(expected, letterboxConfig.getLetterboxBackgroundType())
         }
     }
 }

@@ -117,7 +117,7 @@ constructor(
 
     private fun FakeWifiEventModel.Wifi.toWifiNetworkModel(): WifiNetworkModel =
         WifiNetworkModel.Active.of(
-            isValidated = validated ?: true,
+            showExclamation = showExclamation ?: false,
             level = level ?: 0,
             ssid = ssid ?: DEMO_NET_SSID,
             hotspotDeviceType = hotspotDeviceType,

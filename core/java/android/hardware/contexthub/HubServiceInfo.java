@@ -49,7 +49,7 @@ public final class HubServiceInfo implements Parcelable {
 
     /**
      * Binder-based messaging. The host endpoint is defining this service in Stable AIDL. Messages
-     * between endpoints that uses this service will be using the binder marhsalling format.
+     * between endpoints that uses this service will be using the binder marshalling format.
      */
     public static final int FORMAT_AIDL = 1;
 

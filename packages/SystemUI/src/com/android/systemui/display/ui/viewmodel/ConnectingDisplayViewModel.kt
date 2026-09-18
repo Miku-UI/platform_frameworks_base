@@ -22,30 +22,34 @@ import android.util.Log
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.WindowInsets.Type.displayCutout
 import android.view.WindowInsets.Type.navigationBars
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED
 import android.widget.Toast
 import android.widget.Toast.LENGTH_LONG
-import android.window.DesktopExperienceFlags
 import com.android.app.displaylib.ExternalDisplayConnectionType
 import com.android.app.displaylib.ExternalDisplayConnectionType.DESKTOP
 import com.android.app.displaylib.ExternalDisplayConnectionType.MIRROR
 import com.android.app.displaylib.ExternalDisplayConnectionType.NOT_SPECIFIED
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.server.policy.feature.flags.Flags
 import com.android.systemui.CoreStartable
-import com.android.systemui.biometrics.Utils
+import com.android.systemui.Flags
 import com.android.systemui.biometrics.Utils.getInsetsOf
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.display.data.repository.KioskModeRepository
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor.PendingDisplay
+import com.android.systemui.display.ui.view.ExternalDisplayConnectionContent
 import com.android.systemui.display.ui.view.ExternalDisplayConnectionDialogDelegate
-import com.android.systemui.display.ui.view.MirroringConfirmationDialogDelegate
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIBottomSheetDialog
 import com.android.systemui.statusbar.phone.SystemUIBottomSheetDialog.WindowLayout
 import com.android.systemui.statusbar.phone.SystemUIDialog
+import com.android.systemui.statusbar.phone.SystemUIDialogFactory
+import com.android.systemui.statusbar.phone.createBottomSheet
+import com.android.systemui.statusbar.policy.AccessibilityManagerWrapper
 import com.android.systemui.util.settings.SecureSettings
 import com.android.wm.shell.shared.desktopmode.DesktopState
 import dagger.Binds
@@ -53,14 +57,15 @@ import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 
 /**
@@ -77,26 +82,32 @@ constructor(
     private val kioskModeRepository: KioskModeRepository,
     private val connectedDisplayInteractor: ConnectedDisplayInteractor,
     @Application private val scope: CoroutineScope,
+    @Main private val coroutineContext: CoroutineContext,
     @Background private val bgDispatcher: CoroutineDispatcher,
-    private val bottomSheetFactoryDeprecated: MirroringConfirmationDialogDelegate.Factory,
+    private val accessibilityManagerWrapper: AccessibilityManagerWrapper,
     private val delegateFactory: ExternalDisplayConnectionDialogDelegate.Factory,
-    private val dialogFactory: SystemUIBottomSheetDialog.Factory,
+    private val bottomSheetDialogFactory: SystemUIBottomSheetDialog.Factory,
     private val externalDisplayDialogWindowLayout: WindowLayout.ExternalDisplayDialogWindowLayout,
+    private val dialogFactory: SystemUIDialogFactory,
 ) : CoreStartable {
 
     private var dialog: Dialog? = null
+    private val connectedDisplays = mutableSetOf<Int>()
 
     /** Starts listening for pending displays. */
     @OptIn(FlowPreview::class)
     override fun start() {
         val pendingDisplayFlow = connectedDisplayInteractor.pendingDisplay
+        val disconnectFlow = connectedDisplayInteractor.connectedDisplayRemoval
         val kioskModeFlow = kioskModeRepository.isInKioskMode
         val concurrentDisplaysInProgressFlow =
-            if (Flags.enableDualDisplayBlocking()) {
-                connectedDisplayInteractor.concurrentDisplaysInProgress
-            } else {
-                flow { emit(false) }
-            }
+            connectedDisplayInteractor.concurrentDisplaysInProgress
+
+        // Listen for display disconnect events and send an a11y event when necessary
+        disconnectFlow
+            .debounce(200.milliseconds)
+            .onEach { if (connectedDisplays.remove(it)) handleA11y(isConnected = false) }
+            .launchIn(scope)
 
         // Let's debounce for 2 reasons:
         // - prevent fast dialog flashes where pending displays are available for just a few millis
@@ -122,55 +133,65 @@ constructor(
             .launchIn(scope)
     }
 
-    @Deprecated("Use showNewDialog instead")
-    private fun showMirroringDialog(
-        pendingDisplay: PendingDisplay,
-        concurrentDisplaysInProgress: Boolean,
-    ) {
-        dismissDialog()
-        dialog =
-            bottomSheetFactoryDeprecated
-                .createDialog(
-                    onStartMirroringClickListener = {
-                        scope.launch(context = bgDispatcher) { pendingDisplay.enable() }
-                        dismissDialog()
-                    },
-                    onCancelMirroring = {
-                        scope.launch(context = bgDispatcher) { pendingDisplay.ignore() }
-                        dismissDialog()
-                    },
-                    navbarBottomInsetsProvider = { Utils.getNavbarInsets(context).bottom },
-                    showConcurrentDisplayInfo = concurrentDisplaysInProgress,
-                )
-                .apply { show() }
-    }
-
-    private fun PendingDisplay.showNewDialog(
+    private fun PendingDisplay.showConnectionDialog(
         showConcurrentDisplayInfo: Boolean,
+        isDesktopModeSupported: Boolean,
         isInKioskMode: Boolean,
     ) {
         var saveChoice = false
         dismissDialog()
 
-        val delegate =
-            delegateFactory.create(
-                rememberChoiceCheckBoxListener = { _, isChecked -> saveChoice = isChecked },
-                onStartDesktopClickListener = { enableFor(DESKTOP, saveChoice = saveChoice) },
-                onStartMirroringClickListener = { enableFor(MIRROR, saveChoice = saveChoice) },
-                onCancelClickListener = {
-                    scope.launch(context = bgDispatcher) { ignore() }
-                    dismissDialog()
-                },
-                insetsProvider = { getInsetsOf(context, displayCutout() or navigationBars()) },
-                showConcurrentDisplayInfo = showConcurrentDisplayInfo,
-                isInKioskMode = isInKioskMode,
-            )
+        if (Flags.enableComposeExternalDisplayDialog()) {
+            dialog =
+                dialogFactory
+                    .createBottomSheet(
+                        content = {
+                            ExternalDisplayConnectionContent(
+                                showConcurrentDisplayInfo = showConcurrentDisplayInfo,
+                                isDesktopModeSupported = isDesktopModeSupported,
+                                isInKioskMode = isInKioskMode,
+                                onSaveChoiceChanged = { isChecked -> saveChoice = isChecked },
+                                onStartDesktopMode = {
+                                    enableFor(DESKTOP, saveChoice = saveChoice)
+                                    handleA11y(isConnected = true)
+                                },
+                                onStartMirroring = { enableFor(MIRROR, saveChoice = saveChoice) },
+                                onCancel = {
+                                    scope.launch(context = bgDispatcher) { ignore() }
+                                    dismissDialog()
+                                },
+                            )
+                        }
+                    )
+                    .also {
+                        SystemUIDialog.registerDismissListener(it)
+                        it.show()
+                    }
+        } else {
+            val delegate =
+                delegateFactory.create(
+                    rememberChoiceCheckBoxListener = { _, isChecked -> saveChoice = isChecked },
+                    onStartDesktopClickListener = {
+                        enableFor(DESKTOP, saveChoice = saveChoice)
+                        handleA11y(isConnected = true)
+                    },
+                    onStartMirroringClickListener = { enableFor(MIRROR, saveChoice = saveChoice) },
+                    onCancelClickListener = {
+                        scope.launch(context = bgDispatcher) { ignore() }
+                        dismissDialog()
+                    },
+                    insetsProvider = { getInsetsOf(context, displayCutout() or navigationBars()) },
+                    showConcurrentDisplayInfo = showConcurrentDisplayInfo,
+                    isDesktopModeSupported = isDesktopModeSupported,
+                    isInKioskMode = isInKioskMode,
+                )
 
-        dialog =
-            dialogFactory.create(delegate, externalDisplayDialogWindowLayout).also {
-                SystemUIDialog.registerDismissListener(it)
-                it.show()
-            }
+            dialog =
+                bottomSheetDialogFactory.create(delegate, externalDisplayDialogWindowLayout).also {
+                    SystemUIDialog.registerDismissListener(it)
+                    it.show()
+                }
+        }
     }
 
     private suspend fun handleNewPendingDisplay(
@@ -178,14 +199,6 @@ constructor(
         isInKioskMode: Boolean,
         concurrentDisplaysInProgress: Boolean,
     ) {
-        val useNewDialog =
-            DesktopExperienceFlags.ENABLE_UPDATED_DISPLAY_CONNECTION_DIALOG.isTrue &&
-                DesktopExperienceFlags.ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT.isTrue
-        if (!useNewDialog) {
-            showMirroringDialog(pendingDisplay, concurrentDisplaysInProgress)
-            return
-        }
-
         val isInExtendedMode = desktopState.isDesktopModeSupportedOnDisplay(DEFAULT_DISPLAY)
 
         when {
@@ -194,7 +207,11 @@ constructor(
             }
             isInKioskMode -> {
                 dismissDialog()
-                pendingDisplay.showNewDialog(concurrentDisplaysInProgress, isInKioskMode = true)
+                pendingDisplay.showConnectionDialog(
+                    concurrentDisplaysInProgress,
+                    isInKioskMode = true,
+                    isDesktopModeSupported = desktopState.canEnterDesktopMode,
+                )
             }
             isInExtendedMode -> {
                 pendingDisplay.enableForDesktop()
@@ -202,12 +219,16 @@ constructor(
             }
             else -> {
                 when (pendingDisplay.connectionType) {
-                    DESKTOP -> pendingDisplay.enableForDesktop()
+                    DESKTOP -> {
+                        pendingDisplay.enableForDesktop()
+                        handleA11y(isConnected = true)
+                    }
                     MIRROR -> pendingDisplay.enableForMirroring()
                     NOT_SPECIFIED ->
-                        pendingDisplay.showNewDialog(
+                        pendingDisplay.showConnectionDialog(
                             concurrentDisplaysInProgress,
                             isInKioskMode = false,
+                            isDesktopModeSupported = desktopState.canEnterDesktopMode,
                         )
                 }
             }
@@ -240,6 +261,7 @@ constructor(
         if (setDisplayMirrorSetting(enableMirroring)) {
             // regardless of mirror setting, display should be enabled on successful update
             enable()
+            withContext(coroutineContext) { connectedDisplays.add(id) }
         } else {
             Log.w(TAG, "Failed to update display mirroring, so ignore display $id")
             ignore()
@@ -261,7 +283,27 @@ constructor(
     }
 
     private fun showExtendedDisplayConnectionToast() =
-        Toast.makeText(context, R.string.connected_display_extended_mode_text, LENGTH_LONG).show()
+        Toast.makeText(context, R.string.connected_display_connection_text, LENGTH_LONG).show()
+
+    private fun handleA11y(isConnected: Boolean) {
+        // Send an a11y event as if a toast was shown
+        if (!accessibilityManagerWrapper.isEnabled) return
+
+        val eventTextId =
+            if (isConnected) {
+                R.string.connected_display_connection_text
+            } else {
+                R.string.connected_display_removal_text
+            }
+
+        val event =
+            AccessibilityEvent(TYPE_NOTIFICATION_STATE_CHANGED).apply {
+                className = Toast::class.java.name
+                packageName = context.opPackageName
+                text.add(context.getString(eventTextId))
+            }
+        accessibilityManagerWrapper.sendAccessibilityEvent(event)
+    }
 
     @Module
     interface StartableModule {

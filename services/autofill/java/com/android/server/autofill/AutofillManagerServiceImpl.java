@@ -27,6 +27,7 @@ import static android.view.autofill.AutofillManager.NO_SESSION;
 import static android.view.autofill.AutofillManager.RECEIVER_FLAG_SESSION_FOR_AUGMENTED_AUTOFILL_ONLY;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
+import static com.android.server.autofill.AutofillManagerService.sSupportMultiUserMultiDisplay;
 import static com.android.server.autofill.Helper.sDebug;
 import static com.android.server.autofill.Helper.sVerbose;
 
@@ -38,6 +39,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.graphics.Rect;
@@ -45,7 +47,6 @@ import android.metrics.LogMaker;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -58,6 +59,7 @@ import android.os.UserHandle;
 import android.provider.Settings;
 import android.service.autofill.AutofillService;
 import android.service.autofill.AutofillServiceInfo;
+import android.service.autofill.Dataset;
 import android.service.autofill.FieldClassification;
 import android.service.autofill.FieldClassification.Match;
 import android.service.autofill.FillEventHistory;
@@ -73,7 +75,6 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.DebugUtils;
 import android.util.LocalLog;
-import android.util.Log;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -99,8 +100,8 @@ import com.android.server.contentcapture.ContentCaptureManagerInternal;
 import com.android.server.infra.AbstractPerUserSystemService;
 import com.android.server.inputmethod.InputMethodManagerInternal;
 import com.android.server.pm.UserManagerInternal;
-import com.android.server.wm.ActivityTaskManagerInternal.ActivityTokens;
 import com.android.server.wm.ActivityTaskManagerInternal;
+import com.android.server.wm.ActivityTaskManagerInternal.ActivityTokens;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -136,6 +137,7 @@ final class AutofillManagerServiceImpl
     private final LocalLog mUiLatencyHistory;
     private final LocalLog mWtfHistory;
     private final FieldClassificationStrategy mFieldClassificationStrategy;
+    private final Context mDisplayContext;
 
     @GuardedBy("mLock")
     @Nullable
@@ -216,6 +218,8 @@ final class AutofillManagerServiceImpl
 
     private final ActivityTaskManagerInternal mActivityTaskManagerInternal;
 
+    private final PackageManagerInternal mPmInternal;
+
     AutofillManagerServiceImpl(AutofillManagerService master, Object lock,
             LocalLog uiLatencyHistory, LocalLog wtfHistory, int userId, AutoFillUI ui,
             AutofillCompatState autofillCompatState,
@@ -225,6 +229,7 @@ final class AutofillManagerServiceImpl
         mUiLatencyHistory = uiLatencyHistory;
         mWtfHistory = wtfHistory;
         mUi = ui;
+        mDisplayContext = sSupportMultiUserMultiDisplay ? ui.getContext() : getContext();
         mFieldClassificationStrategy = new FieldClassificationStrategy(getContext(), userId);
         mAutofillCompatState = autofillCompatState;
         mInputMethodManagerInternal = LocalServices.getService(InputMethodManagerInternal.class);
@@ -234,6 +239,7 @@ final class AutofillManagerServiceImpl
         mDisabledInfoCache = disableCache;
         updateLocked(disabled);
         mActivityTaskManagerInternal = LocalServices.getService(ActivityTaskManagerInternal.class);
+        mPmInternal = LocalServices.getService(PackageManagerInternal.class);
     }
 
     boolean sendActivityAssistDataToContentCapture(@NonNull IBinder activityToken,
@@ -278,6 +284,15 @@ final class AutofillManagerServiceImpl
                             resultCallback);
         } catch (RemoteException e) {
             Slog.w(TAG, "autofillRemoteApp fail: " + e);
+        }
+    }
+
+    @GuardedBy("mLock")
+    void notifySystemInlineSuggestions(int sessionId, List<Dataset> inlineSuggestionsData) {
+        final RemoteAugmentedAutofillService remoteService =
+                getRemoteAugmentedAutofillServiceLocked();
+        if (remoteService != null) {
+            remoteService.notifySystemInlineSuggestions(sessionId, inlineSuggestionsData);
         }
     }
 
@@ -429,7 +444,8 @@ final class AutofillManagerServiceImpl
             @NonNull IBinder clientCallback, @NonNull AutofillId autofillId,
             @NonNull Rect virtualBounds, @Nullable AutofillValue value, boolean hasCallback,
             @NonNull ComponentName clientActivity, boolean compatMode,
-            boolean bindInstantServiceAllowed, int flags) {
+            boolean bindInstantServiceAllowed, @Nullable String noiseInjectionMasterSeed,
+            int flags) {
         // FLAG_AUGMENTED_AUTOFILL_REQUEST is set in the flags when standard autofill is disabled
         // but the package is allowlisted for augmented autofill
         boolean forAugmentedAutofillOnly = (flags
@@ -438,10 +454,10 @@ final class AutofillManagerServiceImpl
             return 0;
         }
 
-        // TODO(b/376482880): remove this check once autofill service supports visible
-        // background users.
-        if (mUserManagerInternal.isVisibleBackgroundFullUser(mUserId)) {
-            Slog.d(TAG, "Currently, autofill service does not support visible background users.");
+        if (!Flags.supportMultiUserMultiDisplay()
+                && mUserManagerInternal.isVisibleBackgroundFullUser(mUserId)) {
+            Slog.d(TAG,
+                    "Currently, autofill service does not support visible background users.");
             return 0;
         }
 
@@ -483,7 +499,7 @@ final class AutofillManagerServiceImpl
         pruneAbandonedSessionsLocked();
 
         final Session newSession = createSessionByTokenLocked(activityToken, taskId, clientUid,
-                clientCallback, hasCallback, clientActivity, compatMode,
+                clientCallback, hasCallback, clientActivity, compatMode, noiseInjectionMasterSeed,
                 bindInstantServiceAllowed, forAugmentedAutofillOnly, flags);
         if (newSession == null) {
             return NO_SESSION;
@@ -689,7 +705,8 @@ final class AutofillManagerServiceImpl
     private Session createSessionByTokenLocked(@NonNull IBinder clientActivityToken, int taskId,
             int clientUid, @NonNull IBinder clientCallback, boolean hasCallback,
             @NonNull ComponentName clientActivity, boolean compatMode,
-            boolean bindInstantServiceAllowed, boolean forAugmentedAutofillOnly, int flags) {
+            @Nullable String noiseInjectionMasterSeed, boolean bindInstantServiceAllowed,
+            boolean forAugmentedAutofillOnly, int flags) {
         // use random ids so that one app cannot know that another app creates sessions
         int sessionId;
         int tries = 0;
@@ -709,9 +726,10 @@ final class AutofillManagerServiceImpl
                 : mInfo.getServiceInfo().getComponentName();
         boolean isPrimaryCredential = (flags & FLAG_VIEW_REQUESTS_CREDMAN_SERVICE) != 0;
 
-        final Session newSession = new Session(this, mUi, getContext(), mHandler, mUserId, mLock,
+        final Session newSession = new Session(this, mUi, mDisplayContext,
+                mHandler, mUserId, mLock,
                 sessionId, taskId, clientUid, clientActivityToken, clientCallback, hasCallback,
-                mUiLatencyHistory, mWtfHistory, serviceComponentName,
+                mUiLatencyHistory, mWtfHistory, serviceComponentName, noiseInjectionMasterSeed,
                 clientActivity, compatMode, bindInstantServiceAllowed, forAugmentedAutofillOnly,
                 flags, mInputMethodManagerInternal, isPrimaryCredential);
         mSessions.put(newSession.id, newSession);
@@ -736,7 +754,8 @@ final class AutofillManagerServiceImpl
         } catch (NameNotFoundException e) {
             throw new SecurityException("Could not verify UID for " + componentName);
         }
-        if (callingUid != packageUid && !LocalServices.getService(ActivityManagerInternal.class)
+        if (!mPmInternal.isSameApp(packageName, callingUid, UserHandle.getUserId(callingUid))
+                && !LocalServices.getService(ActivityManagerInternal.class)
                 .hasRunningActivity(callingUid, packageName)) {
             final String[] packages = pm.getPackagesForUid(callingUid);
             final String callingPackage = packages != null ? packages[0] : "uid-" + callingUid;
@@ -847,6 +866,9 @@ final class AutofillManagerServiceImpl
 
     @GuardedBy("mLock")
     void removeSessionLocked(int sessionId) {
+        if (sDebug) {
+            Slog.d(TAG, "removeSessionLocked(): removing session " + sessionId);
+        }
         mSessions.remove(sessionId);
         if (Flags.autofillSessionDestroyed()) {
             mHandler.sendMessage(
@@ -1073,21 +1095,12 @@ final class AutofillManagerServiceImpl
             }
 
             Event event =
-                    new Event(
-                            Event.TYPE_AUTHENTICATION_SELECTED,
-                            null,
-                            clientState,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            NO_SAVE_UI_REASON_NONE,
-                            uiType,
-                            focusedId);
+                    new Event.Builder(Event.TYPE_AUTHENTICATION_SELECTED)
+                            .setClientState(clientState)
+                            .setSaveDialogNotShowReason(NO_SAVE_UI_REASON_NONE)
+                            .setUiType(uiType)
+                            .setFocusedId(focusedId)
+                            .build();
 
             addEventToHistory(methodName, sessionId, event);
         }
@@ -1111,9 +1124,14 @@ final class AutofillManagerServiceImpl
                 return;
             }
 
-            Event event = new Event(Event.TYPE_DATASET_AUTHENTICATION_SELECTED, selectedDataset,
-                                clientState, null, null, null, null, null, null, null, null,
-                                NO_SAVE_UI_REASON_NONE, uiType, focusedId);
+            Event event =
+                    new Event.Builder(Event.TYPE_DATASET_AUTHENTICATION_SELECTED)
+                            .setDatasetId(selectedDataset)
+                            .setClientState(clientState)
+                            .setSaveDialogNotShowReason(NO_SAVE_UI_REASON_NONE)
+                            .setUiType(uiType)
+                            .setFocusedId(focusedId)
+                            .build();
             addEventToHistory(methodName, sessionId, event);
         }
     }
@@ -1132,8 +1150,8 @@ final class AutofillManagerServiceImpl
                 return;
             }
 
-            Event event = new Event(Event.TYPE_SAVE_SHOWN, null, clientState, null,
-                        null, null, null, null, null, null, null, /* focusedId= */ null);
+            Event event =
+                    new Event.Builder(Event.TYPE_SAVE_SHOWN).setClientState(clientState).build();
 
             addEventToHistory(methodName, sessionId, event);
         }
@@ -1157,9 +1175,13 @@ final class AutofillManagerServiceImpl
                 return;
             }
 
-            Event event = new Event(Event.TYPE_DATASET_SELECTED, selectedDataset, clientState, null,
-                                null, null, null, null, null, null, null, NO_SAVE_UI_REASON_NONE,
-                                uiType, focusedId);
+            Event event = new Event.Builder(Event.TYPE_DATASET_SELECTED)
+                    .setDatasetId(selectedDataset)
+                    .setClientState(clientState)
+                    .setSaveDialogNotShowReason(NO_SAVE_UI_REASON_NONE)
+                    .setUiType(uiType)
+                    .setFocusedId(focusedId)
+                    .build();
             addEventToHistory(methodName, sessionId, event);
         }
     }
@@ -1179,9 +1201,12 @@ final class AutofillManagerServiceImpl
                 return;
             }
 
-            Event event = new Event(Event.TYPE_DATASETS_SHOWN, null, clientState, null, null, null,
-                                null, null, null, null, null, NO_SAVE_UI_REASON_NONE,
-                                uiType, focusedId);
+            Event event = new Event.Builder(Event.TYPE_DATASETS_SHOWN)
+                    .setClientState(clientState)
+                    .setSaveDialogNotShowReason(NO_SAVE_UI_REASON_NONE)
+                    .setUiType(uiType)
+                    .setFocusedId(focusedId)
+                    .build();
             addEventToHistory(methodName, sessionId, event);
         }
     }
@@ -1204,8 +1229,10 @@ final class AutofillManagerServiceImpl
         }
 
         history.addEvent(
-                new Event(Event.TYPE_VIEW_REQUESTED_AUTOFILL, null, clientState, null,
-                        null, null, null, null, null, null, null, focusedId));
+                new Event.Builder(Event.TYPE_VIEW_REQUESTED_AUTOFILL)
+                        .setClientState(clientState)
+                        .setFocusedId(focusedId)
+                        .build());
     }
 
     /**
@@ -1248,9 +1275,10 @@ final class AutofillManagerServiceImpl
                 return;
             }
             mAugmentedAutofillEventHistory.addEvent(
-                    new Event(Event.TYPE_DATASET_AUTHENTICATION_SELECTED, selectedDataset,
-                            clientState, null, null, null, null, null, null, null, null,
-                            /* focusedId= */ null));
+                    new Event.Builder(Event.TYPE_DATASET_AUTHENTICATION_SELECTED)
+                            .setDatasetId(selectedDataset)
+                            .setClientState(clientState)
+                            .build());
         }
     }
 
@@ -1262,8 +1290,10 @@ final class AutofillManagerServiceImpl
                 return;
             }
             mAugmentedAutofillEventHistory.addEvent(
-                    new Event(Event.TYPE_DATASET_SELECTED, suggestionId, clientState, null, null,
-                            null, null, null, null, null, null, /* focusedId= */ null));
+                    new Event.Builder(Event.TYPE_DATASET_SELECTED)
+                            .setDatasetId(suggestionId)
+                            .setClientState(clientState)
+                            .build());
         }
     }
 
@@ -1276,10 +1306,24 @@ final class AutofillManagerServiceImpl
             // Augmented Autofill only logs for inline now, so set UI_TYPE_INLINE here.
             // Ideally should not hardcode here and should also log for menu presentation.
             mAugmentedAutofillEventHistory.addEvent(
-                    new Event(Event.TYPE_DATASETS_SHOWN, null, clientState, null, null, null,
-                            null, null, null, null, null, NO_SAVE_UI_REASON_NONE,
-                            UI_TYPE_INLINE, /* focusedId= */ null));
+                    new Event.Builder(Event.TYPE_DATASETS_SHOWN)
+                            .setClientState(clientState)
+                            .setSaveDialogNotShowReason(NO_SAVE_UI_REASON_NONE)
+                            .setUiType(UI_TYPE_INLINE)
+                            .build());
+        }
+    }
 
+    void logAugmentedAutofillResponseDiscarded(int sessionId, @Nullable Bundle clientState) {
+        synchronized (mLock) {
+            if (mAugmentedAutofillEventHistory == null
+                    || mAugmentedAutofillEventHistory.getSessionId() != sessionId) {
+                return;
+            }
+            mAugmentedAutofillEventHistory.addEvent(
+                    new Event.Builder(Event.TYPE_RESPONSE_DISCARDED)
+                            .setClientState(clientState)
+                            .build());
         }
     }
 
@@ -1373,20 +1417,18 @@ final class AutofillManagerServiceImpl
                             .addTaggedData(MetricsEvent.FIELD_AUTOFILL_MATCH_SCORE, averageScore));
         }
         Event event =
-                new Event(
-                        Event.TYPE_CONTEXT_COMMITTED,
-                        null,
-                        clientState,
-                        selectedDatasets,
-                        ignoredDatasets,
-                        changedFieldIds,
-                        changedDatasetIds,
-                        manuallyFilledFieldIds,
-                        manuallyFilledDatasetIds,
-                        detectedFieldsIds,
-                        detectedFieldClassifications,
-                        saveDialogNotShowReason,
-                        /* focusedId= */ null);
+                new Event.Builder(Event.TYPE_CONTEXT_COMMITTED)
+                        .setClientState(clientState)
+                        .setSelectedDatasetIds(selectedDatasets)
+                        .setIgnoredDatasetIds(ignoredDatasets)
+                        .setChangedFieldIds(changedFieldIds)
+                        .setChangedDatasetIds(changedDatasetIds)
+                        .setManuallyFilledFieldIds(manuallyFilledFieldIds)
+                        .setManuallyFilledDatasetIds(manuallyFilledDatasetIds)
+                        .setDetectedFieldIds(detectedFieldsIds)
+                        .setDetectedFieldClassifications(detectedFieldClassifications)
+                        .setSaveDialogNotShowReason(saveDialogNotShowReason)
+                        .build();
 
         addEventToHistory(methodName, sessionId, event);
     }
@@ -1450,10 +1492,12 @@ final class AutofillManagerServiceImpl
 
     @GuardedBy("mLock")
     private boolean isCalledByServiceLocked(@NonNull String methodName, int callingUid) {
-        final int serviceUid = getServiceUidLocked();
-        if (serviceUid != callingUid) {
+        final String servicePackageName = getServicePackageName();
+        if (servicePackageName == null
+                || !mPmInternal.isSameApp(servicePackageName, callingUid,
+                        UserHandle.getUserId(callingUid))) {
             Slog.w(TAG, methodName + "() called by UID " + callingUid
-                    + ", but service UID is " + serviceUid);
+                    + ", which does not belong to service package " + servicePackageName);
             return false;
         }
         return true;
@@ -1718,6 +1762,12 @@ final class AutofillManagerServiceImpl
                         }
 
                         @Override
+                        public void logAugmentedAutofillResponseDiscarded(int sessionId,
+                                Bundle clientState) {
+                            AutofillManagerServiceImpl.this.logAugmentedAutofillResponseDiscarded(
+                                    sessionId, clientState);
+                        }
+                        @Override
                         public void onServiceDied(@NonNull RemoteAugmentedAutofillService service) {
                             Slog.w(TAG, "remote augmented autofill service died");
                             final RemoteAugmentedAutofillService remoteService =
@@ -1788,7 +1838,8 @@ final class AutofillManagerServiceImpl
 
     boolean isAugmentedAutofillServiceForUserLocked(int callingUid) {
         return mRemoteAugmentedAutofillServiceInfo != null
-                && mRemoteAugmentedAutofillServiceInfo.applicationInfo.uid == callingUid;
+                && mPmInternal.isSameApp(mRemoteAugmentedAutofillServiceInfo.packageName,
+                        callingUid, UserHandle.getUserId(callingUid));
     }
 
     /**
@@ -1843,9 +1894,11 @@ final class AutofillManagerServiceImpl
             return false;
         }
 
-        if (getAugmentedAutofillServiceUidLocked() != callingUid) {
+        if (!mPmInternal.isSameApp(service.getComponentName().getPackageName(), callingUid,
+                UserHandle.getUserId(callingUid))) {
             Slog.w(TAG, methodName + "() called by UID " + callingUid
-                    + ", but service UID is " + getAugmentedAutofillServiceUidLocked()
+                    + " which does not belong to augmented autofill service package "
+                    + service.getComponentName().getPackageName()
                     + " for user " + getUserId());
             return false;
         }
@@ -2205,7 +2258,8 @@ final class AutofillManagerServiceImpl
 
     boolean isRemoteClassificationServiceForUserLocked(int callingUid) {
         return mRemoteFieldClassificationServiceInfo != null
-                && mRemoteFieldClassificationServiceInfo.applicationInfo.uid == callingUid;
+                && mPmInternal.isSameApp(mRemoteFieldClassificationServiceInfo.packageName,
+                        callingUid, UserHandle.getUserId(callingUid));
     }
 
     @Override

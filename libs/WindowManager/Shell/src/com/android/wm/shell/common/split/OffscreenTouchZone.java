@@ -16,27 +16,15 @@
 
 package com.android.wm.shell.common.split;
 
-import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_NO_MOVE_ANIMATION;
-import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
-
-import static com.android.wm.shell.common.split.SplitLayout.RESTING_TOUCH_LAYER;
-
 import android.app.TaskInfo;
 import android.content.Context;
-import android.content.res.Configuration;
-import android.graphics.PixelFormat;
-import android.os.Binder;
 import android.view.DragEvent;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.SurfaceControl;
-import android.view.SurfaceControlViewHost;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.WindowManager;
-import android.view.WindowlessWindowManager;
 
-import com.android.wm.shell.common.SyncTransactionQueue;
+import com.android.wm.shell.common.TouchInterceptLayer;
 
 /**
  * Holds and manages a single touchable surface. These are used in offscreen split layouts, where
@@ -102,7 +90,8 @@ public class OffscreenTouchZone {
     public void inflate(Context context, SurfaceControl rootLeash, TaskInfo rootTaskInfo) {
         mGestureDetector = new GestureDetector(context, mTapDetector);
         mInterceptLayer = new TouchInterceptLayer(TAG + (mIsTopLeft ? "TopLeft" : "BottomRight"));
-        mInterceptLayer.inflate(rootLeash, rootTaskInfo);
+        mInterceptLayer.inflate(rootLeash, rootTaskInfo.displayId);
+        mInterceptLayer.show(SplitLayout.RESTING_TOUCH_LAYER);
         mInterceptLayer.setTouchListener(mTouchListener);
         mInterceptLayer.setDragListener(mDragListener);
     }

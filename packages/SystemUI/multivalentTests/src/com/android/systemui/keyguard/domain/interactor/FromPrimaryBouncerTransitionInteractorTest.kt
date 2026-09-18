@@ -16,14 +16,10 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
-import com.android.systemui.Flags.FLAG_HUB_EDIT_MODE_TRANSITION
-import com.android.systemui.Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
 import com.android.systemui.communal.data.repository.fakeCommunalSceneRepository
@@ -36,7 +32,6 @@ import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepositorySpy
-import com.android.systemui.keyguard.data.repository.keyguardOcclusionRepository
 import com.android.systemui.keyguard.data.repository.keyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
@@ -53,7 +48,6 @@ import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
 import junit.framework.Assert.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -172,62 +166,7 @@ class FromPrimaryBouncerTransitionInteractorTest(flags: FlagsParameterization) :
         }
 
     @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testReturnToLockscreen_whenBouncerHides() =
-        testScope.runTest {
-            underTest.start()
-            bouncerRepository.setPrimaryShow(true)
-            runCurrent()
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.PRIMARY_BOUNCER,
-                testScope,
-            )
-
-            reset(transitionRepository)
-
-            bouncerRepository.setPrimaryShow(false)
-            runCurrent()
-
-            assertThat(transitionRepository)
-                .startedTransition(
-                    from = KeyguardState.PRIMARY_BOUNCER,
-                    to = KeyguardState.LOCKSCREEN,
-                )
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testReturnToGlanceableHub_whenBouncerHides_ifIdleOnCommunal() =
-        testScope.runTest {
-            underTest.start()
-            kosmos.fakeCommunalSceneRepository.setTransitionState(
-                flowOf(ObservableTransitionState.Idle(CommunalScenes.Communal))
-            )
-            bouncerRepository.setPrimaryShow(true)
-            runCurrent()
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.PRIMARY_BOUNCER,
-                testScope,
-            )
-
-            reset(transitionRepository)
-
-            bouncerRepository.setPrimaryShow(false)
-            runCurrent()
-
-            assertThat(transitionRepository)
-                .startedTransition(
-                    from = KeyguardState.PRIMARY_BOUNCER,
-                    to = KeyguardState.GLANCEABLE_HUB,
-                )
-        }
-
-    @Test
-    @EnableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
-    @DisableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testPrimaryBouncerToGone_whenEnteringHubEditMode_flagOn_doNothing() =
+    fun testPrimaryBouncerToGone_whenEnteringHubEditMode_doNothing() =
         kosmos.runTest {
             underTest.start()
 
@@ -243,55 +182,6 @@ class FromPrimaryBouncerTransitionInteractorTest(flags: FlagsParameterization) :
             runCurrent()
 
             assertThat(transitionRepository).noTransitionsStarted()
-        }
-
-    @Test
-    @DisableFlags(FLAG_HUB_EDIT_MODE_TRANSITION, FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testPrimaryBouncerToGone_whenEnteringHubEditMode_flagOff_transitionToGone() =
-        kosmos.runTest {
-            underTest.start()
-
-            transitionRepository.transitionTo(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.PRIMARY_BOUNCER,
-            )
-            communalSceneInteractor.setEditModeState(EditModeState.STARTING)
-            fakeKeyguardRepository.setKeyguardGoingAway(true)
-            runCurrent()
-
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.PRIMARY_BOUNCER, to = KeyguardState.GONE)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testTransitionToOccluded_bouncerHide_occludingActivityOnTop() =
-        testScope.runTest {
-            underTest.start()
-            bouncerRepository.setPrimaryShow(true)
-            runCurrent()
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.PRIMARY_BOUNCER,
-                testScope,
-            )
-
-            reset(transitionRepository)
-
-            kosmos.keyguardOcclusionRepository.setShowWhenLockedActivityInfo(true)
-            runCurrent()
-
-            // Shouldn't transition to OCCLUDED until the bouncer hides.
-            assertThat(transitionRepository).noTransitionsStarted()
-
-            bouncerRepository.setPrimaryShow(false)
-            runCurrent()
-
-            assertThat(transitionRepository)
-                .startedTransition(
-                    from = KeyguardState.PRIMARY_BOUNCER,
-                    to = KeyguardState.OCCLUDED,
-                )
         }
 
     @Test
@@ -335,7 +225,6 @@ class FromPrimaryBouncerTransitionInteractorTest(flags: FlagsParameterization) :
 
             // Bouncer is shown on top of the Glanceable Hub.
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.GLANCEABLE_HUB,
                 to = KeyguardState.PRIMARY_BOUNCER,
@@ -345,7 +234,6 @@ class FromPrimaryBouncerTransitionInteractorTest(flags: FlagsParameterization) :
             reset(transitionRepository)
 
             powerInteractor.setAsleepForTest()
-            runCurrent()
 
             Truth.assertThat(currentScene).isEqualTo(CommunalScenes.Blank)
         }

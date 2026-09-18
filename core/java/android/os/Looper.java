@@ -16,14 +16,28 @@
 
 package android.os;
 
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.MESSAGE_CODE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.MESSAGE_DELAY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.RECEIVING_THREAD_NAME;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.SENDING_THREAD_NAME;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidTrackEvent.MESSAGE_QUEUE;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
+import android.compat.annotation.Overridable;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.util.Log;
 import android.util.Printer;
 import android.util.Slog;
 import android.util.proto.ProtoOutputStream;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Objects;
 
 /**
@@ -57,7 +71,7 @@ import java.util.Objects;
   *  }</pre>
   */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
-@android.ravenwood.annotation.RavenwoodRedirectionClass("Looper_ravenwood")
+@RavenwoodRedirectionClass("Looper_ravenwood")
 public final class Looper {
     /*
      * API Implementation Note:
@@ -109,6 +123,20 @@ public final class Looper {
      * True if a message delivery takes longer than {@link #mSlowDeliveryThresholdMs}.
      */
     private boolean mSlowDeliveryDetected;
+
+    /**
+     * Whether Looper clears Thread.interrupted() between tasks.
+     *
+     * When enabled, tasks don't propagate and pollute each other's interrupted state.
+     * When disabled, the backwards-compatible behavior is kept,
+     * preserving the legacy behavior and any associated app bugs.
+     *
+     * @hide
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = android.os.Build.VERSION_CODES.CINNAMON_BUN)
+    @Overridable // Can be overridden on user builds
+    public static final long LOOPER_CLEARS_THREAD_INTERRUPTED = 458413887L;
 
     /** Initialize the current thread as a looper.
       * This gives you a chance to create handlers that then reference
@@ -187,6 +215,13 @@ public final class Looper {
         sObserver = observer;
     }
 
+    // On Ravenwood, compat-IDs may not be initialized when it's called,
+    // so we have a separate check in Looper_ravenwood.
+    @RavenwoodRedirect(bug = 470164731)
+    private static boolean isLooperClearsThreadInterruptedEnabled() {
+        return CompatChanges.isChangeEnabled(LOOPER_CLEARS_THREAD_INTERRUPTED);
+    }
+
     /**
      * Poll and deliver single message, return true if the outer loop should continue.
      */
@@ -200,27 +235,20 @@ public final class Looper {
             return false;
         }
 
-        if (PerfettoTrace.isMQCategoryEnabled()) {
-            if (PerfettoTrace.IS_USE_SDK_TRACING_API_V3) {
-                com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
-                                PerfettoTrace.MQ_CATEGORY_V3, "message_queue_receive")
-                        .beginProto()
-                        .beginNested(2004 /* message_queue */)
-                        .addField(1 /* sending_thread_name */, msg.sendingThreadName)
-                        .endNested()
-                        .endProto()
-                        .setTerminatingFlow(msg.eventId)
-                        .emit();
-            } else {
-                PerfettoTrace.begin(PerfettoTrace.MQ_CATEGORY, "message_queue_receive")
-                        .beginProto()
-                        .beginNested(2004 /* message_queue */)
-                        .addField(1 /* sending_thread_name */, msg.sendingThreadName)
-                        .endNested()
-                        .endProto()
-                        .setTerminatingFlow(msg.eventId)
-                        .emit();
-            }
+        if (android.os.Flags.perfettoSdkTracingV3() && PerfettoCategories.MQ_CATEGORY.isEnabled()) {
+            final long messageDelayMs = Math.max(0L, msg.when - SystemClock.uptimeMillis());
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace
+                    .begin(PerfettoCategories.MQ_CATEGORY, "message_queue_receive")
+                    .beginProto()
+                    .beginNested(MESSAGE_QUEUE)
+                    .addField(SENDING_THREAD_NAME, msg.sendingThreadName)
+                    .addField(RECEIVING_THREAD_NAME, Thread.currentThread().getName())
+                    .addField(MESSAGE_CODE, msg.what)
+                    .addField(MESSAGE_DELAY_MS, messageDelayMs)
+                    .endNested()
+                    .endProto()
+                    .setTerminatingFlow(msg.eventId)
+                    .emit();
         }
 
         // This must be in a local variabe, in case a UI event sets the logger
@@ -259,8 +287,18 @@ public final class Looper {
             token = observer.messageDispatchStarting();
         }
         long origWorkSource = ThreadLocalWorkSource.setUid(msg.workSourceUid);
+
+        final LooperDoctor doctor = Flags.messageQueueMonitoringEnabled() ? me.mLooperDoctor : null;
+        if (doctor != null) {
+            doctor.startMessageTimer(me.mAlarm);
+        }
         try {
-            dispatchMessage(msg);
+            msg.target.dispatchMessage(msg);
+            if (isLooperClearsThreadInterruptedEnabled()) {
+                // Clear the interrupted state of the thread after dispatching the message.
+                // This ensures that a new message dispatch starts with a clean interrupted state.
+                Thread.interrupted();
+            }
             if (observer != null) {
                 observer.messageDispatched(token, msg);
             }
@@ -271,6 +309,9 @@ public final class Looper {
             }
             throw exception;
         } finally {
+            if (doctor != null) {
+                doctor.stopMessageTimer(me.mAlarm);
+            }
             ThreadLocalWorkSource.restore(origWorkSource);
             if (traceTag != 0) {
                 Trace.traceEnd(traceTag);
@@ -312,25 +353,14 @@ public final class Looper {
                     + msg.target.getClass().getName() + " "
                     + msg.callback + " what=" + msg.what);
         }
-        if (PerfettoTrace.isMQCategoryEnabled()) {
-            if (PerfettoTrace.IS_USE_SDK_TRACING_API_V3) {
-                com.android.internal.dev.perfetto.sdk.PerfettoTrace.end(
-                                PerfettoTrace.MQ_CATEGORY_V3)
-                        .emit();
-            } else {
-                PerfettoTrace.end(PerfettoTrace.MQ_CATEGORY).emit();
-            }
+        if (android.os.Flags.perfettoSdkTracingV3() && PerfettoCategories.MQ_CATEGORY.isEnabled()) {
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace.end(PerfettoCategories.MQ_CATEGORY)
+                    .emit();
         }
 
         msg.recycleUnchecked();
 
         return true;
-    }
-
-    /** Allow ravenwood to hook any "dispatch". */
-    @android.ravenwood.annotation.RavenwoodRedirect
-    private static void dispatchMessage(Message msg) {
-        msg.target.dispatchMessage(msg);
     }
 
     /**
@@ -370,7 +400,7 @@ public final class Looper {
         }
     }
 
-    @android.ravenwood.annotation.RavenwoodReplace
+    @android.ravenwood.annotation.RavenwoodRedirect
     private static int getThresholdOverride() {
         // Allow overriding the threshold for all processes' main looper with a system prop.
         // e.g. adb shell 'setprop log.looper.any.main.slow 1 && stop && start'
@@ -393,10 +423,6 @@ public final class Looper {
                 + Process.myUid() + "."
                 + Thread.currentThread().getName()
                 + ".slow", -1);
-    }
-
-    private static int getThresholdOverride$ravenwood() {
-        return -1;
     }
 
     private static int getThreadGroup() {
@@ -493,6 +519,9 @@ public final class Looper {
      * null to disable message logging.
      */
     public void setMessageLogging(@Nullable Printer printer) {
+        if (printer != null) {
+            StrictMode.noteSlowCall("setMessageLogging");
+        }
         mLogging = printer;
     }
 
@@ -531,6 +560,7 @@ public final class Looper {
      * @see #quitSafely
      */
     public void quit() {
+        clearLooperDoctor();
         mQueue.quit(false);
     }
 
@@ -550,6 +580,7 @@ public final class Looper {
      * </p>
      */
     public void quitSafely() {
+        clearLooperDoctor();
         mQueue.quit(true);
     }
 
@@ -569,6 +600,48 @@ public final class Looper {
      */
     public @NonNull MessageQueue getQueue() {
         return mQueue;
+    }
+
+    private static final VarHandle sLooperDoctor;
+    private volatile LooperDoctor mLooperDoctor;
+    private LooperDoctor.LooperDoctorAlarm mAlarm;
+
+    static {
+        try {
+            MethodHandles.Lookup l = MethodHandles.lookup();
+            sLooperDoctor = l.findVarHandle(Looper.class, "mLooperDoctor", LooperDoctor.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    /**
+     * Set a Looper Doctor for this Looper.
+     *
+     * This method is NOT thread-safe. It must be called ideally at most once, and never
+     * concurrently on the same looper instance.
+     *
+     * @hide
+     */
+    public void setLooperDoctor(LooperDoctor d) {
+        if (mLooperDoctor == null) {
+            mAlarm = d.notifyLooperStartedLooping(mThread);
+            mLooperDoctor = d;
+            mQueue.setLooperDoctor(d);
+        }
+    }
+
+    /**
+     * Clear the Looper Doctor for this Looper.
+     *
+     * @hide
+     */
+    public void clearLooperDoctor() {
+        LooperDoctor doctor = mLooperDoctor;
+        if (doctor != null && sLooperDoctor.compareAndSet(this, doctor, null)) {
+            doctor.notifyLooperQuit(mAlarm);
+            mQueue.setLooperDoctor(null);
+        }
     }
 
     /**

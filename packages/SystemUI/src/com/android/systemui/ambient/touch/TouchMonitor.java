@@ -16,7 +16,6 @@
 
 package com.android.systemui.ambient.touch;
 
-import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
 
 import static com.android.systemui.ambient.dagger.AmbientModule.LOGGING_NAME;
 import static com.android.systemui.shared.Flags.bouncerAreaExclusion;
@@ -38,7 +37,6 @@ import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 
-import com.android.systemui.Flags;
 import com.android.systemui.ambient.touch.dagger.InputSessionComponent;
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor;
 import com.android.systemui.dagger.qualifiers.Background;
@@ -48,7 +46,6 @@ import com.android.systemui.log.LogBuffer;
 import com.android.systemui.log.core.Logger;
 import com.android.systemui.log.dagger.CommunalTouchLog;
 import com.android.systemui.shared.system.InputChannelCompat;
-import com.android.systemui.util.display.DisplayHelper;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -255,6 +252,22 @@ public class TouchMonitor {
         public Rect getBounds() {
             return mBounds;
         }
+
+        @Override
+        public void pilfer() {
+            mTouchMonitor.mMainExecutor.execute(() -> {
+                //InputSession will pilfer the touch event from the rest of Android OS
+                if (mTouchMonitor.mCurrentInputSession != null) {
+                    mTouchMonitor.mCurrentInputSession.pilfer();
+                }
+
+                //TouchMonitor will isolate this touch event from other TouchHandlers.
+                //Making this caller the only TouchHandler that will handle this touch event.
+                final HashSet<TouchSessionImpl> consumingSessions = new HashSet<>();
+                consumingSessions.add(this);
+                mTouchMonitor.isolate(consumingSessions);
+            });
+        }
     }
 
     /**
@@ -384,7 +397,6 @@ public class TouchMonitor {
 
     private final HashSet<TouchSessionImpl> mActiveTouchSessions = new HashSet<>();
     private final Collection<TouchHandler> mHandlers;
-    private final DisplayHelper mDisplayHelper;
 
     private boolean mStopMonitoringPending;
 
@@ -402,11 +414,7 @@ public class TouchMonitor {
                                 continue;
                             }
 
-                            final Rect maxBounds =
-                                    Flags.ambientTouchMonitorListenToDisplayChanges()
-                                            ? mMaxBounds
-                                            : mDisplayHelper.getMaxBounds(ev.getDisplayId(),
-                                                    TYPE_APPLICATION_OVERLAY);
+                            final Rect maxBounds = mMaxBounds;
 
                             final Region initiationRegion = Region.obtain();
                             Rect exclusionRect = null;
@@ -591,7 +599,6 @@ public class TouchMonitor {
             @Background Executor backgroundExecutor,
             Lifecycle lifecycle,
             InputSessionComponent.Factory inputSessionFactory,
-            DisplayHelper displayHelper,
             ConfigurationInteractor configurationInteractor,
             Set<TouchHandler> handlers,
             IWindowManager windowManagerService,
@@ -604,7 +611,6 @@ public class TouchMonitor {
         mMainExecutor = executor;
         mBackgroundExecutor = backgroundExecutor;
         mLifecycle = lifecycle;
-        mDisplayHelper = displayHelper;
         mWindowManagerService = windowManagerService;
         mConfigurationInteractor = configurationInteractor;
         mLoggingName = loggingName + ":TouchMonitor[" + sNextInstanceId++ + "]";
@@ -620,10 +626,8 @@ public class TouchMonitor {
         }
 
         mLifecycle.addObserver(mLifecycleObserver);
-        if (Flags.ambientTouchMonitorListenToDisplayChanges()) {
-            mBoundsFlow = collectFlow(mLifecycle, mConfigurationInteractor.getMaxBounds(),
-                    mMaxBoundsConsumer);
-        }
+        mBoundsFlow = collectFlow(mLifecycle, mConfigurationInteractor.getMaxBounds(),
+                mMaxBoundsConsumer);
 
         mInitialized = true;
     }
@@ -640,9 +644,7 @@ public class TouchMonitor {
         stopMonitoring(true);
 
         mLifecycle.removeObserver(mLifecycleObserver);
-        if (Flags.ambientTouchMonitorListenToDisplayChanges()) {
-            mBoundsFlow.cancel(new CancellationException());
-        }
+        mBoundsFlow.cancel(new CancellationException());
 
         for (TouchHandler handler : mHandlers) {
             handler.onDestroy();

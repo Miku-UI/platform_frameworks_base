@@ -283,6 +283,70 @@ import javax.security.auth.x500.X500Principal;
  * byte[] associatedData = {};
  * return key.decrypt(ciphertext, associatedData);
  * }</pre>
+ *
+ * <p><h3>Example: ML-DSA key pair for signing</h3>
+ * This example illustrates how to generate an ML-DSA key pair in the Android KeyStore system under
+ * alias {@code key1} authorized to be used only for signing. The use of the public key is
+ * unrestricted.
+ * <p>The generated key pair will use the ML-DSA-65 parameter set if the {@code KeyPairGenerator} is
+ * instantiated with the family name {@code "ML-DSA"} or the parameter set name {@code "ML-DSA-65"}.
+ * On the other hand, the key pair will use the ML-DSA-87 parameter set only if the
+ * {@code KeyPairGenerator} is instantiated with the parameter set name {@code "ML-DSA-87"}.
+ * <p> In both cases, it is not required to set the {@code AlgorithmParameterSpec} or digest in the
+ * {@code KeyGenParameterSpec}. If the {@code AlgorithmParameterSpec} is set to a non-null value,
+ * then the value must match the algorithm name used to instantiate the {@code KeyPairGenerator}.
+ * Specifically, the algorithm name must be {@code "ML-DSA"} or {@code "ML-DSA-65"} if
+ * {@link java.security.spec.NamedParameterSpec#ML_DSA_65} is specified, or {@code "ML-DSA-87"} if
+ * {@link java.security.spec.NamedParameterSpec#ML_DSA_87} is specified.
+ *
+ * <p><h4>Case 1: ML-DSA-65</h4>
+ * <pre> {@code
+ * // KeyProperties.KEY_ALGORITHM_ML_DSA_65 can also be used here.
+ * KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
+ *         KeyProperties.KEY_ALGORITHM_ML_DSA, "AndroidKeyStore");
+ * keyPairGenerator.initialize(
+ *         new KeyGenParameterSpec.Builder("key1", KeyProperties.PURPOSE_SIGN).build());
+ * // NamedParameterSpec.ML_DSA_65 and KeyProperties.DIGEST_NONE can optionally be specified:
+ * // keyPairGenerator.initialize(
+ * //         new KeyGenParameterSpec.Builder("key1", KeyProperties.PURPOSE_SIGN)
+ * //                 .setAlgorithmParameterSpec(NamedParameterSpec.ML_DSA_65)
+ * //                 .setDigests(KeyProperties.DIGEST_NONE)
+ * //                 .build());
+ * KeyPair keyPair = keyPairGenerator.generateKeyPair();
+ * Signature signature = Signature.getInstance("ML-DSA");  // Or "ML-DSA-65"
+ * signature.initSign(keyPair.getPrivate());
+ * ...
+ *
+ * // The key pair can also be obtained from the Android Keystore any time as follows:
+ * KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+ * keyStore.load(null);
+ * PrivateKey privateKey = (PrivateKey) keyStore.getKey("key1", null);
+ * PublicKey publicKey = keyStore.getCertificate("key1").getPublicKey();
+ * }</pre>
+ *
+ * <p><h4>Case 2: ML-DSA-87</h4>
+ * <pre> {@code
+ * KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
+ *         KeyProperties.KEY_ALGORITHM_ML_DSA_87, "AndroidKeyStore");
+ * keyPairGenerator.initialize(
+ *         new KeyGenParameterSpec.Builder("key1", KeyProperties.PURPOSE_SIGN).build());
+ * // NamedParameterSpec.ML_DSA_87 and KeyProperties.DIGEST_NONE can optionally be specified:
+ * // keyPairGenerator.initialize(
+ * //         new KeyGenParameterSpec.Builder("key1", KeyProperties.PURPOSE_SIGN)
+ * //                 .setAlgorithmParameterSpec(NamedParameterSpec.ML_DSA_87)
+ * //                 .setDigests(KeyProperties.DIGEST_NONE)
+ * //                 .build());
+ * KeyPair keyPair = keyPairGenerator.generateKeyPair();
+ * Signature signature = Signature.getInstance("ML-DSA");  // Or "ML-DSA-87"
+ * signature.initSign(keyPair.getPrivate());
+ * ...
+ *
+ * // The key pair can also be obtained from the Android Keystore any time as follows:
+ * KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+ * keyStore.load(null);
+ * PrivateKey privateKey = (PrivateKey) keyStore.getKey("key1", null);
+ * PublicKey publicKey = keyStore.getCertificate("key1").getPublicKey();
+ * }</pre>
  */
 public final class KeyGenParameterSpec implements AlgorithmParameterSpec, UserAuthArgs {
     private static final X500Principal DEFAULT_ATTESTATION_CERT_SUBJECT =
@@ -1101,7 +1165,8 @@ public final class KeyGenParameterSpec implements AlgorithmParameterSpec, UserAu
         /**
          * Sets the size (in bits) of the key to be generated. For instance, for RSA keys this sets
          * the modulus size, for EC keys this selects a curve with a matching field size, and for
-         * symmetric keys this sets the size of the bitstring which is their key material.
+         * symmetric keys this sets the size of the bitstring which is their key material. For
+         * ML-DSA keys, the key size is ignored.
          *
          * <p>The default key size is specific to each key algorithm. If key size is not set
          * via this method, it should be looked up from the algorithm-specific parameters (if any)
@@ -1252,11 +1317,22 @@ public final class KeyGenParameterSpec implements AlgorithmParameterSpec, UserAu
          * the key can be used. Attempts to use the key with any other digest algorithm will be
          * rejected.
          *
-         * <p>This must be specified for signing/verification keys and RSA encryption/decryption
-         * keys used with RSA OAEP padding scheme because these operations involve a digest. For
-         * HMAC keys, the default is the digest associated with the key algorithm (e.g.,
-         * {@code SHA-256} for key algorithm {@code HmacSHA256}). HMAC keys cannot be authorized
-         * for more than one digest.
+         * <p>Digests must be specified for:
+         *
+         * <ul>
+         *   <li>RSA and EC signing/verification keys
+         *   <li>RSA encryption/decryption keys used with the RSA OAEP padding scheme
+         * </ul>
+         *
+         * <p>Digests can optionally be specified for:
+         *
+         * <ul>
+         *   <li>HMAC keys. If specified, there must be exactly one digest it must match the digest
+         *       associated with the key algorithm (e.g., {@code SHA-256} for key algorithm
+         *       {@code HmacSHA256}).
+         *   <li>ML-DSA signing/verification keys. If specified, there must be exactly one digest
+         *       and it must be {@link KeyProperties#DIGEST_NONE}.
+         * </ul>
          *
          * <p>For private keys used for TLS/SSL client or server authentication it is usually
          * necessary to authorize the use of no digest ({@link KeyProperties#DIGEST_NONE}). This is

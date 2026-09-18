@@ -81,11 +81,13 @@ TEST_F(FlaggedXmlVersionerTest, AlreadyBaklavaReturnsOriginal) {
         <TextView />
       </LinearLayout>)");
   doc->file.config.sdkVersion = SDK_BAKLAVA;
+  doc->file.config.minorVersion = 1;
 
   FlaggedXmlVersioner versioner;
   auto results = versioner.Process(context_.get(), doc.get());
   EXPECT_THAT(results.size(), Eq(1));
   EXPECT_THAT(results[0]->file.config.sdkVersion, Eq(SDK_BAKLAVA));
+  EXPECT_THAT(results[0]->file.config.minorVersion, Eq(1));
 
   std::string expected;
   PrintDocToString(doc.get(), &expected);
@@ -108,6 +110,7 @@ TEST_F(FlaggedXmlVersionerTest, PreBaklavaGetsSplit) {
   EXPECT_THAT(results.size(), Eq(2));
   EXPECT_THAT(results[0]->file.config.sdkVersion, Eq(SDK_GINGERBREAD));
   EXPECT_THAT(results[1]->file.config.sdkVersion, Eq(SDK_BAKLAVA));
+  EXPECT_THAT(results[1]->file.config.minorVersion, Eq(1));
 
   auto gingerbread_doc = test::BuildXmlDomForPackageName(context_.get(), R"(
       <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
@@ -144,6 +147,7 @@ TEST_F(FlaggedXmlVersionerTest, NoVersionGetsSplit) {
   EXPECT_THAT(results.size(), Eq(2));
   EXPECT_THAT(results[0]->file.config.sdkVersion, Eq(0));
   EXPECT_THAT(results[1]->file.config.sdkVersion, Eq(SDK_BAKLAVA));
+  EXPECT_THAT(results[1]->file.config.minorVersion, Eq(1));
 
   auto gingerbread_doc = test::BuildXmlDomForPackageName(context_.get(), R"(
       <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">

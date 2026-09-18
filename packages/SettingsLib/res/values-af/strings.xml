@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi drie stawe."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi-sein vol."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Gekoppel aan jou toestel."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Alle gebruikers op hierdie toestel kan dit bekyk en daaraan verbind."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Oop netwerk"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Veilige netwerk"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android-bedryfstelsel"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Toegangspuntnaaminstellings is nie vir hierdie gebruiker beskikbaar nie"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB-ontfouting"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"In ontfoutmodus wanneer USB gekoppel is"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Herroep USB-onfoutingmagtigings"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Herroep ADB-ontfoutingmagtigings"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Draadlose ontfouting"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Ontfoutingmodus wanneer wi-fi gekoppel is"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Fout"</string>
@@ -277,7 +278,7 @@
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Gebruik QR-kode om toestel saam te bind"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Gebruik QR-kodeskandeerder om nuwe toestelle saam te bind"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Gebruik saambindkode om toestel saam te bind"</string>
-    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Gebruik \'n sessyferkode om nuwe toestelle saam te bind"</string>
+    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Gebruik ’n sessyferkode om nuwe toestelle saam te bind"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Saamgebinde toestelle"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"Tans gekoppel"</string>
     <string name="adb_wireless_device_details_title" msgid="7129369670526565786">"Toestelbesonderhede"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Bind tans toestel saam …"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Kon nie die toestel saambind nie. Óf die QR-kode is verkeerd, óf die toestel is nie aan dieselfde netwerk gekoppel nie."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-adres en -poort"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Onbeskikbaar (nie toegelaat nie)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Onbeskikbaar (wi-fi is ontkoppel)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Skandeer QR-kode"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Bind toestel oor wi-fi saam deur ’n QR-kode te skandeer"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Koppel asseblief aan \'n Wi-Fi-netwerk"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-ontfouting is net vir ontwikkelingsdoeleindes bedoel. Gebruik dit om data te kopieer tussen jou rekenaar en jou toestel, programme op jou toestel te installeer sonder kennisgewing en om loglêerdata te lees."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Laat draadlose ontfouting toe?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Draadlose ontfouting is net vir ontwikkelingsdoeleindes bedoel. Gebruik dit om data te kopieer tussen jou rekenaar en jou toestel, programme op jou toestel te installeer sonder kennisgewing, en loglêerdata te lees."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Herroep toegang tot USB-ontfouting vanaf alle rekenaars wat jy voorheen gemagtig het?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Herroep toegang tot adb-ontfouting vanaf alle rekenaars en netwerke wat jy voorheen gemagtig het?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Laat ontwikkeling-instellings toe?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Hierdie instellings is bedoel net vir ontwikkelinggebruik. Dit kan jou toestel en die programme daarop breek of vreemde dinge laat doen."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verifieer apps oor USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet is ontkoppel."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Geen oproepe nie."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Fisieke sleutelbord"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Kies sleutelborduitleg"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Verstek"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Skermaanskakelkontrole"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Laat toe dat die skerm aangeskakel word"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Laat ’n app toe om die skerm aan te skakel. As jy toestemming gee, kan die app die skerm enige tyd sonder jou uitdruklike bedoeling aanskakel."</string>

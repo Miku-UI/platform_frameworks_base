@@ -60,6 +60,7 @@ class PresetUiController(
 
     private var cachedDevice: CachedBluetoothDevice? = null
     private var started = false
+    private var hideUiWhenHapDisconnected = false
     private var toast: Toast? = null
 
     private val bluetoothCallback: BluetoothCallback = object : BluetoothCallback {
@@ -176,6 +177,11 @@ class PresetUiController(
         presetController.unregisterCallback()
     }
 
+    /** Sets if the preset UI should be hidden when HAP is disconnected.  */
+    fun setHideUiWhenHapDisconnected(shouldHide: Boolean) {
+        hideUiWhenHapDisconnected = shouldHide
+    }
+
     /**
      * Refreshes the preset UI with the latest data from the remote devices.
      *
@@ -184,6 +190,19 @@ class PresetUiController(
      * control otherwise.
      */
     fun refresh() {
+        // Hide the UI if all device in the same set doesn't support HAP
+        if (cachedDevices.all { device -> device.profiles.none { p -> p is HapClientProfile }}) {
+            context.mainExecutor.execute { presetLayout.setVisible(false) }
+            return
+        }
+        // Hide the UI if needed when all device in the same set doesn't connect to HAP
+        if (hideUiWhenHapDisconnected && sideToDeviceMap.values.none { device ->
+                presetController.isConnectedToHap(device)
+        }) {
+            context.mainExecutor.execute { presetLayout.setVisible(false) }
+            return
+        }
+
         val leftDevice: BluetoothDevice? = sideToDeviceMap[SIDE_LEFT]
         val rightDevice: BluetoothDevice? = sideToDeviceMap[SIDE_RIGHT]
         val leftList: List<BluetoothHapPresetInfo> = presetController.getPresetInfos(leftDevice)
@@ -217,7 +236,7 @@ class PresetUiController(
         presetInfos: List<BluetoothHapPresetInfo>?
     ) {
         presetLayout.setControlExpanded(side != SIDE_UNIFIED)
-        presetLayout.setControlEnabled(side, device.isConnected)
+        presetLayout.setControlEnabled(side, presetController.isConnectedToHap(device))
         val finalPresetInfos = presetInfos ?: presetController.getPresetInfos(device)
         val activePresetIndex = presetController.getActivePreset(device)
         presetLayout.setControlList(side, finalPresetInfos)

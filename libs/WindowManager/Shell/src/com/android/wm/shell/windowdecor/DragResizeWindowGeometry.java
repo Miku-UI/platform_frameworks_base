@@ -18,7 +18,6 @@ package com.android.wm.shell.windowdecor;
 
 import static android.view.InputDevice.SOURCE_MOUSE;
 import static android.view.InputDevice.SOURCE_TOUCHSCREEN;
-import static android.window.DesktopModeFlags.ENABLE_WINDOWING_EDGE_DRAG_RESIZE;
 
 import static com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_BOTTOM;
 import static com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_LEFT;
@@ -27,7 +26,6 @@ import static com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE
 import static com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_UNDEFINED;
 
 import android.annotation.NonNull;
-import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -51,7 +49,7 @@ public final class DragResizeWindowGeometry {
     // The size of the handle inside the task window applied to the edges of the window, for the
     // user to drag resize.
     private final int mResizeHandleEdgeInset;
-    // The task corners to permit drag resizing with a course input, such as touch.
+    // The task corners to permit drag resizing with a coarse input, such as touch.
     private final @NonNull TaskCorners mLargeTaskCorners;
     // The task corners to permit drag resizing with a fine input, such as stylus or cursor.
     private final @NonNull TaskCorners mFineTaskCorners;
@@ -74,16 +72,15 @@ public final class DragResizeWindowGeometry {
         mFineTaskCorners = new TaskCorners(mTaskSize, fineCornerSize);
 
         // Save touch areas for each edge.
-        mTaskEdges = new TaskEdges(mTaskSize, mResizeHandleEdgeOutset, mDisabledEdge);
+        mTaskEdges = new TaskEdges(
+                mTaskSize, mResizeHandleEdgeOutset, mResizeHandleEdgeInset, mDisabledEdge);
     }
 
     /**
      * Returns the resource value to use for the resize handle on the edge of the window.
      */
     static int getResizeEdgeHandleSize(@NonNull Resources res) {
-        return ENABLE_WINDOWING_EDGE_DRAG_RESIZE.isTrue()
-                ? res.getDimensionPixelSize(R.dimen.freeform_edge_handle_outset)
-                : res.getDimensionPixelSize(R.dimen.freeform_resize_handle);
+        return res.getDimensionPixelSize(R.dimen.freeform_edge_handle_outset);
     }
 
     /**
@@ -94,7 +91,7 @@ public final class DragResizeWindowGeometry {
     }
 
     /**
-     * Returns the resource value to use for course input, such as touch, that benefits from a large
+     * Returns the resource value to use for coarse input, such as touch, that benefits from a large
      * square on each of the window's corners.
      */
     static int getLargeResizeCornerSize(@NonNull Resources res) {
@@ -126,42 +123,29 @@ public final class DragResizeWindowGeometry {
         // Apply the edge resize regions.
         mTaskEdges.union(region);
 
-        if (ENABLE_WINDOWING_EDGE_DRAG_RESIZE.isTrue()) {
-            // Apply the corners as well for the larger corners, to ensure we capture all possible
-            // touches.
-            mLargeTaskCorners.union(region);
-        } else {
-            // Only apply fine corners for the legacy approach.
-            mFineTaskCorners.union(region);
-        }
+        // Apply the corners as well for the larger corners, to ensure we capture all possible
+        // touches.
+        mLargeTaskCorners.union(region);
     }
 
     /**
      * Returns if this MotionEvent should be handled, based on its source and position.
      */
-    boolean shouldHandleEvent(@NonNull Context context, @NonNull MotionEvent e,
-            @NonNull Point offset) {
+    boolean shouldHandleEvent(@NonNull MotionEvent e, @NonNull Point offset) {
         final float x = e.getX(0) + offset.x;
         final float y = e.getY(0) + offset.y;
 
-        if (ENABLE_WINDOWING_EDGE_DRAG_RESIZE.isTrue()) {
-            // First check if touch falls within a corner.
-            // Large corner bounds are used for course input like touch, otherwise fine bounds.
-            boolean result = isEventFromTouchscreen(e)
-                    ? isInCornerBounds(mLargeTaskCorners, x, y)
-                    : isInCornerBounds(mFineTaskCorners, x, y);
-            // Check if touch falls within the edge resize handle. Limit edge resizing to stylus and
-            // mouse input.
-            if (!result && isEdgeResizePermitted(e)) {
-                result = isInEdgeResizeBounds(x, y);
-            }
-            return result;
-        } else {
-            // Legacy uses only fine corners for touch, and edges only for non-touch input.
-            return isEventFromTouchscreen(e)
-                    ? isInCornerBounds(mFineTaskCorners, x, y)
-                    : isInEdgeResizeBounds(x, y);
+        // First check if touch falls within a corner.
+        // Large corner bounds are used for coarse input like touch, otherwise fine bounds.
+        boolean result = isEventFromTouchscreen(e)
+                ? isInCornerBounds(mLargeTaskCorners, x, y)
+                : isInCornerBounds(mFineTaskCorners, x, y);
+        // Check if touch falls within the edge resize handle. Limit edge resizing to stylus and
+        // mouse input.
+        if (!result && isEdgeResizePermitted(e)) {
+            result = isInEdgeResizeBounds(x, y);
         }
+        return result;
     }
 
     static boolean isEventFromTouchscreen(@NonNull MotionEvent e) {
@@ -172,15 +156,11 @@ public final class DragResizeWindowGeometry {
      * Whether resizing a window from the edge is permitted based on the motion event.
      */
     public static boolean isEdgeResizePermitted(@NonNull MotionEvent e) {
-        if (ENABLE_WINDOWING_EDGE_DRAG_RESIZE.isTrue()) {
-            return e.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS
-                    || e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE
-                    // Touchpad input
-                    || (e.isFromSource(SOURCE_MOUSE)
-                    && e.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER);
-        } else {
-            return e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE;
-        }
+        return e.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS
+                || e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE
+                // Touchpad input
+                || (e.isFromSource(SOURCE_MOUSE)
+                        && e.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER);
     }
 
     private boolean isInCornerBounds(TaskCorners corners, float xf, float yf) {
@@ -202,25 +182,18 @@ public final class DragResizeWindowGeometry {
      */
     @DragPositioningCallback.CtrlType
     int calculateCtrlType(boolean isTouchscreen, boolean isEdgeResizePermitted, float x, float y) {
-        if (ENABLE_WINDOWING_EDGE_DRAG_RESIZE.isTrue()) {
-            // First check if touch falls within a corner.
-            // Large corner bounds are used for course input like touch, otherwise fine bounds.
-            int ctrlType = isTouchscreen
-                    ? mLargeTaskCorners.calculateCornersCtrlType(x, y)
-                    : mFineTaskCorners.calculateCornersCtrlType(x, y);
+        // First check if touch falls within a corner.
+        // Large corner bounds are used for coarse input like touch, otherwise fine bounds.
+        int ctrlType = isTouchscreen
+                ? mLargeTaskCorners.calculateCornersCtrlType(x, y)
+                : mFineTaskCorners.calculateCornersCtrlType(x, y);
 
-            // Check if touch falls within the edge resize handle, since edge resizing can apply
-            // for any input source.
-            if (ctrlType == CTRL_TYPE_UNDEFINED && isEdgeResizePermitted) {
-                ctrlType = calculateEdgeResizeCtrlType(x, y);
-            }
-            return ctrlType;
-        } else {
-            // Legacy uses only fine corners for touch, and edges only for non-touch input.
-            return isTouchscreen
-                    ? mFineTaskCorners.calculateCornersCtrlType(x, y)
-                    : calculateEdgeResizeCtrlType(x, y);
+        // Check if touch falls within the edge resize handle, since edge resizing can apply
+        // for any input source.
+        if (ctrlType == CTRL_TYPE_UNDEFINED && isEdgeResizePermitted) {
+            ctrlType = calculateEdgeResizeCtrlType(x, y);
         }
+        return ctrlType;
     }
 
     @DragPositioningCallback.CtrlType
@@ -450,31 +423,31 @@ public final class DragResizeWindowGeometry {
         private final @NonNull Region mRegion;
         private final @NonNull DisabledEdge mDisabledEdge;
 
-        private TaskEdges(@NonNull Size taskSize, int resizeHandleThickness,
+        private TaskEdges(@NonNull Size taskSize, int resizeHandleOutset, int resizeHandleInset,
                 DisabledEdge disabledEdge) {
             // Save touch areas for each edge.
             mDisabledEdge = disabledEdge;
             // Save touch areas for each edge.
             mTopEdgeBounds = new Rect(
-                    -resizeHandleThickness,
-                    -resizeHandleThickness,
-                    taskSize.getWidth() + resizeHandleThickness,
-                    resizeHandleThickness);
+                    -resizeHandleOutset,
+                    -resizeHandleOutset,
+                    taskSize.getWidth() + resizeHandleOutset,
+                    resizeHandleInset);
             mLeftEdgeBounds = new Rect(
-                    -resizeHandleThickness,
+                    -resizeHandleOutset,
                     0,
-                    resizeHandleThickness,
+                    resizeHandleInset,
                     taskSize.getHeight());
             mRightEdgeBounds = new Rect(
-                    taskSize.getWidth() - resizeHandleThickness,
+                    taskSize.getWidth() - resizeHandleInset,
                     0,
-                    taskSize.getWidth() + resizeHandleThickness,
+                    taskSize.getWidth() + resizeHandleOutset,
                     taskSize.getHeight());
             mBottomEdgeBounds = new Rect(
-                    -resizeHandleThickness,
-                    taskSize.getHeight() - resizeHandleThickness,
-                    taskSize.getWidth() + resizeHandleThickness,
-                    taskSize.getHeight() + resizeHandleThickness);
+                    -resizeHandleOutset,
+                    taskSize.getHeight() - resizeHandleInset,
+                    taskSize.getWidth() + resizeHandleOutset,
+                    taskSize.getHeight() + resizeHandleOutset);
 
             mRegion = new Region();
             union(mRegion);

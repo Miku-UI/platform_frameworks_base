@@ -42,7 +42,7 @@ class VirtualMouseTest {
 
     @Mock private lateinit var virtualMouseConfig: VirtualMouseConfig
 
-    @Mock private lateinit var virtualInputDevice: IVirtualInputDevice
+    @Mock private lateinit var virtualInputDevice: IVirtualMouse
 
     private lateinit var virtualMouse: VirtualMouse
 

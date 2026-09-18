@@ -27,7 +27,9 @@ import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.view.KeyEvent;
 
@@ -42,6 +44,7 @@ import java.util.Objects;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public final class KeyGlyphMap implements Parcelable {
     private static final String TAG = "KeyGlyphMap";
 
@@ -49,6 +52,8 @@ public final class KeyGlyphMap implements Parcelable {
     private final ComponentName mComponentName;
     @NonNull
     private final SparseIntArray mKeyGlyphs;
+    @NonNull
+    private final SparseArray<String> mKeyDisplayNames;
     @NonNull
     private final SparseIntArray mModifierGlyphs;
     @NonNull
@@ -68,11 +73,12 @@ public final class KeyGlyphMap implements Parcelable {
             };
 
     public KeyGlyphMap(@NonNull ComponentName componentName,
-            @NonNull SparseIntArray keyGlyphs, @NonNull SparseIntArray modifierGlyphs,
-            @NonNull int[] functionRowKeys,
+            @NonNull SparseIntArray keyGlyphs, @NonNull SparseArray<String> keyDisplayNames,
+            @NonNull SparseIntArray modifierGlyphs, @NonNull int[] functionRowKeys,
             @NonNull Map<KeyCombination, Integer> hardwareShortcuts) {
         mComponentName = componentName;
         mKeyGlyphs = keyGlyphs;
+        mKeyDisplayNames = keyDisplayNames;
         mModifierGlyphs = modifierGlyphs;
         mFunctionRowKeys = functionRowKeys;
         mHardwareShortcuts = hardwareShortcuts;
@@ -81,6 +87,7 @@ public final class KeyGlyphMap implements Parcelable {
     public KeyGlyphMap(Parcel in) {
         mComponentName = in.readParcelable(getClass().getClassLoader(), ComponentName.class);
         mKeyGlyphs = in.readSparseIntArray();
+        mKeyDisplayNames = in.readSparseArray(String.class.getClassLoader(), String.class);
         mModifierGlyphs = in.readSparseIntArray();
         mFunctionRowKeys = new int[in.readInt()];
         in.readIntArray(mFunctionRowKeys);
@@ -93,6 +100,7 @@ public final class KeyGlyphMap implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeParcelable(mComponentName, 0);
         dest.writeSparseIntArray(mKeyGlyphs);
+        dest.writeSparseArray(mKeyDisplayNames);
         dest.writeSparseIntArray(mModifierGlyphs);
         dest.writeInt(mFunctionRowKeys.length);
         dest.writeIntArray(mFunctionRowKeys);
@@ -193,6 +201,15 @@ public final class KeyGlyphMap implements Parcelable {
     }
 
     /**
+     * Provides the display name for a key.
+     * Returns null if not available.
+     */
+    @Nullable
+    public String getDisplayNameForKeycode(int keycode) {
+        return mKeyDisplayNames.get(keycode);
+    }
+
+    /**
      * Provides the drawable resource for the glyph for a modifier key.
      * Returns null if not available.
      */
@@ -246,6 +263,7 @@ public final class KeyGlyphMap implements Parcelable {
         return "KeyGlyphMap{"
                 + "mComponentName=" + mComponentName
                 + ", mKeyGlyphs=" + mKeyGlyphs
+                + ", mKeyNames=" + mKeyDisplayNames
                 + ", mModifierGlyphs=" + mModifierGlyphs
                 + ", mFunctionRowKeys=" + Arrays.toString(mFunctionRowKeys)
                 + ", mHardwareShortcuts=" + mHardwareShortcuts

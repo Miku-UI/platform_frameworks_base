@@ -39,6 +39,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -72,7 +73,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.compose.animation.scene.TestScenes.SceneA
 import com.android.compose.animation.scene.TestScenes.SceneB
 import com.android.compose.animation.scene.TestScenes.SceneC
+import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.subjects.assertThat
+import com.android.compose.animation.scene.testing.lastAlphaForTesting
+import com.android.compose.animation.scene.transformation.CustomSharedPropertyTransformation
+import com.android.compose.animation.scene.transformation.InterpolatedSharedPropertyTransformation
+import com.android.compose.animation.scene.transformation.PropertyTransformation
+import com.android.compose.animation.scene.transformation.PropertyTransformationScope
 import com.android.compose.gesture.effect.OffsetOverscrollEffect
 import com.android.compose.gesture.effect.rememberOffsetOverscrollEffectFactory
 import com.android.compose.test.assertSizeIsEqualTo
@@ -2311,5 +2318,201 @@ class ElementTest {
         rule.waitForIdle()
 
         assertThat(compositions).isEqualTo(1)
+    }
+
+    @Test
+    fun previewAlphaTransformation() {
+        val state = rule.runOnUiThread { HoistedSceneTransitionLayoutState(SceneA) }
+        val scope =
+            rule.setContentAndCreateMainScope {
+                SceneTransitionLayoutForTesting(
+                    state,
+                    transitions =
+                        remember {
+                            transitions {
+                                from(SceneA, to = SceneB, preview = { fade(TestElements.Foo) }) {
+                                    spec = tween(4 * 16, easing = LinearEasing)
+                                }
+                            }
+                        },
+                ) {
+                    scene(SceneA) { Box(Modifier.fillMaxSize()) }
+                    scene(SceneB) { Box(Modifier.element(TestElements.Foo).fillMaxSize()) }
+                }
+            }
+
+        rule.onNode(isElement(TestElements.Foo)).assertDoesNotExist()
+
+        var progress by mutableFloatStateOf(0f)
+        scope.launch {
+            state.uiBoundState!!.startTransition(
+                transition(SceneA, SceneB, progress = { progress }, isUserInputOngoing = { true })
+            )
+        }
+        assertThat(
+                rule.onNode(isElement(TestElements.Foo)).fetchSemanticsNode().lastAlphaForTesting
+            )
+            .isWithin(0.001f)
+            .of(0f)
+
+        progress = 0.4f
+        assertThat(
+                rule.onNode(isElement(TestElements.Foo)).fetchSemanticsNode().lastAlphaForTesting
+            )
+            .isWithin(0.001f)
+            .of(0.4f)
+    }
+
+    @Test
+    fun sharedAlphaTransformation() {
+        val state = rule.runOnUiThread { HoistedSceneTransitionLayoutState(SceneA) }
+        val scope =
+            rule.setContentAndCreateMainScope {
+                SceneTransitionLayoutForTesting(
+                    state,
+                    transitions =
+                        remember {
+                            transitions {
+                                from(SceneA, to = SceneB) {
+                                    spec = tween(4 * 16, easing = LinearEasing)
+
+                                    // Fade out then Foo until progress = 0.5f then fade it in
+                                    // again.
+                                    transformation(TestElements.Foo) {
+                                        object : CustomSharedPropertyTransformation<Float> {
+                                            override val property =
+                                                PropertyTransformation.Property.Alpha
+
+                                            override fun PropertyTransformationScope.transform(
+                                                element: ElementKey,
+                                                transition: TransitionState.Transition,
+                                                transitionScope: CoroutineScope,
+                                                fromValue: Float,
+                                                toValue: Float,
+                                            ): Float {
+                                                val progress = transition.progress
+                                                return if (transition.progress < 0.5f) {
+                                                        1f - progress / 0.5f
+                                                    } else {
+                                                        (progress - 0.5f) / 0.5f
+                                                    }
+                                                    .coerceIn(0f, 1f)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                ) {
+                    scene(SceneA) { Box(Modifier.element(TestElements.Foo).fillMaxSize()) }
+                    scene(SceneB) { Box(Modifier.element(TestElements.Foo).fillMaxSize()) }
+                }
+            }
+
+        fun lastAlpha(): Float {
+            return rule
+                .onNode(isElement(TestElements.Foo, SceneB))
+                .fetchSemanticsNode()
+                .lastAlphaForTesting ?: error("Foo does not exist on SceneB")
+        }
+
+        var progress by mutableFloatStateOf(0f)
+        scope.launch {
+            state.uiBoundState!!.startTransition(
+                transition(SceneA, SceneB, progress = { progress })
+            )
+        }
+        assertThat(lastAlpha()).isWithin(0.001f).of(1f)
+
+        progress = 0.25f
+        assertThat(lastAlpha()).isWithin(0.001f).of(0.5f)
+
+        progress = 0.5f
+        assertThat(lastAlpha()).isWithin(0.001f).of(0f)
+
+        progress = 0.75f
+        assertThat(lastAlpha()).isWithin(0.001f).of(0.5f)
+
+        progress = 1f
+        assertThat(lastAlpha()).isWithin(0.001f).of(1f)
+    }
+
+    @Test
+    fun previewAndNormalCustomTransformation() {
+        val state = rule.runOnUiThread { HoistedSceneTransitionLayoutState(SceneA) }
+
+        // Fade Foo from alpha = 1f to alpha = 0.4f during the preview.
+        val preview: TransitionBuilder.() -> Unit = {
+            transformation(TestElements.Foo) {
+                object : InterpolatedSharedPropertyTransformation<Float> {
+                    override val property = PropertyTransformation.Property.Alpha
+
+                    override fun PropertyTransformationScope.targetPreviewValue(
+                        element: ElementKey,
+                        transition: TransitionState.Transition,
+                        fromValue: Float,
+                        toValue: Float,
+                    ): Float {
+                        return 0.4f
+                    }
+                }
+            }
+        }
+
+        val scope =
+            rule.setContentAndCreateMainScope {
+                SceneTransitionLayoutForTesting(
+                    state,
+                    transitions =
+                        remember {
+                            transitions {
+                                from(SceneA, to = SceneB, preview = preview) {
+                                    spec = tween(4 * 16, easing = LinearEasing)
+                                }
+                            }
+                        },
+                ) {
+                    scene(SceneA) { Box(Modifier.element(TestElements.Foo).fillMaxSize()) }
+                    scene(SceneB) { Box(Modifier.element(TestElements.Foo).fillMaxSize()) }
+                }
+            }
+
+        fun lastAlpha(): Float {
+            return rule
+                .onNode(isElement(TestElements.Foo, SceneB))
+                .fetchSemanticsNode()
+                .lastAlphaForTesting ?: error("Foo does not exist on SceneB")
+        }
+
+        var previewProgress by mutableFloatStateOf(0f)
+        var isInPreview by mutableStateOf(true)
+        var progress by mutableFloatStateOf(0f)
+        scope.launch {
+            state.uiBoundState!!.startTransition(
+                transition(
+                    SceneA,
+                    SceneB,
+                    progress = { progress },
+                    previewProgress = { previewProgress },
+                    isInPreviewStage = { isInPreview },
+                )
+            )
+        }
+
+        // Preview seeks from 1f (previewProgress = 0f) to 0.4f (previewProgress = 1f).
+        assertThat(lastAlpha()).isWithin(0.001f).of(1f)
+
+        previewProgress = 0.5f
+        assertThat(lastAlpha()).isWithin(0.001f).of(0.7f)
+
+        // Stop preview: interpolates between preview state (0.7f) and final state (1f).
+        isInPreview = false
+        assertThat(lastAlpha()).isWithin(0.001f).of(0.7f)
+
+        progress = 0.5f
+        assertThat(lastAlpha()).isWithin(0.001f).of(0.85f)
+
+        progress = 1f
+        assertThat(lastAlpha()).isWithin(0.001f).of(1f)
     }
 }

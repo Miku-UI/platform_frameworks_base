@@ -16,6 +16,7 @@
 
 package android.database;
 
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.BytesLong;
@@ -226,12 +227,16 @@ public class CursorWindow extends SQLiteClosable implements Parcelable {
     }
 
     private void dispose() {
-        if (mCloseGuard != null) {
-            mCloseGuard.close();
-        }
-        if (mWindowPtr != 0) {
-            nativeDispose(mWindowPtr);
-            mWindowPtr = 0;
+        try {
+            if (mCloseGuard != null) {
+                mCloseGuard.close();
+            }
+            if (mWindowPtr != 0) {
+                nativeDispose(mWindowPtr);
+                mWindowPtr = 0;
+            }
+        } finally {
+            reachabilityFence(this);
         }
     }
 

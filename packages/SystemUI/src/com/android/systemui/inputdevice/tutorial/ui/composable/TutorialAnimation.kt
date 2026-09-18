@@ -52,6 +52,7 @@ import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionSta
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgress
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgressAfterError
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.NotStarted
+import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.PartialSuccess
 import com.android.systemui.res.R
 
 @Composable
@@ -75,6 +76,7 @@ fun TutorialAnimation(
         ) { state ->
             when (state) {
                 NotStarted::class,
+                PartialSuccess::class,
                 Error::class ->
                     EducationAnimation(
                         config.animations.educationResId,

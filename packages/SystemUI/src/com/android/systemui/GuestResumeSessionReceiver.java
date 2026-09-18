@@ -128,48 +128,58 @@ public class GuestResumeSessionReceiver {
     }
 
     /**
-     * Dialog shown when user when asking for confirmation before deleting guest user.
+     * Dialog delegate shown when user when asking for confirmation before deleting guest user.
      */
     @VisibleForTesting
-    public static class ResetSessionDialog extends SystemUIDialog implements
+    public static class ResetSessionDialogDelegate implements SystemUIDialog.Delegate,
             DialogInterface.OnClickListener {
 
         @VisibleForTesting
-        public static final int BUTTON_WIPE = BUTTON_NEGATIVE;
+        public static final int BUTTON_WIPE = AlertDialog.BUTTON_NEGATIVE;
         @VisibleForTesting
-        public static final int BUTTON_DONTWIPE = BUTTON_POSITIVE;
+        public static final int BUTTON_DONTWIPE = AlertDialog.BUTTON_POSITIVE;
 
+        private final Context mContext;
         private final UserSwitcherController mUserSwitcherController;
         private final UiEventLogger mUiEventLogger;
+        private final SystemUIDialog.Factory mSystemUIDialogFactory;
         private final int mUserId;
 
 
-        /** Factory class to create guest reset dialog instance */
+        /** Factory class to create guest reset dialog delegate instance */
         @AssistedFactory
         public interface Factory {
-            /** Create a guest reset dialog instance */
-            ResetSessionDialog create(int userId);
+            /** Create a guest reset dialog delegate instance */
+            ResetSessionDialogDelegate create(int userId);
         }
 
         @AssistedInject
-        public ResetSessionDialog(Context context,
+        public ResetSessionDialogDelegate(Context context,
                 UserSwitcherController userSwitcherController,
                 UiEventLogger uiEventLogger,
+                SystemUIDialog.Factory systemUIDialogFactory,
                 @Assisted int userId) {
-            super(context, DEFAULT_THEME, false /* dismissOnDeviceLock */);
-
-            setTitle(context.getString(R.string.guest_wipe_session_title));
-            setMessage(context.getString(R.string.guest_wipe_session_message));
-            setCanceledOnTouchOutside(false);
-
-            setButton(BUTTON_WIPE,
-                    context.getString(R.string.guest_wipe_session_wipe), this);
-            setButton(BUTTON_DONTWIPE,
-                    context.getString(R.string.guest_wipe_session_dontwipe), this);
-
+            mContext = context;
             mUserSwitcherController = userSwitcherController;
             mUiEventLogger = uiEventLogger;
+            mSystemUIDialogFactory = systemUIDialogFactory;
             mUserId = userId;
+        }
+
+        @Override
+        public SystemUIDialog createDialog() {
+            final SystemUIDialog dialog = mSystemUIDialogFactory.create(this, mContext,
+                    SystemUIDialog.DEFAULT_THEME, false /* dismissOnDeviceLock */,
+                    true /* shouldAcsdDismissDialog */);
+            dialog.setTitle(mContext.getString(R.string.guest_wipe_session_title));
+            dialog.setMessage(mContext.getString(R.string.guest_wipe_session_message));
+            dialog.setCanceledOnTouchOutside(false);
+
+            dialog.setButton(BUTTON_WIPE,
+                    mContext.getString(R.string.guest_wipe_session_wipe), this);
+            dialog.setButton(BUTTON_DONTWIPE,
+                    mContext.getString(R.string.guest_wipe_session_dontwipe), this);
+            return dialog;
         }
 
         @Override
@@ -177,10 +187,10 @@ public class GuestResumeSessionReceiver {
             if (which == BUTTON_WIPE) {
                 mUiEventLogger.log(QSUserSwitcherEvent.QS_USER_GUEST_WIPE);
                 mUserSwitcherController.removeGuestUser(mUserId, UserHandle.USER_NULL);
-                dismiss();
+                dialog.dismiss();
             } else if (which == BUTTON_DONTWIPE) {
                 mUiEventLogger.log(QSUserSwitcherEvent.QS_USER_GUEST_CONTINUE);
-                cancel();
+                dialog.cancel();
             }
         }
     }

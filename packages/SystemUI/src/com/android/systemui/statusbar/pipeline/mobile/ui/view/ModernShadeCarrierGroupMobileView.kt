@@ -21,7 +21,6 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.LinearLayout
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.buildSpec
 import com.android.systemui.res.R
@@ -37,6 +36,7 @@ import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.ShadeCarrierG
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.ShadeCarrierGroupMobileIconViewModelKairos
 import com.android.systemui.util.AutoMarqueeTextView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -117,7 +117,6 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
          * Inflates a new instance of [ModernShadeCarrierGroupMobileView], binds it to [viewModel],
          * and returns it.
          */
-        @ExperimentalKairosApi
         @JvmStatic
         fun constructAndBindKairos(
             context: Context,
@@ -141,7 +140,7 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
                         }
                     }
             return view to
-                scope.launch {
+                scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     val iconView =
                         view.requireViewById<ModernStatusBarMobileView>(R.id.mobile_combo)
                     iconView.initView(slot) {

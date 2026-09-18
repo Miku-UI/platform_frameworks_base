@@ -21,6 +21,7 @@ import static com.android.settingslib.enterprise.ActionDisabledByAdminController
 import static com.android.settingslib.enterprise.FakeDeviceAdminStringProvider.DEFAULT_DEVICE_ADMIN_STRING_PROVIDER;
 
 import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
 import static junit.framework.TestCase.assertEquals;
 
 import static org.mockito.Mockito.mock;
@@ -83,5 +84,37 @@ public class BiometricActionDisabledByAdminControllerTest {
                 intentCaptor.getValue().getIntExtra(
                         Settings.EXTRA_SUPERVISOR_RESTRICTED_SETTING_KEY, -1));
         assertEquals(componentName.getPackageName(), intentCaptor.getValue().getPackage());
+    }
+
+    @Test
+    public void buttonListener_enforcedAdminComponentBecomesNullAfterCreation_startsActivity() {
+        ComponentName componentName = new ComponentName("com.android.test", "AThing");
+        RestrictedLockUtils.EnforcedAdmin enforcedAdmin = new RestrictedLockUtils.EnforcedAdmin(
+                componentName, new UserHandle(UserHandle.myUserId()));
+        assertNotNull(enforcedAdmin.component);
+
+        DialogInterface.OnClickListener listener =
+                mController.getPositiveButtonListener(mContext, enforcedAdmin);
+        assertNotNull(listener);
+        assertNotNull(enforcedAdmin.component);
+
+        enforcedAdmin.component = null;
+
+        listener.onClick(mock(DialogInterface.class), 0 /* which */);
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext).startActivity(intentCaptor.capture());
+        assertEquals("com.android.test", intentCaptor.getValue().getPackage());
+    }
+
+    @Test
+    public void buttonListener_enforcedAdminNullComponent_doesNotStartActivity() {
+        RestrictedLockUtils.EnforcedAdmin enforcedAdmin = new RestrictedLockUtils.EnforcedAdmin(
+                null, new UserHandle(UserHandle.myUserId()));
+
+        DialogInterface.OnClickListener listener =
+                mController.getPositiveButtonListener(mContext, enforcedAdmin);
+
+        assertNull(listener);
     }
 }

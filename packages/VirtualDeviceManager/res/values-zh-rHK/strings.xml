@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"虛擬裝置管理工具"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"要允許「<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;使用螢幕自動化操作嗎？"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"要允許「<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;透過「<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;使用螢幕自動化操作嗎？"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"此應用程式將可查看其他應用程式的螢幕內容並與之互動，協助你完成工作，即使應用程式在背景執行亦然"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"僅限這次"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"不允許"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"一律允許"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"「<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>」正在使用「<xliff:g id="TARGET_APP_NAME">%2$s</xliff:g>」"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"如要查看工作進度，請開啟「<xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g>」應用程式。<xliff:g id="EMPTY_LINE">
+
+</xliff:g>如你現在停止工作，進度可能會遺失。如要重新啟動，請開啟「<xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g>」應用程式。"</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"停止工作並開啟應用程式"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"關閉"</string>
+</resources>

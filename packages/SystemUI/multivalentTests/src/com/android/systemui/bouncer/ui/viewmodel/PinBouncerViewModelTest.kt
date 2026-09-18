@@ -135,6 +135,45 @@ class PinBouncerViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    fun closingAndReopeningBouncer_clearsSavedSIMPINState() =
+        kosmos.runTest {
+            val underTest =
+                pinBouncerViewModelFactory.create(
+                    isInputEnabled = MutableStateFlow(true),
+                    onIntentionalUserInput = {},
+                    authenticationMethod = AuthenticationMethodModel.Sim,
+                    bouncerHapticPlayer = bouncerHapticPlayer,
+                )
+            val onActivatedJob = underTest.activateIn(testScope)
+
+            fakeSimBouncerRepository.setSimPukLocked(true)
+            runCurrent()
+
+            // step 1: enter PUK code "12345678"
+            underTest.inputPin(intArrayOf(1, 2, 3, 4, 5, 6, 7, 8))
+            runCurrent()
+
+            // step 1: enter PIN code "4567"
+            underTest.inputPin(intArrayOf(4, 5, 6, 7))
+            runCurrent()
+
+            assertThat(fakeSimBouncerRepository.simPukInputModel.enteredSimPuk)
+                .isEqualTo("12345678")
+            assertThat(fakeSimBouncerRepository.simPukInputModel.enteredSimPin).isEqualTo("4567")
+            // close the bouncer
+            onActivatedJob.cancel()
+            runCurrent()
+
+            assertThat(fakeSimBouncerRepository.simPukInputModel.enteredSimPuk).isNull()
+            assertThat(fakeSimBouncerRepository.simPukInputModel.enteredSimPin).isNull()
+        }
+
+    private fun PinBouncerViewModel.inputPin(digits: IntArray) {
+        digits.forEach { onPinButtonClicked(it) }
+        this.onAuthenticateButtonClicked()
+    }
+
+    @Test
     fun onPinButtonClicked() =
         kosmos.runTest {
             val pin by collectLastValue(underTest.pinInput.map { it.getPin() })
@@ -301,56 +340,34 @@ class PinBouncerViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun onShown_againAfterSceneChange_resetsPin() =
-        kosmos.runTest {
-            val pin by collectLastValue(underTest.pinInput.map { it.getPin() })
-            lockDeviceAndOpenPinBouncer()
-
-            // The user types a PIN.
-            FakeAuthenticationRepository.DEFAULT_PIN.forEach(underTest::onPinButtonClicked)
-            assertThat(pin).isNotEmpty()
-
-            // The user doesn't confirm the PIN, but navigates back to the lockscreen instead.
-            hideBouncer()
-
-            // The user navigates to the bouncer again.
-            showBouncer()
-
-            // Ensure the previously-entered PIN is not shown.
-            assertThat(pin).isEmpty()
-        }
-
-    @Test
     fun backspaceButtonAppearance_withoutAutoConfirm_alwaysShown() =
         kosmos.runTest {
-            val backspaceButtonAppearance by collectLastValue(underTest.backspaceButtonAppearance)
-
             fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
 
-            assertThat(backspaceButtonAppearance).isEqualTo(ActionButtonAppearance.Shown)
+            assertThat(underTest.backspaceButtonAppearance).isEqualTo(ActionButtonAppearance.Shown)
         }
 
     @Test
     fun backspaceButtonAppearance_withAutoConfirmButNoInput_isHidden() =
         kosmos.runTest {
-            val backspaceButtonAppearance by collectLastValue(underTest.backspaceButtonAppearance)
             fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
             fakeAuthenticationRepository.setAutoConfirmFeatureEnabled(true)
+            runCurrent()
 
-            assertThat(backspaceButtonAppearance).isEqualTo(ActionButtonAppearance.Hidden)
+            assertThat(underTest.backspaceButtonAppearance).isEqualTo(ActionButtonAppearance.Hidden)
         }
 
     @Test
     fun backspaceButtonAppearance_withAutoConfirmAndInput_isShownQuiet() =
         kosmos.runTest {
-            val backspaceButtonAppearance by collectLastValue(underTest.backspaceButtonAppearance)
             fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
             fakeAuthenticationRepository.setAutoConfirmFeatureEnabled(true)
             runCurrent()
 
             underTest.onPinButtonClicked(1)
+            runCurrent()
 
-            assertThat(backspaceButtonAppearance).isEqualTo(ActionButtonAppearance.Subtle)
+            assertThat(underTest.backspaceButtonAppearance).isEqualTo(ActionButtonAppearance.Subtle)
         }
 
     @Test
@@ -542,26 +559,37 @@ class PinBouncerViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    fun readyToTryAuthenticate() =
+        kosmos.runTest {
+            val readyToTryAuthenticate by collectLastValue(underTest.readyToTryAuthenticate)
+            lockDeviceAndOpenPinBouncer()
+            assertThat(readyToTryAuthenticate).isFalse()
+
+            underTest.onPinButtonClicked(1)
+            assertThat(readyToTryAuthenticate).isTrue()
+
+            underTest.onBackspaceButtonClicked()
+            assertThat(readyToTryAuthenticate).isFalse()
+        }
+
+    @Test
     fun onDigiButtonDown_deliversKeyStandardToken() =
         kosmos.runTest {
-            underTest.onDigitButtonDown(null)
+            underTest.onDigitButtonDown()
 
             assertThat(fakeMSDLPlayer.latestTokenPlayed).isEqualTo(MSDLToken.KEYPRESS_STANDARD)
             assertThat(fakeMSDLPlayer.latestPropertiesPlayed).isNull()
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun onBackspaceButtonPressed_deliversKeyDeleteToken() {
-        underTest.onBackspaceButtonPressed(null)
+        underTest.onBackspaceButtonPressed()
 
         assertThat(kosmos.fakeMSDLPlayer.latestTokenPlayed).isEqualTo(MSDLToken.KEYPRESS_DELETE)
         assertThat(kosmos.fakeMSDLPlayer.latestPropertiesPlayed).isNull()
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun onBackspaceButtonLongPressed_deliversLongPressToken() {
         underTest.onBackspaceButtonLongPressed()
 
@@ -580,7 +608,6 @@ class PinBouncerViewModelTest : SysuiTestCase() {
     private fun Kosmos.hideBouncer() {
         val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
         sceneInteractor.hideOverlay(Overlays.Bouncer, "reason")
-        underTest.onHidden()
         runCurrent()
 
         assertThat(currentOverlays).doesNotContain(Overlays.Bouncer)

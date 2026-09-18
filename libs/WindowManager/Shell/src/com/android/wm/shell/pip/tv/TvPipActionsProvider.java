@@ -202,7 +202,10 @@ public class TvPipActionsProvider implements TvPipAction.SystemActionsHandler {
         }
     }
 
-    void reset() {
+    /**
+     * Resets the provider to its initial state by clearing all cached actions.
+     */
+    public void reset() {
         mActionsList.clear();
         mMediaActions.clear();
         mAppActions.clear();

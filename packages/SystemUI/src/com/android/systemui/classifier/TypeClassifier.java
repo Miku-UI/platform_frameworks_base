@@ -18,6 +18,7 @@ package com.android.systemui.classifier;
 
 
 import static com.android.systemui.classifier.Classifier.ALTERNATE_BOUNCER_SWIPE;
+import static com.android.systemui.classifier.Classifier.BOUNCER_SWIPE;
 import static com.android.systemui.classifier.Classifier.BOUNCER_UNLOCK;
 import static com.android.systemui.classifier.Classifier.BRIGHTNESS_SLIDER;
 import static com.android.systemui.classifier.Classifier.GLANCEABLE_HUB_SWIPE;
@@ -89,6 +90,7 @@ public class TypeClassifier extends FalsingClassifier {
             case RIGHT_AFFORDANCE:  // Swiping from the bottom right corner for camera or similar.
                 wrongDirection = right || !up;
                 break;
+            case BOUNCER_SWIPE:
             case SHADE_DRAG:
                 wrongDirection = !vertical;
                 break;

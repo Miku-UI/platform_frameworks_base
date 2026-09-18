@@ -5,7 +5,8 @@ import android.os.Looper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dump.DumpManager
+import com.android.systemui.dump.realDumpManager
+import com.android.systemui.testKosmosNew
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -15,6 +16,7 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class FragmentServiceTest : SysuiTestCase() {
+    private val kosmos = testKosmosNew()
     private val fragmentHostManagerFactory: FragmentHostManager.Factory = mock()
 
     private lateinit var fragmentService: FragmentService
@@ -25,7 +27,8 @@ class FragmentServiceTest : SysuiTestCase() {
             Looper.prepare()
         }
 
-        fragmentService = FragmentService(fragmentHostManagerFactory, mock(), DumpManager())
+        fragmentService =
+            FragmentService(fragmentHostManagerFactory, mock(), kosmos.realDumpManager)
     }
 
     @Test

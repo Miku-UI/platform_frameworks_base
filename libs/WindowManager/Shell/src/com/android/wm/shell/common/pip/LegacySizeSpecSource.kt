@@ -23,14 +23,14 @@ import android.util.Size
 import com.android.wm.shell.R
 
 class LegacySizeSpecSource(
-        private var context: Context,
-        private val pipDisplayLayoutState: PipDisplayLayoutState
+    private var context: Context,
+    private val pipDisplayLayoutState: PipDisplayLayoutState,
 ) : SizeSpecSource, PipDisplayLayoutState.DisplayIdListener {
 
     private var mDefaultMinSize = 0
     /** The absolute minimum an overridden size's edge can be */
     private var mOverridableMinSize = 0
-    /** The preferred minimum (and default minimum) size specified by apps.  */
+    /** The preferred minimum (and default minimum) size specified by apps. */
     private var mOverrideMinSize: Size? = null
 
     private var mDefaultSizePercent = 0f
@@ -46,16 +46,15 @@ class LegacySizeSpecSource(
     private fun reloadResources() {
         val res: Resources = context.getResources()
 
-        mDefaultMinSize = res.getDimensionPixelSize(
-                R.dimen.default_minimal_size_pip_resizable_task)
-        mOverridableMinSize = res.getDimensionPixelSize(
-                R.dimen.overridable_minimal_size_pip_resizable_task)
+        mDefaultMinSize = res.getDimensionPixelSize(R.dimen.default_minimal_size_pip_resizable_task)
+        mOverridableMinSize =
+            res.getDimensionPixelSize(R.dimen.overridable_minimal_size_pip_resizable_task)
 
         mDefaultSizePercent = res.getFloat(R.dimen.config_pictureInPictureDefaultSizePercent)
         mMinimumSizePercent = res.getFraction(R.fraction.config_pipShortestEdgePercent, 1, 1)
 
-        mMaxAspectRatioForMinSize = res.getFloat(
-                R.dimen.config_pictureInPictureAspectRatioLimitForMinSize)
+        mMaxAspectRatioForMinSize =
+            res.getFloat(R.dimen.config_pictureInPictureAspectRatioLimitForMinSize)
         mMinAspectRatioForMinSize = 1f / mMaxAspectRatioForMinSize
     }
 
@@ -71,21 +70,20 @@ class LegacySizeSpecSource(
     override fun getMaxSize(aspectRatio: Float): Size {
         val insetBounds = pipDisplayLayoutState.insetBounds
 
-        val shorterLength: Int = Math.min(getDisplayBounds().width(),
-                getDisplayBounds().height())
-        val totalHorizontalPadding: Int = (insetBounds.left +
-                (getDisplayBounds().width() - insetBounds.right))
-        val totalVerticalPadding: Int = (insetBounds.top +
-                (getDisplayBounds().height() - insetBounds.bottom))
+        val shorterLength: Int = Math.min(getDisplayBounds().width(), getDisplayBounds().height())
+        val totalHorizontalPadding: Int =
+            (insetBounds.left + (getDisplayBounds().width() - insetBounds.right))
+        val totalVerticalPadding: Int =
+            (insetBounds.top + (getDisplayBounds().height() - insetBounds.bottom))
 
         return if (aspectRatio > 1f) {
-            val maxWidth = Math.max(getDefaultSize(aspectRatio).width,
-                    shorterLength - totalHorizontalPadding)
+            val maxWidth =
+                Math.max(getDefaultSize(aspectRatio).width, shorterLength - totalHorizontalPadding)
             val maxHeight = (maxWidth / aspectRatio).toInt()
             Size(maxWidth, maxHeight)
         } else {
-            val maxHeight = Math.max(getDefaultSize(aspectRatio).height,
-                    shorterLength - totalVerticalPadding)
+            val maxHeight =
+                Math.max(getDefaultSize(aspectRatio).height, shorterLength - totalVerticalPadding)
             val maxWidth = (maxHeight * aspectRatio).toInt()
             Size(maxWidth, maxHeight)
         }
@@ -95,14 +93,13 @@ class LegacySizeSpecSource(
         if (mOverrideMinSize != null) {
             return getMinSize(aspectRatio)
         }
-        val smallestDisplaySize: Int = Math.min(getDisplayBounds().width(),
-                getDisplayBounds().height())
-        val minSize = Math.max(getMinEdgeSize().toFloat(),
-                smallestDisplaySize * mDefaultSizePercent).toInt()
+        val smallestDisplaySize: Int =
+            Math.min(getDisplayBounds().width(), getDisplayBounds().height())
+        val minSize =
+            Math.max(getMinEdgeSize().toFloat(), smallestDisplaySize * mDefaultSizePercent).toInt()
         val width: Int
         val height: Int
-        if (aspectRatio <= mMinAspectRatioForMinSize ||
-                aspectRatio > mMaxAspectRatioForMinSize) {
+        if (aspectRatio <= mMinAspectRatioForMinSize || aspectRatio > mMaxAspectRatioForMinSize) {
             // Beyond these points, we can just use the min size as the shorter edge
             if (aspectRatio <= 1) {
                 // Portrait, width is the minimum size
@@ -118,8 +115,11 @@ class LegacySizeSpecSource(
             // at the points
             val widthAtMaxAspectRatioForMinSize: Float = mMaxAspectRatioForMinSize * minSize
             val radius = PointF.length(widthAtMaxAspectRatioForMinSize, minSize.toFloat())
-            height = Math.round(Math.sqrt((radius * radius /
-                    (aspectRatio * aspectRatio + 1)).toDouble())).toInt()
+            height =
+                Math.round(
+                        Math.sqrt((radius * radius / (aspectRatio * aspectRatio + 1)).toDouble())
+                    )
+                    .toInt()
             width = Math.round(height * aspectRatio)
         }
         return Size(width, height)
@@ -129,17 +129,24 @@ class LegacySizeSpecSource(
         if (mOverrideMinSize != null) {
             return adjustOverrideMinSizeToAspectRatio(aspectRatio)!!
         }
-        val shorterLength: Int = Math.min(getDisplayBounds().width(),
-                getDisplayBounds().height())
+        val shorterLength: Int = Math.min(getDisplayBounds().width(), getDisplayBounds().height())
         val minWidth: Int
         val minHeight: Int
         if (aspectRatio > 1f) {
-            minWidth = Math.min(getDefaultSize(aspectRatio).width.toFloat(),
-                    shorterLength * mMinimumSizePercent).toInt()
+            minWidth =
+                Math.min(
+                        getDefaultSize(aspectRatio).width.toFloat(),
+                        shorterLength * mMinimumSizePercent,
+                    )
+                    .toInt()
             minHeight = (minWidth / aspectRatio).toInt()
         } else {
-            minHeight = Math.min(getDefaultSize(aspectRatio).height.toFloat(),
-                    shorterLength * mMinimumSizePercent).toInt()
+            minHeight =
+                Math.min(
+                        getDefaultSize(aspectRatio).height.toFloat(),
+                        shorterLength * mMinimumSizePercent,
+                    )
+                    .toInt()
             minWidth = (minHeight * aspectRatio).toInt()
         }
         return Size(minWidth, minHeight)
@@ -164,16 +171,18 @@ class LegacySizeSpecSource(
 
     private fun getDisplayBounds() = pipDisplayLayoutState.displayBounds
 
-    /** Sets the preferred size of PIP as specified by the activity in PIP mode.  */
+    /** Sets the preferred size of PIP as specified by the activity in PIP mode. */
     override fun setOverrideMinSize(overrideMinSize: Size?) {
         mOverrideMinSize = overrideMinSize
     }
 
-    /** Returns the preferred minimal size specified by the activity in PIP.  */
+    /** Returns the preferred minimal size specified by the activity in PIP. */
     override fun getOverrideMinSize(): Size? {
         val overrideMinSize = mOverrideMinSize ?: return null
-        return if (overrideMinSize.width < mOverridableMinSize ||
-                overrideMinSize.height < mOverridableMinSize) {
+        return if (
+            overrideMinSize.width < mOverridableMinSize ||
+                overrideMinSize.height < mOverridableMinSize
+        ) {
             Size(mOverridableMinSize, mOverridableMinSize)
         } else {
             overrideMinSize
@@ -186,7 +195,6 @@ class LegacySizeSpecSource(
 
     /**
      * Returns the adjusted overridden min size if it is set; otherwise, returns null.
-     *
      *
      * Overridden min size needs to be adjusted in its own way while making sure that the target
      * aspect ratio is maintained

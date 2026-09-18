@@ -30,6 +30,7 @@ android_test {
 
     srcs: [
         "src/com/android/server/inputmethod/**/*.java",
+        "src/com/android/server/inputmethod/**/*.kt",
     ],
 
     static_libs: [
@@ -74,6 +75,7 @@ android_ravenwood_test {
         "androidx.annotation_annotation",
         "androidx.test.rules",
         "services.core",
+        "truth",
     ],
     libs: [
         "android.test.base.stubs.system",
@@ -83,7 +85,6 @@ android_ravenwood_test {
         "src/com/android/server/inputmethod/**/ClientControllerTest.java",
     ],
     auto_gen_config: true,
-    team: "trendy_team_ravenwood",
 }
 
 android_test {

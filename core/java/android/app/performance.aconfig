@@ -11,13 +11,6 @@ flag {
 }
 
 flag {
-     namespace: "system_performance"
-     name: "pic_test_mode"
-     description: "Updated test mode for PIC"
-     bug: "396173886"
-}
-
-flag {
      name: "app_exit_info_debug_memory_api"
      namespace: "system_performance"
      description: "Controls the ability to get Debug.MemoryInfo stats from ApplicationExitInfo api"
@@ -29,6 +22,7 @@ flag {
     namespace: "system_performance"
     description: "Controls the onRestart callback in ActivityLifeCycleCallbacks"
     bug: "417520188"
+    is_exported: true
 }
 
 flag {
@@ -39,8 +33,17 @@ flag {
 }
 
 flag {
-     name: "sharedpreferences_skip_fsync"
-     namespace: "system_performance"
-     description: "What if SharedPreferences just didn't fsync()? Let's find out."
-     bug: "435433868"
+    name: "include_anr_info"
+    namespace: "system_performance"
+    is_exported: true
+    description: "Include the ANR info object in the ApplicationExitInfo which contains anr id, anr type, user perceptible, timeout "
+    bug: "459886343"
+}
+
+flag {
+    name: "enable_anr_warning_callback"
+    namespace: "system_performance"
+    is_exported: true
+    description: "Enables a callback that warns an application when it is at risk of an ANR."
+    bug: "459887078"
 }

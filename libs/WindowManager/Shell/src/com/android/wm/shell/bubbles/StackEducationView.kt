@@ -36,7 +36,7 @@ import com.android.wm.shell.shared.animation.Interpolators
 class StackEducationView(
     context: Context,
     private val positioner: BubblePositioner,
-    private val manager: Manager
+    private val manager: Manager,
 ) : LinearLayout(context) {
 
     companion object {
@@ -60,8 +60,10 @@ class StackEducationView(
 
     init {
         LayoutInflater.from(context).inflate(R.layout.bubble_stack_user_education, this)
-        TypefaceUtils.setTypeface(titleTextView,
-            TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED)
+        TypefaceUtils.setTypeface(
+            titleTextView,
+            TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED,
+        )
         TypefaceUtils.setTypeface(descTextView, TypefaceUtils.FontFamily.GSF_BODY_MEDIUM)
 
         visibility = View.GONE
@@ -87,17 +89,22 @@ class StackEducationView(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         setFocusableInTouchMode(true)
-        setOnKeyListener(object : OnKeyListener {
-            override fun onKey(v: View?, keyCode: Int, event: KeyEvent): Boolean {
-                // if the event is a key down event on the enter button
-                if (event.action == KeyEvent.ACTION_UP &&
-                        keyCode == KeyEvent.KEYCODE_BACK && !isHiding) {
-                    hide(false)
-                    return true
+        setOnKeyListener(
+            object : OnKeyListener {
+                override fun onKey(v: View?, keyCode: Int, event: KeyEvent): Boolean {
+                    // if the event is a key down event on the enter button
+                    if (
+                        event.action == KeyEvent.ACTION_UP &&
+                            keyCode == KeyEvent.KEYCODE_BACK &&
+                            !isHiding
+                    ) {
+                        hide(false)
+                        return true
+                    }
+                    return false
                 }
-                return false
             }
-        })
+        )
     }
 
     override fun onDetachedFromWindow() {
@@ -107,8 +114,10 @@ class StackEducationView(
     }
 
     private fun setTextColor() {
-        val ta = mContext.obtainStyledAttributes(intArrayOf(android.R.attr.colorAccent,
-            android.R.attr.textColorPrimaryInverse))
+        val ta =
+            mContext.obtainStyledAttributes(
+                intArrayOf(android.R.attr.colorAccent, android.R.attr.textColorPrimaryInverse)
+            )
         val bgColor = ta.getColor(0 /* index */, Color.BLACK)
         var textColor = ta.getColor(1 /* index */, Color.WHITE)
         ta.recycle()
@@ -136,9 +145,9 @@ class StackEducationView(
 
         manager.updateWindowFlagsForBackpress(true /* interceptBack */)
         layoutParams.width =
-                if (positioner.isLargeScreen || positioner.isLandscape)
-                    context.resources.getDimensionPixelSize(R.dimen.bubbles_user_education_width)
-                else ViewGroup.LayoutParams.MATCH_PARENT
+            if (positioner.isLargeScreen || positioner.isLandscape)
+                context.resources.getDimensionPixelSize(R.dimen.bubbles_user_education_width)
+            else ViewGroup.LayoutParams.MATCH_PARENT
 
         val isStackOnLeft = positioner.isStackOnLeft(stackPosition)
         (view.layoutParams as MarginLayoutParams).apply {
@@ -162,7 +171,7 @@ class StackEducationView(
                         positioner.bubbleSize + stackPadding,
                         paddingTop,
                         paddingRight,
-                        paddingBottom
+                        paddingBottom,
                     )
                     translationX = 0f
                 } else {
@@ -170,7 +179,7 @@ class StackEducationView(
                         paddingLeft,
                         paddingTop,
                         positioner.bubbleSize + stackPadding,
-                        paddingBottom
+                        paddingBottom,
                     )
                     translationX = (positioner.screenRect.right - width - stackPadding).toFloat()
                 }

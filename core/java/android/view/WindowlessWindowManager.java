@@ -108,6 +108,7 @@ public class WindowlessWindowManager implements IWindowSession {
 
     public void setConfiguration(Configuration configuration) {
         mConfiguration.setTo(configuration);
+        dispatchStateToClients();
     }
 
     InputTransferToken getInputTransferToken(IBinder window) {
@@ -172,10 +173,16 @@ public class WindowlessWindowManager implements IWindowSession {
             }
             if (state.mInputChannelToken != null) {
                 try {
-                    mRealWm.updateInputChannel(state.mInputChannelToken, mHostInputTransferToken,
-                            state.mDisplayId, state.mSurfaceControl, state.mParams.flags,
-                            state.mParams.privateFlags, state.mParams.inputFeatures,
-                            state.mInputRegion);
+                    final WindowInputChannelParams params = new WindowInputChannelParams();
+                    params.displayId = state.mDisplayId;
+                    params.channelToken = state.mInputChannelToken;
+                    params.hostInputTransferToken = mHostInputTransferToken;
+                    params.surface = state.mSurfaceControl;
+                    params.flags = state.mParams.flags;
+                    params.privateFlags = state.mParams.privateFlags;
+                    params.inputFeatures = state.mParams.inputFeatures;
+                    params.region = state.mInputRegion;
+                    mRealWm.updateInputChannel(params);
                 } catch (RemoteException e) {
                     Log.e(TAG, "Failed to update surface input channel: ", e);
                 }
@@ -242,19 +249,25 @@ public class WindowlessWindowManager implements IWindowSession {
         if (((attrs.inputFeatures &
                 WindowManager.LayoutParams.INPUT_FEATURE_NO_INPUT_CHANNEL) == 0)) {
             try {
+                final WindowInputChannelParams params = new WindowInputChannelParams();
+                params.displayId = displayId;
+                params.clientToken = window.asBinder();
+                params.hostInputTransferToken = mHostInputTransferToken;
+                params.inputTransferToken = state.mInputTransferToken;
+                params.windowToken = attrs.token;
+                params.type = attrs.type;
+                params.flags = attrs.flags;
+                params.privateFlags = attrs.privateFlags;
+                params.inputFeatures = attrs.inputFeatures;
+                params.inputHandleName = attrs.getTitle().toString();
+
                 if (mRealWm instanceof IWindowSession.Stub) {
-                    InputChannel inputChannel = mRealWm.grantInputChannel(
-                            displayId,
-                            new SurfaceControl(sc, "WindowlessWindowManager.addToDisplay"),
-                            window.asBinder(), mHostInputTransferToken, attrs.flags,
-                            attrs.privateFlags, attrs.inputFeatures, attrs.type, attrs.token,
-                            state.mInputTransferToken, attrs.getTitle().toString());
+                    params.surface = new SurfaceControl(sc, "WindowlessWindowManager.addToDisplay");
+                    InputChannel inputChannel = mRealWm.grantInputChannel(params);
                     inputChannel.copyTo(outInputChannel);
                 } else {
-                    InputChannel inputChannel = mRealWm.grantInputChannel(displayId, sc,
-                            window.asBinder(), mHostInputTransferToken, attrs.flags,
-                            attrs.privateFlags, attrs.inputFeatures, attrs.type, attrs.token,
-                            state.mInputTransferToken, attrs.getTitle().toString());
+                    params.surface = sc;
+                    InputChannel inputChannel = mRealWm.grantInputChannel(params);
                     inputChannel.copyTo(outInputChannel);
                 }
                 state.mInputChannelToken =
@@ -281,13 +294,6 @@ public class WindowlessWindowManager implements IWindowSession {
             InputChannel outInputChannel, WindowRelayoutResult result) {
         return addToDisplay(window, attrs, viewVisibility, displayId, requestedVisibleTypes,
                 outInputChannel, result);
-    }
-
-    @Override
-    public int addToDisplayWithoutInputChannel(android.view.IWindow window,
-            android.view.WindowManager.LayoutParams attrs, int viewVisibility, int layerStackId,
-            WindowRelayoutResult result) {
-        return 0;
     }
 
     @Override
@@ -473,16 +479,21 @@ public class WindowlessWindowManager implements IWindowSession {
                 | WindowManager.LayoutParams.INPUT_FEATURES_CHANGED;
         if ((attrChanges & inputChangeMask) != 0 && state.mInputChannelToken != null) {
             try {
+                final WindowInputChannelParams params = new WindowInputChannelParams();
+                params.displayId = state.mDisplayId;
+                params.channelToken = state.mInputChannelToken;
+                params.hostInputTransferToken = mHostInputTransferToken;
+                params.flags = attrs.flags;
+                params.privateFlags = attrs.privateFlags;
+                params.inputFeatures = attrs.inputFeatures;
+                params.region = state.mInputRegion;
+
                 if (mRealWm instanceof IWindowSession.Stub) {
-                    mRealWm.updateInputChannel(state.mInputChannelToken, mHostInputTransferToken,
-                            state.mDisplayId,
-                            new SurfaceControl(sc, "WindowlessWindowManager.relayout"),
-                            attrs.flags, attrs.privateFlags, attrs.inputFeatures,
-                            state.mInputRegion);
+                    params.surface = new SurfaceControl(sc, "WindowlessWindowManager.relayout");
+                    mRealWm.updateInputChannel(params);
                 } else {
-                    mRealWm.updateInputChannel(state.mInputChannelToken, mHostInputTransferToken,
-                            state.mDisplayId, sc, attrs.flags, attrs.privateFlags,
-                            attrs.inputFeatures, state.mInputRegion);
+                    params.surface = sc;
+                    mRealWm.updateInputChannel(params);
                 }
             } catch (RemoteException e) {
                 Log.e(TAG, "Failed to update surface input channel: ", e);
@@ -505,6 +516,23 @@ public class WindowlessWindowManager implements IWindowSession {
                 lastSyncSeqId, null /* outFrames */, null /* outMergedConfiguration */,
                 null /* outSurfaceControl */, null /* outInsetsState */,
                 null /* outActiveControls */);
+    }
+
+    @Override
+    public int relayout2(IWindow window, WindowManager.LayoutParams inAttrs,
+            int requestedWidth, int requestedHeight, int viewFlags, int flags, int seq,
+            int lastSyncSeqId, SurfaceControl surface, WindowRelayoutResult outRelayoutResult) {
+        return relayout(window, inAttrs, requestedWidth, requestedHeight, viewFlags, flags, seq,
+                lastSyncSeqId, outRelayoutResult, surface);
+    }
+
+    @Override
+    public void relayoutAsync2(IWindow window, WindowManager.LayoutParams inAttrs,
+            int requestedWidth, int requestedHeight, int viewFlags, int flags, int seq,
+            int lastSyncSeqId, SurfaceControl surfaceControl) {
+        relayoutInner(window, inAttrs, requestedWidth, requestedHeight, viewFlags, flags, seq,
+                lastSyncSeqId, null /* outFrames */, null /* outMergedConfiguration */,
+                surfaceControl, null /* outInsetsState */, null /* outActiveControls */);
     }
 
     @Override
@@ -645,18 +673,12 @@ public class WindowlessWindowManager implements IWindowSession {
             List<Rect> unrestrictedRects) {}
 
     @Override
-    public InputChannel grantInputChannel(int displayId, SurfaceControl surface,
-            IBinder clientToken, InputTransferToken hostInputToken, int flags, int privateFlags,
-            int inputFeatures, int type, IBinder windowToken,
-            InputTransferToken embeddedInputTransferToken, String inputHandleName) {
+    public InputChannel grantInputChannel(@NonNull WindowInputChannelParams params) {
         return null;
     }
 
     @Override
-    public void updateInputChannel(IBinder channelToken, InputTransferToken hostInputToken,
-            int displayId, SurfaceControl surface, int flags, int privateFlags, int inputFeatures,
-            Region region) {
-    }
+    public void updateInputChannel(@NonNull WindowInputChannelParams params) {}
 
     @Override
     public android.os.IBinder asBinder() {
@@ -674,7 +696,26 @@ public class WindowlessWindowManager implements IWindowSession {
     }
 
     @Override
-    public void setOnBackInvokedCallbackInfo(IWindow iWindow,
+    public void setOnBackInvokedCallbackInfo(IWindow window,
+            OnBackInvokedCallbackInfo callbackInfo) throws RemoteException {
+        final State state;
+        synchronized (this) {
+            state = mStateForWindow.get(window.asBinder());
+        }
+        if (state == null) {
+            throw new IllegalArgumentException(
+                    "Invalid window token (never added or removed already)");
+        }
+        try {
+            mRealWm.setOnBackInvokedCallbackInfoToEmbedded(state.mInputTransferToken,
+                    callbackInfo);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to register onBackInvokedCallback on embedded window", e);
+        }
+    }
+
+    @Override
+    public void setOnBackInvokedCallbackInfoToEmbedded(InputTransferToken token,
             OnBackInvokedCallbackInfo callbackInfo) throws RemoteException { }
 
     @Override
@@ -684,20 +725,7 @@ public class WindowlessWindowManager implements IWindowSession {
 
     public void setInsetsState(InsetsState state) {
         mInsetsState = state;
-        for (State s : mStateForWindow.values()) {
-            try {
-                mTmpFrames.frame.set(0, 0, s.mParams.width, s.mParams.height);
-                mTmpFrames.displayFrame.set(mTmpFrames.frame);
-                mTmpConfig.setConfiguration(mConfiguration, mConfiguration);
-                final WindowRelayoutResult layout = new WindowRelayoutResult(mTmpFrames, mTmpConfig,
-                        state, null);
-                layout.syncSeqId = Integer.MAX_VALUE;
-                s.mClient.resized(layout, false /* reportDraw */, false /* forceLayout */,
-                        s.mDisplayId, false /* syncWithBuffers */, false /* dragResizing */);
-            } catch (RemoteException e) {
-                // Too bad
-            }
-        }
+        dispatchStateToClients();
     }
 
     @Override
@@ -707,9 +735,17 @@ public class WindowlessWindowManager implements IWindowSession {
 
     @Override
     public boolean moveFocusToAdjacentWindow(IWindow fromWindow, @FocusDirection int direction) {
-        Log.e(TAG, "Received request to moveFocusToAdjacentWindow on"
-                + " WindowlessWindowManager. We shouldn't get here!");
-        return false;
+        if (mHostInputTransferToken == null || mParentInterface == null) {
+            // we don't have a host or an interface to the host drop this for now.
+            return false;
+        }
+        try {
+            mParentInterface.transferFocusToParent(direction);
+            return true;
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to forward focus move to Parent: ", e);
+            return false;
+        }
     }
 
     @Override
@@ -754,6 +790,33 @@ public class WindowlessWindowManager implements IWindowSession {
             try {
                 mParentInterface.updateParams(params);
             } catch (RemoteException e) {
+            }
+        }
+    }
+
+    /** Notifies clients of changes to {@code mConfiguration} and {@code mInsetsState}. */
+    private void dispatchStateToClients() {
+        if (mInsetsState == null) {
+            return;
+        }
+
+        for (State s : mStateForWindow.values()) {
+            try {
+                mTmpFrames.frame.set(0, 0, s.mParams.width, s.mParams.height);
+                mTmpFrames.displayFrame.set(mTmpFrames.frame);
+                mTmpConfig.setConfiguration(mConfiguration, mConfiguration);
+                final WindowRelayoutResult layout =
+                        new WindowRelayoutResult(mTmpFrames, mTmpConfig, mInsetsState, null);
+                layout.syncSeqId = Integer.MAX_VALUE;
+                s.mClient.resized(
+                        layout,
+                        false /* reportDraw */,
+                        false /* forceLayout */,
+                        s.mDisplayId,
+                        false /* syncWithBuffers */,
+                        false /* dragResizing */);
+            } catch (RemoteException e) {
+                // Too bad
             }
         }
     }

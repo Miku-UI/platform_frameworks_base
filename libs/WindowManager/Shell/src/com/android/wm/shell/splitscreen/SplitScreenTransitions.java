@@ -17,12 +17,11 @@
 package com.android.wm.shell.splitscreen;
 
 import static android.view.WindowManager.TRANSIT_CHANGE;
-import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.view.WindowManager.TRANSIT_OPEN;
-import static android.view.WindowManager.TRANSIT_TO_BACK;
 
 import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN;
 import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_TRANSITIONS;
+import static com.android.wm.shell.shared.TransitionUtil.isClosingMode;
 import static com.android.wm.shell.shared.animation.Interpolators.ALPHA_IN;
 import static com.android.wm.shell.shared.animation.Interpolators.ALPHA_OUT;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.FADE_DURATION;
@@ -30,6 +29,7 @@ import static com.android.wm.shell.shared.split.SplitScreenConstants.FLAG_IS_DIV
 import static com.android.wm.shell.splitscreen.SplitScreen.stageTypeToString;
 import static com.android.wm.shell.splitscreen.SplitScreenController.EXIT_REASON_DRAG_DIVIDER;
 import static com.android.wm.shell.splitscreen.SplitScreenController.exitReasonToString;
+import static com.android.wm.shell.transition.Transitions.TRANSIT_SPLIT_CANCEL;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_SPLIT_DISMISS;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_SPLIT_DISMISS_SNAP;
 
@@ -38,7 +38,10 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.graphics.Rect;
 import android.os.IBinder;
+import android.util.ArraySet;
+import android.view.RoundedCorner;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
 import android.window.RemoteTransition;
@@ -46,6 +49,7 @@ import android.window.TransitionInfo;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.common.split.SplitDecorManager;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
@@ -56,7 +60,6 @@ import com.android.wm.shell.transition.OneShotRemoteHandler;
 import com.android.wm.shell.transition.Transitions;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -77,16 +80,17 @@ class SplitScreenTransitions {
     private IBinder mAnimatingTransition = null;
     private OneShotRemoteHandler mActiveRemoteHandler = null;
 
-    private final Transitions.TransitionFinishCallback mRemoteFinishCB = this::onFinish;
-
-    /** Keeps track of currently running animations */
-    private final ArrayList<Animator> mAnimations = new ArrayList<>();
+    /** The list of currently running animations. These can only be removed after they ended. */
+    private final ArraySet<Animator> mAnimations = new ArraySet<>();
     private final StageCoordinator mStageCoordinator;
 
     private Transitions.TransitionFinishCallback mFinishCallback = null;
     private SurfaceControl.Transaction mFinishTransaction;
     private SplitScreen.SplitInvocationListener mSplitInvocationListener;
     private Executor mSplitInvocationListenerExecutor;
+
+    private SplitTransitionAnimations mSplitTransitionAnimations =
+            new SplitTransitionAnimations();
 
     SplitScreenTransitions(@NonNull TransactionPool pool, @NonNull Transitions transitions,
             @NonNull Runnable onFinishCallback, StageCoordinator stageCoordinator) {
@@ -124,10 +128,14 @@ class SplitScreenTransitions {
             }
 
             if (pendingTransition.mRemoteHandler != null) {
-                pendingTransition.mRemoteHandler.startAnimation(transition, info, startTransaction,
-                        finishTransaction, mRemoteFinishCB);
+                // Must be assigned before startAnimation, as the animation could finish instantly.
                 mActiveRemoteHandler = pendingTransition.mRemoteHandler;
-                return;
+                if (pendingTransition.mRemoteHandler.startAnimation(transition, info,
+                        startTransaction, finishTransaction, this::onFinish)) {
+                    return;
+                } else {
+                    mActiveRemoteHandler = null;
+                }
             }
         }
 
@@ -140,8 +148,10 @@ class SplitScreenTransitions {
             @NonNull WindowContainerToken sideRoot, @NonNull WindowContainerToken topRoot) {
         ProtoLog.d(WM_SHELL_SPLIT_SCREEN, "playInternalAnimation: transition=%d",
                 info.getDebugId());
+
         // Play some place-holder fade animations
         final boolean isEnter = isPendingEnter(transition);
+        final boolean isDismiss = isPendingDismiss(transition);
         for (int i = info.getChanges().size() - 1; i >= 0; --i) {
             final TransitionInfo.Change change = info.getChanges().get(i);
             final SurfaceControl leash = change.getLeash();
@@ -199,9 +209,12 @@ class SplitScreenTransitions {
             if (isEnter && mPendingEnter.mResizeAnim) {
                 // We will run animation in next transition so skip anim here
                 continue;
-            } else if (isPendingDismiss(transition)
-                    && mPendingDismiss.mReason == EXIT_REASON_DRAG_DIVIDER) {
+            } else if (isDismiss && mPendingDismiss.mReason == EXIT_REASON_DRAG_DIVIDER) {
                 // TODO(b/280020345): need to refine animation for this but just skip anim now.
+                continue;
+            } else if (isDismiss
+                    && com.android.window.flags.Flags.enableSplitDismissAnimationV2()) {
+                startDismissAnimation(change, t);
                 continue;
             }
 
@@ -209,7 +222,7 @@ class SplitScreenTransitions {
             // (surface become black in middle of animation), we only do fade-out
             // and show opening surface directly.
             boolean isOpening = TransitionUtil.isOpeningType(info.getType());
-            if (!isOpening && (mode == TRANSIT_CLOSE || mode == TRANSIT_TO_BACK)) {
+            if (!isOpening && isClosingMode(mode)) {
                 // fade out
                 startFadeAnimation(leash, false /* show */);
             } else if (mode == TRANSIT_CHANGE && change.getSnapshot() != null) {
@@ -245,17 +258,28 @@ class SplitScreenTransitions {
                 startTransaction.setAlpha(leash, 1.f);
                 startTransaction.show(leash);
 
-                ValueAnimator va = new ValueAnimator();
-                mAnimations.add(va);
-
                 toTopDecor.onResized(startTransaction, animated -> {
-                    mAnimations.remove(va);
                     if (animated) {
                         mTransitions.getMainExecutor().execute(() -> {
                             onFinish(null /* wct */);
                         });
                     }
                 });
+                // Track SplitDecorManager animators too, so that onFinished is only called after
+                // all the animations ended.
+                final var decorAnimators = toTopDecor.getAnimators();
+                for (int j = 0; j < decorAnimators.size(); j++) {
+                    decorAnimators.get(j).addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(@NonNull Animator animation) {
+                            mTransitions.getMainExecutor().execute(() -> {
+                                mAnimations.remove(animation);
+                                onFinish(null /* wct */);
+                            });
+                        }
+                    });
+                }
+                mAnimations.addAll(decorAnimators);
             } else if (topRoot.equals(change.getContainer())) {
                 // Ensure it on top of all changes in transition.
                 startTransaction.setLayer(leash, Integer.MAX_VALUE);
@@ -296,19 +320,29 @@ class SplitScreenTransitions {
                 }
                 SplitDecorManager decor = rootDecorMap.get(change.getContainer());
 
-                // This is to ensure onFinished be called after all animations ended.
-                ValueAnimator va = new ValueAnimator();
-                mAnimations.add(va);
-
                 decor.setScreenshotIfNeeded(snapshot, startTransaction);
                 decor.onResized(startTransaction, animated -> {
-                    mAnimations.remove(va);
                     if (animated) {
                         mTransitions.getMainExecutor().execute(() -> {
                             onFinish(null /* wct */);
                         });
                     }
                 });
+                // Track SplitDecorManager animators too, so that onFinished is only called after
+                // all the animations ended.
+                final var decorAnimators = decor.getAnimators();
+                for (int j = 0; j < decorAnimators.size(); j++) {
+                    decorAnimators.get(j).addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(@NonNull Animator animation) {
+                            mTransitions.getMainExecutor().execute(() -> {
+                                mAnimations.remove(animation);
+                                onFinish(null /* wct */);
+                            });
+                        }
+                    });
+                }
+                mAnimations.addAll(decorAnimators);
             }
         }
         startTransaction.apply();
@@ -337,6 +371,12 @@ class SplitScreenTransitions {
                 mPendingRemotePassthrough.mTransition == transition;
     }
 
+    /** Checks whether there is an active one-shot RemoteTransition handler. */
+    @VisibleForTesting
+    boolean hasActiveRemoteHandler() {
+        return mActiveRemoteHandler != null;
+    }
+
     @Nullable
     private TransitSession getPendingTransition(IBinder transition) {
         if (isPendingEnter(transition)) {
@@ -357,8 +397,8 @@ class SplitScreenTransitions {
 
     void startFullscreenTransition(WindowContainerTransaction wct,
             @Nullable RemoteTransition handler) {
-        OneShotRemoteHandler fullscreenHandler =
-                new OneShotRemoteHandler(mTransitions.getMainExecutor(), handler);
+        OneShotRemoteHandler fullscreenHandler = new OneShotRemoteHandler(
+                mTransitions.getMainExecutor(), mTransitions.getLeashManager(), handler);
         fullscreenHandler.setTransition(mTransitions
                 .startTransition(TRANSIT_OPEN, wct, fullscreenHandler));
     }
@@ -380,6 +420,9 @@ class SplitScreenTransitions {
         if (mSplitInvocationListenerExecutor != null && mSplitInvocationListener != null) {
             mSplitInvocationListenerExecutor.execute(() -> mSplitInvocationListener
                     .onSplitAnimationInvoked(true /*animationRunning*/));
+        }
+        if (remoteTransition != null && remoteTransition.getAppThread() != null) {
+            wct.setAnimationDelegate(remoteTransition.getAppThread().asBinder());
         }
         final IBinder transition = mTransitions.startTransition(transitType, wct, handler);
         setEnterTransition(transition, remoteTransition, extraTransitType, resizeAnim,
@@ -445,18 +488,14 @@ class SplitScreenTransitions {
     IBinder startResizeTransition(WindowContainerTransaction wct,
             Transitions.TransitionHandler handler,
             @Nullable TransitionConsumedCallback consumedCallback,
-            @Nullable TransitionFinishedCallback finishCallback,
-            @Nullable List<SplitDecorManager> decorManagers) {
+            @Nullable TransitionFinishedCallback finishCallback) {
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
                 "  splitTransition deduced Resize split screen.");
         ProtoLog.d(WM_SHELL_SPLIT_SCREEN, "setResizeTransition: hasPendingResize=%b",
                 mPendingResize != null);
         if (mPendingResize != null) {
             mPendingResize.cancel(null);
-            for (SplitDecorManager stage : decorManagers) {
-                stage.cancelRunningAnimations();
-            }
-            mAnimations.clear();
+            end();
             onFinish(null /* wct */);
         }
 
@@ -474,9 +513,11 @@ class SplitScreenTransitions {
             mActiveRemoteHandler.mergeAnimation(transition, info, startT,
                     finishT, mergeTarget, finishCallback);
         } else {
-            for (int i = mAnimations.size() - 1; i >= 0; --i) {
-                final Animator anim = mAnimations.get(i);
-                mTransitions.getAnimExecutor().execute(anim::end);
+            // Make a copy as onAnimationEnd will remove elements from mAnimations.
+            final var animations = new ArrayList<>(mAnimations);
+            for (int i = animations.size() - 1; i >= 0; --i) {
+                final Animator anim = animations.get(i);
+                anim.end();
             }
         }
     }
@@ -484,9 +525,11 @@ class SplitScreenTransitions {
     boolean end() {
         // If It's remote, there's nothing we can do right now.
         if (mActiveRemoteHandler != null) return false;
-        for (int i = mAnimations.size() - 1; i >= 0; --i) {
-            final Animator anim = mAnimations.get(i);
-            mTransitions.getAnimExecutor().execute(anim::end);
+        // Make a copy as onAnimationEnd will remove elements from mAnimations.
+        final var animations = new ArrayList<>(mAnimations);
+        for (int i = animations.size() - 1; i >= 0; --i) {
+            final Animator anim = animations.get(i);
+            anim.end();
         }
         return true;
     }
@@ -551,11 +594,14 @@ class SplitScreenTransitions {
         mAnimatingTransition = null;
 
         mOnFinish.run();
-         if (mFinishCallback != null) {
-             Transitions.TransitionFinishCallback currentFinishCallback = mFinishCallback;
-             mFinishCallback = null;
-             currentFinishCallback.onTransitionFinished(wct /* wct */);
-         }
+        if (mFinishCallback != null) {
+            Transitions.TransitionFinishCallback currentFinishCallback = mFinishCallback;
+            mFinishCallback = null;
+            currentFinishCallback.onTransitionFinished(null /* wct */);
+        }
+        if (!wct.isEmpty()) {
+            mTransitions.startTransition(TRANSIT_SPLIT_CANCEL, wct, mStageCoordinator);
+        }
     }
 
     private void startFadeAnimation(@NonNull SurfaceControl leash, boolean show) {
@@ -585,13 +631,41 @@ class SplitScreenTransitions {
             }
         });
         mAnimations.add(va);
-        mTransitions.getAnimExecutor().execute(va::start);
+        va.start();
+    }
+
+    private void startDismissAnimation(@NonNull TransitionInfo.Change change,
+            @NonNull SurfaceControl.Transaction t) {
+        Rect topOrLeftBounds = new Rect();
+        Rect bottomOrRightBounds = new Rect();
+        mStageCoordinator.getStageBounds(topOrLeftBounds, bottomOrRightBounds);
+
+        RoundedCorner roundedCorner = mStageCoordinator.getRoundedCorner();
+        float cornerRadius = roundedCorner != null ? roundedCorner.getRadius() : 0f;
+
+        Animator animator = mSplitTransitionAnimations.buildDismissAnimation(change, t,
+                topOrLeftBounds, bottomOrRightBounds, cornerRadius, (finishedAnimator) -> {
+                    mTransitions.getMainExecutor().execute(() -> {
+                        mAnimations.remove(finishedAnimator);
+                        onFinish(null /* wct */);
+                    });
+                });
+
+        if (animator != null) {
+            mAnimations.add(animator);
+            animator.start();
+        }
     }
 
     public void registerSplitAnimListener(@NonNull SplitScreen.SplitInvocationListener listener,
             @NonNull Executor executor) {
         mSplitInvocationListener = listener;
         mSplitInvocationListenerExecutor = executor;
+    }
+
+    @VisibleForTesting
+    SplitTransitionAnimations getSplitTransitionAnimations() {
+        return mSplitTransitionAnimations;
     }
 
     /** Calls when the transition got consumed. */
@@ -635,7 +709,8 @@ class SplitScreenTransitions {
                 // Wrapping the remote transition for ease-of-use. (OneShot handles all the binder
                 // linking/death stuff)
                 mRemoteHandler = new OneShotRemoteHandler(
-                        mTransitions.getMainExecutor(), remoteTransition);
+                        mTransitions.getMainExecutor(), mTransitions.getLeashManager(),
+                        remoteTransition);
                 mRemoteHandler.setTransition(transition);
             }
             mExtraTransitType = extraTransitType;

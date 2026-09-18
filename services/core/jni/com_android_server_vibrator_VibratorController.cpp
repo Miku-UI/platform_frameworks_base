@@ -39,21 +39,15 @@ namespace android {
 
 static JavaVM* sJvm = nullptr;
 static jmethodID sMethodIdOnComplete;
-static jclass sFrequencyProfileLegacyClass;
-static jmethodID sFrequencyProfileLegacyCtor;
 static jclass sFrequencyProfileClass;
 static jmethodID sFrequencyProfileCtor;
 static struct {
     jmethodID setCapabilities;
     jmethodID setSupportedEffects;
-    jmethodID setSupportedBraking;
-    jmethodID setPwlePrimitiveDurationMax;
-    jmethodID setPwleSizeMax;
     jmethodID setSupportedPrimitive;
     jmethodID setPrimitiveDelayMax;
     jmethodID setCompositionSizeMax;
     jmethodID setQFactor;
-    jmethodID setFrequencyProfileLegacy;
     jmethodID setFrequencyProfile;
     jmethodID setMaxEnvelopeEffectSize;
     jmethodID setMinEnvelopeEffectControlPointDurationMillis;
@@ -64,13 +58,6 @@ static struct {
     jfieldID scale;
     jfieldID delay;
 } sPrimitiveClassInfo;
-static struct {
-    jfieldID startAmplitude;
-    jfieldID endAmplitude;
-    jfieldID startFrequencyHz;
-    jfieldID endFrequencyHz;
-    jfieldID duration;
-} sRampClassInfo;
 static struct {
     jfieldID amplitude;
     jfieldID frequencyHz;
@@ -130,25 +117,6 @@ private:
     const jobject mCallbackListener;
 };
 
-static Aidl::BrakingPwle brakingPwle(Aidl::Braking braking, int32_t duration) {
-    Aidl::BrakingPwle pwle;
-    pwle.braking = braking;
-    pwle.duration = duration;
-    return pwle;
-}
-
-static Aidl::ActivePwle activePwleFromJavaPrimitive(JNIEnv* env, jobject ramp) {
-    Aidl::ActivePwle pwle;
-    pwle.startAmplitude =
-            static_cast<float>(env->GetFloatField(ramp, sRampClassInfo.startAmplitude));
-    pwle.endAmplitude = static_cast<float>(env->GetFloatField(ramp, sRampClassInfo.endAmplitude));
-    pwle.startFrequency =
-            static_cast<float>(env->GetFloatField(ramp, sRampClassInfo.startFrequencyHz));
-    pwle.endFrequency = static_cast<float>(env->GetFloatField(ramp, sRampClassInfo.endFrequencyHz));
-    pwle.duration = static_cast<int32_t>(env->GetIntField(ramp, sRampClassInfo.duration));
-    return pwle;
-}
-
 static Aidl::PwleV2Primitive pwleV2PrimitiveFromJavaPrimitive(JNIEnv* env, jobject pwleObj) {
     Aidl::PwleV2Primitive pwle;
     pwle.amplitude = static_cast<float>(env->GetFloatField(pwleObj, sPwlePointClassInfo.amplitude));
@@ -157,18 +125,6 @@ static Aidl::PwleV2Primitive pwleV2PrimitiveFromJavaPrimitive(JNIEnv* env, jobje
     pwle.timeMillis =
             static_cast<int32_t>(env->GetIntField(pwleObj, sPwlePointClassInfo.timeMillis));
     return pwle;
-}
-
-/* Return true if braking is not NONE and the active PWLE starts and ends with zero amplitude. */
-static bool shouldBeReplacedWithBraking(Aidl::ActivePwle activePwle, Aidl::Braking braking) {
-    return (braking != Aidl::Braking::NONE) && (activePwle.startAmplitude == 0) &&
-            (activePwle.endAmplitude == 0);
-}
-
-/* Return true if braking is not NONE and the active PWLE only ends with zero amplitude. */
-static bool shouldAddLastBraking(Aidl::ActivePwle lastActivePwle, Aidl::Braking braking) {
-    return (braking != Aidl::Braking::NONE) && (lastActivePwle.startAmplitude > 0) &&
-            (lastActivePwle.endAmplitude == 0);
 }
 
 static Aidl::CompositeEffect effectFromJavaPrimitive(JNIEnv* env, jobject primitive) {
@@ -332,41 +288,6 @@ static jlong vibratorPerformComposedEffect(JNIEnv* env, jclass /* clazz */, jlon
     return result.isOk() ? result.value().count() : (result.isUnsupported() ? 0 : -1);
 }
 
-static jlong vibratorPerformPwleEffect(JNIEnv* env, jclass /* clazz */, jlong ptr,
-                                       jobjectArray waveform, jint brakingId, jlong vibrationId,
-                                       jlong stepId) {
-    VibratorControllerWrapper* wrapper = reinterpret_cast<VibratorControllerWrapper*>(ptr);
-    if (wrapper == nullptr) {
-        ALOGE("vibratorPerformPwleEffect failed because native wrapper was not initialized");
-        return -1;
-    }
-    Aidl::Braking braking = static_cast<Aidl::Braking>(brakingId);
-    size_t size = env->GetArrayLength(waveform);
-    std::vector<Aidl::PrimitivePwle> primitives;
-    std::chrono::milliseconds totalDuration(0);
-    for (size_t i = 0; i < size; i++) {
-        jobject element = env->GetObjectArrayElement(waveform, i);
-        Aidl::ActivePwle activePwle = activePwleFromJavaPrimitive(env, element);
-        if ((i > 0) && shouldBeReplacedWithBraking(activePwle, braking)) {
-            primitives.push_back(brakingPwle(braking, activePwle.duration));
-        } else {
-            primitives.push_back(activePwle);
-        }
-        totalDuration += std::chrono::milliseconds(activePwle.duration);
-
-        if ((i == (size - 1)) && shouldAddLastBraking(activePwle, braking)) {
-            primitives.push_back(brakingPwle(braking, 0 /* duration */));
-        }
-    }
-
-    auto callback = wrapper->createCallback(vibrationId, stepId);
-    auto performPwleEffectFn = [&primitives, &callback](vibrator::HalWrapper* hal) {
-        return hal->performPwleEffect(primitives, callback);
-    };
-    auto result = wrapper->halCall<void>(performPwleEffectFn, "performPwleEffect");
-    return result.isOk() ? totalDuration.count() : (result.isUnsupported() ? 0 : -1);
-}
-
 static jlong vibratorPerformPwleV2Effect(JNIEnv* env, jclass /* clazz */, jlong ptr,
                                          jobjectArray waveform, jlong vibrationId, jlong stepId) {
     VibratorControllerWrapper* wrapper = reinterpret_cast<VibratorControllerWrapper*>(ptr);
@@ -440,25 +361,6 @@ static jboolean vibratorGetInfo(JNIEnv* env, jclass /* clazz */, jlong ptr,
         env->CallObjectMethod(vibratorInfoBuilder,
                               sVibratorInfoBuilderClassInfo.setSupportedEffects, supportedEffects);
     }
-    if (info.supportedBraking.isOk()) {
-        std::vector<Aidl::Braking> braking = info.supportedBraking.value();
-        jintArray supportedBraking = env->NewIntArray(braking.size());
-        env->SetIntArrayRegion(supportedBraking, 0, braking.size(),
-                               reinterpret_cast<jint*>(braking.data()));
-        env->CallObjectMethod(vibratorInfoBuilder,
-                              sVibratorInfoBuilderClassInfo.setSupportedBraking, supportedBraking);
-    }
-    if (info.pwlePrimitiveDurationMax.isOk()) {
-        env->CallObjectMethod(vibratorInfoBuilder,
-                              sVibratorInfoBuilderClassInfo.setPwlePrimitiveDurationMax,
-                              static_cast<jint>(info.pwlePrimitiveDurationMax.value().count()));
-    }
-    if (info.pwleSizeMax.isOk()) {
-        // Use (pwleMaxSize - 1) to account for a possible extra braking segment added by the
-        // vibratorPerformPwleEffect method.
-        env->CallObjectMethod(vibratorInfoBuilder, sVibratorInfoBuilderClassInfo.setPwleSizeMax,
-                              static_cast<jint>(info.pwleSizeMax.value() - 1));
-    }
     if (info.supportedPrimitives.isOk()) {
         auto durations = info.primitiveDurations.valueOr({});
         for (auto& primitive : info.supportedPrimitives.value()) {
@@ -503,22 +405,7 @@ static jboolean vibratorGetInfo(JNIEnv* env, jclass /* clazz */, jlong ptr,
                                       info.maxEnvelopeEffectControlPointDuration.value().count()));
     }
 
-    jfloat minFrequency = static_cast<jfloat>(info.minFrequency.valueOr(NAN));
     jfloat resonantFrequency = static_cast<jfloat>(info.resonantFrequency.valueOr(NAN));
-    jfloat frequencyResolution = static_cast<jfloat>(info.frequencyResolution.valueOr(NAN));
-    jfloatArray maxAmplitudes = nullptr;
-    if (info.maxAmplitudes.isOk()) {
-        std::vector<float> amplitudes = info.maxAmplitudes.value();
-        maxAmplitudes = env->NewFloatArray(amplitudes.size());
-        env->SetFloatArrayRegion(maxAmplitudes, 0, amplitudes.size(),
-                                 reinterpret_cast<jfloat*>(amplitudes.data()));
-    }
-    jobject frequencyProfileLegacy =
-            env->NewObject(sFrequencyProfileLegacyClass, sFrequencyProfileLegacyCtor,
-                           resonantFrequency, minFrequency, frequencyResolution, maxAmplitudes);
-    env->CallObjectMethod(vibratorInfoBuilder,
-                          sVibratorInfoBuilderClassInfo.setFrequencyProfileLegacy,
-                          frequencyProfileLegacy);
 
     if (info.frequencyToOutputAccelerationMap.isOk()) {
         size_t mapSize = info.frequencyToOutputAccelerationMap.value().size();
@@ -568,8 +455,6 @@ static const JNINativeMethod method_table[] = {
         {"performVendorEffect", "(JLandroid/os/Parcel;JFFJJ)J", (void*)vibratorPerformVendorEffect},
         {"performComposedEffect", "(J[Landroid/os/vibrator/PrimitiveSegment;JJ)J",
          (void*)vibratorPerformComposedEffect},
-        {"performPwleEffect", "(J[Landroid/os/vibrator/RampSegment;IJJ)J",
-         (void*)vibratorPerformPwleEffect},
         {"performPwleV2Effect", "(J[Landroid/os/vibrator/PwlePoint;JJ)J",
          (void*)vibratorPerformPwleV2Effect},
         {"setExternalControl", "(JZ)V", (void*)vibratorSetExternalControl},
@@ -589,24 +474,10 @@ int register_android_server_vibrator_VibratorController(JavaVM* jvm, JNIEnv* env
     sPrimitiveClassInfo.scale = GetFieldIDOrDie(env, primitiveClass, "mScale", "F");
     sPrimitiveClassInfo.delay = GetFieldIDOrDie(env, primitiveClass, "mDelay", "I");
 
-    jclass rampClass = FindClassOrDie(env, "android/os/vibrator/RampSegment");
-    sRampClassInfo.startAmplitude = GetFieldIDOrDie(env, rampClass, "mStartAmplitude", "F");
-    sRampClassInfo.endAmplitude = GetFieldIDOrDie(env, rampClass, "mEndAmplitude", "F");
-    sRampClassInfo.startFrequencyHz = GetFieldIDOrDie(env, rampClass, "mStartFrequencyHz", "F");
-    sRampClassInfo.endFrequencyHz = GetFieldIDOrDie(env, rampClass, "mEndFrequencyHz", "F");
-    sRampClassInfo.duration = GetFieldIDOrDie(env, rampClass, "mDuration", "I");
-
     jclass pwlePointClass = FindClassOrDie(env, "android/os/vibrator/PwlePoint");
     sPwlePointClassInfo.amplitude = GetFieldIDOrDie(env, pwlePointClass, "mAmplitude", "F");
     sPwlePointClassInfo.frequencyHz = GetFieldIDOrDie(env, pwlePointClass, "mFrequencyHz", "F");
     sPwlePointClassInfo.timeMillis = GetFieldIDOrDie(env, pwlePointClass, "mTimeMillis", "I");
-
-    jclass frequencyProfileLegacyClass =
-            FindClassOrDie(env, "android/os/VibratorInfo$FrequencyProfileLegacy");
-    sFrequencyProfileLegacyClass =
-            static_cast<jclass>(env->NewGlobalRef(frequencyProfileLegacyClass));
-    sFrequencyProfileLegacyCtor =
-            GetMethodIDOrDie(env, sFrequencyProfileLegacyClass, "<init>", "(FFF[F)V");
 
     jclass frequencyProfileClass = FindClassOrDie(env, "android/os/VibratorInfo$FrequencyProfile");
     sFrequencyProfileClass = static_cast<jclass>(env->NewGlobalRef(frequencyProfileClass));
@@ -619,15 +490,6 @@ int register_android_server_vibrator_VibratorController(JavaVM* jvm, JNIEnv* env
     sVibratorInfoBuilderClassInfo.setSupportedEffects =
             GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setSupportedEffects",
                              "([I)Landroid/os/VibratorInfo$Builder;");
-    sVibratorInfoBuilderClassInfo.setSupportedBraking =
-            GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setSupportedBraking",
-                             "([I)Landroid/os/VibratorInfo$Builder;");
-    sVibratorInfoBuilderClassInfo.setPwlePrimitiveDurationMax =
-            GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setPwlePrimitiveDurationMax",
-                             "(I)Landroid/os/VibratorInfo$Builder;");
-    sVibratorInfoBuilderClassInfo.setPwleSizeMax =
-            GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setPwleSizeMax",
-                             "(I)Landroid/os/VibratorInfo$Builder;");
     sVibratorInfoBuilderClassInfo.setSupportedPrimitive =
             GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setSupportedPrimitive",
                              "(II)Landroid/os/VibratorInfo$Builder;");
@@ -640,10 +502,6 @@ int register_android_server_vibrator_VibratorController(JavaVM* jvm, JNIEnv* env
     sVibratorInfoBuilderClassInfo.setQFactor =
             GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setQFactor",
                              "(F)Landroid/os/VibratorInfo$Builder;");
-    sVibratorInfoBuilderClassInfo.setFrequencyProfileLegacy =
-            GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setFrequencyProfileLegacy",
-                             "(Landroid/os/VibratorInfo$FrequencyProfileLegacy;)"
-                             "Landroid/os/VibratorInfo$Builder;");
     sVibratorInfoBuilderClassInfo.setFrequencyProfile =
             GetMethodIDOrDie(env, vibratorInfoBuilderClass, "setFrequencyProfile",
                              "(Landroid/os/VibratorInfo$FrequencyProfile;)"

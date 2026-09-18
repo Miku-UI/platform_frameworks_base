@@ -25,6 +25,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Dialog;
 import android.content.res.Resources;
 import android.nearby.NearbyManager;
 import android.net.platform.flags.Flags;
@@ -156,12 +157,15 @@ public class ShutdownUiTest extends SysuiTestCase {
         Resources mockResources = spy(mContext.getResources());
         when(mContext.getResources()).thenReturn(mockResources);
 
-        mShutdownUi.showShutdownUi(false, "test");
-
-        verify(mockResources).getFloat(
-                eq(com.android.systemui.res.R.dimen.shutdown_scrim_behind_alpha));
-        verify(mockResources).getColor(
-                eq(com.android.systemui.res.R.color.global_actions_shutdown_ui_text),
-                any());
+        Dialog dialog = mShutdownUi.showShutdownUi(false, "test");
+        try {
+            verify(mockResources).getFloat(
+                    eq(com.android.systemui.res.R.dimen.shutdown_scrim_behind_alpha));
+            verify(mockResources).getColor(
+                    eq(com.android.systemui.res.R.color.global_actions_shutdown_ui_text),
+                    any());
+        } finally {
+            dialog.dismiss();
+        }
     }
 }

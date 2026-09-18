@@ -23,7 +23,6 @@ import static android.content.res.Configuration.ORIENTATION_UNDEFINED;
 import static android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_STARTING;
 import static android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
-import static android.window.DesktopModeFlags.EXCLUDE_CAPTION_FROM_APP_BOUNDS;
 
 import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_BACKGROUND_WALLPAPER;
 import static com.android.server.wm.AppCompatConfiguration.letterboxBackgroundTypeToString;
@@ -41,7 +40,6 @@ import android.view.SurfaceControl;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.statusbar.LetterboxDetails;
 import com.android.server.wm.AppCompatConfiguration.LetterboxBackgroundType;
-import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 
@@ -75,9 +73,7 @@ class AppCompatLetterboxPolicy {
     AppCompatLetterboxPolicy(@NonNull ActivityRecord  activityRecord,
             @NonNull AppCompatConfiguration appCompatConfiguration) {
         mActivityRecord = activityRecord;
-        mLetterboxPolicyState = Flags.appCompatRefactoring() ? new ShellLetterboxPolicyState()
-                : new LegacyLetterboxPolicyState();
-        // TODO (b/358334569) Improve cutout logic dependency on app compat.
+        mLetterboxPolicyState = new ShellLetterboxPolicyState();
         mAppCompatRoundedCorners = new AppCompatRoundedCorners(mActivityRecord,
                 this::ieEligibleForRoundedCorners);
         mAppCompatConfiguration = appCompatConfiguration;
@@ -241,6 +237,14 @@ class AppCompatLetterboxPolicy {
         return mAppCompatRoundedCorners.getRoundedCornersRadius(mainWindow);
     }
 
+    /**
+     * @return {@code true} if rounded corners have been applied to the main window.
+     */
+    boolean hasMainWindowRoundedCorners() {
+        final WindowState mainWin = mActivityRecord.findMainWindow();
+        return mainWin != null && getRoundedCornersRadius(mainWin) > 0;
+    }
+
     void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
         final WindowState mainWin = mActivityRecord.findMainWindow();
         if (mainWin == null) {
@@ -304,9 +308,6 @@ class AppCompatLetterboxPolicy {
     }
 
     private boolean isFreeformActivityMatchParentAppBoundsHeight() {
-        if (!EXCLUDE_CAPTION_FROM_APP_BOUNDS.isTrue()) {
-            return false;
-        }
         final Task task = mActivityRecord.getTask();
         if (task == null) {
             return false;
@@ -319,7 +320,8 @@ class AppCompatLetterboxPolicy {
         mLetterboxPolicyState.getLetterboxInnerBounds(mTmpRect);
         final int diff = parentAppBounds.height() - mTmpRect.height();
         // Compare bounds with tolerance of 1 px to account for rounding error calculations.
-        return task.getWindowingMode() == WINDOWING_MODE_FREEFORM && diff <= DIFF_TOLERANCE_PX;
+        return task.getWindowingMode() == WINDOWING_MODE_FREEFORM
+                && (diff <= DIFF_TOLERANCE_PX || task.getIsCaptionInsetsExcluded());
     }
 
     private static boolean shouldNotLayoutLetterbox(@Nullable WindowState w) {

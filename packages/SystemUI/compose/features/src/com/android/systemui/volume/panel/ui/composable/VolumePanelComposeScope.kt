@@ -20,7 +20,10 @@ import android.content.res.Configuration
 import android.content.res.Configuration.Orientation
 import com.android.systemui.volume.panel.ui.viewmodel.VolumePanelState
 
-class VolumePanelComposeScope(private val state: VolumePanelState) {
+class VolumePanelComposeScope(
+    private val state: VolumePanelState,
+    private val isExpandedAudioTileDetailsFeatureEnabled: Boolean,
+) {
 
     /** Layout orientation of the panel. This aligns with the device orientation. */
     @Orientation
@@ -30,6 +33,10 @@ class VolumePanelComposeScope(private val state: VolumePanelState) {
     /** Is true when Volume Panel is using large-screen layout and false the otherwise. */
     val isLargeScreen: Boolean
         get() = state.isLargeScreen
+
+    /** Is true when Volume Panel is displayed inside audio tile details view in QS panel. */
+    val isExpandedAudioTileDetailsView: Boolean
+        get() = isExpandedAudioTileDetailsFeatureEnabled
 }
 
 val VolumePanelComposeScope.isPortrait: Boolean

@@ -86,54 +86,45 @@ static jlong shapeTextRun(const uint16_t* text, int textSize, int start, int cou
         overallDescent = std::max(overallDescent, extent.descent);
     }
 
-    if (text_feature::typeface_redesign_readonly()) {
-        uint32_t runCount = layout.getFontRunCount();
+    uint32_t runCount = layout.getFontRunCount();
 
-        std::unordered_map<minikin::FakedFont, uint32_t, FakedFontKey> fakedToFontIds;
-        std::vector<jlong> fonts;
-        std::vector<uint32_t> fontIds;
+    std::unordered_map<minikin::FakedFont, uint32_t, FakedFontKey> fakedToFontIds;
+    std::vector<jlong> fonts;
+    std::vector<uint32_t> fontIds;
 
-        fontIds.resize(layout.nGlyphs());
-        for (uint32_t ri = 0; ri < runCount; ++ri) {
-            const minikin::FakedFont& fakedFont = layout.getFontRunFont(ri);
+    fontIds.resize(layout.nGlyphs());
+    for (uint32_t ri = 0; ri < runCount; ++ri) {
+        const minikin::FakedFont& fakedFont = layout.getFontRunFont(ri);
 
-            auto it = fakedToFontIds.find(fakedFont);
-            uint32_t fontId;
-            if (it != fakedToFontIds.end()) {
-                fontId = it->second;  // We've seen it.
+        auto it = fakedToFontIds.find(fakedFont);
+        uint32_t fontId;
+        if (it != fakedToFontIds.end()) {
+            fontId = it->second;  // We've seen it.
+        } else {
+            fontId = fonts.size();  // This is new to us. Create new one.
+            std::shared_ptr<minikin::Font> font;
+            if (resolvedFace->isVariationInstance()) {
+                // The optimization for target SDK 35 or before because the variation instance
+                // is already created and no runtime variation resolution happens on such
+                // environment.
+                font = fakedFont.font;
             } else {
-                fontId = fonts.size();  // This is new to us. Create new one.
-                std::shared_ptr<minikin::Font> font;
-                if (resolvedFace->isVariationInstance()) {
-                    // The optimization for target SDK 35 or before because the variation instance
-                    // is already created and no runtime variation resolution happens on such
-                    // environment.
-                    font = fakedFont.font;
-                } else {
-                    font = std::make_shared<minikin::Font>(fakedFont.font,
-                                                           fakedFont.fakery.variationSettings());
-                }
-                fonts.push_back(reinterpret_cast<jlong>(new FontWrapper(std::move(font))));
-                fakedToFontIds.insert(std::make_pair(fakedFont, fontId));
+                font = std::make_shared<minikin::Font>(fakedFont.font,
+                                                       fakedFont.fakery.variationSettings());
             }
-
-            const uint32_t runStart = layout.getFontRunStart(ri);
-            const uint32_t runEnd = layout.getFontRunEnd(ri);
-            for (uint32_t i = runStart; i < runEnd; ++i) {
-                fontIds[i] = fontId;
-            }
+            fonts.push_back(reinterpret_cast<jlong>(new FontWrapper(std::move(font))));
+            fakedToFontIds.insert(std::make_pair(fakedFont, fontId));
         }
 
-        std::unique_ptr<LayoutWrapper> ptr =
-                std::make_unique<LayoutWrapper>(std::move(layout), overallAscent, overallDescent,
-                                                std::move(fonts), std::move(fontIds));
-
-        return reinterpret_cast<jlong>(ptr.release());
+        const uint32_t runStart = layout.getFontRunStart(ri);
+        const uint32_t runEnd = layout.getFontRunEnd(ri);
+        for (uint32_t i = runStart; i < runEnd; ++i) {
+            fontIds[i] = fontId;
+        }
     }
 
     std::unique_ptr<LayoutWrapper> ptr = std::make_unique<LayoutWrapper>(
-        std::move(layout), overallAscent, overallDescent
-    );
+            std::move(layout), overallAscent, overallDescent, std::move(fonts), std::move(fontIds));
 
     return reinterpret_cast<jlong>(ptr.release());
 }
@@ -237,25 +228,17 @@ float findValueFromVariationSettings(const minikin::VariationSettings& axes, min
 // CriticalNative
 static jfloat TextShaper_Result_getWeightOverride(CRITICAL_JNI_PARAMS_COMMA jlong ptr, jint i) {
     const LayoutWrapper* layout = reinterpret_cast<LayoutWrapper*>(ptr);
-    if (text_feature::typeface_redesign_readonly()) {
-        float value = findValueFromVariationSettings(layout->layout.typeface(i)->GetAxes(),
-                                                     minikin::TAG_wght);
-        return std::isnan(value) ? NO_OVERRIDE : value;
-    } else {
-        return layout->layout.getFakery(i).wghtAdjustment();
-    }
+    float value = findValueFromVariationSettings(layout->layout.typeface(i)->GetAxes(),
+                                                 minikin::TAG_wght);
+    return std::isnan(value) ? NO_OVERRIDE : value;
 }
 
 // CriticalNative
 static jfloat TextShaper_Result_getItalicOverride(CRITICAL_JNI_PARAMS_COMMA jlong ptr, jint i) {
     const LayoutWrapper* layout = reinterpret_cast<LayoutWrapper*>(ptr);
-    if (text_feature::typeface_redesign_readonly()) {
-        float value = findValueFromVariationSettings(layout->layout.typeface(i)->GetAxes(),
-                                                     minikin::TAG_ital);
-        return std::isnan(value) ? NO_OVERRIDE : value;
-    } else {
-        return layout->layout.getFakery(i).italAdjustment();
-    }
+    float value = findValueFromVariationSettings(layout->layout.typeface(i)->GetAxes(),
+                                                 minikin::TAG_ital);
+    return std::isnan(value) ? NO_OVERRIDE : value;
 }
 
 // CriticalNative

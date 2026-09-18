@@ -27,10 +27,10 @@ import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecStatus;
+import android.bluetooth.BluetoothCodecType;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
-import android.content.res.Resources;
 
 import com.android.settingslib.R;
 import com.android.settingslib.testutils.shadow.ShadowBluetoothAdapter;
@@ -151,8 +151,6 @@ public class A2dpProfileTest {
     // Strings to use in fake resource lookups.
     private static String KNOWN_CODEC_LABEL = "Use high quality audio: %1$s";
     private static String UNKNOWN_CODEC_LABEL = "Use high quality audio";
-    private static String[] CODEC_NAMES =
-            new String[]{"Default", "SBC", "AAC", "aptX", "aptX HD", "LDAC"};
 
     /**
      * Helper for setting up several tests of getHighQualityAudioOptionLabel
@@ -166,11 +164,6 @@ public class A2dpProfileTest {
         });
         when(mContext.getString(eq(R.string.bluetooth_profile_a2dp_high_quality_unknown_codec)))
                 .thenReturn(UNKNOWN_CODEC_LABEL);
-
-        final Resources res = mock(Resources.class);
-        when(mContext.getResources()).thenReturn(res);
-        when(res.getStringArray(eq(R.array.bluetooth_a2dp_codec_titles)))
-                .thenReturn(CODEC_NAMES);
 
         // Most tests want to simulate optional codecs being supported by the device, so do that
         // by default here.
@@ -216,12 +209,14 @@ public class A2dpProfileTest {
                 BluetoothProfile.STATE_CONNECTED);
         BluetoothCodecStatus status = mock(BluetoothCodecStatus.class);
         BluetoothCodecConfig config = mock(BluetoothCodecConfig.class);
+        BluetoothCodecType codecType = mock(BluetoothCodecType.class);
         List<BluetoothCodecConfig> configs = Arrays.asList(config);
         when(mBluetoothA2dp.getCodecStatus(mDevice)).thenReturn(status);
         when(status.getCodecsSelectableCapabilities()).thenReturn(configs);
 
         when(config.isMandatoryCodec()).thenReturn(false);
-        when(config.getCodecType()).thenReturn(4);
+        when(config.getExtendedCodecType()).thenReturn(codecType);
+        when(codecType.getCodecName()).thenReturn("LDAC");
         assertThat(mProfile.getHighQualityAudioOptionLabel(mDevice)).isEqualTo(
                 String.format(KNOWN_CODEC_LABEL, "LDAC"));
     }

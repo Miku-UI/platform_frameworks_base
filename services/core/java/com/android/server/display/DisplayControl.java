@@ -20,6 +20,7 @@ import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
 import android.os.IBinder;
+import android.os.Process;
 import android.view.Display;
 
 import java.util.Objects;
@@ -29,7 +30,7 @@ import java.util.Objects;
  */
 public class DisplayControl {
     private static native IBinder nativeCreateVirtualDisplay(String name, boolean secure,
-            boolean optimizeForPower, String uniqueId, float requestedRefreshRate);
+            boolean optimizeForPower, String uniqueId, int ownerUid, float requestedRefreshRate);
     private static native void nativeDestroyVirtualDisplay(IBinder displayToken);
     private static native void nativeOverrideHdrTypes(IBinder displayToken, int[] modes);
     private static native long[] nativeGetPhysicalDisplayIds();
@@ -49,7 +50,7 @@ public class DisplayControl {
      */
     public static IBinder createVirtualDisplay(String name, boolean secure) {
         Objects.requireNonNull(name, "name must not be null");
-        return nativeCreateVirtualDisplay(name, secure, true, "", 0.0f);
+        return nativeCreateVirtualDisplay(name, secure, true, "", Process.myUid(), 0.0f);
     }
 
     /**
@@ -62,6 +63,7 @@ public class DisplayControl {
      *                         be shown and rendered, and that display will optimize for
      *                         performance when it is on.
      * @param uniqueId The unique ID for the display.
+     * @param ownerUid The owner Uid for the display.
      * @param requestedRefreshRate The requested refresh rate in frames per second.
      * For best results, specify a divisor of the physical refresh rate, e.g., 30 or 60 on
      * 120hz display. If an arbitrary refresh rate is specified, the rate will be rounded
@@ -70,10 +72,10 @@ public class DisplayControl {
      * @return The token reference for the display in SurfaceFlinger.
      */
     public static IBinder createVirtualDisplay(String name, boolean secure,
-            boolean optimizeForPower, String uniqueId, float requestedRefreshRate) {
+            boolean optimizeForPower, String uniqueId, int ownerUid, float requestedRefreshRate) {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(uniqueId, "uniqueId must not be null");
-        return nativeCreateVirtualDisplay(name, secure, optimizeForPower, uniqueId,
+        return nativeCreateVirtualDisplay(name, secure, optimizeForPower, uniqueId, ownerUid,
                 requestedRefreshRate);
     }
 

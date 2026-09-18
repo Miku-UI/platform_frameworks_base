@@ -31,6 +31,6 @@ public class PeopleProviderTestable extends PeopleProvider {
     }
 
     void setPeopleSpaceWidgetManager(PeopleSpaceWidgetManager peopleSpaceWidgetManager) {
-        mPeopleSpaceWidgetManager = peopleSpaceWidgetManager;
+        mPeopleSpaceWidgetManager = () -> peopleSpaceWidgetManager;
     }
 }

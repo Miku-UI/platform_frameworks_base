@@ -22,6 +22,7 @@ import android.app.job.JobSnapshot;
 import android.app.job.JobWorkItem;
 import android.app.job.PendingJobReasonsInfo;
 import android.content.pm.ParceledListSlice;
+import android.os.ParcelDuration;
 import java.util.Map;
 
  /**
@@ -42,6 +43,9 @@ interface IJobScheduler {
     int getPendingJobReason(String namespace, int jobId);
     int[] getPendingJobReasons(String namespace, int jobId);
     List<PendingJobReasonsInfo> getPendingJobReasonsHistory(String namespace, int jobId);
+    // Returns Map<String, ParcelDuration>, where keys are pending job reasons and values are
+    // durations representing the total time the job has been pending for that reason.
+    Map<String, ParcelDuration> getPendingJobReasonStats(String namespace, int jobId);
     boolean canRunUserInitiatedJobs(String packageName);
     boolean hasRunUserInitiatedJobsPermission(String packageName, int userId);
     List<JobInfo> getStartedJobs();

@@ -19,11 +19,11 @@ package com.android.wm.shell.flicker.keyboardshortcuts
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.component.IComponentNameMatcher
 import com.android.wm.shell.Utils
@@ -39,8 +39,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * Exit immersive mode to maximize in desktop mode by pressing
- * META + = on the keyboard.
+ * Exit immersive mode to maximize in desktop mode by pressing META + = on the keyboard.
  *
  * Assert that the status bar and task bar are visible at the end.
  */
@@ -48,8 +47,8 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class ExitImmersiveToDesktopWithKeyboardShortcutFlickerTest(
-    flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+class ExitImmersiveToDesktopWithKeyboardShortcutFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
     override val excludedTests: Set<String>
         get() =
             setOf(
@@ -57,18 +56,15 @@ class ExitImmersiveToDesktopWithKeyboardShortcutFlickerTest(
                 "taskBarWindowIsAlwaysVisible",
                 "statusBarLayerIsVisibleAtStartAndEnd",
                 "statusBarLayerPositionAtStartAndEnd",
-                "statusBarWindowIsAlwaysVisible"
+                "statusBarWindowIsAlwaysVisible",
             )
 
     inner class ExitImmersiveToDesktopWithKeyboardShortcutScenario :
-        ExitImmersiveToDesktopWithKeyboardShortcut(
-            rotation = flicker.scenario.startRotation
-        )
+        ExitImmersiveToDesktopWithKeyboardShortcut(rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
-    val testSetupRule =
-        Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
+    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
     val scenario = ExitImmersiveToDesktopWithKeyboardShortcutScenario()
     private val immersiveApp = scenario.immersiveApp
     private val navBarMatcher: IComponentNameMatcher = ComponentNameMatcher.NAV_BAR
@@ -81,21 +77,16 @@ class ExitImmersiveToDesktopWithKeyboardShortcutFlickerTest(
             teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(immersiveApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(immersiveApp)
+
+    @Test fun appWindowKeepVisible() = flicker.appWindowKeepVisible(immersiveApp)
 
     @Test
-    fun appWindowKeepVisible() = flicker.appWindowKeepVisible(immersiveApp)
+    fun resizeVeilKeepsDecreasingInSize() = flicker.resizeVeilKeepsDecreasingInSize(immersiveApp)
 
-    @Test
-    fun resizeVeilKeepsDecreasingInSize() =
-        flicker.resizeVeilKeepsDecreasingInSize(immersiveApp)
+    @Test fun statusBarLayerBecomesVisible() = flicker.layerBecomesVisible(statusBarMatcher)
 
-    @Test
-    fun statusBarLayerBecomesVisible() = flicker.layerBecomesVisible(statusBarMatcher)
-
-    @Test
-    fun taskBarLayerBecomesVisible() = flicker.layerBecomesVisible(navBarMatcher)
+    @Test fun taskBarLayerBecomesVisible() = flicker.layerBecomesVisible(navBarMatcher)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

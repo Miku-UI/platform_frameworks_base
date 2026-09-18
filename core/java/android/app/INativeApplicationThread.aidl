@@ -16,6 +16,8 @@
 
 package android.app;
 
+import android.os.ParcelFileDescriptor;
+
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +31,8 @@ import java.util.Map;
 oneway interface INativeApplicationThread {
     @UnsupportedAppUsage
     void scheduleCreateService(IBinder serviceToken,
-            in List<String> libraryPaths, in String permittedLibsDir,
+            in String zipPaths, in String libraryPaths, in String permittedLibsDir,
+            int targetSdkVersion, boolean isShared, String nativeSharedLibPath,
             in String libraryName, in String baseSymbolName, int processState);
 
     @UnsupportedAppUsage
@@ -37,20 +40,22 @@ oneway interface INativeApplicationThread {
 
     @UnsupportedAppUsage
     void scheduleBindService(IBinder serviceToken, IBinder bindToken,
-            int intentHash,
             in @nullable @utf8InCpp String action,
             in @nullable @utf8InCpp String data,
             boolean rebind, int processState, long bindSeq);
 
     @UnsupportedAppUsage
-    void scheduleUnbindService(IBinder serviceToken, IBinder bindToken, int intentHash);
+    void scheduleUnbindService(IBinder serviceToken, IBinder bindToken);
 
     @UnsupportedAppUsage
     void scheduleTrimMemory(int level);
 
     @UnsupportedAppUsage
-    void bindApplication();
+    void bindApplication(in @nullable ParcelFileDescriptor systemFontMapFd);
 
     @UnsupportedAppUsage
     void setProcessState(int state);
+
+    @UnsupportedAppUsage
+    void updateTimeZone();
 }

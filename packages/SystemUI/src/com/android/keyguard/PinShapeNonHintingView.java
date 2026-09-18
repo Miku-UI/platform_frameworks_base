@@ -56,7 +56,7 @@ public class PinShapeNonHintingView extends LinearLayout implements PinShapeInpu
     private boolean mIsAnimatingReset = false;
     private int mDelayedAppend = 0;
     private final PinShapeAdapter mPinShapeAdapter;
-    private ValueAnimator mValueAnimator = ValueAnimator.ofFloat(1f, 0f);
+    private ValueAnimator mValueAnimator;
     private Rect mFirstChildVisibleRect = new Rect();
     public PinShapeNonHintingView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -119,11 +119,12 @@ public class PinShapeNonHintingView extends LinearLayout implements PinShapeInpu
             Log.e(getClass().getName(), "Trying to delete a non-existent char");
             return;
         }
-        if (mValueAnimator.isRunning()) {
+        if (mValueAnimator != null && mValueAnimator.isRunning()) {
             mValueAnimator.end();
         }
         mPosition--;
         ImageView pinDot = (ImageView) getChildAt(mPosition);
+        mValueAnimator = ValueAnimator.ofFloat(1f, 0f);
         mValueAnimator.addUpdateListener(valueAnimator -> {
             float value = (float) valueAnimator.getAnimatedValue();
             pinDot.setScaleX(value);

@@ -1,2 +1,3 @@
 # Display
 per-file Display*.java = file:/services/core/java/com/android/server/display/OWNERS
+per-file *Ime*.java = file:/services/core/java/com/android/server/inputmethod/OWNERS

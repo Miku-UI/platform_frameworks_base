@@ -1737,4 +1737,19 @@ public class ImageView extends View {
                 || !mDrawable.hasFocusStateSpecified();
         return super.isDefaultFocusHighlightNeeded(background, foreground) && lackFocusState;
     }
+
+    /** @hide */
+    @Override
+    public void onFrameRateHint(@NonNull Drawable source, float fps) {
+        // This is the crucial check. An ImageView's primary animated content is
+        // the drawable set via setImageDrawable(). We must ensure we're only responding
+        // to hints from that specific drawable. This avoids ambiguity if, for example,
+        // a complex background drawable also happened to be animated. By placing this
+        // logic in ImageView and not View, we ensure the class that owns the content
+        // is the one that processes the hint.
+        if (com.android.graphics.hwui.flags.Flags.animatedImageFrameRateHint()
+                && source == getDrawable()) {
+            setRequestedFrameRate(fps);
+        }
+    }
 }

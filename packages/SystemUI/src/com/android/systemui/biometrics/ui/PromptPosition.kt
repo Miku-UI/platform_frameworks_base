@@ -22,6 +22,7 @@ enum class PromptPosition {
     Bottom,
     Left,
     Right,
+    Center,
 }
 
 val PromptPosition?.isBottom: Boolean
@@ -35,3 +36,6 @@ val PromptPosition?.isRight: Boolean
 
 val PromptPosition?.isTop: Boolean
     get() = this != null && this == PromptPosition.Top
+
+val PromptPosition?.isCenter: Boolean
+    get() = this != null && this == PromptPosition.Center

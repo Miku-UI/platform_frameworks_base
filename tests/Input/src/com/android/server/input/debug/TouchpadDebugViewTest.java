@@ -30,6 +30,7 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.hardware.input.InputManager;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.testing.TestableContext;
 import android.view.InputDevice;
 import android.view.MotionEvent;
@@ -64,6 +65,7 @@ import java.util.function.Consumer;
  * atest TouchpadDebugViewTest
  */
 @RunWith(AndroidJUnit4.class)
+@DisabledOnRavenwood(reason = "View subsystem unsupported", bug = 421246454)
 public class TouchpadDebugViewTest {
     private static final int TOUCHPAD_DEVICE_ID = 60;
 
@@ -426,6 +428,7 @@ public class TouchpadDebugViewTest {
                         .x(40f)
                         .y(45f)
                 )
+                .pointerIndex(0)
                 .classification(MotionEvent.CLASSIFICATION_PINCH)
                 .build();
         mTouchpadDebugView.dispatchTouchEvent(pointerDown);
@@ -455,6 +458,7 @@ public class TouchpadDebugViewTest {
                         .x(40f)
                         .y(45f + offsetY)
                 )
+                .pointerIndex(0)
                 .classification(MotionEvent.CLASSIFICATION_PINCH)
                 .build();
         mTouchpadDebugView.dispatchTouchEvent(pointerUp);

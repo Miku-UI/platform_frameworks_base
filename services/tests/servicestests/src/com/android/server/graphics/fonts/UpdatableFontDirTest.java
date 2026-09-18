@@ -21,17 +21,23 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.fail;
 
+import android.annotation.Nullable;
 import android.content.Context;
 import android.graphics.FontListParser;
+import android.graphics.fonts.FallbackFontUpdateRequest;
+import android.graphics.fonts.FontFamilyUpdateRequest;
 import android.graphics.fonts.FontManager;
 import android.graphics.fonts.FontStyle;
 import android.graphics.fonts.FontUpdateRequest;
 import android.graphics.fonts.SystemFonts;
 import android.os.FileUtils;
+import android.os.LocaleList;
 import android.os.ParcelFileDescriptor;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.system.Os;
 import android.text.FontConfig;
 import android.util.Xml;
@@ -39,6 +45,8 @@ import android.util.Xml;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.text.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -59,6 +67,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -74,6 +83,9 @@ public final class UpdatableFontDirTest {
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     /**
      * A {@link UpdatableFontDir.FontFileParser} for testing. Instead of using real font files,
@@ -988,6 +1000,391 @@ public final class UpdatableFontDirTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_fallbackFamilies_undZsye() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Collections.singletonList(
+                        newFontUpdateRequest("my_emoji.ttf,1,my_emoji", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder("my_emoji", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                        .addFont(font).build();
+        FontUpdateRequest request = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest.getLanguages()),
+                fallbackFontUpdateRequest.getFonts(),
+                fallbackFontUpdateRequest.getPriority());
+
+        dir.updateFontFallbacks(Collections.singletonList(request));
+
+        FontConfig fontConfig = dir.getSystemFontConfig();
+
+        boolean found = false;
+        for (FontConfig.FontFamily family : fontConfig.getFontFamilies()) {
+            if ("und-Zsye".equals(family.getLocaleList().toLanguageTags())) {
+                assertThat(family.getFontList()).hasSize(1);
+                assertThat(family.getFontList().get(0).getPostScriptName()).isEqualTo("my_emoji");
+                found = true;
+                break;
+            }
+        }
+        assertThat(found).isTrue();
+
+        // Verify that the dynamic emoji fallback is inserted right before NotoColorEmoji.
+        int dynamicEmojiIndex = -1;
+        int notoEmojiIndex = -1;
+        List<FontConfig.FontFamily> families = fontConfig.getFontFamilies();
+        for (int i = 0; i < families.size(); i++) {
+            FontConfig.FontFamily family = families.get(i);
+            if ("und-Zsye".equals(family.getLocaleList().toLanguageTags())
+                    && family.getFontList().stream().anyMatch(
+                            f -> "my_emoji".equals(f.getPostScriptName()))) {
+                dynamicEmojiIndex = i;
+            }
+            if (family.getFontList().stream().anyMatch(
+                    f -> "NotoColorEmoji".equals(f.getPostScriptName()))) {
+                notoEmojiIndex = i;
+            }
+        }
+        assertThat(dynamicEmojiIndex).isNotEqualTo(-1);
+        if (notoEmojiIndex != -1) {
+            assertThat(dynamicEmojiIndex).isEqualTo(notoEmojiIndex - 1);
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_fallbackFamilies_generalCase() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Collections.singletonList(
+                        newFontUpdateRequest("my_bengali.ttf,1,my_bengali", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder("my_bengali", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest =
+                new FallbackFontUpdateRequest.Builder().setLanguages("bn").setPriority(10)
+                        .addFont(font).build();
+        FontUpdateRequest request = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest.getLanguages()),
+                fallbackFontUpdateRequest.getFonts(),
+                fallbackFontUpdateRequest.getPriority());
+
+        dir.updateFontFallbacks(Collections.singletonList(request));
+
+        FontConfig fontConfig = dir.getSystemFontConfig();
+
+        boolean found = false;
+        for (FontConfig.FontFamily family : fontConfig.getFontFamilies()) {
+            if ("bn".equals(family.getLocaleList().toLanguageTags())) {
+                assertThat(family.getFontList()).hasSize(1);
+                assertThat(family.getFontList().get(0).getPostScriptName()).isEqualTo("my_bengali");
+                found = true;
+                break;
+            }
+        }
+        assertThat(found).isTrue();
+
+        // Verify the dynamic Bengali fallback is inserted before any existing Bengali family.
+        int dynamicBengaliIndex = -1;
+        int existingBengaliIndex = -1;
+        List<FontConfig.FontFamily> families = fontConfig.getFontFamilies();
+        for (int i = 0; i < families.size(); i++) {
+            FontConfig.FontFamily family = families.get(i);
+            if ("bn".equals(family.getLocaleList().toLanguageTags())) {
+                if (family.getFontList().stream().anyMatch(
+                        f -> "my_bengali".equals(f.getPostScriptName()))) {
+                    dynamicBengaliIndex = i;
+                } else {
+                    existingBengaliIndex = i;
+                }
+            }
+        }
+        assertThat(dynamicBengaliIndex).isNotEqualTo(-1);
+        if (existingBengaliIndex != -1) {
+            assertThat(dynamicBengaliIndex).isEqualTo(existingBengaliIndex - 1);
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_multipleFallbacksForSameLanguageEmoji() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Arrays.asList(
+                        newFontUpdateRequest("my_emoji_1.ttf,1,my_emoji_1", GOOD_SIGNATURE),
+                        newFontUpdateRequest("my_emoji_2.ttf,1,my_emoji_2", GOOD_SIGNATURE)
+                )
+        );
+
+        FontFamilyUpdateRequest.Font font1 =
+                new FontFamilyUpdateRequest.Font.Builder("my_emoji_1", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackRequest1 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                        .addFont(font1).build();
+        FontUpdateRequest request1 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackRequest1.getLanguages()),
+                fallbackRequest1.getFonts(),
+                fallbackRequest1.getPriority());
+
+        FontFamilyUpdateRequest.Font font2 =
+                new FontFamilyUpdateRequest.Font.Builder("my_emoji_2", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackRequest2 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(5)
+                        .addFont(font2).build();
+        FontUpdateRequest request2 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackRequest2.getLanguages()),
+                fallbackRequest2.getFonts(),
+                fallbackRequest2.getPriority());
+
+        // Update with lower priority first, then higher.
+        dir.updateFontFallbacks(Collections.singletonList(request2));
+        dir.updateFontFallbacks(Collections.singletonList(request1));
+
+        FontConfig fontConfig = dir.getSystemFontConfig();
+        List<FontConfig.FontFamily> zsyeFamilies = fontConfig.getFontFamilies().stream()
+                .filter(f -> "und-Zsye".equals(f.getLocaleList().toLanguageTags()))
+                .collect(Collectors.toList());
+
+        // Find our custom fallbacks and verify their order.
+        int emoji2Index = -1;
+        int emoji1Index = -1;
+        for (int i = 0; i < zsyeFamilies.size(); i++) {
+            FontConfig.FontFamily family = zsyeFamilies.get(i);
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "my_emoji_2".equals(f.getPostScriptName()))) {
+                emoji2Index = i;
+            }
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "my_emoji_1".equals(f.getPostScriptName()))) {
+                emoji1Index = i;
+            }
+        }
+
+        assertThat(emoji1Index).isNotEqualTo(-1);
+        assertThat(emoji2Index).isNotEqualTo(-1);
+        // The one with priority 5 (my_emoji_2) should come after the one with priority 10.
+        assertThat(emoji1Index).isLessThan(emoji2Index);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_multipleFallbacksForSameLanguageGeneral() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Arrays.asList(
+                        newFontUpdateRequest("my_knda_1.ttf,1,my_knda_1", GOOD_SIGNATURE),
+                        newFontUpdateRequest("my_knda_2.ttf,1,my_knda_2", GOOD_SIGNATURE)
+                )
+        );
+
+        FontFamilyUpdateRequest.Font font1 =
+                new FontFamilyUpdateRequest.Font.Builder("my_knda_1", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackRequest1 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Knda").setPriority(10)
+                        .addFont(font1).build();
+        FontUpdateRequest request1 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackRequest1.getLanguages()),
+                fallbackRequest1.getFonts(),
+                fallbackRequest1.getPriority());
+
+        FontFamilyUpdateRequest.Font font2 =
+                new FontFamilyUpdateRequest.Font.Builder("my_knda_2", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackRequest2 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Knda").setPriority(5)
+                        .addFont(font2).build();
+        FontUpdateRequest request2 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackRequest2.getLanguages()),
+                fallbackRequest2.getFonts(),
+                fallbackRequest2.getPriority());
+
+        // Update with lower priority first, then higher.
+        dir.updateFontFallbacks(Collections.singletonList(request2));
+        dir.updateFontFallbacks(Collections.singletonList(request1));
+
+        FontConfig fontConfig = dir.getSystemFontConfig();
+        List<FontConfig.FontFamily> kndaFamilies = fontConfig.getFontFamilies().stream()
+                .filter(f -> "und-Knda".equals(f.getLocaleList().toLanguageTags()))
+                .collect(Collectors.toList());
+
+        // Find our custom fallbacks and verify their order.
+        int knda2Index = -1;
+        int knda1Index = -1;
+        int kndaIndex = -1;
+        for (int i = 0; i < kndaFamilies.size(); i++) {
+            FontConfig.FontFamily family = kndaFamilies.get(i);
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "my_knda_2".equals(f.getPostScriptName()))) {
+                knda2Index = i;
+            }
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "my_knda_1".equals(f.getPostScriptName()))) {
+                knda1Index = i;
+            }
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "NotoSansKannada-Regular".equals(f.getPostScriptName()))) {
+                kndaIndex = i;
+            }
+        }
+
+        assertThat(knda1Index).isNotEqualTo(-1);
+        assertThat(knda2Index).isNotEqualTo(-1);
+        assertThat(kndaIndex).isNotEqualTo(-1);
+        // The one with priority 5 (my_emoji_2) should come after the one with priority 10.
+        assertThat(knda1Index).isLessThan(knda2Index);
+        assertThat(knda2Index).isLessThan(kndaIndex);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_fallbackForNewLanguage() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Collections.singletonList(
+                        newFontUpdateRequest("my_cherokee.ttf,1,my_cherokee", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder("my_cherokee", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackRequest =
+                new FallbackFontUpdateRequest.Builder().setLanguages("chr").setPriority(10)
+                        .addFont(font).build();
+        FontUpdateRequest request = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackRequest.getLanguages()),
+                fallbackRequest.getFonts(),
+                fallbackRequest.getPriority());
+
+        dir.updateFontFallbacks(Collections.singletonList(request));
+
+        FontConfig fontConfig = dir.getSystemFontConfig();
+        List<FontConfig.FontFamily> fallbackList = fontConfig.getFontFamilies();
+
+        // The new fallback should be at the end of the list.
+        FontConfig.FontFamily lastFamily = fallbackList.get(fallbackList.size() - 1);
+        assertThat(lastFamily.getLocaleList().toLanguageTags()).isEqualTo("chr");
+        assertThat(lastFamily.getFontList()).hasSize(1);
+        assertThat(lastFamily.getFontList().get(0).getPostScriptName()).isEqualTo("my_cherokee");
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_mixedNamedAndUpdate() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+
+        // 1. Update a named family (sans-serif)
+        dir.update(Arrays.asList(
+                newFontUpdateRequest("my_sans.ttf,1,my_sans", GOOD_SIGNATURE),
+                newAddFontFamilyRequest("<family name='sans-serif'>"
+                        + "  <font>my_sans.ttf</font>"
+                        + "</family>")
+        ));
+
+        // 2. Add a fallback font
+        dir.update(Collections.singletonList(
+                newFontUpdateRequest("my_emoji_3.ttf,1,my_emoji_3", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder("my_emoji_3", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackRequest =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                        .addFont(font).build();
+        FontUpdateRequest request = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackRequest.getLanguages()),
+                fallbackRequest.getFonts(),
+                fallbackRequest.getPriority());
+
+        dir.updateFontFallbacks(Collections.singletonList(request));
+
+        FontConfig fontConfig = dir.getSystemFontConfig();
+
+        // Verify named family is updated
+        FontConfig.FontFamily sansFamily = getLastFamily(fontConfig, "sans-serif");
+        assertThat(sansFamily.getFontList()).hasSize(1);
+        assertThat(sansFamily.getFontList().get(0).getPostScriptName()).isEqualTo("my_sans");
+
+        // Verify fallback is added correctly
+        int dynamicEmojiIndex = -1;
+        int notoEmojiIndex = -1;
+        List<FontConfig.FontFamily> families = fontConfig.getFontFamilies();
+        for (int i = 0; i < families.size(); i++) {
+            FontConfig.FontFamily family = families.get(i);
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "my_emoji_3".equals(f.getPostScriptName()))) {
+                dynamicEmojiIndex = i;
+            }
+            if (family.getFontList().stream()
+                    .anyMatch(f -> "NotoColorEmoji".equals(f.getPostScriptName()))) {
+                notoEmojiIndex = i;
+            }
+        }
+        assertThat(dynamicEmojiIndex).isNotEqualTo(-1);
+        if (notoEmojiIndex != -1) {
+            assertThat(dynamicEmojiIndex).isLessThan(notoEmojiIndex);
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void getSystemFontConfig_fallbackFamilies_trimFallbackFontsOnTooManyFallbacks()
+            throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Collections.singletonList(newFontUpdateRequest("foo.ttf,10,foo", GOOD_SIGNATURE)));
+
+        for (int i = 0; i < 10; i++) {
+            FontFamilyUpdateRequest.Font font =
+                    new FontFamilyUpdateRequest.Font.Builder("foo", new FontStyle()).build();
+            FontUpdateRequest request =
+                    new FontUpdateRequest(
+                            LocaleList.forLanguageTags("en-US"),
+                            Collections.singletonList(font),
+                            i + 1);
+            dir.updateFontFallbacks(Collections.singletonList(request));
+        }
+        // Verify that the fallback is added correctly.
+        FontConfig fontConfig = dir.getSystemFontConfig();
+        assertThat(fontConfig.getFontFamilies().size()).isLessThan(254);
+        assertThat(fontConfig.getFontFamilies().stream().filter(f -> f.getPriority() >= 1))
+                .hasSize(10);
+
+        // Simulate that the number of the system fallback fonts increased after OTA.
+        Function<Map<String, File>, FontConfig> configSupplier =
+                (map) -> {
+                    ArrayList<FontConfig.FontFamily> families = new ArrayList<>();
+                    for (int i = 0; i < 186; i++) {
+                        families.add(newFamily("en-US", newFont("system_font_" + i)));
+                    }
+                    return new FontConfig(
+                            families,
+                            Collections.emptyList(),
+                            Collections.emptyList(),
+                            Collections.emptyList(),
+                            0,
+                            0);
+                };
+        UpdatableFontDir dirAfterUpdate =
+                new UpdatableFontDir(
+                        mUpdatableFontFilesDir,
+                        mParser,
+                        mFakeFsverityUtil,
+                        mConfigFile,
+                        mCurrentTimeSupplier,
+                        configSupplier);
+        dirAfterUpdate.loadFontFileMap();
+        // Verify that the fallback is trimmed.
+        FontConfig fontConfigAfterUpdate = dirAfterUpdate.getSystemFontConfig();
+        // 254 - 64 (custom fallback)
+        assertThat(fontConfigAfterUpdate.getFontFamilies()).hasSize(190);
+        List<FontConfig.FontFamily> prioritizedFallbackFamilies =
+                fontConfigAfterUpdate.getFontFamilies().stream()
+                        .filter(f -> f.getPriority() >= 1)
+                        .toList();
+        // Keep 4 (190 - 186)
+        assertThat(prioritizedFallbackFamilies).hasSize(4);
+    }
+
+    @Test
     public void deleteAllFiles() throws Exception {
         FakeFontFileParser parser = new FakeFontFileParser();
         FakeFsverityUtil fakeFsverityUtil = new FakeFsverityUtil();
@@ -1562,6 +1959,511 @@ public final class UpdatableFontDirTest {
         assertTestFontInstalled(nextDir, 2 /* version */);
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void testAddFileToMapIfSameOrNewer_upgradeDuringLoad() throws Exception {
+        // Install an older version of font
+        UpdatableFontDir dirForPreparation = createNewUpdateDir();
+        dirForPreparation.update(Collections.singletonList(
+                newFontUpdateRequest("test.ttf,1,test", GOOD_SIGNATURE)));
+        File oldFontFile = dirForPreparation.getPostScriptMap().get("test");
+        String oldFontDirPath = oldFontFile.getParentFile().getAbsolutePath();
+        assertThat(new File(oldFontDirPath).exists()).isTrue();
+
+        // Install a newer version and save it to config, without deleting the old one yet
+        dirForPreparation.update(Collections.singletonList(
+                newFontUpdateRequest("test.ttf,2,test", GOOD_SIGNATURE)));
+        File newFontFile = dirForPreparation.getPostScriptMap().get("test");
+        String newFontDirPath = newFontFile.getParentFile().getAbsolutePath();
+        assertThat(new File(newFontDirPath).exists()).isTrue();
+        assertThat(oldFontDirPath).isNotEqualTo(newFontDirPath);
+
+        // Load fonts, simulating a reboot. The old font dir should be deleted.
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.loadFontFileMap();
+
+        assertThat(dir.getPostScriptMap()).containsKey("test");
+        assertThat(mParser.getRevision(dir.getPostScriptMap().get("test"))).isEqualTo(2);
+        assertThat(new File(oldFontDirPath).exists()).isFalse(); // Old dir should be gone
+        assertThat(new File(newFontDirPath).exists()).isTrue(); // New dir should remain
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void testAddFileToMapIfSameOrNewer_downgradeDuringLoad() throws Exception {
+        // Install a newer version of font
+        UpdatableFontDir dirForPreparation = createNewUpdateDir();
+        dirForPreparation.update(Collections.singletonList(
+                newFontUpdateRequest("test.ttf,2,test", GOOD_SIGNATURE)));
+        File currentFontFile = dirForPreparation.getPostScriptMap().get("test");
+        String currentFontDirPath = currentFontFile.getParentFile().getAbsolutePath();
+        assertThat(new File(currentFontDirPath).exists()).isTrue();
+
+        // Simulate an older version being 'found' during loadFontFileMap, e.g., from a restore or
+        // manual copy. For this, we'll manually create an older font file and its signature in a
+        // new random dir.
+        File olderDir = new File(mUpdatableFontFilesDir, "~~older");
+        assertThat(olderDir.mkdir()).isTrue();
+        File olderFontFile = new File(olderDir, "test.ttf");
+        FileUtils.stringToFile(olderFontFile, "test.ttf,1,test");
+        File olderSigFile = new File(olderDir, "font.fsv_sig");
+        FileUtils.stringToFile(olderSigFile, GOOD_SIGNATURE);
+        mFakeFsverityUtil.setUpFsverity(olderFontFile.getAbsolutePath());
+
+        // Update the persistent config to include both the current font dir and the older font dir
+        PersistentSystemFontConfig.Config config = readConfig(mConfigFile);
+        config.updatedFontDirs.add(olderDir.getName());
+        writeConfig(config, mConfigFile);
+
+        // Load fonts, simulating a reboot. The older font dir should be deleted.
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.loadFontFileMap();
+
+        assertThat(dir.getPostScriptMap()).containsKey("test");
+        assertThat(mParser.getRevision(dir.getPostScriptMap().get("test"))).isEqualTo(2);
+        // Older dir should be gone
+        assertThat(new File(olderDir.getAbsolutePath()).exists()).isFalse();
+        // Current dir should remain
+        assertThat(new File(currentFontDirPath).exists()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INSERT_FONT_FAMILY)
+    public void testAddFileToMapIfSameOrNewer_preinstalledWinsDuringLoad_unnamedFamily()
+            throws Exception {
+        // Setup a preinstalled font with a higher revision
+        File preinstalledFile = new File(mPreinstalledFontDirs.get(0), "NotoColorEmoji.ttf");
+        FileUtils.stringToFile(preinstalledFile, "NotoColorEmoji.ttf,10,NotoColorEmoji");
+
+        // Other emoji fonts which have the same language.
+        File preinstalledOEMFile = new File(mPreinstalledFontDirs.get(0), "OEMColorEmoji.ttf");
+        FileUtils.stringToFile(preinstalledOEMFile, "OEMColorEmoji.ttf,2,OEMColorEmoji");
+
+        File preinstalledFlagFile = new File(
+                mPreinstalledFontDirs.get(0), "NotoColorEmojiFlag.ttf");
+        FileUtils.stringToFile(
+                preinstalledFlagFile, "NotoColorEmojiFlag.ttf,5,NotoColorEmojiFlag");
+
+        // Simulate an updatable font with a lower revision
+        UpdatableFontDir dirForPreparation = createNewUpdateDir();
+        dirForPreparation.update(Collections.singletonList(
+                newFontUpdateRequest("my_emoji.ttf,6,my_emoji", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder(
+                        "my_emoji", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(5)
+                        .addFont(font).build();
+        FontUpdateRequest request = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest.getLanguages()),
+                fallbackFontUpdateRequest.getFonts(),
+                fallbackFontUpdateRequest.getPriority());
+        dirForPreparation.updateFontFallbacks(Collections.singletonList(request));
+
+        File updatableFile = dirForPreparation.getPostScriptMap().get("my_emoji");
+        String updatableDirPath = updatableFile.getParentFile().getAbsolutePath();
+        assertThat(new File(updatableDirPath).exists()).isTrue();
+
+        // Reconfigure configSupplier to include the preinstalled font for comparison
+        Function<Map<String, File>, FontConfig> configSupplierWithPreinstalled =
+                (map) -> {
+                    FontConfig.Font preinstalledOEMFont = new FontConfig.Font(
+                            preinstalledOEMFile, null, "OEMColorEmoji",
+                            new FontStyle(400, FontStyle.FONT_SLANT_UPRIGHT),
+                            0, null, null,
+                            FontConfig.Font.VAR_TYPE_AXES_NONE);
+                    FontConfig.FontFamily family1 = new FontConfig.FontFamily(
+                            Collections.singletonList(preinstalledOEMFont),
+                            LocaleList.forLanguageTags("und-Zsye"),
+                            FontConfig.FontFamily.VARIANT_DEFAULT);
+
+                    FontConfig.Font preinstalledEmojiFont = new FontConfig.Font(
+                            preinstalledFile, null, "NotoColorEmoji",
+                            new FontStyle(400, FontStyle.FONT_SLANT_UPRIGHT),
+                            0, null, null,
+                            FontConfig.Font.VAR_TYPE_AXES_NONE);
+                    FontConfig.FontFamily family2 = new FontConfig.FontFamily(
+                            Collections.singletonList(preinstalledEmojiFont),
+                            LocaleList.forLanguageTags("und-Zsye"),
+                            FontConfig.FontFamily.VARIANT_DEFAULT);
+
+                    FontConfig.Font preinstalledFont3 = new FontConfig.Font(
+                            preinstalledFlagFile, null, "NotoColorEmojiFlag",
+                            new FontStyle(400, FontStyle.FONT_SLANT_UPRIGHT),
+                            0, null, null,
+                            FontConfig.Font.VAR_TYPE_AXES_NONE);
+                    FontConfig.FontFamily family3 = new FontConfig.FontFamily(
+                            Collections.singletonList(preinstalledFont3),
+                            LocaleList.forLanguageTags("und-Zsye"),
+                            FontConfig.FontFamily.VARIANT_DEFAULT);
+                    return new FontConfig(
+                            Arrays.asList(family1, family2, family3),
+                            Collections.emptyList(),
+                            Collections.emptyList(),
+                            Collections.emptyList(), 0, 1);
+                };
+
+        // Load fonts with the updated config supplier. The updatable font should be discarded.
+        UpdatableFontDir dir = new UpdatableFontDir(
+                mUpdatableFontFilesDir, mParser, mFakeFsverityUtil,
+                mConfigFile, mCurrentTimeSupplier, configSupplierWithPreinstalled);
+        dir.loadFontFileMap();
+        // Updatable font should be removed.
+        assertThat(dir.getPostScriptMap()).doesNotContainKey("my_emoji");
+        // Updatable font's dir should be gone
+        assertThat(new File(updatableDirPath).exists()).isFalse();
+        // Preinstalled font should remain
+        assertThat(preinstalledFile.exists()).isTrue();
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_success() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Collections.singletonList(
+                        newFontUpdateRequest("emoji.ttf,1,emoji", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder("emoji", new FontStyle()).build();
+
+        FallbackFontUpdateRequest fallbackFontUpdateRequest =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                        .addFont(font).build();
+        FontUpdateRequest request = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest.getLanguages()),
+                fallbackFontUpdateRequest.getFonts(),
+                fallbackFontUpdateRequest.getPriority());
+
+        dir.updateFontFallbacks(Collections.singletonList(request));
+
+        PersistentSystemFontConfig.Config config = readConfig(mConfigFile);
+        assertThat(config.prioritizedFamilyList).hasSize(1);
+        assertThat(config.prioritizedFamilyList.get(0).priority).isEqualTo(10);
+        assertThat(config.prioritizedFamilyList.get(0).family).isNotNull();
+        assertThat(config.prioritizedFamilyList.get(0).family.getLang().toLanguageTags())
+                .isEqualTo("und-Zsye");
+        assertThat(
+                config.prioritizedFamilyList
+                        .get(0)
+                        .family
+                        .getFonts()
+                        .get(0)
+                        .getPostScriptName())
+                .isEqualTo("emoji");
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_multipleFallbacks() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Arrays.asList(
+                        newFontUpdateRequest("emoji1.ttf,1,emoji1", GOOD_SIGNATURE),
+                        newFontUpdateRequest("emoji2.ttf,2,emoji2", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font1 =
+                new FontFamilyUpdateRequest.Font.Builder("emoji1", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest1 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                        .addFont(font1).build();
+        FontUpdateRequest request1 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest1.getLanguages()),
+                fallbackFontUpdateRequest1.getFonts(),
+                fallbackFontUpdateRequest1.getPriority());
+        dir.updateFontFallbacks(Collections.singletonList(request1));
+
+        FontFamilyUpdateRequest.Font font2 =
+                new FontFamilyUpdateRequest.Font.Builder("emoji2", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest2 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(20)
+                        .addFont(font2).build();
+        FontUpdateRequest request2 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest2.getLanguages()),
+                fallbackFontUpdateRequest2.getFonts(),
+                fallbackFontUpdateRequest2.getPriority());
+        dir.updateFontFallbacks(Collections.singletonList(request2));
+
+        PersistentSystemFontConfig.Config config = readConfig(mConfigFile);
+        assertThat(config.prioritizedFamilyList).hasSize(2);
+        assertThat(config.prioritizedFamilyList.get(0).priority).isEqualTo(10);
+        assertThat(
+                config.prioritizedFamilyList
+                        .get(0)
+                        .family
+                        .getFonts()
+                        .get(0)
+                        .getPostScriptName())
+                .isEqualTo("emoji1");
+
+        assertThat(config.prioritizedFamilyList.get(1).priority).isEqualTo(20);
+        assertThat(
+                config.prioritizedFamilyList
+                        .get(1)
+                        .family
+                        .getFonts()
+                        .get(0)
+                        .getPostScriptName())
+                .isEqualTo("emoji2");
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_multipleFallbacksDifferentLanguage() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Arrays.asList(
+                        newFontUpdateRequest("emoji1.ttf,1,emoji1", GOOD_SIGNATURE),
+                        newFontUpdateRequest("bali.ttf,2,bali", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font1 =
+                new FontFamilyUpdateRequest.Font.Builder("emoji1", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest1 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                        .addFont(font1).build();
+        FontUpdateRequest request1 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest1.getLanguages()),
+                fallbackFontUpdateRequest1.getFonts(),
+                fallbackFontUpdateRequest1.getPriority());
+        dir.updateFontFallbacks(Collections.singletonList(request1));
+
+        FontFamilyUpdateRequest.Font font2 =
+                new FontFamilyUpdateRequest.Font.Builder("bali", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest2 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Bali").setPriority(5)
+                        .addFont(font2).build();
+        FontUpdateRequest request2 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest2.getLanguages()),
+                fallbackFontUpdateRequest2.getFonts(),
+                fallbackFontUpdateRequest2.getPriority());
+        dir.updateFontFallbacks(Collections.singletonList(request2));
+
+        PersistentSystemFontConfig.Config config = readConfig(mConfigFile);
+        assertThat(config.prioritizedFamilyList).hasSize(2);
+        assertThat(config.prioritizedFamilyList.get(0).priority).isEqualTo(10);
+        assertThat(
+                config.prioritizedFamilyList
+                        .get(0)
+                        .family
+                        .getFonts()
+                        .get(0)
+                        .getPostScriptName())
+                .isEqualTo("emoji1");
+
+        assertThat(config.prioritizedFamilyList.get(1).priority).isEqualTo(5);
+        assertThat(
+                config.prioritizedFamilyList
+                        .get(1)
+                        .family
+                        .getFonts()
+                        .get(0)
+                        .getPostScriptName())
+                .isEqualTo("bali");
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_invalidRequestType() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        try {
+            dir.updateFontFallbacks(
+                    Collections.singletonList(
+                            newFontUpdateRequest("test.ttf,1,test", GOOD_SIGNATURE)));
+            fail("Expected SystemFontException for invalid request type");
+        } catch (FontManagerService.SystemFontException e) {
+            assertThat(e.getErrorCode()).isEqualTo(FontManager.RESULT_ERROR_INVALID_ARGUMENT);
+        }
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_fontNotFound() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        try {
+            FontFamilyUpdateRequest.Font font =
+                    new FontFamilyUpdateRequest.Font.Builder("emoji", new FontStyle()).build();
+            FallbackFontUpdateRequest fallbackFontUpdateRequest =
+                    new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(10)
+                            .addFont(font).build();
+            FontUpdateRequest request = new FontUpdateRequest(
+                    LocaleList.forLanguageTags(fallbackFontUpdateRequest.getLanguages()),
+                    fallbackFontUpdateRequest.getFonts(),
+                    fallbackFontUpdateRequest.getPriority());
+            dir.updateFontFallbacks(Collections.singletonList(request));
+            fail("Expected SystemFontException for font not found");
+        } catch (FontManagerService.SystemFontException e) {
+            assertThat(e.getErrorCode()).isEqualTo(FontManager.RESULT_ERROR_FONT_NOT_FOUND);
+        }
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_downgradingPriority() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Arrays.asList(
+                        newFontUpdateRequest("emoji1.ttf,1,emoji1", GOOD_SIGNATURE),
+                        newFontUpdateRequest("emoji2.ttf,2,emoji2", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font1 =
+                new FontFamilyUpdateRequest.Font.Builder("emoji1", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest1 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(20)
+                        .addFont(font1).build();
+        FontUpdateRequest request1 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest1.getLanguages()),
+                fallbackFontUpdateRequest1.getFonts(),
+                fallbackFontUpdateRequest1.getPriority());
+        dir.updateFontFallbacks(Collections.singletonList(request1));
+
+        try {
+            FontFamilyUpdateRequest.Font font2 =
+                    new FontFamilyUpdateRequest.Font.Builder("emoji2",
+                            new FontStyle()).build();
+            FallbackFontUpdateRequest fallbackFontUpdateRequest2 =
+                    new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye")
+                            .setPriority(10).addFont(font2).build();
+            FontUpdateRequest request2 = new FontUpdateRequest(
+                    LocaleList.forLanguageTags(fallbackFontUpdateRequest2.getLanguages()),
+                    fallbackFontUpdateRequest2.getFonts(),
+                    fallbackFontUpdateRequest2.getPriority());
+            dir.updateFontFallbacks(Collections.singletonList(request2));
+            fail("Expected SystemFontException for downgrading priority");
+        } catch (FontManagerService.SystemFontException e) {
+            assertThat(e.getErrorCode()).isEqualTo(FontManager.RESULT_ERROR_DOWNGRADING);
+        }
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_errorOnTooManyFallbacks() throws Exception {
+        Function<Map<String, File>, FontConfig> configSupplier =
+                (map) -> {
+                    FontConfig.FontFamily fooFamily = newFamily(null, newFont("foo"));
+                    FontConfig.FontFamily barFamily = newFamily(null, newFont("bar"));
+                    FontConfig.NamedFamilyList namedFamilyList =
+                            new FontConfig.NamedFamilyList(
+                                    Arrays.asList(fooFamily, barFamily), "sans-serif", null);
+                    FontConfig.FontFamily fallbackFamily = newFamily("en-US", newFont("fallback"));
+                    FontConfig.FontFamily customFallbackFamily =
+                            newFamily("en-US", newFont("fallback2"));
+                    FontConfig.Customization.LocaleFallback localeFallback =
+                            new FontConfig.Customization.LocaleFallback(
+                                    Locale.US,
+                                    FontConfig.Customization.LocaleFallback.OPERATION_PREPEND,
+                                    customFallbackFamily);
+                    return new FontConfig(
+                            Collections.singletonList(fallbackFamily),
+                            Collections.emptyList(),
+                            Collections.singletonList(namedFamilyList),
+                            Collections.singletonList(localeFallback),
+                            0,
+                            1);
+                };
+        UpdatableFontDir dir =
+                new UpdatableFontDir(
+                        mUpdatableFontFilesDir,
+                        mParser,
+                        mFakeFsverityUtil,
+                        mConfigFile,
+                        mCurrentTimeSupplier,
+                        configSupplier);
+
+        dir.update(
+                Collections.singletonList(
+                        newFontUpdateRequest("emoji1.ttf,1,emoji1", GOOD_SIGNATURE)));
+        FontFamilyUpdateRequest.Font font =
+                new FontFamilyUpdateRequest.Font.Builder("emoji1", new FontStyle()).build();
+        // 254 (max) - 64 (custom fallback) - 2 (named) - 1 (fallback) - 1 (locale fallback)
+        int maxCount = 186;
+        for (int i = 0; i < maxCount; i++) {
+            FontUpdateRequest request =
+                    new FontUpdateRequest(
+                            LocaleList.forLanguageTags("und-Zsye"),
+                            Collections.singletonList(font),
+                            i + 1);
+            dir.updateFontFallbacks(Collections.singletonList(request));
+        }
+        FontUpdateRequest request =
+                new FontUpdateRequest(
+                        LocaleList.forLanguageTags("und-Zsye"),
+                        Collections.singletonList(font),
+                        maxCount + 1);
+        try {
+            dir.updateFontFallbacks(Collections.singletonList(request));
+            fail("Expected SystemFontException for too many fallbacks");
+        } catch (FontManagerService.SystemFontException e) {
+            assertThat(e.getErrorCode()).isEqualTo(FontManager.RESULT_ERROR_INVALID_ARGUMENT);
+        }
+    }
+
+    @Test
+    public void testUpdateFontFallbacks_rollbackOnFailure() throws Exception {
+        UpdatableFontDir dir = createNewUpdateDir();
+        dir.update(
+                Collections.singletonList(
+                        newFontUpdateRequest("emoji.ttf,1,emoji", GOOD_SIGNATURE)));
+
+        FontFamilyUpdateRequest.Font font1 =
+                new FontFamilyUpdateRequest.Font.Builder("emoji", new FontStyle()).build();
+        FallbackFontUpdateRequest fallbackFontUpdateRequest1 =
+                new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(20)
+                        .addFont(font1).build();
+        FontUpdateRequest request1 = new FontUpdateRequest(
+                LocaleList.forLanguageTags(fallbackFontUpdateRequest1.getLanguages()),
+                fallbackFontUpdateRequest1.getFonts(),
+                fallbackFontUpdateRequest1.getPriority());
+        dir.updateFontFallbacks(Collections.singletonList(request1));
+
+        PersistentSystemFontConfig.Config configBeforeFailure = readConfig(mConfigFile);
+
+        try {
+            dir.update(
+                    Collections.singletonList(
+                            newFontUpdateRequest("abc.ttf,1,abc", GOOD_SIGNATURE)));
+
+            FontFamilyUpdateRequest.Font font2 =
+                    new FontFamilyUpdateRequest.Font.Builder("abc", new FontStyle()).build();
+            FallbackFontUpdateRequest fallbackFontUpdateRequest2 =
+                    new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(30)
+                            .addFont(font2).build();
+            FontUpdateRequest request2 = new FontUpdateRequest(
+                    LocaleList.forLanguageTags(fallbackFontUpdateRequest2.getLanguages()),
+                    fallbackFontUpdateRequest2.getFonts(),
+                    fallbackFontUpdateRequest2.getPriority());
+
+            FontFamilyUpdateRequest.Font font3 =
+                    new FontFamilyUpdateRequest.Font.Builder("xyz", new FontStyle()).build();
+            FallbackFontUpdateRequest fallbackFontUpdateRequest3 =
+                    new FallbackFontUpdateRequest.Builder().setLanguages("und-Zsye").setPriority(40)
+                            .addFont(font3).build();
+            FontUpdateRequest request3 = new FontUpdateRequest(
+                    LocaleList.forLanguageTags(fallbackFontUpdateRequest3.getLanguages()),
+                    fallbackFontUpdateRequest3.getFonts(),
+                    fallbackFontUpdateRequest3.getPriority());
+
+            dir.updateFontFallbacks(Arrays.asList(request2, request3));
+            fail("Expected SystemFontException for font not found in batch");
+        } catch (FontManagerService.SystemFontException e) {
+            assertThat(e.getErrorCode()).isEqualTo(FontManager.RESULT_ERROR_FONT_NOT_FOUND);
+        }
+
+        // Verify that the config is rolled back to the state before the failed batch update.
+        PersistentSystemFontConfig.Config configAfterFailure = readConfig(mConfigFile);
+        assertThat(configAfterFailure.prioritizedFamilyList)
+                .hasSize(configBeforeFailure.prioritizedFamilyList.size());
+        assertThat(configAfterFailure.prioritizedFamilyList.get(0).priority)
+                .isEqualTo(configBeforeFailure.prioritizedFamilyList.get(0).priority);
+        assertThat(
+                configAfterFailure
+                        .prioritizedFamilyList
+                        .get(0)
+                        .family
+                        .getLang()
+                        .toLanguageTags())
+                .isEqualTo(
+                        configBeforeFailure
+                                .prioritizedFamilyList
+                                .get(0)
+                                .family
+                                .getLang()
+                                .toLanguageTags());
+    }
+
     private FontUpdateRequest newFontUpdateRequest(String content, String signature)
             throws Exception {
         File file = File.createTempFile("font", "ttf", mCacheDir);
@@ -1602,7 +2504,7 @@ public final class UpdatableFontDirTest {
     }
 
     private static void writeConfig(PersistentSystemFontConfig.Config config,
-                                    File file) throws IOException {
+            File file) throws IOException {
         try (FileOutputStream fos = new FileOutputStream(file)) {
             PersistentSystemFontConfig.writeToXml(fos, config);
         }
@@ -1623,5 +2525,24 @@ public final class UpdatableFontDirTest {
         assertThat(fontConfig.getNamedFamilyLists().stream()
                 .map(FontConfig.NamedFamilyList::getName)
                 .collect(Collectors.toSet())).contains(familyName);
+    }
+
+    private FontConfig.Font newFont(String postScriptName) {
+        return new FontConfig.Font(
+                new File(mPreinstalledFontDirs.get(0), postScriptName + ".ttf"),
+                null,
+                postScriptName,
+                new FontStyle(400, FontStyle.FONT_SLANT_UPRIGHT),
+                0,
+                null,
+                null,
+                FontConfig.Font.VAR_TYPE_AXES_NONE);
+    }
+
+    private FontConfig.FontFamily newFamily(@Nullable String languages, FontConfig.Font... fonts) {
+        return new FontConfig.FontFamily(
+                Arrays.asList(fonts),
+                languages != null ? LocaleList.forLanguageTags(languages) : null,
+                FontConfig.FontFamily.VARIANT_DEFAULT);
     }
 }

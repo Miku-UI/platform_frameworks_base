@@ -28,13 +28,13 @@ import javax.inject.Inject
  * callback via [addOnGestureDetectedCallback].
  */
 @SysUISingleton
-class GesturePointerEventDetector @Inject constructor(
-        private val context: Context,
-        displayTracker: DisplayTracker
-) : GenericGestureDetector(
+class GesturePointerEventDetector
+@Inject
+constructor(private val context: Context, displayTracker: DisplayTracker) :
+    GenericGestureDetector(
         GesturePointerEventDetector::class.simpleName!!,
-        displayTracker.defaultDisplayId
-) {
+        displayTracker.defaultDisplayId,
+    ) {
     override fun onInputEvent(ev: InputEvent) {
         if (ev !is MotionEvent) {
             return

@@ -255,7 +255,7 @@ class InputSettingsObserver extends ContentObserver {
     }
 
     private void updateShowTouches() {
-        mNative.setShowTouches(getBoolean(Settings.System.SHOW_TOUCHES, false));
+        mNative.setShowTouchesEnabled(getBoolean(Settings.System.SHOW_TOUCHES, false));
     }
 
     private void updatePointerLocation() {

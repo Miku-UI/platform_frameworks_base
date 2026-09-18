@@ -18,6 +18,7 @@ package com.android.server.wm;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
+import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -52,16 +53,17 @@ import android.view.inputmethod.ImeTracker;
 import android.window.ScreenCaptureInternal;
 import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
+import com.android.internal.os.IResultReceiver;
 import com.android.internal.policy.KeyInterceptionInfo;
 import com.android.server.input.InputManagerService;
-import com.android.server.policy.WindowManagerPolicy;
-import com.android.server.wm.DisplayPolicy;
 import com.android.server.wm.SensitiveContentPackages.PackageInfo;
 
 import java.lang.annotation.Retention;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /**
  * Window manager local system service interface.
@@ -278,11 +280,8 @@ public abstract class WindowManagerInternal {
 
         /**
          * Called when a pending app transition gets cancelled.
-         *
-         * @param keyguardGoingAwayCancelled {@code true} if keyguard going away transition was
-         *        cancelled.
          */
-        public void onAppTransitionCancelledLocked(boolean keyguardGoingAwayCancelled) {}
+        public void onAppTransitionCancelledLocked() {}
 
         /**
          * Called when an app transition is timed out.
@@ -296,15 +295,9 @@ public abstract class WindowManagerInternal {
          *        the status bar caused by this app transition in uptime millis
          * @param statusBarAnimationDuration the duration for all visual animations in the status
          *        bar caused by this app transition in millis
-         *
-         * @return Return any bit set of {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_LAYOUT},
-         * {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_WALLPAPER},
-         * or {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_ANIM}.
          */
-        public int onAppTransitionStartingLocked(long statusBarAnimationStartTime,
-                long statusBarAnimationDuration) {
-            return 0;
-        }
+        public void onAppTransitionStartingLocked(long statusBarAnimationStartTime,
+                long statusBarAnimationDuration) {}
 
         /**
          * Called when an app transition is finished running.
@@ -639,6 +632,18 @@ public abstract class WindowManagerInternal {
             @Nullable Bundle options);
 
     /**
+     * Adds an IME window token for a given display. This differs from
+     * {@link #addWindowToken(IBinder, int, int, Bundle)} with the addition of {@code targetUserId}.
+     *
+     * @param token The token to add.
+     * @param displayId The display to add the token to.
+     * @param targetUserId The user whose windows can be added to this token.
+     * @param options A bundle used to pass window-related options.
+     */
+    public abstract void addImeWindowToken(@NonNull android.os.IBinder token, int displayId,
+            @UserIdInt int targetUserId, @Nullable Bundle options);
+
+    /**
      * Removes a window token.
      *
      * @param token The toke to remove.
@@ -660,6 +665,14 @@ public abstract class WindowManagerInternal {
      */
     public abstract void removeWindowToken(android.os.IBinder token, boolean removeWindows,
             boolean animateExit, int displayId);
+
+    /**
+     * Sets the given window token as the current IME window token on the given display.
+     *
+     * @param token     The token to set.
+     * @param displayId The display to set the token on.
+     */
+    public abstract void setImeWindowToken(@Nullable android.os.IBinder token, int displayId);
 
     /**
      * Registers a listener to be notified about app transition events.
@@ -768,7 +781,7 @@ public abstract class WindowManagerInternal {
     /**
      * Called after virtual display Id is updated by
      * {@link com.android.server.vr.Vr2dDisplay} with a specific
-     * {@param vr2dDisplayId}.
+     * {@code vr2dDisplayId}.
      */
     public abstract void setVr2dDisplayId(int vr2dDisplayId);
 
@@ -795,7 +808,7 @@ public abstract class WindowManagerInternal {
      * arranged underneath non-{@code showWhenLocked} wallpaper tokens.
      *
      * @param windowToken wallpaper token previously added via {@link #addWindowToken}
-     * @param showWhenLocked whether {@param token} can continue to be shown on the lock screen.
+     * @param showWhenLocked whether {@code token} can continue to be shown on the lock screen.
      */
     public abstract void setWallpaperShowWhenLocked(IBinder windowToken, boolean showWhenLocked);
 
@@ -1033,19 +1046,19 @@ public abstract class WindowManagerInternal {
         @NonNull
         public final String mImeControlTargetName;
 
-        /** The surface parent of the IME container. */
+        /** The name of the {@link DisplayContent#mImeParent}. */
         @NonNull
-        public final String mImeSurfaceParentName;
+        public final String mImeParentName;
 
         public ImeTargetInfo(@NonNull String focusedWindowName, @NonNull String requestWindowName,
                 @NonNull String imeLayeringTargetName, @NonNull String imeInputTargetName,
-                @NonNull String imeControlTargetName, @NonNull String imeSurfaceParentName) {
+                @NonNull String imeControlTargetName, @NonNull String imeParentName) {
             mFocusedWindowName = focusedWindowName;
             mRequestWindowName = requestWindowName;
             mImeLayeringTargetName = imeLayeringTargetName;
             mImeInputTargetName = imeInputTargetName;
             mImeControlTargetName = imeControlTargetName;
-            mImeSurfaceParentName = imeSurfaceParentName;
+            mImeParentName = imeParentName;
         }
     }
 
@@ -1062,6 +1075,21 @@ public abstract class WindowManagerInternal {
      *         {@code false} otherwise.
      */
     public abstract boolean shouldRestoreImeVisibility(IBinder imeTargetWindowToken);
+
+    /**
+     * Check whether the current ime input target window is stale in WM or not before updating it
+     * to the given {@code windowToken}.
+     *
+     * <p>The existing target is considered as stale only when the window that is different from the
+     * given {@code windowToken} is set but is being or already removed.
+     *
+     * <p>TODO(b/429304155): Come back  to this and properly address the underlying issue.
+     *
+     * @param windowToken The token of the window of the next ime input target
+     * @return {@code true} if the IME input target window in the given window's display is stale,
+     *         {@code false} otherwise.
+     */
+    public abstract boolean isImeInputTargetStaleForUpdate(@NonNull IBinder windowToken);
 
     /**
      * Internal methods for other parts of SystemServer to manage
@@ -1249,4 +1277,121 @@ public abstract class WindowManagerInternal {
      * @throws RuntimeException if the payload cannot be written to the settings file.
      */
     public abstract void restoreDisplayWindowSettings(int userId, byte[] payload);
+
+    /**
+     * An abstraction of a SurfaceControl that mirrors a display. The mirror surface will
+     * successfully mirror the display's content until the display is removed or the mirror is
+     * {@link #close()}-ed.
+     */
+    public interface DisplayMirror extends AutoCloseable {
+        /**
+         * Get the mirror surface. The same SurfaceControl reference is returned throughout the
+         * lifecycle of this mirror. This SurfaceControl will be released automatically on
+         * {@link #close()}. The SurfaceControl is initially hidden.
+         */
+        SurfaceControl getMirrorSurfaceControl();
+    }
+
+    /**
+     * Creates a mirror of the given display.
+     *
+     * @param displayId The display which should be mirrored.
+     * @return The display mirror, or null if mirroring was not successful.
+     */
+    @Nullable
+    public abstract DisplayMirror createMirrorForDisplayContent(int displayId);
+
+    /**
+     * Request all window clients on the given display to disable their HardwareRenderer
+     * drawing output.
+     *
+     * <p>HardwareRenderer output is enabled by default on all displays. This API can be used to
+     * toggle client rendering on or off at will to attempt to control the output frames produced
+     * by client windows for screenshot-only based rendering. Note that this API does not fully
+     * prohibit clients from submitting frames to the composer, as frames may still be produced when
+     * hardware rendering is not being used or if the client is not using the standard rendering
+     * pipeline.
+     *
+     * <p>This API is designed to be controlled by a single source and callers should not use this
+     * unless they are the designated owner.
+     *
+     * @return true if the request was successfully propagated, false otherwise.
+     * @see #requestHardwareRendererOutputEnabled(int, long, Consumer, Executor)
+     */
+    public abstract boolean requestHardwareRendererOutputDisabled(int displayId);
+
+    /**
+     * Requests all window clients on the given display to re-enable their HardwareRenderer
+     * drawing output.
+     *
+     * <p>This method reverses the effects of {@link #requestHardwareRendererOutputDisabled(int)}.
+     * It signals to client windows that they should resume submitting frames via the
+     * HardwareRenderer, and has the side-effect of causing all affected windows to be redrawn.
+     *
+     * <p>This operation is synchronized. It will wait for the visible windows to produce a new
+     * frame before invoking the callback. This ensures that when the callback is received with
+     * {@code true}, the windows have resumed drawing and their new state is committed.
+     *
+     * <p>This API is designed to be controlled by a single source and callers should not use this
+     * unless they are the designated owner.
+     *
+     * @param displayId The ID of the display to enable output on.
+     * @param timeoutMs The maximum time to wait in milliseconds before the callback is invoked.
+     * @param callback  The callback to execute, with a {@code true} parameter when all windows
+     * have successfully committed a new frame, {@code false} when the timeout occurs.
+     * @param executor  The executor on which to run the callback.
+     * @return {@code true} if the request was successfully propagated and synchronization started,
+     * {@code false} otherwise.
+     * @see #requestHardwareRendererOutputDisabled(int)
+     */
+    public abstract boolean requestHardwareRendererOutputEnabled(int displayId,
+            long timeoutMs, Consumer<Boolean> callback, @CallbackExecutor Executor executor);
+
+    /**
+     * Optimizes the display for power instead of the default policy of optimizing for performance.
+     */
+    public abstract void enablePowerOptimizations(int displayId, boolean enable);
+
+    /**
+     * Attempts to limit the rendering of client windows by turning down the frame rate and
+     * animations on the display.
+     */
+    public abstract void enableClientRenderingLimitationsOnDisplay(int displayId, boolean enable);
+
+    /**
+     * Allows for applying the behavior of {@link Display#FLAG_STEAL_TOP_FOCUS_DISABLED} dynamically
+     * when the flag is not set on a display.
+     *
+     * @param displayId The display to override.
+     * @param canStealTopFocus The override value, or {@code null} to clear the override.
+     */
+    public abstract void setCanStealTopFocusForDisplay(int displayId, boolean canStealTopFocus);
+
+    /**
+     * Set the receiver for the {@link android.view.accessibility.IAccessibilityEmbeddedConnection}
+     * of the focused window on the given display. The receiver is updated as the focused window
+     * changes.
+     *
+     * <p>This API is designed to be controlled by a single source and callers should not use this
+     * unless they are the designated owner.
+     *
+     * @param displayId The display on which to track the connection.
+     * @param receiver  The receiver to receive the connection status, using
+     *                  {@link android.view.WindowManager#PARCEL_KEY_A11Y_EMBEDDED_CONNECTION}.
+     */
+    // TODO: b/493338658 - In the long term, explore setting up A11y embedding connections through
+    //  SurfaceControl via WindowInfosListener.
+    public abstract void setFocusedA11yEmbeddedConnectionReceiverOnDisplay(int displayId,
+            @Nullable IResultReceiver receiver);
+
+    /**
+     * Sets whether the system theme is ready.
+     *
+     * <p>When false, the screen is blocked from turning on during boot. When true, WindowManager
+     * will attempt to turn on the screen if all other conditions (like wallpaper and lockscreen
+     * being drawn) are met.
+     *
+     * @param ready True if the theme is ready, false otherwise.
+     */
+    public abstract void setThemeReady(boolean ready);
 }

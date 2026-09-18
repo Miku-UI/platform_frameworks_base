@@ -33,6 +33,7 @@ import com.android.settingslib.volume.shared.model.RingerMode
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.res.R
+import com.android.systemui.shared.system.BlurUtils.isVolumeAndPowerBlurEnabled
 import com.android.systemui.statusbar.VibratorHelper
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.onConfigChanged
@@ -40,6 +41,7 @@ import com.android.systemui.util.time.SystemClock
 import com.android.systemui.volume.Events
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogScope
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogVisibilityInteractor
 import com.android.systemui.volume.dialog.ringer.domain.VolumeDialogRingerInteractor
 import com.android.systemui.volume.dialog.ringer.shared.model.VolumeDialogRingerModel
@@ -77,7 +79,14 @@ constructor(
     configurationController: ConfigurationController,
     private val uiEventLogger: UiEventLogger,
     private val systemClock: SystemClock,
+    private val expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
+
+    // Use horizontal volume dialog if the audio tile details view is enabled
+    val isVolumeDialogVertical = !expandedAudioTileDetailsFeatureInteractor.isEnabled()
+
+    // Show blur if the flag is enabled and the volume dialog is vertical
+    val showBlur = isVolumeAndPowerBlurEnabled() && isVolumeDialogVertical
 
     private val drawerState = MutableStateFlow<RingerDrawerState>(RingerDrawerState.Initial)
     private val orientation: StateFlow<Int> =
@@ -210,7 +219,7 @@ constructor(
         return when (ringerMode.value) {
             RINGER_MODE_SILENT ->
                 RingerButtonViewModel(
-                    imageResId = R.drawable.ic_speaker_mute,
+                    imageResId = R.drawable.ic_notifications_off,
                     contentDescriptionResId =
                         if (isSelectedButton) {
                             R.string.volume_ringer_status_silent
@@ -222,7 +231,7 @@ constructor(
                 )
             RINGER_MODE_VIBRATE ->
                 RingerButtonViewModel(
-                    imageResId = R.drawable.ic_volume_ringer_vibrate,
+                    imageResId = R.drawable.ic_mobile_vibrate,
                     contentDescriptionResId =
                         if (isSelectedButton) {
                             R.string.volume_ringer_status_vibrate
@@ -238,9 +247,9 @@ constructor(
                         RingerButtonViewModel(
                             imageResId =
                                 if (isSelectedButton) {
-                                    R.drawable.ic_speaker_mute
+                                    R.drawable.ic_notifications_off
                                 } else {
-                                    R.drawable.ic_speaker_on
+                                    R.drawable.ic_notifications_active
                                 },
                             contentDescriptionResId =
                                 if (isSelectedButton) {
@@ -253,7 +262,7 @@ constructor(
                         )
                     availableModes.contains(RingerMode(RINGER_MODE_VIBRATE)) ->
                         RingerButtonViewModel(
-                            imageResId = R.drawable.ic_speaker_on,
+                            imageResId = R.drawable.ic_notifications_active,
                             contentDescriptionResId =
                                 if (isSelectedButton) {
                                     R.string.volume_ringer_status_normal
@@ -265,7 +274,7 @@ constructor(
                         )
                     else ->
                         RingerButtonViewModel(
-                            imageResId = R.drawable.ic_speaker_on,
+                            imageResId = R.drawable.ic_notifications_active,
                             contentDescriptionResId =
                                 if (isSelectedButton) {
                                     R.string.volume_ringer_status_normal

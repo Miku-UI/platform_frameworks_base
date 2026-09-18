@@ -16,7 +16,9 @@
 
 package android.app.wallpaper;
 
+import android.annotation.FlaggedApi;
 import android.annotation.SystemApi;
+import android.app.Flags;
 import android.app.WallpaperInfo;
 import android.app.WallpaperManager;
 import android.app.WallpaperManager.ScreenOrientation;
@@ -37,6 +39,7 @@ import android.util.SparseArray;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import androidx.annotation.RequiresPermission;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 
@@ -401,13 +404,12 @@ public final class WallpaperDescription implements Parcelable {
         /**
          * Specify the component for this wallpaper.
          *
-         * <p>This method is hidden because only trusted apps should be able to specify the
-         * component, which names a wallpaper service to be started by the system.
-         * </p>
-         *
          * @param component component name, or {@code null} for static wallpaper
          * @hide
          */
+        @SystemApi
+        @RequiresPermission(android.Manifest.permission.SET_WALLPAPER_COMPONENT)
+        @FlaggedApi(Flags.FLAG_ENABLE_WALLPAPER_DESCRIPTION_SET_COMPONENT)
         @NonNull
         public Builder setComponent(@Nullable ComponentName component) {
             mComponent = component;

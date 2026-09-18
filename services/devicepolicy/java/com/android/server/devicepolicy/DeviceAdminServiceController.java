@@ -49,7 +49,7 @@ public class DeviceAdminServiceController {
     final Object mLock = new Object();
     final Context mContext;
 
-    private final DevicePolicyManagerService.Injector mInjector;
+    private final Injector mInjector;
     private final DevicePolicyConstants mConstants;
 
     private final Handler mHandler; // needed?

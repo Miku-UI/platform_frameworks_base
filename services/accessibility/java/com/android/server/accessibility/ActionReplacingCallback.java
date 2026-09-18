@@ -36,8 +36,8 @@ import java.util.List;
  * nodes heading back to the service and swap out the actions.
  */
 public class ActionReplacingCallback extends IAccessibilityInteractionConnectionCallback.Stub {
-    private static final boolean DEBUG = false;
-    private static final String LOG_TAG = "ActionReplacingCallback";
+    private static final String LOG_TAG = ActionReplacingCallback.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
     private final IAccessibilityInteractionConnectionCallback mServiceCallback;
     private final IAccessibilityInteractionConnection mConnectionWithReplacementActions;

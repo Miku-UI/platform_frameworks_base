@@ -97,7 +97,7 @@
     <string name="bluetooth_connected_no_a2dp_battery_level" msgid="6499078454894324287">"Povezano (brez predstavnosti), raven napolnjenosti baterije je <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> <xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp_battery_level" msgid="8477440576953067242">"Povezano (brez telefona ali predstavnosti), raven napolnjenosti baterije je <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> <xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"Aktivno. Baterija: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"Aktivno. Baterija – L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
+    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"Aktivno. L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> baterije."</string>
     <string name="bluetooth_active_battery_level_untethered_left" msgid="2895644748625343977">"Aktivno. Baterija – L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_battery_level_untethered_right" msgid="7407517998880370179">"Aktivno. Baterija – D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_battery_level" msgid="2893696778200201555">"Baterija na <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Tri črtice signala Wi-Fi."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Poln signal Wi-Fi."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Povezava z napravo je vzpostavljena."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Vsi uporabniki v tej napravi lahko vidijo to omrežje in z njim vzpostavijo povezavo."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Odprto omrežje"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Varno omrežje"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"OS Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Nastavitve imena dostopne točke niso na voljo za tega uporabnika"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Odpravljanje napak prek USB-ja"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Način za odpravljanje napak, ko je vzpostavljena povezava USB."</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Preklic dovoljenj za odpravljanje napak prek povezave USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Preklic dovoljenj za odpravljanje napak z orodjem Android Debug Bridge (adb)"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Brezžično odpravljanje napak"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Način za odpravljanje napak, ko je vzpostavljena povezava Wi‑Fi."</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Napaka"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Seznanjanje naprave …"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Seznanitev naprave ni uspela. Koda QR je nepravilna ali pa naprava ni povezana v isto omrežje."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Naslov IP in vrata"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Ni na voljo (ni dovoljeno)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Ni na voljo (povezava Wi-Fi je prekinjena)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Optično branje kode QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Seznanite napravo prek Wi‑Fi-ja z optičnim branjem kode QR."</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Vzpostavite povezavo z omrežjem Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Odpravljanje težav s povezavo USB je namenjeno samo za razvoj. Lahko ga uporabljate za kopiranje podatkov med računalnikom in napravo, nameščanje aplikacij v napravo brez obveščanja in branje podatkov v dnevniku."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Ali dovolite brezžično odpravljanje napak?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Brezžično odpravljanje napak je namenjeno samo za razvoj. Lahko ga uporabljate za kopiranje podatkov med računalnikom in napravo, nameščanje aplikacij v napravo brez obveščanja in branje podatkov v dnevniku."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Ali želite preklicati dostop do odpravljanja težav prek povezave USB iz vseh računalnikov, ki ste jih pooblastili?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Ali želite preklicati dostop do odpravljanja napak prek orodja Android Debug Bridge (adb) iz vseh računalnikov in omrežij, ki ste jih pooblastili?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Ali želite omogočiti nastavitve za razvijanje?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Te nastavitve so namenjene samo za razvijanje in lahko povzročijo prekinitev ali napačno delovanje naprave in aplikacij v njej."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Preveri aplikacije prek USB-ja"</string>
@@ -442,7 +445,7 @@
     <string name="verbose_vendor_logging_preference_summary_on" msgid="9017757242481762036">"Omogočeno brez časovne omejitve"</string>
     <string name="window_animation_scale_title" msgid="5236381298376812508">"Hitrost animacije okna"</string>
     <string name="transition_animation_scale_title" msgid="1278477690695439337">"Hitrost animacije prehoda"</string>
-    <string name="animator_duration_scale_title" msgid="7082913931326085176">"Merilo trajanja animacije"</string>
+    <string name="animator_duration_scale_title" msgid="7082913931326085176">"Hitrost animatorja"</string>
     <string name="overlay_display_devices_title" msgid="5411894622334469607">"Simuliraj sekundarne zaslone"</string>
     <string name="shade_display_awareness_title" msgid="8000009404669495876">"Položaj prikaza podokna"</string>
     <string name="debug_applications_category" msgid="5394089406638954196">"Aplikacije"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernetna povezava je prekinjena."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Klicanje ni mogoče."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Fizična tipkovnica"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Izbira razporeditve tipkovnice"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Privzeto"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Upravljanje vklopa zaslona"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Dovoli vklop zaslona"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Dovolite aplikaciji, da vklopi zaslon. Če ji to odobrite, lahko aplikacija kadar koli brez vašega eksplicitnega namena vklopi zaslon."</string>

@@ -109,24 +109,8 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
      * The first time that the animation's animateFrame() method is called. This time is used to
      * determine elapsed time (and therefore the elapsed fraction) in subsequent calls
      * to animateFrame().
-     *
-     * Whenever mStartTime is set, you must also update mStartTimeCommitted.
      */
     long mStartTime = -1;
-
-    /**
-     * When true, the start time has been firmly committed as a chosen reference point in
-     * time by which the progress of the animation will be evaluated.  When false, the
-     * start time may be updated when the first animation frame is committed so as
-     * to compensate for jank that may have occurred between when the start time was
-     * initialized and when the frame was actually drawn.
-     *
-     * This flag is generally set to false during the first frame of the animation
-     * when the animation playing state transitions from STOPPED to RUNNING or
-     * resumes after having been paused.  This flag is set to true when the start time
-     * is firmly committed and should not be further compensated for jank.
-     */
-    boolean mStartTimeCommitted;
 
     /**
      * Set when setCurrentPlayTime() is called. If negative, animation is not currently seeked
@@ -754,7 +738,6 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
     public void setCurrentFraction(float fraction) {
         initAnimation();
         fraction = clampFraction(fraction);
-        mStartTimeCommitted = true; // do not allow start time to be compensated for jank
         if (isPulsingInternal()) {
             long seekTime = (long) (getScaledDuration() * fraction);
             long currentTime = AnimationUtils.currentAnimationTimeMillis();
@@ -1273,7 +1256,6 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
             long currentPlayTime = currentTime - mStartTime;
             long timeLeft = getScaledDuration() - currentPlayTime;
             mStartTime = currentTime - timeLeft;
-            mStartTimeCommitted = true; // do not allow start time to be compensated for jank
             mReversing = !mReversing;
         } else if (mStarted) {
             mReversing = !mReversing;
@@ -1374,24 +1356,6 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
      */
     String getNameForTrace() {
         return "animator";
-    }
-
-    /**
-     * Applies an adjustment to the animation to compensate for jank between when
-     * the animation first ran and when the frame was drawn.
-     * @hide
-     */
-    public void commitAnimationFrame(long frameTime) {
-        if (!mStartTimeCommitted) {
-            mStartTimeCommitted = true;
-            long adjustment = frameTime - mLastFrameTime;
-            if (adjustment > 0) {
-                mStartTime += adjustment;
-                if (DEBUG) {
-                    Log.d(TAG, "Adjusted start time by " + adjustment + " ms: " + toString());
-                }
-            }
-        }
     }
 
     /**
@@ -1578,7 +1542,6 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
                 mStartTime = frameTime - seekTime;
                 mSeekFraction = -1;
             }
-            mStartTimeCommitted = false; // allow start time to be compensated for jank
         }
         mLastFrameTime = frameTime;
         // The frame time might be before the start time during the first frame of
@@ -1606,13 +1569,6 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
             return false;
         }
         return doAnimationFrame(frameTime);
-    }
-
-    private void addOneShotCommitCallback() {
-        if (!mSelfPulse) {
-            return;
-        }
-        getAnimationHandler().addOneShotCommitCallback(this);
     }
 
     private void removeAnimationCallback() {
@@ -1686,7 +1642,6 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
         anim.mPaused = false;
         anim.mResumed = false;
         anim.mStartTime = -1;
-        anim.mStartTimeCommitted = false;
         anim.mAnimationEndRequested = false;
         anim.mPauseTime = -1;
         anim.mLastFrameTime = -1;

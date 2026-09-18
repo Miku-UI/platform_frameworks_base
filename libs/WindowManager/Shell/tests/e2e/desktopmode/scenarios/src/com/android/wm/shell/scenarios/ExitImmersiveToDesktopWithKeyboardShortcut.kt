@@ -23,14 +23,14 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.ImmersiveAppHelper
-import org.junit.Before
 import org.junit.After
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 
 /**
- * Base scenario test for exiting immersive mode by pressing META + =
- * on the keyboard to maximize in desktop mode.
+ * Base scenario test for exiting immersive mode by pressing META + = on the keyboard to maximize in
+ * desktop mode.
  */
 @Ignore("Test Base Class")
 abstract class ExitImmersiveToDesktopWithKeyboardShortcut(
@@ -44,15 +44,16 @@ abstract class ExitImmersiveToDesktopWithKeyboardShortcut(
     val immersiveApp = DesktopModeAppHelper(immersiveAppHelper)
 
     @Before
-    fun setup(){
+    fun setup() {
         immersiveAppHelper.launchViaIntent(wmHelper)
-        immersiveApp.enterDesktopModeFromAppHandleMenu(wmHelper, device, true)
+        // Ensure app starts from immersive to verify the switch to desktop
+        immersiveApp.enterDesktopMode(wmHelper, device, isImmersiveApp = true)
         immersiveApp.enterImmersiveMode(wmHelper, device)
     }
 
     @Test
     open fun exitImmersive() {
-        immersiveApp.exitImmersiveToDesktopWithKeyboard(wmHelper)
+        immersiveApp.exitImmersiveToDesktopWithKeyboard(wmHelper, immersiveApp)
     }
 
     @After

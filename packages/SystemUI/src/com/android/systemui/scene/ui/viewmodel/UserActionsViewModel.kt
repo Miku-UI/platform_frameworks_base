@@ -19,7 +19,6 @@ package com.android.systemui.scene.ui.viewmodel
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.lifecycle.ExclusiveActivatable
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,13 +39,12 @@ abstract class UserActionsViewModel : ExclusiveActivatable() {
      */
     val actions: StateFlow<Map<UserAction, UserActionResult>> = _actions.asStateFlow()
 
-    final override suspend fun onActivated(): Nothing {
-        try {
-            hydrateActions { state -> _actions.value = state }
-            awaitCancellation()
-        } finally {
-            _actions.value = emptyMap()
-        }
+    final override suspend fun onActivated() {
+        hydrateActions { state -> _actions.value = state }
+    }
+
+    override suspend fun onDeactivated() {
+        _actions.value = emptyMap()
     }
 
     /**
@@ -61,6 +59,6 @@ abstract class UserActionsViewModel : ExclusiveActivatable() {
      * when this happens.
      */
     protected abstract suspend fun hydrateActions(
-        setActions: (Map<UserAction, UserActionResult>) -> Unit,
+        setActions: (Map<UserAction, UserActionResult>) -> Unit
     )
 }

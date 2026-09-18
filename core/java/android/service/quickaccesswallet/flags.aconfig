@@ -10,13 +10,6 @@ flag {
 }
 
 flag {
-    name: "launch_selected_card_from_qs_tile"
-    namespace: "wallet_integration"
-    description: "When the wallet QS tile is tapped, launch the selected card pending intent instead of the home screen pending intent."
-    bug: "378469025"
-}
-
-flag {
     name: "launch_wallet_via_sysui_callbacks"
     namespace: "wallet_integration"
     description: "Refactor Wallet double press power launch to be handled by SysUI instead of core. This allows handling dismissing the keyguard before launch."

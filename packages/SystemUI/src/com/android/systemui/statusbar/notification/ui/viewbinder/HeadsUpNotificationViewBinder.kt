@@ -45,7 +45,7 @@ constructor(
                 combine(
                         viewModel.pinnedHeadsUpRowKeys,
                         viewModel.activeHeadsUpRowKeys,
-                        visibleChipsWithBounds(),
+                        visibleNotificationChipsWithBounds(),
                         ::Triple,
                     )
                     .sample(viewModel.headsUpAnimationsEnabled, ::Pair)
@@ -101,9 +101,9 @@ constructor(
         return viewModel.elementKeyFor(key) as ExpandableNotificationRow
     }
 
-    private fun visibleChipsWithBounds(): Flow<Map<String, RectF>> =
+    private fun visibleNotificationChipsWithBounds(): Flow<Map<String, RectF>> =
         shadeStatusBarComponentsInteractor.ongoingActivityChipsViewModel.flatMapLatest {
-            it.visibleChipsWithBounds
+            it.visibleNotificationChipsWithBounds
         }
 }
 

@@ -128,15 +128,13 @@ public class BroadcastStickyCache {
      * Checks whether we can use caching for the given filter.
      */
     public static boolean useCache(@Nullable IntentFilter filter) {
-        return Flags.useStickyBcastCache()
-                && filter != null
+        return filter != null
                 && filter.safeCountActions() == 1
                 && ArrayUtils.contains(STICKY_BROADCAST_ACTIONS, filter.getAction(0));
     }
 
     public static void invalidateCache(@NonNull String action) {
-        if (!Flags.useStickyBcastCache()
-                || !ArrayUtils.contains(STICKY_BROADCAST_ACTIONS, action)) {
+        if (!ArrayUtils.contains(STICKY_BROADCAST_ACTIONS, action)) {
             return;
         }
         IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM,
@@ -228,9 +226,6 @@ public class BroadcastStickyCache {
     }
 
     public static void dumpCacheInfo(@NonNull ParcelFileDescriptor pfd) {
-        if (!Flags.useStickyBcastCache()) {
-            return;
-        }
         final PrintWriter pw = new FastPrintWriter(new FileOutputStream(pfd.getFileDescriptor()));
         synchronized (BroadcastStickyCache.class) {
             dumpCacheLocked(pw);

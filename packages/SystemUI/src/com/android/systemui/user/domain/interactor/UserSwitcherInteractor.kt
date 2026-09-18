@@ -17,16 +17,13 @@
 
 package com.android.systemui.user.domain.interactor
 
-import android.annotation.SuppressLint
 import android.annotation.UserIdInt
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.UserInfo
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.Icon
 import android.os.RemoteException
 import android.os.UserHandle
 import android.os.UserManager
@@ -34,11 +31,8 @@ import android.provider.Settings
 import android.util.Log
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.logging.UiEventLogger
-import com.android.internal.util.UserIcons
 import com.android.keyguard.KeyguardUpdateMonitor
 import com.android.keyguard.KeyguardUpdateMonitorCallback
-import com.android.systemui.Flags.switchUserOnBg
-import com.android.systemui.Flags.userSwitcherAddSignOutOption
 import com.android.systemui.SystemUISecondaryUserService
 import com.android.systemui.animation.Expandable
 import com.android.systemui.broadcast.BroadcastDispatcher
@@ -66,8 +60,9 @@ import com.android.systemui.user.shared.model.UserModel
 import com.android.systemui.user.utils.MultiUserActionsEvent
 import com.android.systemui.user.utils.MultiUserActionsEventHelper
 import com.android.systemui.util.kotlin.pairwise
-import com.android.systemui.utils.UserRestrictionChecker
+import com.android.systemui.util.policy.UserRestrictionChecker
 import java.io.PrintWriter
+import java.util.concurrent.CopyOnWriteArrayList
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -83,8 +78,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Encapsulates business logic to for the user switcher. */
@@ -111,7 +104,6 @@ constructor(
     private val uiEventLogger: UiEventLogger,
     private val userRestrictionChecker: UserRestrictionChecker,
     private val processWrapper: ProcessWrapper,
-    private val userLogoutInteractor: UserLogoutInteractor,
 ) {
     /**
      * Defines interface for classes that can be notified when the state of users on the device is
@@ -131,8 +123,7 @@ constructor(
                 com.android.internal.R.string.config_supervisedUserCreationPackage
             )
 
-    private val callbackMutex = Mutex()
-    private val callbacks = mutableSetOf<UserCallback>()
+    private val callbacks = CopyOnWriteArrayList<UserCallback>()
     private val userInfos: Flow<List<UserInfo>> =
         repository.userInfos.map { userInfos -> userInfos.filter { it.isFull } }
 
@@ -244,12 +235,6 @@ constructor(
                         ) {
                             add(UserActionModel.NAVIGATE_TO_USER_MANAGEMENT)
                         }
-                        if (
-                            userSwitcherAddSignOutOption() &&
-                                userLogoutInteractor.isLogoutEnabled.value
-                        ) {
-                            add(UserActionModel.SIGN_OUT)
-                        }
                     }
                 }
                 .flowOn(backgroundDispatcher)
@@ -269,8 +254,7 @@ constructor(
                                 action = it,
                                 selectedUserId = selectedUserInfo.id,
                                 isRestricted =
-                                    it != UserActionModel.SIGN_OUT &&
-                                        it != UserActionModel.ENTER_GUEST_MODE &&
+                                    it != UserActionModel.ENTER_GUEST_MODE &&
                                         it != UserActionModel.NAVIGATE_TO_USER_MANAGEMENT &&
                                         !settings.isAddUsersFromLockscreen,
                             )
@@ -363,11 +347,11 @@ constructor(
     }
 
     fun addCallback(callback: UserCallback) {
-        applicationScope.launch { callbackMutex.withLock { callbacks.add(callback) } }
+        callbacks.add(callback)
     }
 
     fun removeCallback(callback: UserCallback) {
-        applicationScope.launch { callbackMutex.withLock { callbacks.remove(callback) } }
+        callbacks.remove(callback)
     }
 
     fun refreshUsers() {
@@ -508,10 +492,6 @@ constructor(
                     Intent(Settings.ACTION_USER_SETTINGS),
                     /* dismissShade= */ true,
                 )
-            UserActionModel.SIGN_OUT -> {
-                dismissDialog()
-                applicationScope.launch { userLogoutInteractor.logOut() }
-            }
         }
     }
 
@@ -566,17 +546,13 @@ constructor(
 
     private fun notifyCallbacks() {
         applicationScope.launch {
-            callbackMutex.withLock {
-                val iterator = callbacks.iterator()
-                while (iterator.hasNext()) {
-                    val callback = iterator.next()
-                    if (!callback.isEvictable()) {
-                        callback.onUserStateChanged()
-                    } else {
-                        iterator.remove()
-                    }
+            // We need to iterate twice since CoWArrayList doesn't support iterator ops.
+            callbacks.forEach {
+                if (!it.isEvictable()) {
+                    it.onUserStateChanged()
                 }
             }
+            callbacks.removeAll { it.isEvictable() }
         }
     }
 
@@ -602,10 +578,9 @@ constructor(
             actionType = action,
             isRestricted = isRestricted,
             isSwitchToEnabled =
-                action == UserActionModel.SIGN_OUT ||
-                    (canSwitchUsers(selectedUserId = selectedUserId, isAction = true) &&
-                        // If the user is auto-created is must not be currently resetting.
-                        !(isGuestUserAutoCreated && isGuestUserResetting)),
+                canSwitchUsers(selectedUserId = selectedUserId, isAction = true) &&
+                    // If the user is auto-created is must not be currently resetting.
+                    !(isGuestUserAutoCreated && isGuestUserResetting),
             userRestrictionChecker = userRestrictionChecker,
         )
     }
@@ -621,11 +596,7 @@ constructor(
             }
         }
 
-        if (switchUserOnBg()) {
-            applicationScope.launch { withContext(backgroundDispatcher) { runnable.run() } }
-        } else {
-            runnable.run()
-        }
+        applicationScope.launch { withContext(backgroundDispatcher) { runnable.run() } }
     }
 
     private suspend fun onBroadcastReceived(intent: Intent, previousUserInfo: UserInfo?) {
@@ -644,7 +615,15 @@ constructor(
                     }
                     true
                 }
-                Intent.ACTION_USER_INFO_CHANGED -> true
+                Intent.ACTION_USER_INFO_CHANGED,
+                Intent.ACTION_USER_REMOVED -> {
+                    val changedUserId =
+                        intent.getIntExtra(Intent.EXTRA_USER_HANDLE, UserHandle.USER_NULL)
+                    if (changedUserId != UserHandle.USER_NULL) {
+                        repository.clearUserImageCacheForUser(changedUserId)
+                    }
+                    true
+                }
                 Intent.ACTION_USER_UNLOCKED -> {
                     // If we unlocked the system user, we should refresh all users.
                     intent.getIntExtra(Intent.EXTRA_USER_HANDLE, UserHandle.USER_NULL) ==
@@ -716,7 +695,7 @@ constructor(
             // We avoid showing disabled users.
             !userInfo.isEnabled -> null
             // We meet the conditions to return the UserModel.
-            userInfo.isGuest || userInfo.supportsSwitchToByUser() ->
+            userInfo.isGuest || userInfo.isUiSwitchableHumanUser() ->
                 toUserModel(userInfo, selectedUserId, canSwitchUsers)
             else -> null
         }
@@ -770,7 +749,6 @@ constructor(
         }
     }
 
-    @SuppressLint("UseCompatLoadingForDrawables")
     private suspend fun getUserImage(isGuest: Boolean, userId: Int): Drawable {
         if (isGuest) {
             return checkNotNull(
@@ -778,27 +756,12 @@ constructor(
             )
         }
 
-        // TODO(b/246631653): cache the bitmaps to avoid the background work to fetch them.
-        val userIcon =
-            withContext(backgroundDispatcher) {
-                manager.getUserIcon(userId)?.let { bitmap ->
-                    val iconSize =
-                        applicationContext.resources.getDimensionPixelSize(
-                            R.dimen.bouncer_user_switcher_icon_size
-                        )
-                    Icon.scaleDownIfNecessary(bitmap, iconSize, iconSize)
-                }
-            }
+        val iconSize =
+            applicationContext.resources.getDimensionPixelSize(
+                R.dimen.bouncer_user_switcher_icon_size
+            )
 
-        if (userIcon != null) {
-            return BitmapDrawable(userIcon)
-        }
-
-        return UserIcons.getDefaultUserIcon(
-            applicationContext.resources,
-            userId,
-            /* light= */ false,
-        )
+        return repository.getUserImage(userId, iconSize)
     }
 
     private fun canCreateGuestUser(

@@ -114,7 +114,7 @@ public class FooterPreference extends Preference
     }
 
     @Override
-    public void onBindViewHolder(PreferenceViewHolder holder) {
+    public void onBindViewHolder(@NonNull PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
         TextView title = holder.itemView.findViewById(android.R.id.title);
         if (title != null) {
@@ -241,7 +241,7 @@ public class FooterPreference extends Preference
         return context;
     }
 
-    /** The builder is convenient to creat a dynamic FooterPreference. */
+    /** The builder is convenient to create a dynamic FooterPreference. */
     public static class Builder {
         private Context mContext;
         private String mKey;

@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository.prod
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.activated
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.launchKairosNetwork
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +28,7 @@ import kotlinx.coroutines.test.runCurrent
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 
-@OptIn(ExperimentalKairosApi::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileConnectionRepositoryKairosAdapterTest : MobileConnectionRepositoryTest() {

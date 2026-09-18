@@ -197,6 +197,10 @@ public class ParsedActivityImpl extends ParsedMainComponentImpl implements Parse
         alias.setRequiredDisplayCategory(target.getRequiredDisplayCategory());
         alias.setRequireContentUriPermissionFromCaller(
                 target.getRequireContentUriPermissionFromCaller());
+        if (com.android.internal.pm.pkg.component.flags.Flags
+                .enableActivityAliasPersistableModeBugfix()) {
+            alias.persistableMode = target.getPersistableMode();
+        }
         return alias;
 
         // Not all attributes from the target ParsedActivity are copied to the alias.
@@ -205,7 +209,6 @@ public class ParsedActivityImpl extends ParsedMainComponentImpl implements Parse
 //        alias.exported = target.exported;
 //        alias.permission = target.permission;
 //        alias.splitName = target.splitName;
-//        alias.persistableMode = target.persistableMode;
 //        alias.rotationAnimation = target.rotationAnimation;
 //        alias.colorMode = target.colorMode;
 //        alias.intents.addAll(target.intents);

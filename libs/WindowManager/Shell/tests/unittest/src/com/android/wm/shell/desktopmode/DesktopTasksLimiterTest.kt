@@ -34,9 +34,9 @@ import android.window.WindowContainerTransaction
 import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REMOVE_TASK
 import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REORDER
 import androidx.test.filters.SmallTest
+import com.android.testing.wm.util.StubTransaction
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION
-import com.android.window.flags.Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND
-import com.android.window.flags.Flags.FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
@@ -51,9 +51,7 @@ import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
-import com.android.wm.shell.transition.TransitionInfoBuilder
 import com.android.wm.shell.transition.Transitions
-import com.android.wm.shell.util.StubTransaction
 import com.android.wm.shell.windowdecor.tiling.SnapEventHandler
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertFailsWith
@@ -138,9 +136,9 @@ class DesktopTasksLimiterTest : ShellTestCase() {
                 shellTaskOrganizer,
                 desksOrganizer,
                 desktopMixedTransitionHandler,
+                snapEventHandler,
                 MAX_TASK_LIMIT,
             )
-        desktopTasksLimiter.snapEventHandler = snapEventHandler
     }
 
     @After
@@ -157,6 +155,7 @@ class DesktopTasksLimiterTest : ShellTestCase() {
                 shellTaskOrganizer,
                 desksOrganizer,
                 desktopMixedTransitionHandler,
+                snapEventHandler,
                 0,
             )
         }
@@ -171,6 +170,7 @@ class DesktopTasksLimiterTest : ShellTestCase() {
                 shellTaskOrganizer,
                 desksOrganizer,
                 desktopMixedTransitionHandler,
+                snapEventHandler,
                 -5,
             )
         }
@@ -185,6 +185,7 @@ class DesktopTasksLimiterTest : ShellTestCase() {
             shellTaskOrganizer,
             desksOrganizer,
             desktopMixedTransitionHandler,
+            snapEventHandler,
             maxTasksLimit = null,
         )
     }
@@ -347,19 +348,21 @@ class DesktopTasksLimiterTest : ShellTestCase() {
     fun removeLeftoverMinimizedTasks_activeNonMinimizedTasksStillAround_doesNothing() {
         desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
         desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        desktopTaskRepo.addTask(
+        desktopTaskRepo.addTaskToDesk(
             displayId = DEFAULT_DISPLAY,
+            deskId = 0,
             taskId = 1,
             isVisible = true,
             taskBounds = TASK_BOUNDS,
         )
-        desktopTaskRepo.addTask(
+        desktopTaskRepo.addTaskToDesk(
             displayId = DEFAULT_DISPLAY,
-            taskId = 1,
+            deskId = 0,
+            taskId = 2,
             isVisible = true,
             taskBounds = TASK_BOUNDS,
         )
-        desktopTaskRepo.minimizeTask(displayId = DEFAULT_DISPLAY, taskId = 2)
+        desktopTaskRepo.minimizeTask(displayId = DEFAULT_DISPLAY, taskId = 3)
 
         val wct = WindowContainerTransaction()
         desktopTasksLimiter.leftoverMinimizedTasksRemover.removeLeftoverMinimizedTasks(
@@ -424,26 +427,6 @@ class DesktopTasksLimiterTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun addAndGetMinimizeTaskChanges_tasksWithinLimit_multiDesksDisabled_noTaskMinimized() {
-        desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        (1..<MAX_TASK_LIMIT).forEach { _ -> setUpFreeformTask() }
-
-        val wct = WindowContainerTransaction()
-        val minimizedTaskId =
-            desktopTasksLimiter.addAndGetMinimizeTaskChanges(
-                deskId = 0,
-                wct = wct,
-                newFrontTaskId = setUpFreeformTask().taskId,
-            )
-
-        assertThat(minimizedTaskId).isNull()
-        assertThat(wct.hierarchyOps).isEmpty() // No reordering operations added
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     fun addAndGetMinimizeTaskChanges_tasksWithinLimit_multiDesksEnabled_noTaskMinimized() {
         desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
         desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
@@ -462,29 +445,6 @@ class DesktopTasksLimiterTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun addAndGetMinimizeTaskChanges_tasksAboveLimit_multiDesksDisabled_backTaskMinimized() {
-        desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        // The following list will be ordered bottom -> top, as the last task is moved to top last.
-        val tasks = (1..MAX_TASK_LIMIT).map { setUpFreeformTask() }
-
-        val wct = WindowContainerTransaction()
-        val minimizedTaskId =
-            desktopTasksLimiter.addAndGetMinimizeTaskChanges(
-                deskId = DEFAULT_DISPLAY,
-                wct = wct,
-                newFrontTaskId = setUpFreeformTask().taskId,
-            )
-
-        assertThat(minimizedTaskId).isEqualTo(tasks.first().taskId)
-        assertThat(wct.hierarchyOps.size).isEqualTo(1)
-        assertThat(wct.hierarchyOps[0].type).isEqualTo(HIERARCHY_OP_TYPE_REORDER)
-        assertThat(wct.hierarchyOps[0].toTop).isFalse() // Reorder to bottom
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     fun addAndGetMinimizeTaskChanges_tasksAboveLimit_multiDesksEnabled_backTaskMinimized() {
         desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
         desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
@@ -504,27 +464,6 @@ class DesktopTasksLimiterTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun addAndGetMinimizeTaskChanges_nonMinimizedTasksWithinLimit_multiDesksDisabled_noTaskMinimized() {
-        desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        val tasks = (1..MAX_TASK_LIMIT).map { setUpFreeformTask() }
-        desktopTaskRepo.minimizeTask(displayId = DEFAULT_DISPLAY, taskId = tasks[0].taskId)
-
-        val wct = WindowContainerTransaction()
-        val minimizedTaskId =
-            desktopTasksLimiter.addAndGetMinimizeTaskChanges(
-                deskId = 0,
-                wct = wct,
-                newFrontTaskId = setUpFreeformTask().taskId,
-            )
-
-        assertThat(minimizedTaskId).isNull()
-        assertThat(wct.hierarchyOps).isEmpty() // No reordering operations added
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     fun addAndGetMinimizeTaskChanges_nonMinimizedTasksWithinLimit_multiDesksEnabled_noTaskMinimized() {
         desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
         desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
@@ -579,6 +518,7 @@ class DesktopTasksLimiterTest : ShellTestCase() {
                 shellTaskOrganizer,
                 desksOrganizer,
                 desktopMixedTransitionHandler,
+                snapEventHandler,
                 MAX_TASK_LIMIT2,
             )
         val tasks = (1..MAX_TASK_LIMIT2 + 1).map { setUpFreeformTask() }
@@ -858,87 +798,11 @@ class DesktopTasksLimiterTest : ShellTestCase() {
             .startTaskLimitMinimizeTransition(any(), any())
     }
 
-    @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    fun onTransitionReady_taskLimitTransition_taskTrampoline_doesntStartMinimizeTransition() {
-        desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        val transition1 = Binder()
-        val transition2 = Binder()
-        (2..MAX_TASK_LIMIT).map { setUpFreeformTask() }
-        val task1 = setUpFreeformTask()
-        val task2 = setUpFreeformTask()
-        desktopTasksLimiter.addPendingTaskLimitTransition(
-            transition1,
-            deskId = 0,
-            taskId = task1.taskId,
-        )
-        desktopTasksLimiter.addPendingTaskLimitTransition(
-            transition2,
-            deskId = 0,
-            taskId = task2.taskId,
-        )
-        val transitionInfo1 =
-            TransitionInfoBuilder(TRANSIT_OPEN).addChange(TRANSIT_OPEN, task1).build()
-        val transitionInfo2 =
-            TransitionInfoBuilder(TRANSIT_OPEN)
-                .addChange(TRANSIT_OPEN, task2)
-                .addChange(TRANSIT_CLOSE, task1)
-                .build()
-
-        // Start the initial task launch transition - launching a trampoline task
-        callOnTransitionReady(transition1, transitionInfo1)
-        // Start the second task launch transition - launching the final task and closing the
-        // trampoline task
-        callOnTransitionReady(transition2, transitionInfo2)
-
-        val onIdleArgumentCaptor = argumentCaptor<Runnable>()
-        verify(transitions, times(2)).runOnIdle(onIdleArgumentCaptor.capture())
-        onIdleArgumentCaptor.allValues.forEach { runnable -> runnable.run() }
-        verify(desktopMixedTransitionHandler, never())
-            .startTaskLimitMinimizeTransition(any(), any())
-    }
-
-    @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    fun onTransitionReady_taskLimitTransition_taskTrampoline_marksTramplineAsClosed() {
-        desktopTaskRepo.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        desktopTaskRepo.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
-        val transition1 = Binder()
-        val transition2 = Binder()
-        val task1 = setUpFreeformTask()
-        val task2 = setUpFreeformTask()
-        desktopTasksLimiter.addPendingTaskLimitTransition(
-            transition1,
-            deskId = 0,
-            taskId = task1.taskId,
-        )
-        desktopTasksLimiter.addPendingTaskLimitTransition(
-            transition2,
-            deskId = 0,
-            taskId = task2.taskId,
-        )
-        val transitionInfo1 =
-            TransitionInfoBuilder(TRANSIT_OPEN).addChange(TRANSIT_OPEN, task1).build()
-        val transitionInfo2 =
-            TransitionInfoBuilder(TRANSIT_OPEN)
-                .addChange(TRANSIT_OPEN, task2)
-                .addChange(TRANSIT_CLOSE, task1)
-                .build()
-
-        // Start the initial task launch transition - launching a trampoline task
-        callOnTransitionReady(transition1, transitionInfo1)
-        // Start the second task launch transition - launching the final task and closing the
-        // trampoline task
-        callOnTransitionReady(transition2, transitionInfo2)
-
-        assertThat(desktopTaskRepo.isClosingTask(task1.taskId)).isTrue()
-    }
-
     private fun setUpFreeformTask(displayId: Int = DEFAULT_DISPLAY): RunningTaskInfo {
         val task = createFreeformTask(displayId)
         `when`(shellTaskOrganizer.getRunningTaskInfo(task.taskId)).thenReturn(task)
-        desktopTaskRepo.addTask(displayId, task.taskId, task.isVisible, TASK_BOUNDS)
+        val deskId = desktopTaskRepo.getActiveDeskId(displayId) ?: 0
+        desktopTaskRepo.addTaskToDesk(displayId, deskId, task.taskId, task.isVisible, TASK_BOUNDS)
         return task
     }
 

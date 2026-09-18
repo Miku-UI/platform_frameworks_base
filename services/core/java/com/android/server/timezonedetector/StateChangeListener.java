@@ -17,8 +17,8 @@
 package com.android.server.timezonedetector;
 
 /**
- * A listener used to receive notification that state has / may have changed (depending on
- * the usecase).
+ * A listener used to receive notification that state has / may have changed (depending on the
+ * usecase).
  */
 @FunctionalInterface
 public interface StateChangeListener {

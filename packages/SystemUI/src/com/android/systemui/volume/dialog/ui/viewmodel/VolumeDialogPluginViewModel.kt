@@ -16,11 +16,16 @@
 
 package com.android.systemui.volume.dialog.ui.viewmodel
 
+import android.content.IntentFilter
 import com.android.internal.logging.UiEventLogger
+import com.android.systemui.broadcast.BroadcastDispatcher
+import com.android.systemui.settings.brightness.BrightnessDialog.ACTION_BRIGHTNESS_DIALOG_SHOWING
+import com.android.systemui.settings.brightness.BrightnessDialog.PERMISSION_SELF
 import com.android.systemui.volume.Events
 import com.android.systemui.volume.dialog.VolumeDialog
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPlugin
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPluginScope
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogCsdWarningInteractor
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogSafetyWarningInteractor
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogVisibilityInteractor
@@ -29,10 +34,10 @@ import com.android.systemui.volume.dialog.shared.model.CsdWarningConfigModel
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogVisibilityModel
 import com.android.systemui.volume.dialog.ui.VolumeDialogUiEvent
 import javax.inject.Inject
-import javax.inject.Provider
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -45,11 +50,17 @@ constructor(
     private val dialogVisibilityInteractor: VolumeDialogVisibilityInteractor,
     private val dialogSafetyWarningInteractor: VolumeDialogSafetyWarningInteractor,
     private val dialogCsdWarningInteractor: VolumeDialogCsdWarningInteractor,
-    private val volumeDialogProvider: Provider<VolumeDialog>,
+    private val volumeDialogFactory: VolumeDialog.Factory,
     private val logger: VolumeDialogLogger,
     val csdWarningConfigModel: CsdWarningConfigModel,
     private val uiEventLogger: UiEventLogger,
+    private val broadcastDispatcher: BroadcastDispatcher,
+    expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
+
+    // Use horizontal volume dialog if the audio tile details view is enabled
+    private val isVolumeDialogVertical = !expandedAudioTileDetailsFeatureInteractor.isEnabled()
+    private var dismissJob: Job? = null
 
     fun launchVolumeDialog() {
         dialogVisibilityInteractor.dialogVisibility
@@ -58,11 +69,13 @@ constructor(
                     if (this is VolumeDialogVisibilityModel.Visible) {
                         toVolumeDialogUiEvent()?.let(uiEventLogger::log)
                         logger.onShow(reason)
+                        registerDismissReceiver()
                         showDialog()
                     }
                     if (this is VolumeDialogVisibilityModel.Dismissed) {
                         toVolumeDialogUiEvent()?.let(uiEventLogger::log)
                         logger.onDismiss(reason)
+                        unregisterDismissReceiver()
                     }
                 }
             }
@@ -89,8 +102,8 @@ constructor(
     }
 
     private suspend fun showDialog(): Unit = suspendCoroutine { continuation ->
-        volumeDialogProvider
-            .get()
+        volumeDialogFactory
+            .create(isVolumeDialogVertical)
             .apply {
                 setOnDismissListener {
                     dialogVisibilityInteractor.dismissDialog(Events.DISMISS_REASON_UNKNOWN)
@@ -98,6 +111,27 @@ constructor(
                 }
             }
             .show()
+    }
+
+    private fun registerDismissReceiver() {
+        if (isVolumeDialogVertical || dismissJob != null) {
+            return
+        }
+        val filter = IntentFilter(ACTION_BRIGHTNESS_DIALOG_SHOWING)
+        dismissJob =
+            broadcastDispatcher
+                .broadcastFlow(filter = filter, permission = PERMISSION_SELF)
+                .onEach {
+                    dialogVisibilityInteractor.dismissDialog(
+                        Events.DISMISS_REASON_BRIGHTNESS_DIALOG_SHOWING
+                    )
+                }
+                .launchIn(coroutineScope)
+    }
+
+    private fun unregisterDismissReceiver() {
+        dismissJob?.cancel()
+        dismissJob = null
     }
 }
 
@@ -112,6 +146,8 @@ private fun VolumeDialogVisibilityModel.Dismissed.toVolumeDialogUiEvent(): Volum
         Events.DISMISS_STREAM_GONE -> VolumeDialogUiEvent.VOLUME_DIALOG_DISMISS_STREAM_GONE
         Events.DISMISS_REASON_USB_OVERHEAD_ALARM_CHANGED ->
             VolumeDialogUiEvent.VOLUME_DIALOG_DISMISS_USB_TEMP_ALARM_CHANGED
+        Events.DISMISS_REASON_BRIGHTNESS_DIALOG_SHOWING ->
+            VolumeDialogUiEvent.VOLUME_DIALOG_DISMISS_BRIGHTNESS_DIALOG_SHOWING
         else -> null
     }
 }

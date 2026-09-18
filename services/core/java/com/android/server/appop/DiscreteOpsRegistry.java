@@ -35,6 +35,10 @@ import static android.app.AppOpsManager.OP_READ_DEVICE_IDENTIFIERS;
 import static android.app.AppOpsManager.OP_READ_HEART_RATE;
 import static android.app.AppOpsManager.OP_READ_OXYGEN_SATURATION;
 import static android.app.AppOpsManager.OP_READ_SKIN_TEMPERATURE;
+import static android.app.AppOpsManager.OP_READ_BLOOD_PRESSURE;
+import static android.app.AppOpsManager.OP_READ_HEART_RATE_VARIABILITY;
+import static android.app.AppOpsManager.OP_READ_RESPIRATORY_RATE;
+import static android.app.AppOpsManager.OP_READ_VO2_MAX;
 import static android.app.AppOpsManager.OP_RECEIVE_AMBIENT_TRIGGER_AUDIO;
 import static android.app.AppOpsManager.OP_RECEIVE_SANDBOX_TRIGGER_AUDIO;
 import static android.app.AppOpsManager.OP_RECORD_AUDIO;
@@ -113,7 +117,9 @@ abstract class DiscreteOpsRegistry {
             + OP_PHONE_CALL_MICROPHONE + "," + OP_PHONE_CALL_CAMERA + ","
             + OP_RECEIVE_AMBIENT_TRIGGER_AUDIO + "," + OP_RECEIVE_SANDBOX_TRIGGER_AUDIO
             + "," + OP_READ_HEART_RATE + "," + OP_READ_OXYGEN_SATURATION + ","
-            + OP_READ_SKIN_TEMPERATURE + "," + OP_RESERVED_FOR_TESTING;
+            + OP_READ_SKIN_TEMPERATURE + "," + OP_READ_BLOOD_PRESSURE + ","
+            + OP_READ_HEART_RATE_VARIABILITY + "," + OP_READ_RESPIRATORY_RATE + ","
+            + OP_READ_VO2_MAX + "," + OP_RESERVED_FOR_TESTING;
 
     static final long DEFAULT_DISCRETE_HISTORY_CUTOFF = Duration.ofDays(7).toMillis();
     static final long MAXIMUM_DISCRETE_HISTORY_CUTOFF = Duration.ofDays(30).toMillis();

@@ -29,11 +29,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.hardware.biometrics.ComponentInfoInternal;
 import android.hardware.biometrics.IBiometricService;
+import android.hardware.biometrics.SensorLocationInternal;
+import android.hardware.biometrics.SensorProperties;
 import android.hardware.biometrics.common.CommonProps;
 import android.hardware.biometrics.face.SensorProps;
 import android.hardware.biometrics.fingerprint.IFingerprint;
 import android.hardware.biometrics.fingerprint.ISession;
+import android.hardware.biometrics.fingerprint.SensorLocationData;
+import android.hardware.biometrics.fingerprint.location.UnderDisplayLocation;
+import android.hardware.fingerprint.FingerprintSensorProperties;
 import android.hardware.fingerprint.FingerprintSensorPropertiesInternal;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -59,6 +65,9 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Presubmit
 @SmallTest
@@ -176,6 +185,51 @@ public class SensorTest {
         verify(mClientMonitor).cancel();
         assertNull(sensor.getSessionForUser(USER_ID));
         assertNull(mScheduler.getCurrentClient());
+    }
+
+    @Test
+    public void sensorInit_propagatesSensorLocationData() {
+        UnderDisplayLocation innerLocation = new UnderDisplayLocation();
+        innerLocation.sensorLocationXPixels = 540;
+        innerLocation.sensorLocationYPixels = 1600;
+        innerLocation.sensorRadiusPixels = 100;
+        SensorLocationData locationData = SensorLocationData.underDisplayLocation(innerLocation);
+
+        SensorLocationInternal locationInternal = new SensorLocationInternal(
+                "displayId",
+                0,
+                0,
+                0,
+                locationData
+        );
+
+        List<ComponentInfoInternal> componentInfo = new ArrayList<>();
+        componentInfo.add(new ComponentInfoInternal("sensor", "v1", "1.0", "123", "1.0"));
+
+        FingerprintSensorPropertiesInternal internalProp = new FingerprintSensorPropertiesInternal(
+                SENSOR_ID,
+                SensorProperties.STRENGTH_STRONG,
+                1,
+                componentInfo,
+                FingerprintSensorProperties.TYPE_UDFPS_OPTICAL,
+                false,
+                false,
+                List.of(locationInternal)
+        );
+
+        final Sensor sensor = new Sensor(mFingerprintProvider, mContext,
+                null, internalProp,
+                mBiometricContext, mCurrentSession);
+
+        assertNotNull(sensor.getSensorProperties());
+        List<SensorLocationInternal> locations = sensor.getSensorProperties().getAllLocations();
+
+        assertNotNull(locations);
+        assertEquals(1, locations.size());
+        assertEquals(locationData, locations.getFirst().sensorLocationData);
+        assertEquals(innerLocation.sensorLocationXPixels, locations.getFirst().sensorLocationX);
+        assertEquals(innerLocation.sensorLocationYPixels, locations.getFirst().sensorLocationY);
+        assertEquals(innerLocation.sensorRadiusPixels, locations.getFirst().sensorRadius);
     }
 
     private void verifyNotLocked() {

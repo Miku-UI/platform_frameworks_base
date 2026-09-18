@@ -16,11 +16,8 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.DisableSceneContainer
@@ -204,32 +201,6 @@ class FromLockscreenTransitionInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @DisableSceneContainer
-    fun testTransitionsToGone_whenDismissFlingWhileDismissable_flagEnabled() =
-        testScope.runTest {
-            underTest.start()
-            assertThatRepository(transitionRepository).noTransitionsStarted()
-
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.DOZING,
-                to = KeyguardState.LOCKSCREEN,
-                testScope = testScope,
-            )
-
-            keyguardRepository.setKeyguardDismissible(true)
-            runCurrent()
-            shadeRepository.setCurrentFling(
-                FlingInfo(expand = false) // Is a dismiss fling upward (expand = false).
-            )
-            runCurrent()
-
-            assertThatRepository(transitionRepository)
-                .startedTransition(from = KeyguardState.LOCKSCREEN, to = KeyguardState.GONE)
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
     @DisableSceneContainer
     fun testDoesNotTransitionToGone_whenDismissFlingWhileDismissable_flagDisabled() =
         testScope.runTest {
@@ -247,7 +218,6 @@ class FromLockscreenTransitionInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
     @DisableSceneContainer
     fun testDoesNotTransitionToGone_whenDismissFling_emitsNull() =
         testScope.runTest {

@@ -119,7 +119,7 @@ class WindowDecorTaskResourceLoaderTest : ShellTestCase() {
                 shellController = mockShellController,
                 mainHandler = mockHandler,
                 mainScope = testScope,
-                mainDispatcher = testDispatcher,
+                mainImmediateDispatcher = testDispatcher,
                 bgDispatcher = testDispatcher,
                 shellCommandHandler = mock(),
                 userProfilesContexts = mMockUserProfileContexts,

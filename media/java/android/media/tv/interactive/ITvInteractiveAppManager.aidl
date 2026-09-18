@@ -43,6 +43,7 @@ interface ITvInteractiveAppManager {
     void sendAppLinkCommand(String tiasId, in Bundle command, int userId);
     void startInteractiveApp(in IBinder sessionToken, int userId);
     void stopInteractiveApp(in IBinder sessionToken, int userId);
+    void startInteractiveAppWithHandle(in IBinder sessionToken, int userId, int handle);
     void resetInteractiveApp(in IBinder sessionToken, int userId);
     void createBiInteractiveApp(
             in IBinder sessionToken, in Uri biIAppUri, in Bundle params, int userId);
@@ -115,4 +116,8 @@ interface ITvInteractiveAppManager {
 
     void registerCallback(in ITvInteractiveAppManagerCallback callback, int userId);
     void unregisterCallback(in ITvInteractiveAppManagerCallback callback, int userId);
+
+    void requestWebServiceClients(in IBinder sessionToken, int userId);
+    void updateWebServiceClientState(in IBinder sessionToken, int handle, int state, int userId);
+    void removeWebServiceClient(in IBinder sessionToken, int handle, int userId);
 }

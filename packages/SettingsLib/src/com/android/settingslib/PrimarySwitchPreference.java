@@ -154,7 +154,9 @@ public class PrimarySwitchPreference extends RestrictedPreference {
     /**
      * If admin is not null, disables the switch.
      * Otherwise, keep it enabled.
+     * @deprecated Use {@link #setDisabledByAdmin(EnforcingAdmin)} instead.
      */
+    @Deprecated
     public void setDisabledByAdmin(EnforcedAdmin admin) {
         super.setDisabledByAdmin(admin);
         setSwitchEnabled(admin == null);

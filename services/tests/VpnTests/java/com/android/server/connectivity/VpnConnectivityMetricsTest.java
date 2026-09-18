@@ -34,12 +34,14 @@ import static com.android.server.connectivity.VpnConnectivityMetrics.IP_PROTOCOL
 import static com.android.server.connectivity.VpnConnectivityMetrics.IP_PROTOCOL_UNKNOWN;
 import static com.android.server.connectivity.VpnConnectivityMetrics.VPN_PROFILE_TYPE_UNKNOWN;
 import static com.android.server.connectivity.VpnConnectivityMetrics.VPN_TYPE_UNKNOWN;
+import static com.android.server.connectivity.VpnConnectivityMetrics.sAlgorithmMap;
 import static com.android.testutils.Cleanup.testAndCleanup;
 import static com.android.server.connectivity.VpnConnectivityMetrics.buildAllowedAlgorithmsBitmask;
 import static com.android.server.connectivity.VpnConnectivityMetrics.checkIpProtocol;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -66,7 +68,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(AndroidJUnit4.class)
@@ -482,5 +488,27 @@ public class VpnConnectivityMetricsTest {
                 new int[] { NetworkCapabilities.TRANSPORT_CELLULAR },
                 true /* connected */,
                 USER_ID);
+    }
+
+    @Test
+    public void testAlgorithmMap_uniqueKeysAndSequentialValues() throws Exception {
+        // Check for duplicate keys.
+        final Set<String> foundKeys = new HashSet<>();
+        for (Map.Entry<String, Integer> entry : sAlgorithmMap.entrySet()) {
+            if (!foundKeys.add(entry.getKey())) {
+                fail("sAlgorithmMap has duplicate key " + entry.getKey());
+            }
+        }
+
+        // Check that values are sequential and start from 0.
+        final List<Integer> sortedValues = new ArrayList<>(sAlgorithmMap.values());
+        assertEquals(foundKeys.size(), sortedValues.size());
+        Collections.sort(sortedValues);
+
+        for (int i = 0; i < sortedValues.size(); i++) {
+            assertEquals("sAlgorithmMap values are not sequential starting from 0. "
+                            + "Value at index " + i + " is " + sortedValues.get(i),
+                    i, (int) sortedValues.get(i));
+        }
     }
 }

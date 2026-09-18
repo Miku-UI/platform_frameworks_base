@@ -23,6 +23,8 @@ import android.view.DisplayInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.display.data.repository.displayRepository
+import com.android.systemui.display.data.repository.fake
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.keyguardDisplayManager
@@ -30,6 +32,8 @@ import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
+import com.android.systemui.shade.domain.interactor.shadeDisplaysInteractor
 import com.android.systemui.statusbar.policy.data.repository.fakeDeviceProvisioningRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.wallpapers.domain.interactor.DisplayWallpaperPresentationInteractor.WallpaperPresentationType.KEYGUARD
@@ -50,11 +54,12 @@ class DisplayWallpaperPresentationInteractorTest : SysuiTestCase() {
     private val fakeKeyguardRepository = kosmos.fakeKeyguardRepository
     private val deviceProvisioningRepository = kosmos.fakeDeviceProvisioningRepository
     private val keyguardDisplayManager = kosmos.keyguardDisplayManager
+    private val fakeDisplayRepository = kosmos.displayRepository.fake
     private val testDisplayInfo = DisplayInfo()
     private val testDisplay: Display =
         Display(
             DisplayManagerGlobal.getInstance(),
-            /* displayId= */ 2,
+            /* displayId= */ THIS_DISPLAY_ID,
             testDisplayInfo,
             DisplayAdjustments.DEFAULT_DISPLAY_ADJUSTMENTS,
         )
@@ -65,6 +70,8 @@ class DisplayWallpaperPresentationInteractorTest : SysuiTestCase() {
             keyguardInteractor = { deviceUnlockedInteractor },
             deviceProvisioningRepository = { deviceProvisioningRepository },
             keyguardDisplayManager = { keyguardDisplayManager },
+            shadeDisplaysInteractor = { kosmos.shadeDisplaysInteractor },
+            displayRepository = { kosmos.displayRepository },
         )
 
     @Before
@@ -133,4 +140,46 @@ class DisplayWallpaperPresentationInteractorTest : SysuiTestCase() {
             val actual by collectLastValue(wallpaperPresentationInteractor.presentationFactoryFlow)
             assertThat(actual).isEqualTo(NONE)
         }
+
+    @Test
+    fun presentationFactoryFlow_shadeMovesToCurrentDisplay_none() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(isShowing = true)
+            deviceProvisioningRepository.setDeviceProvisioned(true)
+
+            val actual by collectLastValue(wallpaperPresentationInteractor.presentationFactoryFlow)
+            assertThat(actual).isEqualTo(KEYGUARD)
+
+            fakeShadeDisplaysRepository.setPendingDisplayId(THIS_DISPLAY_ID)
+
+            assertThat(actual).isEqualTo(NONE)
+        }
+
+    @Test
+    fun presentationFactoryFlow_dreamingWithOverlay_mirroring_none() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(isShowing = true)
+            fakeKeyguardRepository.setDreamingWithOverlay(true)
+            fakeDisplayRepository.isMirroringEnabled.value = true
+            deviceProvisioningRepository.setDeviceProvisioned(true)
+
+            val actual by collectLastValue(wallpaperPresentationInteractor.presentationFactoryFlow)
+            assertThat(actual).isEqualTo(NONE)
+        }
+
+    @Test
+    fun presentationFactoryFlow_dreamingWithOverlay_notMirroring_keyguard() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(isShowing = true)
+            fakeKeyguardRepository.setDreamingWithOverlay(true)
+            fakeDisplayRepository.isMirroringEnabled.value = false
+            deviceProvisioningRepository.setDeviceProvisioned(true)
+
+            val actual by collectLastValue(wallpaperPresentationInteractor.presentationFactoryFlow)
+            assertThat(actual).isEqualTo(KEYGUARD)
+        }
+
+    private companion object {
+        const val THIS_DISPLAY_ID = 2
+    }
 }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package com.android.internal.widget.remotecompose.core.operations;
+
 import android.annotation.NonNull;
 
 /** Utilities to be used across all core operations */
@@ -103,16 +104,16 @@ public class Utils {
     /**
      * print the id and the value of a float
      *
-     * @param idvalue
+     * @param idValue
      * @param value
      * @return
      */
-    public static @NonNull String floatToString(float idvalue, float value) {
-        if (Float.isNaN(idvalue)) {
+    public static @NonNull String floatToString(float idValue, float value) {
+        if (Float.isNaN(idValue)) {
             if (idFromNan(value) == 0) {
                 return "NaN";
             }
-            return "[" + idFromNan(idvalue) + "]" + floatToString(value);
+            return "[" + idFromNan(idValue) + "]" + floatToString(value);
         }
         return floatToString(value);
     }

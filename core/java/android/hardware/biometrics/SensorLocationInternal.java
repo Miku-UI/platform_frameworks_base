@@ -19,6 +19,10 @@ package android.hardware.biometrics;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Rect;
+import android.hardware.biometrics.fingerprint.SensorLocationData;
+import android.hardware.biometrics.fingerprint.location.PhysicalSensorLocation;
+import android.hardware.biometrics.fingerprint.location.PowerButtonDisplayLocation;
+import android.hardware.biometrics.fingerprint.location.UnderDisplayLocation;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -62,12 +66,51 @@ public class SensorLocationInternal implements Parcelable {
      */
     public final int sensorRadius;
 
+    /**
+     * The specified location data for the sensor
+     * May be null for legacy HALs.
+     */
+    @Nullable
+    public final SensorLocationData sensorLocationData;
+
     public SensorLocationInternal(@Nullable String displayId,
             int sensorLocationX, int sensorLocationY, int sensorRadius) {
+        this(displayId, sensorLocationX, sensorLocationY, sensorRadius, null);
+    }
+
+    public SensorLocationInternal(@Nullable String displayId,
+            int sensorLocationX, int sensorLocationY, int sensorRadius,
+            @Nullable SensorLocationData sensorLocationData) {
         this.displayId = displayId != null ? displayId : "";
-        this.sensorLocationX = sensorLocationX;
-        this.sensorLocationY = sensorLocationY;
-        this.sensorRadius = sensorRadius;
+        this.sensorLocationData = sensorLocationData;
+
+        if (sensorLocationData != null) {
+            switch (sensorLocationData.getTag()) {
+                case SensorLocationData.underDisplayLocation:
+                    UnderDisplayLocation udfpsLocation =
+                            sensorLocationData.getUnderDisplayLocation();
+                    this.sensorLocationX = udfpsLocation.sensorLocationXPixels;
+                    this.sensorLocationY = udfpsLocation.sensorLocationYPixels;
+                    this.sensorRadius = udfpsLocation.sensorRadiusPixels;
+                    break;
+                case SensorLocationData.powerButtonDisplayLocation:
+                    PowerButtonDisplayLocation sfpsLocation =
+                            sensorLocationData.getPowerButtonDisplayLocation();
+                    this.sensorLocationX = sfpsLocation.sensorLocationXPixels;
+                    this.sensorLocationY = sfpsLocation.sensorLocationYPixels;
+                    this.sensorRadius = sfpsLocation.sensorRadiusPixels;
+                    break;
+                default:
+                    this.sensorLocationX = 0;
+                    this.sensorLocationY = 0;
+                    this.sensorRadius = 0;
+                    break;
+            }
+        } else {
+            this.sensorLocationX = sensorLocationX;
+            this.sensorLocationY = sensorLocationY;
+            this.sensorRadius = sensorRadius;
+        }
     }
 
     protected SensorLocationInternal(Parcel in) {
@@ -75,6 +118,42 @@ public class SensorLocationInternal implements Parcelable {
         sensorLocationX = in.readInt();
         sensorLocationY = in.readInt();
         sensorRadius = in.readInt();
+        sensorLocationData = in.readTypedObject(SensorLocationData.CREATOR);
+    }
+
+    /**
+     * Returns the physical location of a standalone sensor.
+     *
+     * @return {@link PhysicalSensorLocation} when available or
+     * {@link PhysicalSensorLocation#UNKNOWN}.
+     */
+    public byte getStandalonePhysicalLocation() {
+        if (sensorLocationData != null
+                && sensorLocationData.getTag() == SensorLocationData.standaloneLocation) {
+            return sensorLocationData.getStandaloneLocation().location;
+        }
+        return PhysicalSensorLocation.UNKNOWN;
+    }
+
+    /**
+     * Returns the physical location of the sensor by checking all supported
+     * physical placement types. This includes standalone location and power button physical
+     * location.
+     *
+     * @return {@link PhysicalSensorLocation} when available or
+     * {@link PhysicalSensorLocation#UNKNOWN}.
+     */
+    public byte getPhysicalSensorLocation() {
+        if (sensorLocationData == null) {
+            return PhysicalSensorLocation.UNKNOWN;
+        }
+        return switch (sensorLocationData.getTag()) {
+            case SensorLocationData.standaloneLocation ->
+                    sensorLocationData.getStandaloneLocation().location;
+            case SensorLocationData.powerButtonPhysicalLocation ->
+                    sensorLocationData.getPowerButtonPhysicalLocation().location;
+            default -> PhysicalSensorLocation.UNKNOWN;
+        };
     }
 
     @Override
@@ -83,6 +162,7 @@ public class SensorLocationInternal implements Parcelable {
         dest.writeInt(sensorLocationX);
         dest.writeInt(sensorLocationY);
         dest.writeInt(sensorRadius);
+        dest.writeTypedObject(sensorLocationData, flags);
     }
 
     @Override
@@ -108,7 +188,8 @@ public class SensorLocationInternal implements Parcelable {
         return "[id: " + displayId
                 + ", x: " + sensorLocationX
                 + ", y: " + sensorLocationY
-                + ", r: " + sensorRadius + "]";
+                + ", r: " + sensorRadius
+                + ", locationData: " + sensorLocationData + "]";
     }
 
     /** Returns coordinates of a bounding box around the sensor. */

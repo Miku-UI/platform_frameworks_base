@@ -71,7 +71,7 @@ import java.util.function.Consumer;
  *        mClient.close()
  *    }
  *
- * }</pre>
+ * }}</pre>
  *
  * @hide
  */
@@ -155,7 +155,7 @@ public final class AppPredictor {
      * Requests the prediction service provide continuous updates of App predictions via the
      * provided callback, until the given callback is unregistered.
      *
-     * @see Callback#onTargetsAvailable(List).
+     * @see Callback#onTargetsAvailable(List)
      *
      * @param callbackExecutor The callback executor to use when calling the callback.
      * @param callback The Callback to be called when updates of App predictions are available.
@@ -227,7 +227,7 @@ public final class AppPredictor {
      * Requests the prediction service to dispatch a new set of App predictions via the provided
      * callback.
      *
-     * @see Callback#onTargetsAvailable(List).
+     * @see Callback#onTargetsAvailable(List)
      */
     public void requestPredictionUpdate() {
         if (mIsClosed.get()) {

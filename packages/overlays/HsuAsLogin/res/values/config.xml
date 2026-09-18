@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!-- Standard configuration for devices running in Headless System User Mode
+     in which the Headless System User (user 0) acts as a login screen. -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- Whether switching to the headless system user is allowed.
+         If allowed, the headless system user can run in the foreground even though it is not a
+         full user. However, it is not a human user, and may not show up in the list of human users.
+         It is expected that, if true, its UI always provides a way to switch to a human user (and
+         create one if one doesn't already exist).
+         This config is only relevant on Headless System User Mode (HSUM) devices. -->
+  <bool name="config_canSwitchToHeadlessSystemUser">true</bool>
+
+    <!-- Indicates the boot strategy in Headless System User Mode (HSUM)
+         This config has no effect if the device is not in HSUM.
+         0 : boot to the previous foreground user if there is one, otherwise the first switchable user.
+         1 : boot to the first switchable full user for initial boot (unprovisioned device), else to the headless system user, i.e. user 0. -->
+    <integer name="config_hsumBootStrategy">1</integer>
+
+</resources>

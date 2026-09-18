@@ -28,6 +28,7 @@ import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.util.kotlin.JavaAdapter;
 import com.android.systemui.volume.domain.interactor.AudioSharingInteractor;
 import com.android.systemui.volume.shared.VolumeLogger;
+import com.android.systemui.volume.ui.navigation.VolumeNavigator;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
@@ -48,6 +49,7 @@ public class VolumeUI implements CoreStartable, ConfigurationController.Configur
     private AudioRepository mAudioRepository;
     private JavaAdapter mJavaAdapter;
     private VolumeLogger mVolumeLogger;
+    private final VolumeNavigator mVolumeNavigator;
 
     @Inject
     public VolumeUI(Context context,
@@ -55,13 +57,15 @@ public class VolumeUI implements CoreStartable, ConfigurationController.Configur
                     AudioRepository audioRepository,
                     AudioSharingInteractor audioSharingInteractor,
                     JavaAdapter javaAdapter,
-                    VolumeLogger volumeLogger) {
+                    VolumeLogger volumeLogger,
+                    VolumeNavigator volumeNavigator) {
         mContext = context;
         mVolumeComponent = volumeDialogComponent;
         mAudioRepository = audioRepository;
         mAudioSharingInteractor = audioSharingInteractor;
         mJavaAdapter = javaAdapter;
         mVolumeLogger = volumeLogger;
+        mVolumeNavigator = volumeNavigator;
     }
 
     @Override
@@ -72,6 +76,7 @@ public class VolumeUI implements CoreStartable, ConfigurationController.Configur
         mEnabled = enableVolumeUi || enableSafetyWarning;
         if (!mEnabled) return;
 
+        mVolumeNavigator.start();
         mVolumeComponent.setEnableDialogs(enableVolumeUi, enableSafetyWarning);
         setDefaultVolumeController();
         Function1<Throwable, Unit> errorCallback = (ex) -> {

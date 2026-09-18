@@ -32,16 +32,16 @@ import com.android.wm.shell.sysui.ShellInit
 import java.io.PrintWriter
 import java.util.Arrays
 
-/**
- * Helper for multi-instance related checks.
- */
-class MultiInstanceHelper @JvmOverloads constructor(
+/** Helper for multi-instance related checks. */
+class MultiInstanceHelper
+@JvmOverloads
+constructor(
     private val context: Context,
     private val packageManager: PackageManager,
-    private val staticAppsSupportingMultiInstance: Array<String> = context.resources
-            .getStringArray(R.array.config_appsSupportMultiInstancesSplit),
+    private val staticAppsSupportingMultiInstance: Array<String> =
+        context.resources.getStringArray(R.array.config_appsSupportMultiInstancesSplit),
     shellInit: ShellInit,
-    private val shellCommandHandler: ShellCommandHandler
+    private val shellCommandHandler: ShellCommandHandler,
 ) : ShellCommandHandler.ShellCommandActionHandler {
 
     init {
@@ -52,9 +52,7 @@ class MultiInstanceHelper @JvmOverloads constructor(
         shellCommandHandler.addCommandCallback("multi-instance", this, this)
     }
 
-    /**
-     * Returns whether a specific component desires to be launched in multiple instances.
-     */
+    /** Returns whether a specific component desires to be launched in multiple instances. */
     fun supportsMultiInstanceSplit(componentName: ComponentName?, @UserIdInt userId: Int): Boolean {
         if (componentName == null || componentName.packageName == null) {
             // TODO(b/262864589): Handle empty component case
@@ -65,25 +63,37 @@ class MultiInstanceHelper @JvmOverloads constructor(
         val packageName = componentName.packageName
         for (pkg in staticAppsSupportingMultiInstance) {
             if (pkg == packageName) {
-                ProtoLog.v(WM_SHELL, "application=%s in allowlist supports multi-instance",
-                    packageName)
+                ProtoLog.v(
+                    WM_SHELL,
+                    "application=%s in allowlist supports multi-instance",
+                    packageName,
+                )
                 return true
             }
         }
 
         // Check the activity property first
         try {
-            val activityProp = packageManager.getPropertyAsUser(
-                PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI, componentName.packageName,
-                componentName.className, userId)
+            val activityProp =
+                packageManager.getPropertyAsUser(
+                    PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI,
+                    componentName.packageName,
+                    componentName.className,
+                    userId,
+                )
             // If the above call doesn't throw a NameNotFoundException, then the activity property
             // should override the application property value
             if (activityProp.isBoolean) {
                 ProtoLog.v(WM_SHELL, "activity=%s supports multi-instance", componentName)
                 return activityProp.boolean
             } else {
-                ProtoLog.w(WM_SHELL, "Warning: property=%s for activity=%s has non-bool type=%d",
-                    PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI, packageName, activityProp.type)
+                ProtoLog.w(
+                    WM_SHELL,
+                    "Warning: property=$PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI " +
+                        "for activity=%s has non-bool type=%d",
+                    packageName,
+                    activityProp.type,
+                )
             }
         } catch (nnfe: PackageManager.NameNotFoundException) {
             // Not specified in the activity, fall through
@@ -91,16 +101,24 @@ class MultiInstanceHelper @JvmOverloads constructor(
 
         // Check the application property otherwise
         try {
-            val appProp = packageManager.getPropertyAsUser(
-                PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI, packageName, null /* className */,
-                userId)
+            val appProp =
+                packageManager.getPropertyAsUser(
+                    PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI,
+                    packageName,
+                    null /* className */,
+                    userId,
+                )
             if (appProp.isBoolean) {
                 ProtoLog.v(WM_SHELL, "application=%s supports multi-instance", packageName)
                 return appProp.boolean
             } else {
-                ProtoLog.w(WM_SHELL,
-                    "Warning: property=%s for application=%s has non-bool type=%d",
-                    PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI, packageName, appProp.type)
+                ProtoLog.w(
+                    WM_SHELL,
+                    "Warning: property=$PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI " +
+                        "for application=%s has non-bool type=%d",
+                    packageName,
+                    appProp.type,
+                )
             }
         } catch (nnfe: PackageManager.NameNotFoundException) {
             // Not specified in either application or activity
@@ -128,31 +146,31 @@ class MultiInstanceHelper @JvmOverloads constructor(
      */
     private fun dumpSupportedApps(pw: PrintWriter): Boolean {
         pw.println("Static allow list (for all users):")
-        staticAppsSupportingMultiInstance.forEach { pkg ->
-            pw.println("  $pkg")
-        }
+        staticAppsSupportingMultiInstance.forEach { pkg -> pw.println("  $pkg") }
 
         // TODO(b/391693747): Dump this per-user once PM allows us to query properties
         //                    for non-calling users
-        val apps = packageManager.queryApplicationProperty(
-            PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI)
-        val activities = packageManager.queryActivityProperty(
-            PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI)
-        val appsWithProperty = (apps + activities)
-            .sortedWith(object : Comparator<Property?> {
-                override fun compare(o1: Property?, o2: Property?): Int {
-                    if (o1?.packageName != o2?.packageName) {
-                        return o1?.packageName!!.compareTo(o2?.packageName!!)
-                    } else {
-                        if (o1?.className != null) {
-                            return o1.className!!.compareTo(o2?.className!!)
-                        } else if (o2?.className != null) {
-                            return -o2.className!!.compareTo(o1?.className!!)
+        val apps =
+            packageManager.queryApplicationProperty(PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI)
+        val activities =
+            packageManager.queryActivityProperty(PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI)
+        val appsWithProperty =
+            (apps + activities).sortedWith(
+                object : Comparator<Property?> {
+                    override fun compare(o1: Property?, o2: Property?): Int {
+                        if (o1?.packageName != o2?.packageName) {
+                            return o1?.packageName!!.compareTo(o2?.packageName!!)
+                        } else {
+                            if (o1?.className != null) {
+                                return o1.className!!.compareTo(o2?.className!!)
+                            } else if (o2?.className != null) {
+                                return -o2.className!!.compareTo(o1?.className!!)
+                            }
+                            return 0
                         }
-                        return 0
                     }
                 }
-            })
+            )
         if (appsWithProperty.isNotEmpty()) {
             pw.println("Apps (User ${context.userId}):")
             appsWithProperty.forEach { prop ->
@@ -169,16 +187,20 @@ class MultiInstanceHelper @JvmOverloads constructor(
     }
 
     companion object {
-        /** Returns the component from a PendingIntent  */
+        /** Returns the component from a PendingIntent. */
         @JvmStatic
         fun getComponent(pendingIntent: PendingIntent?): ComponentName? {
             return pendingIntent?.intent?.component
         }
 
-        /** Returns the component from a shortcut  */
+        /** Returns the component from a shortcut. */
         @JvmStatic
-        fun getShortcutComponent(packageName: String, shortcutId: String,
-                user: UserHandle, launcherApps: LauncherApps): ComponentName? {
+        fun getShortcutComponent(
+            packageName: String,
+            shortcutId: String,
+            user: UserHandle,
+            launcherApps: LauncherApps,
+        ): ComponentName? {
             val query = LauncherApps.ShortcutQuery()
             query.setPackage(packageName)
             query.setShortcutIds(Arrays.asList(shortcutId))
@@ -186,13 +208,6 @@ class MultiInstanceHelper @JvmOverloads constructor(
             val shortcuts = launcherApps.getShortcuts(query, user)
             val info = if (shortcuts != null && shortcuts.size > 0) shortcuts[0] else null
             return info?.activity
-        }
-
-        /** Returns true if package names and user ids match.  */
-        @JvmStatic
-        fun samePackage(packageName1: String?, packageName2: String?,
-                userId1: Int, userId2: Int): Boolean {
-            return (packageName1 != null && packageName1 == packageName2) && (userId1 == userId2)
         }
     }
 }

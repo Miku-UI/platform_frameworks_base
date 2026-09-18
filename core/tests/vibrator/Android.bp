@@ -4,8 +4,9 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-android_test {
-    name: "FrameworksVibratorCoreTests",
+java_defaults {
+    name: "FrameworksVibratorCoreTestsDefaults",
+    visibility: ["//visibility:private"],
 
     srcs: [
         "src/**/*.java",
@@ -19,7 +20,6 @@ android_test {
         "androidx.test.runner",
         "androidx.test.rules",
         "flag-junit",
-        "mockito-target-minus-junit4",
         "truth",
         "testng",
     ],
@@ -37,6 +37,19 @@ android_test {
         "device-tests",
         "automotive-tests",
     ],
+}
 
+android_test {
+    name: "FrameworksVibratorCoreTests",
+    defaults: ["FrameworksVibratorCoreTestsDefaults"],
+    static_libs: [
+        "mockito-target-minus-junit4",
+        "ravenwood-junit",
+    ],
     certificate: "platform",
+}
+
+android_ravenwood_test {
+    name: "FrameworksVibratorCoreTestsRavenwood",
+    defaults: ["FrameworksVibratorCoreTestsDefaults"],
 }

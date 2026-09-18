@@ -26,7 +26,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.statusbar.notification.collection.notifcollection.CommonNotifCollection
 import com.android.systemui.statusbar.notification.collection.notifcollection.NotifCollectionListener
-import com.android.systemui.statusbar.phone.CentralSurfaces
 import javax.inject.Inject
 
 @SysUISingleton
@@ -56,7 +55,7 @@ class TargetSdkResolver @Inject constructor(@Application private val context: Co
         )
 
     private fun getApplicationInfoFromPackageManager(sbn: StatusBarNotification): ApplicationInfo? {
-        val pmUser = CentralSurfaces.getPackageManagerForUser(context, sbn.user.identifier)
+        val pmUser = sbn.getPackageManagerForUser(context)
 
         return try {
             pmUser.getApplicationInfo(sbn.packageName, 0)

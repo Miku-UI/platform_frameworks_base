@@ -125,7 +125,7 @@ public class ColorInversionTile extends QSTileImpl<BooleanState> {
     @Override
     protected void handleUpdateState(BooleanState state, Object arg) {
         final int value = arg instanceof Integer ? (Integer) arg : mSetting.getValue();
-        final boolean enabled = value != 0;
+        final boolean enabled = value == 1;
         state.value = enabled;
         state.state = state.value ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE;
         state.label = mContext.getString(R.string.quick_settings_inversion_label);

@@ -17,7 +17,6 @@
 package android.app.usage;
 
 import android.annotation.CurrentTimeMillisLong;
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.UserIdInt;
 import android.app.usage.UsageEvents.Event;
@@ -38,7 +37,6 @@ import java.util.Set;
  * An Object-Oriented representation for a {@link UsageEvents} query.
  * Used by {@link UsageStatsManager#queryEvents(UsageEventsQuery)} call.
  */
-@FlaggedApi(Flags.FLAG_FILTER_BASED_EVENT_QUERY_API)
 public final class UsageEventsQuery implements Parcelable {
     private final @CurrentTimeMillisLong long mBeginTimeMillis;
     private final @CurrentTimeMillisLong long mEndTimeMillis;

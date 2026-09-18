@@ -35,10 +35,14 @@ import com.android.systemui.Dumpable
 import com.android.systemui.StatusBarInsetsCommand
 import com.android.systemui.SysUICutoutInformation
 import com.android.systemui.SysUICutoutProvider
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAwareStatusBar
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.commandline.CommandRegistry
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
+import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController
 import com.android.systemui.statusbar.policy.CallbackController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.util.leak.RotationUtils.ROTATION_LANDSCAPE
@@ -48,12 +52,10 @@ import com.android.systemui.util.leak.RotationUtils.ROTATION_UPSIDE_DOWN
 import com.android.systemui.util.leak.RotationUtils.Rotation
 import com.android.systemui.util.leak.RotationUtils.getExactRotation
 import com.android.systemui.util.leak.RotationUtils.getResourcesForRotation
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
 import java.io.PrintWriter
 import java.lang.Math.max
 import java.util.concurrent.CopyOnWriteArraySet
+import javax.inject.Inject
 
 /**
  * Encapsulates logic that can solve for the left/right insets required for the status bar contents.
@@ -132,34 +134,23 @@ interface StatusBarContentInsetsProvider :
     fun getStatusBarContentAreaForCurrentRotation(): Rect
 
     fun getStatusBarPaddingTop(@Rotation rotation: Int? = null): Int
-
-    interface Factory {
-        fun create(
-            context: Context,
-            configurationController: ConfigurationController,
-            sysUICutoutProvider: SysUICutoutProvider,
-        ): StatusBarContentInsetsProvider
-    }
 }
 
+@PerDisplaySingleton
 class StatusBarContentInsetsProviderImpl
-@AssistedInject
+@Inject
 constructor(
-    @Assisted val context: Context,
-    @Assisted val configurationController: ConfigurationController,
+    @DisplayAwareStatusBar val context: Context,
+    @DisplayAware val configurationController: StatusBarConfigurationController,
     val dumpManager: DumpManager,
     val commandRegistry: CommandRegistry,
-    @Assisted val sysUICutoutProvider: SysUICutoutProvider,
-) : StatusBarContentInsetsProvider, ConfigurationController.ConfigurationListener, Dumpable {
-
-    @AssistedFactory
-    interface Factory : StatusBarContentInsetsProvider.Factory {
-        override fun create(
-            context: Context,
-            configurationController: ConfigurationController,
-            sysUICutoutProvider: SysUICutoutProvider,
-        ): StatusBarContentInsetsProviderImpl
-    }
+    @DisplayAware val sysUICutoutProvider: SysUICutoutProvider,
+    @DisplayAware val displayId: Int,
+) :
+    StatusBarContentInsetsProvider,
+    ConfigurationController.ConfigurationListener,
+    Dumpable,
+    SystemUIDisplaySubcomponent.LifecycleListener {
 
     // Limit cache size as potentially we may connect large number of displays
     // (e.g. network displays)
@@ -170,18 +161,9 @@ constructor(
             context.resources.getBoolean(R.bool.config_enablePrivacyDot)
         }
 
-    private val nameSuffix =
-        if (context.displayId == DEFAULT_DISPLAY) "" else context.displayId.toString()
+    private val nameSuffix = if (displayId == DEFAULT_DISPLAY) "" else displayId.toString()
     private val dumpableName = TAG + nameSuffix
     private val commandName = StatusBarInsetsCommand.NAME + nameSuffix
-
-    init {
-        if (!StatusBarConnectedDisplays.isEnabled) {
-            // Call start(), since it is not called when the flag is disabled, to keep the old
-            // behavior as it was.
-            start()
-        }
-    }
 
     override fun start() {
         configurationController.addCallback(this)
@@ -201,7 +183,6 @@ constructor(
     }
 
     override fun stop() {
-        StatusBarConnectedDisplays.unsafeAssertInNewMode()
         configurationController.removeCallback(this)
         dumpManager.unregisterDumpable(dumpableName)
         commandRegistry.unregisterCommand(commandName)
@@ -332,7 +313,7 @@ constructor(
         val currentRotation = getExactRotation(context)
 
         val roundedCornerPadding =
-            if (context.displayId == DEFAULT_DISPLAY || !StatusBarConnectedDisplays.isEnabled) {
+            if (displayId == DEFAULT_DISPLAY) {
                 rotatedResources.getDimensionPixelSize(R.dimen.rounded_corner_content_padding)
             } else {
                 // Currently the padding is hardcoded for each device default display, and there is

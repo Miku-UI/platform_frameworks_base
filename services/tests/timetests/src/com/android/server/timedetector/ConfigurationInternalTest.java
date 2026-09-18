@@ -53,32 +53,35 @@ public class ConfigurationInternalTest {
     private static final Instant ARBITRARY_SUGGESTION_LOWER_BOUND = Instant.ofEpochMilli(0);
     private static final Instant ARBITRARY_SUGGESTION_UPPER_BOUND =
             Instant.ofEpochMilli(Long.MAX_VALUE);
-    private static final @Origin int[] ARBITRARY_ORIGIN_PRIORITIES = { ORIGIN_NETWORK };
+    private static final @Origin int[] ARBITRARY_ORIGIN_PRIORITIES = {ORIGIN_NETWORK};
 
     /**
      * Tests {@link TimeCapabilitiesAndConfig} behavior in different scenarios when auto detection
      * is supported.
      */
     @Test
-    @Parameters({ "true,true", "true,false", "false,true", "false,false" })
+    @Parameters({"true,true", "true,false", "false,true", "false,false"})
     public void test_autoDetectionSupported_capabilitiesAndConfiguration(
             boolean userConfigAllowed, boolean bypassUserPolicyChecks) {
-        ConfigurationInternal baseConfig = new ConfigurationInternal.Builder(ARBITRARY_USER_ID)
-                .setUserConfigAllowed(userConfigAllowed)
-                .setAutoDetectionSupported(true)
-                .setSystemClockUpdateThresholdMillis(ARBITRARY_SYSTEM_CLOCK_UPDATE_THRESHOLD_MILLIS)
-                .setAutoSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
-                .setManualSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
-                .setSuggestionUpperBound(ARBITRARY_SUGGESTION_UPPER_BOUND)
-                .setOriginPriorities(ARBITRARY_ORIGIN_PRIORITIES)
-                .setAutoDetectionEnabledSetting(true)
-                .build();
+        ConfigurationInternal baseConfig =
+                new ConfigurationInternal.Builder(ARBITRARY_USER_ID)
+                        .setUserConfigAllowed(userConfigAllowed)
+                        .setAutoDetectionSupported(true)
+                        .setSystemClockUpdateThresholdMillis(
+                                ARBITRARY_SYSTEM_CLOCK_UPDATE_THRESHOLD_MILLIS)
+                        .setAutoSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
+                        .setManualSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
+                        .setSuggestionUpperBound(ARBITRARY_SUGGESTION_UPPER_BOUND)
+                        .setOriginPriorities(ARBITRARY_ORIGIN_PRIORITIES)
+                        .setAutoDetectionEnabledSetting(true)
+                        .build();
 
         boolean userRestrictionsExpected = !(userConfigAllowed || bypassUserPolicyChecks);
         {
-            ConfigurationInternal autoOnConfig = new ConfigurationInternal.Builder(baseConfig)
-                    .setAutoDetectionEnabledSetting(true)
-                    .build();
+            ConfigurationInternal autoOnConfig =
+                    new ConfigurationInternal.Builder(baseConfig)
+                            .setAutoDetectionEnabledSetting(true)
+                            .build();
             assertTrue(autoOnConfig.getAutoDetectionEnabledSetting());
             assertTrue(autoOnConfig.getAutoDetectionEnabledBehavior());
 
@@ -87,11 +90,13 @@ public class ConfigurationInternalTest {
 
             TimeCapabilities capabilities = capabilitiesAndConfig.getCapabilities();
             if (userRestrictionsExpected) {
-                assertEquals(CAPABILITY_NOT_ALLOWED,
+                assertEquals(
+                        CAPABILITY_NOT_ALLOWED,
                         capabilities.getConfigureAutoDetectionEnabledCapability());
                 assertEquals(CAPABILITY_NOT_ALLOWED, capabilities.getSetManualTimeCapability());
             } else {
-                assertEquals(CAPABILITY_POSSESSED,
+                assertEquals(
+                        CAPABILITY_POSSESSED,
                         capabilities.getConfigureAutoDetectionEnabledCapability());
                 assertEquals(CAPABILITY_NOT_APPLICABLE, capabilities.getSetManualTimeCapability());
             }
@@ -101,9 +106,10 @@ public class ConfigurationInternalTest {
         }
 
         {
-            ConfigurationInternal autoOffConfig = new ConfigurationInternal.Builder(baseConfig)
-                    .setAutoDetectionEnabledSetting(false)
-                    .build();
+            ConfigurationInternal autoOffConfig =
+                    new ConfigurationInternal.Builder(baseConfig)
+                            .setAutoDetectionEnabledSetting(false)
+                            .build();
             assertFalse(autoOffConfig.getAutoDetectionEnabledSetting());
             assertFalse(autoOffConfig.getAutoDetectionEnabledBehavior());
 
@@ -112,14 +118,15 @@ public class ConfigurationInternalTest {
 
             TimeCapabilities capabilities = capabilitiesAndConfig.getCapabilities();
             if (userRestrictionsExpected) {
-                assertEquals(CAPABILITY_NOT_ALLOWED,
+                assertEquals(
+                        CAPABILITY_NOT_ALLOWED,
                         capabilities.getConfigureAutoDetectionEnabledCapability());
                 assertEquals(CAPABILITY_NOT_ALLOWED, capabilities.getSetManualTimeCapability());
             } else {
-                assertEquals(CAPABILITY_POSSESSED,
+                assertEquals(
+                        CAPABILITY_POSSESSED,
                         capabilities.getConfigureAutoDetectionEnabledCapability());
-                assertEquals(CAPABILITY_POSSESSED,
-                        capabilities.getSetManualTimeCapability());
+                assertEquals(CAPABILITY_POSSESSED, capabilities.getSetManualTimeCapability());
             }
             TimeConfiguration configuration = capabilitiesAndConfig.getConfiguration();
             assertFalse(configuration.isAutoDetectionEnabled());
@@ -131,26 +138,29 @@ public class ConfigurationInternalTest {
      * is not supported.
      */
     @Test
-    @Parameters({ "true,true", "true,false", "false,true", "false,false" })
+    @Parameters({"true,true", "true,false", "false,true", "false,false"})
     public void test_autoDetectNotSupported_capabilitiesAndConfiguration(
             boolean userConfigAllowed, boolean bypassUserPolicyChecks) {
-        ConfigurationInternal baseConfig = new ConfigurationInternal.Builder(ARBITRARY_USER_ID)
-                .setUserConfigAllowed(userConfigAllowed)
-                .setAutoDetectionSupported(false)
-                .setSystemClockUpdateThresholdMillis(ARBITRARY_SYSTEM_CLOCK_UPDATE_THRESHOLD_MILLIS)
-                .setAutoSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
-                .setManualSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
-                .setSuggestionUpperBound(ARBITRARY_SUGGESTION_UPPER_BOUND)
-                .setOriginPriorities(ARBITRARY_ORIGIN_PRIORITIES)
-                .setAutoDetectionEnabledSetting(true)
-                .build();
+        ConfigurationInternal baseConfig =
+                new ConfigurationInternal.Builder(ARBITRARY_USER_ID)
+                        .setUserConfigAllowed(userConfigAllowed)
+                        .setAutoDetectionSupported(false)
+                        .setSystemClockUpdateThresholdMillis(
+                                ARBITRARY_SYSTEM_CLOCK_UPDATE_THRESHOLD_MILLIS)
+                        .setAutoSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
+                        .setManualSuggestionLowerBound(ARBITRARY_SUGGESTION_LOWER_BOUND)
+                        .setSuggestionUpperBound(ARBITRARY_SUGGESTION_UPPER_BOUND)
+                        .setOriginPriorities(ARBITRARY_ORIGIN_PRIORITIES)
+                        .setAutoDetectionEnabledSetting(true)
+                        .build();
         boolean userRestrictionsExpected = !(userConfigAllowed || bypassUserPolicyChecks);
 
         // Auto-detection enabled.
         {
-            ConfigurationInternal autoOnConfig = new ConfigurationInternal.Builder(baseConfig)
-                    .setAutoDetectionEnabledSetting(true)
-                    .build();
+            ConfigurationInternal autoOnConfig =
+                    new ConfigurationInternal.Builder(baseConfig)
+                            .setAutoDetectionEnabledSetting(true)
+                            .build();
             assertTrue(autoOnConfig.getAutoDetectionEnabledSetting());
             assertFalse(autoOnConfig.getAutoDetectionEnabledBehavior());
 
@@ -158,7 +168,8 @@ public class ConfigurationInternalTest {
                     autoOnConfig.createCapabilitiesAndConfig(bypassUserPolicyChecks);
 
             TimeCapabilities capabilities = capabilitiesAndConfig.getCapabilities();
-            assertEquals(CAPABILITY_NOT_SUPPORTED,
+            assertEquals(
+                    CAPABILITY_NOT_SUPPORTED,
                     capabilities.getConfigureAutoDetectionEnabledCapability());
             if (userRestrictionsExpected) {
                 assertEquals(CAPABILITY_NOT_ALLOWED, capabilities.getSetManualTimeCapability());
@@ -172,9 +183,10 @@ public class ConfigurationInternalTest {
 
         // Auto-detection disabled.
         {
-            ConfigurationInternal autoOffConfig = new ConfigurationInternal.Builder(baseConfig)
-                    .setAutoDetectionEnabledSetting(false)
-                    .build();
+            ConfigurationInternal autoOffConfig =
+                    new ConfigurationInternal.Builder(baseConfig)
+                            .setAutoDetectionEnabledSetting(false)
+                            .build();
             assertFalse(autoOffConfig.getAutoDetectionEnabledSetting());
             assertFalse(autoOffConfig.getAutoDetectionEnabledBehavior());
 
@@ -182,7 +194,8 @@ public class ConfigurationInternalTest {
                     autoOffConfig.createCapabilitiesAndConfig(bypassUserPolicyChecks);
 
             TimeCapabilities capabilities = capabilitiesAndConfig.getCapabilities();
-            assertEquals(CAPABILITY_NOT_SUPPORTED,
+            assertEquals(
+                    CAPABILITY_NOT_SUPPORTED,
                     capabilities.getConfigureAutoDetectionEnabledCapability());
             if (userRestrictionsExpected) {
                 assertEquals(CAPABILITY_NOT_ALLOWED, capabilities.getSetManualTimeCapability());

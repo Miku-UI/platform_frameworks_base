@@ -26,6 +26,7 @@ import com.android.systemui.dreams.shared.model.WhenToDream
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.data.repository.userAwareSecureSettingsRepository
@@ -43,7 +44,14 @@ class DreamSettingsRepositoryImplTest : SysuiTestCase() {
             .apply { mainResources = mContext.orCreateTestableResources.resources }
             .useUnconfinedTestDispatcher()
 
-    private val Kosmos.underTest by Kosmos.Fixture { dreamSettingsRepository }
+    private val Kosmos.underTest by
+        Kosmos.Fixture {
+            DreamSettingsRepositoryImpl(
+                bgDispatcher = testDispatcher,
+                resources = mainResources,
+                secureSettingsRepository = userAwareSecureSettingsRepository,
+            )
+        }
 
     @Before
     fun setUp() {

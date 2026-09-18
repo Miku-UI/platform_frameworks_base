@@ -36,8 +36,8 @@ void CanvasOpBuffer::output(std::ostream& output, uint32_t level) const {
 }
 
 bool CanvasOpBuffer::prepareListAndChildren(
-            TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-            std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn) {
+        TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
+        std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)> childFn) {
     LOG_ALWAYS_FATAL("TODO");
     return false;
 }

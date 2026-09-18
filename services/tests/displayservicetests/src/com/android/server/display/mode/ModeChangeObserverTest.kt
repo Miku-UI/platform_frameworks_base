@@ -87,9 +87,9 @@ public class ModeChangeObserverTest {
         val vote = newVotes.get(Vote.PRIORITY_REJECTED_MODES)
         assertThat(vote).isInstanceOf(RejectedModesVote::class.java)
         val rejectedModesVote = vote as RejectedModesVote
-        assertThat(rejectedModesVote.mModeIds.size).isEqualTo(rejectedModes.size)
-        assertThat(rejectedModesVote.mModeIds).contains(MODE_ID_1)
-        assertThat(rejectedModesVote.mModeIds).contains(MODE_ID_2)
+        assertThat(rejectedModesVote.mSfModeIds.size).isEqualTo(rejectedModes.size)
+        assertThat(rejectedModesVote.mSfModeIds).contains(MODE_ID_1)
+        assertThat(rejectedModesVote.mSfModeIds).contains(MODE_ID_2)
     }
 
     @Test
@@ -107,8 +107,8 @@ public class ModeChangeObserverTest {
         val vote = newVotes.get(Vote.PRIORITY_REJECTED_MODES)
         assertThat(vote).isInstanceOf(RejectedModesVote::class.java)
         val rejectedModesVote = vote as RejectedModesVote
-        assertThat(rejectedModesVote.mModeIds.size).isEqualTo(1)
-        assertThat(rejectedModesVote.mModeIds).contains(MODE_ID_1)
+        assertThat(rejectedModesVote.mSfModeIds.size).isEqualTo(1)
+        assertThat(rejectedModesVote.mSfModeIds).contains(MODE_ID_1)
     }
 
     @Test
@@ -125,8 +125,8 @@ public class ModeChangeObserverTest {
         val vote = newVotes.get(Vote.PRIORITY_REJECTED_MODES)
         assertThat(vote).isInstanceOf(RejectedModesVote::class.java)
         val rejectedModesVote = vote as RejectedModesVote
-        assertThat(rejectedModesVote.mModeIds.size).isEqualTo(1)
-        assertThat(rejectedModesVote.mModeIds).contains(MODE_ID_1)
+        assertThat(rejectedModesVote.mSfModeIds.size).isEqualTo(1)
+        assertThat(rejectedModesVote.mSfModeIds).contains(MODE_ID_1)
 
         // Display mapping is removed, hence remove the votes
         modeChangeObserver.mDisplayListener.onDisplayRemoved(LOGICAL_DISPLAY_ID)
@@ -155,8 +155,8 @@ public class ModeChangeObserverTest {
         val finalVote = finalVotes.get(Vote.PRIORITY_REJECTED_MODES)
         assertThat(finalVote).isInstanceOf(RejectedModesVote::class.java)
         val newRejectedModesVote = finalVote as RejectedModesVote
-        assertThat(newRejectedModesVote.mModeIds.size).isEqualTo(1)
-        assertThat(newRejectedModesVote.mModeIds).contains(MODE_ID_2)
+        assertThat(newRejectedModesVote.mSfModeIds.size).isEqualTo(1)
+        assertThat(newRejectedModesVote.mSfModeIds).contains(MODE_ID_2)
     }
 
     @Test
@@ -173,8 +173,8 @@ public class ModeChangeObserverTest {
         val vote = newVotes.get(Vote.PRIORITY_REJECTED_MODES)
         assertThat(vote).isInstanceOf(RejectedModesVote::class.java)
         val rejectedModesVote = vote as RejectedModesVote
-        assertThat(rejectedModesVote.mModeIds.size).isEqualTo(1)
-        assertThat(rejectedModesVote.mModeIds).contains(MODE_ID_1)
+        assertThat(rejectedModesVote.mSfModeIds.size).isEqualTo(1)
+        assertThat(rejectedModesVote.mSfModeIds).contains(MODE_ID_1)
 
         // Display Changed such that logical Id corresponds to PhysicalDisplayId2
         // Rejected Modes Vote is removed

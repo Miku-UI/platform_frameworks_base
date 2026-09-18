@@ -1,0 +1,65 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+aidl_interface {
+    name: "odim_aidl_interface",
+    srcs: ["aidl/**/*.aidl"],
+    unstable: true,
+    local_include_dir: "aidl",
+    backend: {
+        java: {
+            enabled: true,
+        },
+        rust: {
+            enabled: true,
+        },
+    },
+}
+
+rust_ffi {
+    name: "libtest_aiseal_odim_payload",
+    crate_name: "test_aiseal_odim_payload",
+    srcs: ["native/main.rs"],
+    edition: "2021",
+    prefer_rlib: true,
+    defaults: ["avf_build_flags_rust"],
+    rustlibs: [
+        "odim_aidl_interface-rust",
+        "libandroid_logger",
+        "libanyhow",
+        "libbinder_rs",
+        "liblog_rust",
+        "libvm_payload_rs",
+    ],
+}
+
+android_test_helper_app {
+    name: "AiSealTestHelperAppOdim",
+    srcs: ["java/**/*.java"],
+    platform_apis: true,
+    certificate: "platform",
+    static_libs: [
+        "androidx.annotation_annotation",
+        "odim_aidl_interface-java",
+    ],
+    sdk_version: "system_current",
+    jni_libs: ["libtest_aiseal_odim_payload"],
+    jni_uses_platform_apis: true,
+    use_embedded_native_libs: true,
+    compile_multilib: "first",
+}

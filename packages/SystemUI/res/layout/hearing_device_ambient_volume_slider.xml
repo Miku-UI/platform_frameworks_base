@@ -17,7 +17,6 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginTop="4dp"
@@ -29,16 +28,45 @@
         android:layout_height="wrap_content"
         style="@style/HearingDeviceDialog.Title"
         android:textAppearance="@style/TextAppearance.HearingDeviceDialog.Title"
-        android:textColor="@androidprv:color/materialColorOnSurface"
+        android:textColor="@color/materialColorOnSurface"
         android:labelFor="@+id/ambient_volume_slider"
         android:visibility="gone"/>
-    <com.google.android.material.slider.Slider
-        style="@style/SystemUI.Material3.Slider"
-        android:id="@+id/ambient_volume_slider"
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/bluetooth_dialog_device_height"
-        android:layout_gravity="center_vertical"
-        android:theme="@style/Theme.Material3.DayNight"
-        app:labelBehavior="gone" />
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.slider.Slider
+            style="@style/SettingslibSliderStyle.Expressive"
+            android:id="@+id/ambient_volume_slider"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/bluetooth_dialog_device_height"
+            android:layout_weight="1"
+            android:theme="@style/Theme.Material3.DayNight"
+            app:labelBehavior="gone" />
+
+        <FrameLayout
+            android:id="@+id/mute_icon_frame"
+            android:layout_width="@dimen/settingslib_expressive_space_medium4"
+            android:layout_height="@dimen/settingslib_expressive_space_medium4"
+            android:background="@drawable/hearing_device_ambient_icon_background"
+            android:clipChildren="false"
+            android:focusable="true"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/mute_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:adjustViewBounds="true"
+                android:focusable="false"
+                android:tint="@color/materialColorOnSurface"
+                android:tintMode="src_in" />
+        </FrameLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

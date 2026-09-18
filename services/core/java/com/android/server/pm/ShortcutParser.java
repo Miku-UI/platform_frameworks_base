@@ -73,6 +73,11 @@ public class ShortcutParser {
             return null;
         }
 
+        // Don't return shortcuts for packages that are app locked.
+        if (service.isPackageAppLockEnabled(packageName, userId)) {
+            return null;
+        }
+
         List<ShortcutInfo> result = null;
         outShareTargets.clear();
 

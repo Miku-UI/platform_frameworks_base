@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import android.os.BatteryConsumer;
 import android.os.Parcel;
 import android.os.PersistableBundle;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.IndentingPrintWriter;
 import android.util.SparseArray;
 import android.util.Xml;
@@ -35,7 +34,6 @@ import com.android.modules.utils.TypedXmlSerializer;
 import com.google.common.truth.StringSubject;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -47,8 +45,6 @@ import java.nio.charset.StandardCharsets;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class PowerStatsTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private PowerStats.DescriptorRegistry mRegistry;
     private PowerStats.Descriptor mDescriptor;

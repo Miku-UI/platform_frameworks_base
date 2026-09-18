@@ -64,7 +64,7 @@ final class SoftInputShowHideHistory {
         @Nullable
         final String mImeControlTargetName;
         @Nullable
-        final String mImeSurfaceParentName;
+        final String mImeParentName;
         @UserIdInt
         final int mImeUserId;
 
@@ -74,7 +74,7 @@ final class SoftInputShowHideHistory {
                 @SoftInputShowHideReason int reason, boolean inFullscreenMode,
                 @NonNull String requestWindowName, @Nullable String imeLayeringTargetName,
                 @Nullable String imeInputTargetName, @Nullable String imeControlTargetName,
-                @Nullable String imeSurfaceParentName, @UserIdInt int imeUserId) {
+                @Nullable String imeParentName, @UserIdInt int imeUserId) {
             mClientState = client;
             mEditorInfo = editorInfo;
             mFocusedWindowName = focusedWindowName;
@@ -87,7 +87,7 @@ final class SoftInputShowHideHistory {
             mImeLayeringTargetName = imeLayeringTargetName;
             mImeInputTargetName = imeInputTargetName;
             mImeControlTargetName = imeControlTargetName;
-            mImeSurfaceParentName = imeSurfaceParentName;
+            mImeParentName = imeParentName;
             mImeUserId = imeUserId;
         }
     }
@@ -140,7 +140,7 @@ final class SoftInputShowHideHistory {
             pw.println("  imeControlTargetName=" + entry.mImeControlTargetName);
 
             pw.print(prefix);
-            pw.println("  imeSurfaceParentName=" + entry.mImeSurfaceParentName);
+            pw.println("  imeParentName=" + entry.mImeParentName);
 
             pw.print(prefix);
             pw.print("  editorInfo:");

@@ -28,7 +28,9 @@ import java.util.function.Supplier;
 
 /**
  * Utility class to read the flags used in the power manager server.
+ * @deprecated use {@link Flags} directly, see b/440342129
  */
+@Deprecated
 public class PowerManagerFlags {
     private static final boolean DEBUG = false;
     private static final String TAG = "PowerManagerFlags";
@@ -37,42 +39,18 @@ public class PowerManagerFlags {
             Flags.FLAG_ENABLE_EARLY_SCREEN_TIMEOUT_DETECTOR,
             Flags::enableEarlyScreenTimeoutDetector);
 
-    private final FlagState mImproveWakelockLatency = new FlagState(
-            Flags.FLAG_IMPROVE_WAKELOCK_LATENCY,
-            Flags::improveWakelockLatency
-    );
-
     private final FlagState mPerDisplayWakeByTouch = new FlagState(
             Flags.FLAG_PER_DISPLAY_WAKE_BY_TOUCH,
             Flags::perDisplayWakeByTouch
     );
 
-    private final FlagState mPolicyReasonInDisplayPowerRequest = new FlagState(
-            Flags.FLAG_POLICY_REASON_IN_DISPLAY_POWER_REQUEST,
-            Flags::policyReasonInDisplayPowerRequest
-    );
-
-    private final FlagState mMoveWscLoggingToNotifier =
-            new FlagState(Flags.FLAG_MOVE_WSC_LOGGING_TO_NOTIFIER, Flags::moveWscLoggingToNotifier);
-
     private final FlagState mLockOnUnplug =
             new FlagState(Flags.FLAG_LOCK_ON_UNPLUG,
                     Flags::lockOnUnplug);
 
-    private final FlagState mWakelockAttributionViaWorkchain =
-            new FlagState(Flags.FLAG_WAKELOCK_ATTRIBUTION_VIA_WORKCHAIN,
-                    Flags::wakelockAttributionViaWorkchain);
-
     private final FlagState mDisableFrozenProcessWakelocks =
             new FlagState(Flags.FLAG_DISABLE_FROZEN_PROCESS_WAKELOCKS,
                     Flags::disableFrozenProcessWakelocks);
-
-    private final FlagState mForceDisableWakelocks =
-            new FlagState(Flags.FLAG_FORCE_DISABLE_WAKELOCKS, Flags::forceDisableWakelocks);
-
-    private final FlagState mEnableAppWakelockDataSource =
-            new FlagState(Flags.FLAG_ENABLE_APP_WAKELOCK_DATA_SOURCE,
-                    Flags::enableAppWakelockDataSource);
 
     private final FlagState mPartialSleepWakelocks = new FlagState(
             Flags.FLAG_PARTIAL_SLEEP_WAKELOCKS,
@@ -84,21 +62,12 @@ public class PowerManagerFlags {
             Flags::separateTimeoutsFlicker
     );
 
-    private final FlagState mWakeAdjacentDisplaysOnWakeupCall = new FlagState(
-            Flags.FLAG_WAKE_ADJACENT_DISPLAYS_ON_WAKEUP_CALL,
-            Flags::wakeAdjacentDisplaysOnWakeupCall
-    );
+    private final FlagState mWaitForUserBootComplete =
+            new FlagState(Flags.FLAG_WAIT_FOR_USER_BOOT_COMPLETE, Flags::waitForUserBootComplete);
 
     /** Returns whether early-screen-timeout-detector is enabled on not. */
     public boolean isEarlyScreenTimeoutDetectorEnabled() {
         return mEarlyScreenTimeoutDetectorFlagState.isEnabled();
-    }
-
-    /**
-     * @return Whether to improve the wakelock acquire/release latency or not
-     */
-    public boolean improveWakelockLatency() {
-        return mImproveWakelockLatency.isEnabled();
     }
 
     /**
@@ -109,32 +78,10 @@ public class PowerManagerFlags {
     }
 
     /**
-     * @return Whether the wakefulness reason is populated in DisplayPowerRequest.
-     */
-    public boolean isPolicyReasonInDisplayPowerRequestEnabled() {
-        return mPolicyReasonInDisplayPowerRequest.isEnabled();
-    }
-
-    /**
-     * @return Whether we move WakelockStateChanged atom logging to Notifier (enabled) or leave it
-     *     in BatteryStatsImpl (disabled).
-     */
-    public boolean isMoveWscLoggingToNotifierEnabled() {
-        return mMoveWscLoggingToNotifier.isEnabled();
-    }
-
-    /**
      * @return {@code true} if the flag for the flicker when timing out bugfix is enabled
      */
     public boolean isSeparateTimeoutsFlickerEnabled() {
         return mSeparateTimeoutsFlicker.isEnabled();
-    }
-
-    /**
-     * @return Whether the wakelock attribution via workchain is enabled
-     */
-    public boolean isWakelockAttributionViaWorkchainEnabled() {
-        return mWakelockAttributionViaWorkchain.isEnabled();
     }
 
     /**
@@ -152,20 +99,6 @@ public class PowerManagerFlags {
     }
 
     /**
-     * @return Whether the feature to force disable wakelocks is enabled
-     */
-    public boolean isForceDisableWakelocksEnabled() {
-        return mForceDisableWakelocks.isEnabled();
-    }
-
-    /**
-     * @return Whether the new Perfetto data source for tracing app wakelocks is enabled
-     */
-    public boolean isAppWakelockDataSourceEnabled() {
-        return mEnableAppWakelockDataSource.isEnabled();
-    }
-
-    /**
      * @return Whether new wakelock to keep device asleep - for the user, but ensures the CPU
      * remains awake - is enabled.
      */
@@ -174,10 +107,10 @@ public class PowerManagerFlags {
     }
 
     /**
-     * @return Whether the system should wakeup the adjacent displays too on a wakeup call
+     * @return Whether the BootSuspendBlocker is held until ACTION_BOOT_COMPLETED is broadcast.
      */
-    public boolean isWakeAdjacentDisplaysOnWakeupCallEnabled() {
-        return mWakeAdjacentDisplaysOnWakeupCall.isEnabled();
+    public boolean isWaitForUserBootCompleteEnabled() {
+        return mWaitForUserBootComplete.isEnabled();
     }
 
     /**
@@ -187,17 +120,12 @@ public class PowerManagerFlags {
     public void dump(PrintWriter pw) {
         pw.println("PowerManagerFlags:");
         pw.println(" " + mEarlyScreenTimeoutDetectorFlagState);
-        pw.println(" " + mImproveWakelockLatency);
         pw.println(" " + mPerDisplayWakeByTouch);
-        pw.println(" " + mMoveWscLoggingToNotifier);
         pw.println(" " + mLockOnUnplug);
-        pw.println(" " + mWakelockAttributionViaWorkchain);
         pw.println(" " + mDisableFrozenProcessWakelocks);
-        pw.println(" " + mForceDisableWakelocks);
-        pw.println(" " + mEnableAppWakelockDataSource);
         pw.println(" " + mPartialSleepWakelocks);
         pw.println(" " + mSeparateTimeoutsFlicker);
-        pw.println(" " + mWakeAdjacentDisplaysOnWakeupCall);
+        pw.println(" " + mWaitForUserBootComplete);
     }
 
     private static class FlagState {

@@ -24,8 +24,7 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class DragAppWindowSingleWindow : DragAppWindowScenarioTestBase()
-{
+abstract class DragAppWindowSingleWindow : DragAppWindowScenarioTestBase() {
     private val simpleAppHelper = SimpleAppHelper(instrumentation)
     private val testApp = DesktopModeAppHelper(simpleAppHelper)
 
@@ -36,10 +35,18 @@ abstract class DragAppWindowSingleWindow : DragAppWindowScenarioTestBase()
 
     @Test
     override fun dragAppWindow() {
+        val initialBounds = wmHelper.getWindowRegion(simpleAppHelper).bounds
         val (startXTest, startYTest) = getWindowDragStartCoordinate(simpleAppHelper)
-        testApp.dragWindow(startXTest, startYTest,
-            endX = startXTest + 150, endY = startYTest + 150,
-            wmHelper, device)
+        testApp.dragWindow(
+            startXTest,
+            startYTest,
+            endX = startXTest + 150,
+            endY = startYTest + 150,
+            wmHelper,
+            device,
+        )
+        val finalBounds = wmHelper.getWindowRegion(simpleAppHelper).bounds
+        assertWindowMovedRightAndDown(initialBounds, finalBounds)
     }
 
     @After

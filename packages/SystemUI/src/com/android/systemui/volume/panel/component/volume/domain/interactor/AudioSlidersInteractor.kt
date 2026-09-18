@@ -20,7 +20,6 @@ import android.media.AudioManager
 import com.android.settingslib.volume.data.repository.AudioSystemRepository
 import com.android.settingslib.volume.domain.interactor.AudioModeInteractor
 import com.android.settingslib.volume.shared.model.AudioStream
-import com.android.systemui.Flags
 import com.android.systemui.volume.domain.interactor.AudioSharingInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaOutputInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.shared.model.MediaDeviceSession
@@ -64,14 +63,10 @@ constructor(
                         if (defaultSession?.isTheSameSession(activeSessions.remote) == true) {
                             addSession(activeSessions.remote)
                             addStream(AudioManager.STREAM_MUSIC)
-                            if (Flags.showAudioSharingSliderInVolumePanel()) {
-                                audioSharingVolume?.let { addAudioSharingStream() }
-                            }
+                            audioSharingVolume?.let { addAudioSharingStream() }
                         } else {
                             addStream(AudioManager.STREAM_MUSIC)
-                            if (Flags.showAudioSharingSliderInVolumePanel()) {
-                                audioSharingVolume?.let { addAudioSharingStream() }
-                            }
+                            audioSharingVolume?.let { addAudioSharingStream() }
                             addSession(activeSessions.remote)
                         }
 

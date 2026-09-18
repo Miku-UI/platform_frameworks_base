@@ -15,17 +15,55 @@
  */
 package com.android.server.audio;
 
+import static android.Manifest.permission.USE_EXACT_ALARM;
 import static android.media.audio.Flags.autoPublicVolumeApiHardening;
+
+import static com.android.media.audio.Flags.hardeningPartial;
+import static com.android.media.audio.Flags.hardeningPartialVolume;
+import static com.android.media.audio.Flags.hardeningStrict;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__API_TYPE__AUDIO_HARDENING_API_TYPE_FOCUS;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__API_TYPE__AUDIO_HARDENING_API_TYPE_RINGER;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__API_TYPE__AUDIO_HARDENING_API_TYPE_VOLUME;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_ALARM;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_FLAG_DISABLED;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_OVERRIDE;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_PRIVILEGED_APP;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_SYSTEM_USAGE;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_TARGET_SDK;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ALARM;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ANNOUNCEMENT;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANCE_ACCESSIBILITY;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANCE_NAVIGATION_GUIDANCE;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANCE_SONIFICATION;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANT;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_CALL_ASSISTANT;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_EMERGENCY;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_GAME;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_MEDIA;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_NOTIFICATION;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_NOTIFICATION_EVENT;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_NOTIFICATION_TELEPHONY_RINGTONE;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_SAFETY;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_UNKNOWN;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VEHICLE_STATUS;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VIRTUAL_SOURCE;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VOICE_COMMUNICATION;
+import static com.android.media.audio.metrics.AudioAtomsLog.AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VOICE_COMMUNICATION_SIGNALLING;
 
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.media.IAudioManagerNative.HardeningExemptionReason;
+import android.media.IAudioPolicyService.HardeningOverride;
 import android.os.Binder;
 import android.os.Build;
 import android.os.UserHandle;
@@ -33,11 +71,13 @@ import android.text.TextUtils;
 import android.util.Slog;
 import android.util.SparseArray;
 
+import com.android.media.audio.metrics.AudioAtomsLog;
 import com.android.modules.expresslog.Counter;
+import com.android.server.DeviceIdleInternal;
+import com.android.server.LocalServices;
 import com.android.server.utils.EventLogger;
 
-import java.io.PrintWriter;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class to encapsulate all audio API hardening operations
@@ -50,11 +90,12 @@ public class HardeningEnforcer {
 
     final Context mContext;
     final AppOpsManager mAppOps;
-    final AtomicBoolean mShouldEnableAllHardening;
+    final AtomicInteger mHardeningOverride;
     final boolean mIsAutomotive;
 
     final ActivityManager mActivityManager;
     final PackageManager mPackageManager;
+    final AudioServerPermissionProvider mPermissionProvider;
 
     final EventLogger mEventLogger;
 
@@ -113,15 +154,116 @@ public class HardeningEnforcer {
     private static final int DENIED_IF_FULL = 2;
 
     public HardeningEnforcer(Context ctxt, boolean isAutomotive,
-            AtomicBoolean shouldEnableHardening, AppOpsManager appOps, PackageManager pm,
-            EventLogger logger) {
+            AtomicInteger hardeningOverride, AppOpsManager appOps, PackageManager pm,
+            EventLogger logger, AudioServerPermissionProvider permissionProvider) {
         mContext = ctxt;
         mIsAutomotive = isAutomotive;
-        mShouldEnableAllHardening = shouldEnableHardening;
+        mHardeningOverride = hardeningOverride;
         mAppOps = appOps;
         mActivityManager = ctxt.getSystemService(ActivityManager.class);
         mPackageManager = pm;
         mEventLogger = logger;
+        mPermissionProvider = permissionProvider;
+    }
+
+    /**
+     * Translates the AudioAttributes usage to the corresponding proto usage enum
+     * @param usage the usage from AudioAttributes
+     * @return the proto usage enum
+     */
+    public static int getUsageForProtoLog(int usage) {
+        return switch (usage) {
+            case AudioAttributes.USAGE_MEDIA -> AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_MEDIA;
+            case AudioAttributes.USAGE_VOICE_COMMUNICATION ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VOICE_COMMUNICATION;
+            case AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VOICE_COMMUNICATION_SIGNALLING;
+            case AudioAttributes.USAGE_ALARM -> AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ALARM;
+            case AudioAttributes.USAGE_NOTIFICATION ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_NOTIFICATION;
+            case AudioAttributes.USAGE_NOTIFICATION_RINGTONE ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_NOTIFICATION_TELEPHONY_RINGTONE;
+            case AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_UNKNOWN;
+            case AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_UNKNOWN;
+            case AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_UNKNOWN;
+            case AudioAttributes.USAGE_NOTIFICATION_EVENT ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_NOTIFICATION_EVENT;
+            case AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANCE_ACCESSIBILITY;
+            case AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANCE_NAVIGATION_GUIDANCE;
+            case AudioAttributes.USAGE_ASSISTANCE_SONIFICATION ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANCE_SONIFICATION;
+            case AudioAttributes.USAGE_GAME -> AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_GAME;
+            case AudioAttributes.USAGE_VIRTUAL_SOURCE ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VIRTUAL_SOURCE;
+            case AudioAttributes.USAGE_ASSISTANT ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ASSISTANT;
+            case AudioAttributes.USAGE_CALL_ASSISTANT ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_CALL_ASSISTANT;
+            case AudioAttributes.USAGE_EMERGENCY ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_EMERGENCY;
+            case AudioAttributes.USAGE_SAFETY ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_SAFETY;
+            case AudioAttributes.USAGE_VEHICLE_STATUS ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_VEHICLE_STATUS;
+            case AudioAttributes.USAGE_ANNOUNCEMENT ->
+                    AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_ANNOUNCEMENT;
+            default -> AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_UNKNOWN;
+        };
+    }
+
+    /**
+     * Translates the HardeningExemptionReason to the corresponding proto usage enum
+     * @param exemption the exemption reason from IAudioManagerNative
+     * @return the proto usage enum
+     */
+    public static int getExemptionReasonForProtoLog(int exemption) {
+        return switch (exemption) {
+            case HardeningExemptionReason.NONE ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE;
+            case HardeningExemptionReason.SYSTEM_USAGE ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_SYSTEM_USAGE;
+            case HardeningExemptionReason.PRIVILEGED_APP ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_PRIVILEGED_APP;
+            case HardeningExemptionReason.FLAG_DISABLED ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_FLAG_DISABLED;
+            case HardeningExemptionReason.ALARM ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_ALARM;
+            case HardeningExemptionReason.OVERRIDE ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_OVERRIDE;
+            case HardeningExemptionReason.TARGET_SDK ->
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_TARGET_SDK;
+            default -> AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE;
+        };
+    }
+
+    public void updateScheduleExactAlarmCache(int uid, String packageName) {
+        if (!mPermissionProvider.hasScheduleExactAlarm(uid)) {
+            if (packageName != null) {
+                long ident = Binder.clearCallingIdentity();
+                try {
+                    boolean canScheduleExactAlarms = mContext.getSystemService(AlarmManager.class)
+                            .hasScheduleExactAlarm(packageName, UserHandle.getUserId(uid));
+
+                    if (!canScheduleExactAlarms) {
+                        DeviceIdleInternal deviceIdle = LocalServices.getService(DeviceIdleInternal.class);
+                        if (deviceIdle != null && deviceIdle.isAppOnWhitelist(UserHandle.getAppId(uid))) {
+                            canScheduleExactAlarms = true;
+                        }
+                    }
+
+                    if (canScheduleExactAlarms) {
+                        mPermissionProvider.addScheduleExactAlarm(uid);
+                    }
+                } finally {
+                    Binder.restoreCallingIdentity(ident);
+                }
+            }
+        }
     }
 
     /**
@@ -129,21 +271,22 @@ public class HardeningEnforcer {
      * @param volumeMethod name of the method to check, for logging purposes
      * @return false if the method call is allowed, true if it should be a no-op
      */
+    @SuppressWarnings("AndroidFrameworkCompatChange")  // primary enforcement in native
     protected boolean blockVolumeMethod(int volumeMethod, String packageName, int uid) {
-        // Regardless of flag state, always permit callers with MODIFY_AUDIO_SETTINGS_PRIVILEGED
+        // Regardless of flag state, always permit callers with privileged audio permissions
         // Prevent them from showing up in metrics as well
-        if (mContext.checkCallingOrSelfPermission(
-                Manifest.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED)
-                == PackageManager.PERMISSION_GRANTED) {
-            return false;
+        boolean isPrivileged = isPrivileged(uid);
+        if (packageName == null || packageName.isEmpty()) {
+            packageName = getPackNameForUid(uid);
         }
+
         // for Auto, volume methods require MODIFY_AUDIO_SETTINGS_PRIVILEGED
         if (mIsAutomotive) {
             if (!autoPublicVolumeApiHardening()) {
                 // automotive hardening flag disabled, no blocking on auto
                 return false;
             }
-            if (uid < UserHandle.AID_APP_START) {
+            if (isPrivileged) {
                 return false;
             }
             // TODO metrics?
@@ -152,35 +295,99 @@ public class HardeningEnforcer {
                     + packageName);
             return true;
         } else {
-            int allowed;
-            // No flags controlling restriction yet
-            boolean enforced = mShouldEnableAllHardening.get();
+            int blockState;
             if (!noteOp(AppOpsManager.OP_CONTROL_AUDIO_PARTIAL, uid, packageName, null)) {
                 // blocked by partial
                 Counter.logIncrementWithUid(
                         "media_audio.value_audio_volume_hardening_partial_restriction", uid);
-                allowed = DENIED_IF_PARTIAL;
+                blockState = DENIED_IF_PARTIAL;
             } else if (!noteOp(AppOpsManager.OP_CONTROL_AUDIO, uid, packageName, null)) {
                 // blocked by full, permitted by partial
                 Counter.logIncrementWithUid(
                         "media_audio.value_audio_volume_hardening_strict_restriction", uid);
-                allowed = DENIED_IF_FULL;
+                blockState = DENIED_IF_FULL;
             } else {
                 // permitted with strict hardening, log anyway for API metrics
                 Counter.logIncrementWithUid(
                         "media_audio.value_audio_volume_hardening_allowed", uid);
-                allowed = ALLOWED;
+                blockState = ALLOWED;
             }
-            if (allowed != ALLOWED) {
-                String msg = "AudioHardening volume control for api "
-                        + volumeMethod
-                        + (!enforced ? " would be " : " ")
-                        + "ignored for "
-                        + getPackNameForUid(uid) + " (" + uid + "), "
-                        + "level: " + (allowed == DENIED_IF_PARTIAL ? "partial" : "full");
-                mEventLogger.enqueueAndSlog(msg, EventLogger.Event.ALOGW, TAG);
+
+            if (blockState == ALLOWED) {
+                return false;
             }
-            return enforced && allowed != ALLOWED;
+
+            int targetSdk = Build.VERSION_CODES.CUR_DEVELOPMENT;
+            try {
+                targetSdk = mPackageManager.getApplicationInfoAsUser(
+                        packageName, 0, UserHandle.getUserId(uid)).targetSdkVersion;
+            } catch (PackageManager.NameNotFoundException e) {
+                // keep default
+            }
+            // This flag is misnamed: it blocks volume changes at the strict level: app usage of
+            // volume modifications between partial and strict level should be extremely limited
+            // given we don't want to encourage apps modify volume regardless.
+            var overrideState = mHardeningOverride.get();
+            boolean isPreCinnamonBun = targetSdk < Build.VERSION_CODES.CINNAMON_BUN;
+
+            updateScheduleExactAlarmCache(uid, packageName);
+
+            int[] enforcedState = switch (overrideState) {
+                case HardeningOverride.ENABLE, AudioManager.HARDENING_THROW ->
+                    new int[]{DENIED_IF_FULL,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE};
+                case HardeningOverride.DISABLE ->
+                    new int[]{ALLOWED,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_OVERRIDE};
+                default -> {
+                    if (isPrivileged) {
+                        yield new int[]{ALLOWED,
+                            AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_PRIVILEGED_APP};
+                    } else if (holdsPermission(USE_EXACT_ALARM, uid) ||
+                            mPermissionProvider.hasScheduleExactAlarm(uid)) {
+                        yield new int[]{DENIED_IF_PARTIAL,
+                            AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_ALARM};
+                    } else if (!hardeningPartialVolume()) {
+                        yield new int[]{ALLOWED,
+                            AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_FLAG_DISABLED};
+                    } else if (isPreCinnamonBun) {
+                        yield new int[]{DENIED_IF_PARTIAL,
+                            AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_TARGET_SDK};
+                    }
+                    yield new int[]{DENIED_IF_FULL,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE};
+                }
+            };
+            int enforcedLevel = enforcedState[0];
+            int exemption = enforcedState[1];
+
+            boolean blocked = switch (enforcedLevel) {
+                case DENIED_IF_PARTIAL -> blockState == DENIED_IF_PARTIAL;
+                case DENIED_IF_FULL -> true;
+                default -> false;
+            };
+
+            int usage = AUDIO_HARDENING_REPORTED__USAGE__AUDIO_USAGE_UNKNOWN;
+            boolean isStrict = blockState == DENIED_IF_FULL;
+            String msg = "AudioHardening volume control for api "
+                    + volumeMethod
+                    + (!blocked ? " would be " : " ")
+                    + "ignored for "
+                    + packageName + " (" + uid + "), "
+                    + "level: " + (isStrict ? "full" : "partial")
+                    + " usage: " + usage + " exemption: " + exemption;
+            mEventLogger.enqueueAndSlog(msg, EventLogger.Event.ALOGW, TAG);
+            if (overrideState == AudioManager.HARDENING_THROW) {
+                throw new IllegalStateException(msg);
+            }
+            AudioAtomsLog.write(AudioAtomsLog.AUDIO_HARDENING_REPORTED, uid,
+                volumeMethod == METHOD_AUDIO_MANAGER_SET_RINGER_MODE ?
+                    AUDIO_HARDENING_REPORTED__API_TYPE__AUDIO_HARDENING_API_TYPE_RINGER
+                    : AUDIO_HARDENING_REPORTED__API_TYPE__AUDIO_HARDENING_API_TYPE_VOLUME,
+                    isStrict, blocked,
+                    usage,
+                    exemption);
+            return blocked;
         }
     }
 
@@ -191,59 +398,100 @@ public class HardeningEnforcer {
      * @param focusReqType focus type being requested
      * @param attributionTag attribution of the caller
      * @param targetSdk target SDK of the caller
+     * @param aa attributes of the request
      * @return false if the method call is allowed, true if it should be a no-op
      */
     @SuppressWarnings("AndroidFrameworkCompatChange")
     protected boolean blockFocusMethod(int callingUid, int focusMethod, @NonNull String clientId,
-            int focusReqType, @NonNull String packageName, String attributionTag, int targetSdk) {
+            int focusReqType, @NonNull String packageName, String attributionTag, int targetSdk,
+            @NonNull AudioAttributes aa) {
         if (packageName.isEmpty()) {
             packageName = getPackNameForUid(callingUid);
         }
-        // indicates would be blocked if audio capabilities were required
-        boolean blockedIfFull = !noteOp(AppOpsManager.OP_CONTROL_AUDIO,
-                                        callingUid, packageName, attributionTag);
-        boolean blocked = true;
-        // indicates the focus request was not blocked because of the SDK version
-        boolean unblockedBySdk = false;
-        if (noteOp(AppOpsManager.OP_TAKE_AUDIO_FOCUS, callingUid, packageName, attributionTag)) {
-            if (DEBUG) {
-                Slog.i(TAG, "blockFocusMethod pack:" + packageName + " NOT blocking");
-            }
-            blocked = false;
-        } else if (targetSdk < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            if (DEBUG) {
-                Slog.i(TAG, "blockFocusMethod pack:" + packageName + " NOT blocking due to sdk="
-                        + targetSdk);
-            }
-            unblockedBySdk = true;
+        int blockState = ALLOWED;
+        if (!noteOp(AppOpsManager.OP_TAKE_AUDIO_FOCUS, callingUid, packageName, attributionTag)) {
+            blockState = DENIED_IF_PARTIAL;
+        } else if (!noteOp(AppOpsManager.OP_CONTROL_AUDIO, callingUid, packageName,
+                           attributionTag)) {
+            blockState = DENIED_IF_FULL;
         }
 
-        boolean enforced = mShouldEnableAllHardening.get() || !unblockedBySdk;
-        boolean enforcedFull = mShouldEnableAllHardening.get();
-
-        metricsLogFocusReq(blocked && enforced, focusReqType, callingUid, unblockedBySdk);
-
-        if (blocked) {
-            String msg = "AudioHardening focus request for req "
-                    + focusReqType
-                    + (!enforced ? " would be " : " ")
-                    + "ignored for "
-                    + packageName + " (" + callingUid + "), "
-                    + clientId
-                    + ", level: partial";
-            mEventLogger.enqueueAndSlog(msg, EventLogger.Event.ALOGW, TAG);
-        } else if (blockedIfFull) {
-            String msg = "AudioHardening focus request for req "
-                    + focusReqType
-                    + (!enforcedFull ? " would be " : " ")
-                    + "ignored for "
-                    + packageName + " (" + callingUid + "), "
-                    + clientId
-                    + ", level: full";
-            mEventLogger.enqueueAndSlog(msg, EventLogger.Event.ALOGW, TAG);
+        if (blockState == ALLOWED) {
+            metricsLogFocusReq(false, focusReqType, callingUid);
+            return false;
         }
 
-        return blocked && enforced || (blockedIfFull && enforcedFull);
+        var overrideState = mHardeningOverride.get();
+        boolean isPreVic = targetSdk < Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        boolean isPreCinnamonBun = targetSdk < Build.VERSION_CODES.CINNAMON_BUN;
+        boolean isPrivileged = isPrivileged(callingUid);
+
+        updateScheduleExactAlarmCache(callingUid, packageName);
+
+        int[] enforcedState = switch (overrideState) {
+            case HardeningOverride.ENABLE, AudioManager.HARDENING_THROW ->
+                new int[]{DENIED_IF_FULL,
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE};
+            case HardeningOverride.DISABLE ->
+                new int[]{ALLOWED,
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_OVERRIDE};
+            default -> {
+                if (isPrivileged) {
+                    yield new int[]{ALLOWED,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_PRIVILEGED_APP};
+                } else if (aa.getUsage() == AudioAttributes.USAGE_ALARM &&
+                        (holdsPermission(USE_EXACT_ALARM, callingUid) ||
+                            mPermissionProvider.hasScheduleExactAlarm(callingUid))) {
+                    yield new int[]{DENIED_IF_PARTIAL,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_ALARM};
+                } else if (!hardeningPartial() && isPreVic) {
+                    yield new int[]{ALLOWED,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_FLAG_DISABLED};
+                } else if (holdsPermission(Manifest.permission.BLUETOOTH_CONNECT, callingUid)) {
+                    yield new int[]{DENIED_IF_PARTIAL,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_PRIVILEGED_APP};
+                } else if (isPreCinnamonBun) {
+                    yield new int[]{DENIED_IF_PARTIAL,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_TARGET_SDK};
+                } else if (!hardeningStrict()) {
+                    yield new int[]{DENIED_IF_PARTIAL,
+                        AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_FLAG_DISABLED};
+                }
+                yield new int[]{DENIED_IF_FULL,
+                    AUDIO_HARDENING_REPORTED__EXEMPTION_REASON__HARDENING_EXEMPTION_NONE};
+            }
+        };
+
+        int enforcedLevel = enforcedState[0];
+        int exemption = enforcedState[1];
+
+        boolean blocked = switch (enforcedLevel) {
+            case DENIED_IF_PARTIAL -> blockState == DENIED_IF_PARTIAL;
+            case DENIED_IF_FULL -> true;
+            default -> false;
+        };
+
+        int usage = getUsageForProtoLog(aa.getUsage());
+        boolean isStrict = blockState == DENIED_IF_FULL;
+        String msg = "AudioHardening focus request for req "
+                + focusReqType
+                + (!blocked ? " would be " : " ")
+                + "ignored for "
+                + packageName + " (" + callingUid + "), "
+                + clientId
+                + ", level: " + (isStrict ? "full" : "partial")
+                + " usage: " + usage + " exemption: " + exemption;
+        mEventLogger.enqueueAndSlog(msg, EventLogger.Event.ALOGW, TAG);
+        if (overrideState == AudioManager.HARDENING_THROW) {
+            throw new IllegalStateException(msg);
+        }
+        AudioAtomsLog.write(AudioAtomsLog.AUDIO_HARDENING_REPORTED, callingUid,
+                AUDIO_HARDENING_REPORTED__API_TYPE__AUDIO_HARDENING_API_TYPE_FOCUS,
+                isStrict, blocked,
+                usage, exemption);
+
+        metricsLogFocusReq(blocked, focusReqType, callingUid);
+        return blocked;
     }
 
     /**
@@ -254,8 +502,7 @@ public class HardeningEnforcer {
      * @param unblockedBySdk if blocked is false,
      *                       true indicates it was unblocked thanks to an older SDK
      */
-    /*package*/ void metricsLogFocusReq(boolean blocked, int focusReq, int callingUid,
-            boolean unblockedBySdk) {
+    /*package*/ void metricsLogFocusReq(boolean blocked, int focusReq, int callingUid) {
         final String metricId = blocked ? METRIC_COUNTERS_FOCUS_DENIAL.get(focusReq)
                 : METRIC_COUNTERS_FOCUS_GRANT.get(focusReq);
         if (TextUtils.isEmpty(metricId)) {
@@ -264,12 +511,6 @@ public class HardeningEnforcer {
         }
         try {
             Counter.logIncrementWithUid(metricId, callingUid);
-            if (!blocked && unblockedBySdk) {
-                // additional metric to capture focus requests that are currently granted
-                // because the app is on an older SDK, but would have been blocked otherwise
-                Counter.logIncrementWithUid(
-                        "media_audio.value_audio_focus_grant_hardening_waived_by_sdk", callingUid);
-            }
         } catch (Exception e) {
             Slog.e(TAG, "Counter error metricId:" + metricId + " for focus req:" + focusReq
                     + " from uid:" + callingUid, e);
@@ -306,5 +547,16 @@ public class HardeningEnforcer {
             return false;
         }
         return true;
+    }
+
+    private boolean isPrivileged(int uid) {
+        return holdsPermission(Manifest.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED, uid)
+                || holdsPermission(Manifest.permission.MODIFY_AUDIO_ROUTING, uid)
+                || holdsPermission(Manifest.permission.MODIFY_PHONE_STATE, uid)
+                || uid < UserHandle.AID_APP_START;
+
+    }
+    private boolean holdsPermission(String permission, int uid) {
+        return mContext.checkPermission(permission, -1, uid) == PackageManager.PERMISSION_GRANTED;
     }
 }

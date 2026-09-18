@@ -32,7 +32,6 @@ import android.debug.IAdbTransport;
 import android.debug.PairDevice;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
-import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
@@ -154,6 +153,11 @@ public class AdbService extends IAdbManager.Stub {
                     Settings.Global.getUriFor(Settings.Global.ADB_ENABLED), false, mObserver);
             mContentResolver.registerContentObserver(
                     Settings.Global.getUriFor(Settings.Global.ADB_WIFI_ENABLED), false, mObserver);
+
+            if (AdbDebuggingManager.wifiLifeCycleOverAdbdauthSupported()) {
+                mContentResolver.registerContentObserver(
+                        Settings.Global.getUriFor(Settings.Global.DEVICE_NAME), false, mObserver);
+            }
         } catch (Exception e) {
             Slog.e(TAG, "Error in registerContentObservers", e);
         }
@@ -171,6 +175,7 @@ public class AdbService extends IAdbManager.Stub {
     private class AdbSettingsObserver extends ContentObserver {
         private final Uri mAdbUsbUri = Settings.Global.getUriFor(Settings.Global.ADB_ENABLED);
         private final Uri mAdbWifiUri = Settings.Global.getUriFor(Settings.Global.ADB_WIFI_ENABLED);
+        private final Uri mAdbDeviceName = Settings.Global.getUriFor(Settings.Global.DEVICE_NAME);
 
         AdbSettingsObserver() {
             super(null);
@@ -190,6 +195,8 @@ public class AdbService extends IAdbManager.Stub {
                                         mContentResolver, Settings.Global.ADB_WIFI_ENABLED, 0)
                                 > 0);
                 setAdbEnabled(shouldEnable, AdbTransportType.WIFI);
+            } else if (mAdbDeviceName.equals(uri)) {
+                mDebuggingManager.onDeviceNameChanged();
             }
         }
     }
@@ -313,10 +320,12 @@ public class AdbService extends IAdbManager.Stub {
     }
 
     @Override
-    public void allowWirelessDebugging(boolean alwaysAllow, @NonNull String bssid) {
+    public void allowWirelessDebugging(
+            boolean alwaysAllow, @NonNull String bssid, @NonNull String ssid) {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.MANAGE_DEBUGGING, null);
         Preconditions.checkStringNotEmpty(bssid);
-        mDebuggingManager.allowWirelessDebugging(alwaysAllow, bssid);
+        Preconditions.checkStringNotEmpty(ssid);
+        mDebuggingManager.allowWirelessDebugging(alwaysAllow, bssid, ssid);
     }
 
     @Override
@@ -374,6 +383,12 @@ public class AdbService extends IAdbManager.Stub {
     }
 
     @Override
+    public String getAdbWirelessHostName() {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.MANAGE_DEBUGGING, null);
+        return mDebuggingManager.getAdbWirelessHostName().orElse(null);
+    }
+
+    @Override
     public void registerCallback(IAdbCallback callback) throws RemoteException {
         Slog.d(TAG, "Registering callback " + callback);
         mCallbacks.register(callback);
@@ -392,29 +407,6 @@ public class AdbService extends IAdbManager.Stub {
     private void stopAdbd() {
         if (!mIsAdbUsbEnabled && !mIsAdbWifiEnabled) {
             SystemProperties.set(CTL_STOP, ADBD);
-        }
-    }
-
-    private WifiManager.MulticastLock mAdbMulticastLock = null;
-
-    private void acquireMulticastLock() {
-        if (mAdbMulticastLock == null) {
-            WifiManager wifiManager =
-                    (WifiManager)
-                            mContext.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            mAdbMulticastLock = wifiManager.createMulticastLock("AdbMulticastLock");
-        }
-
-        if (!mAdbMulticastLock.isHeld()) {
-            mAdbMulticastLock.acquire();
-            Slog.d(TAG, "Acquired multicast lock");
-        }
-    }
-
-    private void releaseMulticastLock() {
-        if (mAdbMulticastLock != null && mAdbMulticastLock.isHeld()) {
-            mAdbMulticastLock.release();
-            Slog.d(TAG, "Released multicast lock");
         }
     }
 
@@ -465,11 +457,9 @@ public class AdbService extends IAdbManager.Stub {
                 if (mIsAdbWifiEnabled) {
                     // Start adb over WiFi.
                     enableADBdWifi();
-                    acquireMulticastLock();
                 } else {
                     // Stop adb over WiFi.
                     disableADBdWifi();
-                    releaseMulticastLock();
                 }
                 break;
             case AdbTransportType.VSOCK:

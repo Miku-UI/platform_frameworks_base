@@ -95,6 +95,6 @@ constructor(private val letterboxBuilder: LetterboxSurfaceBuilder) : LetterboxCo
     }
 
     override fun dump() {
-        ProtoLog.v(WM_SHELL_APP_COMPAT, "%s: %s", TAG, "${letterboxMap.keys}")
+        ProtoLog.v(WM_SHELL_APP_COMPAT, "$TAG: %s", letterboxMap.keys)
     }
 }

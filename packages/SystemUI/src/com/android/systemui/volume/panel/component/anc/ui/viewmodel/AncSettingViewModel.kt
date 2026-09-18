@@ -18,24 +18,17 @@ package com.android.systemui.volume.panel.component.anc.ui.viewmodel
 
 import androidx.compose.runtime.getValue
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingModel
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.volume.panel.component.anc.domain.interactor.AncDeviceSettingInteractor
 import com.android.systemui.volume.panel.component.devicesetting.ui.viewmodel.DeviceSettingComponentViewModel
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 
 class AncSettingViewModel @AssistedInject constructor(interactor: AncDeviceSettingInteractor) :
-    ExclusiveActivatable(), DeviceSettingComponentViewModel {
-
-    private val hydrator = Hydrator("AncSettingViewModel")
+    HydratedActivatable(), DeviceSettingComponentViewModel {
 
     override val setting: DeviceSettingModel? by
-        hydrator.hydratedStateOf("ancSetting", null, interactor.getSetting())
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
+        interactor.getSetting().hydratedStateOf("ancSetting", null)
 
     @AssistedFactory
     interface Factory {

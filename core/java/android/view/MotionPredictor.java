@@ -19,6 +19,7 @@ package android.view;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -35,6 +36,7 @@ import libcore.util.NativeAllocationRegistry;
  * complete, accurate predictions from {@link #predict}. When processing the returned predictions,
  * make sure to consider all of the {@link MotionEvent#getHistoricalAxisValue historical samples}.
  */
+@RavenwoodKeepWholeClass
 public final class MotionPredictor {
 
     // This is a pass-through to the native MotionPredictor object (mPtr). Do not store any state or

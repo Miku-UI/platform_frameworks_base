@@ -309,6 +309,13 @@ public abstract class AppPredictionService extends Service {
      */
     public final void updatePredictions(@NonNull AppPredictionSessionId sessionId,
             @NonNull List<AppTarget> targets) {
+        mHandler.sendMessage(
+                obtainMessage(AppPredictionService::doUpdatePredictions,
+                        AppPredictionService.this, sessionId, targets));
+    }
+
+    private void doUpdatePredictions(
+            @NonNull AppPredictionSessionId sessionId, @NonNull List<AppTarget> targets) {
         List<CallbackWrapper> callbacks = mSessionCallbacks.get(sessionId);
         if (callbacks != null) {
             for (CallbackWrapper callback : callbacks) {

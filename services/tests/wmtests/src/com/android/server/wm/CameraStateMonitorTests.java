@@ -16,6 +16,12 @@
 
 package com.android.server.wm;
 
+import static android.hardware.camera2.CameraMetadata.SCALER_ROTATE_AND_CROP_180;
+import static android.hardware.camera2.CameraMetadata.SCALER_ROTATE_AND_CROP_270;
+import static android.hardware.camera2.CameraMetadata.SCALER_ROTATE_AND_CROP_90;
+import static android.hardware.camera2.CameraMetadata.SCALER_ROTATE_AND_CROP_AUTO;
+import static android.hardware.camera2.CameraMetadata.SCALER_ROTATE_AND_CROP_NONE;
+
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
@@ -23,9 +29,11 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 
 import android.app.IApplicationThread;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.os.Handler;
 import android.platform.test.annotations.Presubmit;
@@ -124,6 +132,24 @@ public final class CameraStateMonitorTests extends WindowTestsBase {
         });
     }
 
+    @Test
+    public void testAvailableRotateAndCropModes() {
+        runTestScenario((robot) -> {
+            final int[] supportedCameraCompatModes = new int[]{
+                    SCALER_ROTATE_AND_CROP_NONE,
+                    SCALER_ROTATE_AND_CROP_AUTO,
+                    SCALER_ROTATE_AND_CROP_90};
+            robot.setupSupportedRotateAndCropModes(supportedCameraCompatModes);
+            robot.onCameraOpened(CAMERA_ID_1, TEST_PACKAGE_1);
+
+            robot.checkIsRotateAndCropModeSupported(SCALER_ROTATE_AND_CROP_NONE, true);
+            robot.checkIsRotateAndCropModeSupported(SCALER_ROTATE_AND_CROP_AUTO, true);
+            robot.checkIsRotateAndCropModeSupported(SCALER_ROTATE_AND_CROP_90, true);
+            robot.checkIsRotateAndCropModeSupported(SCALER_ROTATE_AND_CROP_180, false);
+            robot.checkIsRotateAndCropModeSupported(SCALER_ROTATE_AND_CROP_270, false);
+        });
+    }
+
     /**
      * Runs a test scenario providing a Robot.
      */
@@ -145,21 +171,23 @@ public final class CameraStateMonitorTests extends WindowTestsBase {
 
         private CameraManager.AvailabilityCallback mCameraAvailabilityCallback;
 
+        private CameraManager mMockCameraManager = mock(CameraManager.class);
+
         CameraStateMonitorRobotTests(@NonNull WindowTestsBase windowTestsBase) {
             super(windowTestsBase);
             mWindowTestsBase = windowTestsBase;
             setupCameraManager();
             setupAppCompatConfiguration();
-
+            reInitCameraPolicy();
+            spyOnPolicy();
             configureActivityAndDisplay();
         }
 
-        @Override
-        void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
-            super.onPostDisplayContentCreation(displayContent);
-            spyOn(displayContent.mAppCompatCameraPolicy);
-            if (displayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy != null) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy);
+        private void spyOnPolicy() {
+            final AppCompatCameraPolicy cameraPolicy = testBase().mWm.mAppCompatCameraPolicy;
+            spyOn(cameraPolicy);
+            if (cameraPolicy.mSimReqOrientationPolicy != null) {
+                spyOn(cameraPolicy.mSimReqOrientationPolicy);
             }
 
             mFakePolicyCannotCloseOnce = new FakeAppCompatCameraStatePolicy(true);
@@ -183,23 +211,41 @@ public final class CameraStateMonitorTests extends WindowTestsBase {
         private void setupAppCompatConfiguration() {
             applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
+                c.enableCameraCompatSimReqOrientationTreatment(true);
                 c.enableCameraCompatRefresh(true);
                 c.enableCameraCompatRefreshCycleThroughStop(true);
                 c.enableCameraCompatSplitScreenAspectRatio(false);
+                dw().allowEnterDesktopMode(true);
             });
         }
 
         private void setupCameraManager() {
-            final CameraManager mockCameraManager = mock(CameraManager.class);
             doAnswer(invocation -> {
                 mCameraAvailabilityCallback = invocation.getArgument(1);
                 return null;
-            }).when(mockCameraManager).registerAvailabilityCallback(
+            }).when(mMockCameraManager).registerAvailabilityCallback(
                     any(Executor.class), any(CameraManager.AvailabilityCallback.class));
 
-            doReturn(mockCameraManager).when(mWindowTestsBase.mWm.mContext).getSystemService(
+            doReturn(mMockCameraManager).when(mWindowTestsBase.mWm.mContext).getSystemService(
                     CameraManager.class);
+            setupSupportedRotateAndCropModes(new int[]{
+                    SCALER_ROTATE_AND_CROP_NONE,
+                    SCALER_ROTATE_AND_CROP_90,
+                    SCALER_ROTATE_AND_CROP_180,
+                    SCALER_ROTATE_AND_CROP_270,
+                    SCALER_ROTATE_AND_CROP_AUTO});
+        }
+
+        private void setupSupportedRotateAndCropModes(int[] rotateAndCropModes) {
+            final CameraCharacteristics cameraCharacteristics = mock(CameraCharacteristics.class);
+            doReturn(rotateAndCropModes).when(cameraCharacteristics).get(
+                    CameraCharacteristics.SCALER_AVAILABLE_ROTATE_AND_CROP_MODES);
+            try {
+                doReturn(cameraCharacteristics).when(mMockCameraManager)
+                        .getCameraCharacteristics(anyString());
+            } catch (Exception e) {
+                throw new AssertionError("Unable to setup supported camera compat modes.", e);
+            }
         }
 
         private void setupHandler() {
@@ -266,12 +312,17 @@ public final class CameraStateMonitorTests extends WindowTestsBase {
             assertEquals(times, mFakePolicyCannotCloseOnce.mOnCameraClosedCounter);
         }
 
+        private void checkIsRotateAndCropModeSupported(int rotateAndCropMode, boolean expected) {
+            assertEquals(expected, getCameraStateMonitor().isRotateAndCropModeSupported(
+                    activity().top(), rotateAndCropMode));
+        }
+
         private void waitHandlerIdle() {
-            mWindowTestsBase.waitHandlerIdle(activity().displayContent().mWmService.mH);
+            mWindowTestsBase.waitHandlerIdle(testBase().mWm.mH);
         }
 
         private CameraStateMonitor getCameraStateMonitor() {
-            return activity().top().mDisplayContent.mAppCompatCameraPolicy.mCameraStateMonitor;
+            return activity().top().mWmService.mAppCompatCameraPolicy.mCameraStateMonitor;
         }
 
         private AppCompatCameraStateSource getAppCompatCameraStateSource() {

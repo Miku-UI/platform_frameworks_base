@@ -127,19 +127,17 @@ public class ProtoLogTest {
 
     private static class TestProtoLogGroup implements IProtoLogGroup {
         private final boolean mEnabled;
-        private volatile boolean mLogToProto;
         private volatile boolean mLogToLogcat;
         private final String mTag;
         private final int mId;
 
         TestProtoLogGroup(String tag, int id) {
-            this(true, true, false, tag, id);
+            this(true, false, tag, id);
         }
 
         TestProtoLogGroup(
-                boolean enabled, boolean logToProto, boolean logToLogcat, String tag, int id) {
+                boolean enabled, boolean logToLogcat, String tag, int id) {
             this.mEnabled = enabled;
-            this.mLogToProto = logToProto;
             this.mLogToLogcat = logToLogcat;
             this.mTag = tag;
             this.mId = id;

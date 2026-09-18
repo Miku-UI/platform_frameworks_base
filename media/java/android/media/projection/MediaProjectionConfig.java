@@ -26,10 +26,6 @@ import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
-import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.os.Parcelable;
 
 import com.android.media.projection.flags.Flags;
@@ -106,6 +102,7 @@ public final class MediaProjectionConfig implements Parcelable {
 
     private final int mInitialSelection;
     private final boolean mOwnAppContentProvided;
+    private final boolean mAudioRequested;
 
     /** @hide */
     @IntDef(prefix = "CAPTURE_REGION_", value = {CAPTURE_REGION_USER_CHOICE,
@@ -167,6 +164,7 @@ public final class MediaProjectionConfig implements Parcelable {
         mInitialSelection = -1;
         mProjectionSources = -1;
         mOwnAppContentProvided = false;
+        mAudioRequested = false;
     }
 
     /**
@@ -174,7 +172,7 @@ public final class MediaProjectionConfig implements Parcelable {
      */
     private MediaProjectionConfig(@MediaProjectionSource int projectionSource,
             @Nullable String requesterHint, int displayId, int initialSelection,
-            boolean ownAppContentProvided) {
+            boolean ownAppContentProvided, boolean isAudioRequested) {
         if (!Flags.appContentSharing()) {
             throw new UnsupportedOperationException(
                     "Flag FLAG_APP_CONTENT_SHARING disabled. This method must not be called");
@@ -188,6 +186,7 @@ public final class MediaProjectionConfig implements Parcelable {
         mDisplayToCapture = displayId;
         mInitialSelection = initialSelection;
         mOwnAppContentProvided = ownAppContentProvided;
+        mAudioRequested = isAudioRequested;
     }
 
     /**
@@ -301,6 +300,22 @@ public final class MediaProjectionConfig implements Parcelable {
         return mProjectionSources;
     }
 
+    /**
+     * Returns true if the application requesting the media projection session is requesting to
+     * capture audio as well.
+     * <p>
+     * If true, the UI component should display an option for the user to enable audio sharing.
+     * <p>
+     * The audio source will depend on the projection source ({@link #getProjectionSources()})
+     * chosen by the user.
+     *
+     * @see Builder#setAudioRequested(boolean)
+     */
+    @FlaggedApi(Flags.FLAG_APP_CONTENT_SHARING)
+    public boolean isAudioRequested() {
+        return mAudioRequested;
+    }
+
     @Override
     public boolean equals(@Nullable Object o) {
         if (this == o) return true;
@@ -310,7 +325,8 @@ public final class MediaProjectionConfig implements Parcelable {
             return mDisplayToCapture == that.mDisplayToCapture
                     && mProjectionSources == that.mProjectionSources
                     && mInitialSelection == that.mInitialSelection
-                    && Objects.equals(mRequesterHint, that.mRequesterHint);
+                    && Objects.equals(mRequesterHint, that.mRequesterHint)
+                    && mAudioRequested == that.mAudioRequested;
         } else {
             return mDisplayToCapture == that.mDisplayToCapture
                     && mRegionToCapture == that.mRegionToCapture;
@@ -322,7 +338,7 @@ public final class MediaProjectionConfig implements Parcelable {
         int _hash = 1;
         if (Flags.appContentSharing()) {
             return Objects.hash(mDisplayToCapture, mProjectionSources, mInitialSelection,
-                    mRequesterHint);
+                    mRequesterHint, mAudioRequested);
         } else {
             _hash = 31 * _hash + mDisplayToCapture;
             _hash = 31 * _hash + mRegionToCapture;
@@ -338,6 +354,7 @@ public final class MediaProjectionConfig implements Parcelable {
             dest.writeString(mRequesterHint);
             dest.writeInt(mInitialSelection);
             dest.writeBoolean(mOwnAppContentProvided);
+            dest.writeBoolean(mAudioRequested);
         } else {
             dest.writeInt(mRegionToCapture);
         }
@@ -356,12 +373,14 @@ public final class MediaProjectionConfig implements Parcelable {
             mRequesterHint = in.readString();
             mInitialSelection = in.readInt();
             mOwnAppContentProvided = in.readBoolean();
+            mAudioRequested = in.readBoolean();
         } else {
             mRegionToCapture = in.readInt();
             mProjectionSources = -1;
             mRequesterHint = null;
             mInitialSelection = -1;
             mOwnAppContentProvided = false;
+            mAudioRequested = false;
         }
     }
 
@@ -408,7 +427,7 @@ public final class MediaProjectionConfig implements Parcelable {
      * <p> If set, the requesting app's content will replace any other app content that might
      * have been enabled.
      *
-     * @see Builder#setOwnAppContentProvided(Context, boolean)
+     * @see Builder#setOwnAppContentProvided(boolean)
      * @see Builder#setSourceEnabled(int, boolean)
      * @see #PROJECTION_SOURCE_APP_CONTENT
      */
@@ -450,6 +469,7 @@ public final class MediaProjectionConfig implements Parcelable {
         @MediaProjectionSource
         private int mInitialSelection;
         private boolean mOwnAppContentProvided;
+        private boolean mAudioRequested;
 
         public Builder() {
             if (!Flags.appContentSharing()) {
@@ -517,7 +537,9 @@ public final class MediaProjectionConfig implements Parcelable {
          * content to be shared.
          *
          * <p> If the user selects an item from this list,
-         * {@link AppContentProjectionService#onLoopbackProjectionStarted(AppContentProjectionSession, int)}
+         * {@link
+         * AppContentProjectionService#onLoopbackProjectionStarted(AppContentProjectionSession,
+         * int)}
          * will be called and the projection session will be considered as started.
          *
          * <p> If the shared content becomes unavailable, this application will be responsible for
@@ -528,17 +550,7 @@ public final class MediaProjectionConfig implements Parcelable {
          */
         @NonNull
         @SuppressLint({"MissingGetterMatchingBuilder", "RequiresPermission"})
-        public Builder setOwnAppContentProvided(@NonNull Context context, boolean isEnabled) {
-            Intent checkIntent = new Intent(AppContentProjectionService.SERVICE_INTERFACE);
-            checkIntent.setPackage(context.getPackageName());
-            ResolveInfo appContentServiceResolveInfo = context.getPackageManager()
-                    .resolveService(checkIntent, PackageManager.MATCH_ALL);
-
-            if (appContentServiceResolveInfo == null) {
-                throw new IllegalStateException(
-                        "No service with an <intent-filter> defining action=%s found".formatted(
-                                AppContentProjectionService.SERVICE_INTERFACE));
-            }
+        public Builder setOwnAppContentProvided(boolean isEnabled) {
             mOwnAppContentProvided = isEnabled;
             return this;
         }
@@ -555,6 +567,7 @@ public final class MediaProjectionConfig implements Parcelable {
          * Note that setting this won't hide or change the name of the application
          * requesting the session.
          *
+         * @param requesterHint the text representing the requester of this session.
          * @return instance of this {@link Builder}.
          */
         @NonNull
@@ -587,13 +600,29 @@ public final class MediaProjectionConfig implements Parcelable {
         }
 
         /**
+         * This method informs the screen capture UI that the user should be presented with an
+         * option to also record audio along with the screen content. When {@code
+         * isAudioRequested} is set to true, the consent dialog will display a control, such as a
+         * toggle, allowing the user to enable or disable audio capture for the projection
+         * session. If set to false, this control will not be shown.
+         *
+         * @param isAudioRequested true to request that the UI shows an audio capture
+         *                         option, false otherwise.
+         * @return this Builder instance for chaining.
+         */
+        @NonNull
+        public Builder setAudioRequested(boolean isAudioRequested) {
+            mAudioRequested = isAudioRequested;
+            return this;
+        }
+
+        /**
          * Builds a new immutable instance of {@link MediaProjectionConfig}
          */
         @NonNull
         public MediaProjectionConfig build() {
             return new MediaProjectionConfig(mOptions, mRequesterHint, DEFAULT_DISPLAY,
-                    mInitialSelection, mOwnAppContentProvided);
+                    mInitialSelection, mOwnAppContentProvided, mAudioRequested);
         }
     }
-
 }

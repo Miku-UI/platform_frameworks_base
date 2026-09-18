@@ -16,6 +16,9 @@
 
 package com.android.server.backup.utils;
 
+import static android.app.backup.BackupAgent.FLAG_CLIENT_SIDE_ENCRYPTION_ENABLED;
+import static android.app.backup.BackupAgent.FLAG_DEVICE_TO_DEVICE_TRANSFER;
+
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -121,6 +124,8 @@ public class BackupEligibilityRulesTest {
         when(mUserManagerInternal.getUserInfo(mUserId)).thenReturn(mUserInfo);
         mockContextForFullUser();
         mBackupEligibilityRules = getBackupEligibilityRules(BackupDestination.CLOUD);
+        when(mContext.createContextAsUser(eq(UserHandle.of(mUserId)), eq(0))).thenReturn(mContext);
+        when(mContext.getPackageManager()).thenReturn(mPackageManager);
     }
 
     @Test
@@ -166,14 +171,14 @@ public class BackupEligibilityRulesTest {
     }
 
     @Test
-    public void appIsEligibleForBackup_systemUid_hsumMainUser_telephonyPackage_returnsTrue()
+    public void appIsEligibleForBackup_systemUid_hsumAdminUser_telephonyPackage_returnsTrue()
             throws Exception {
         mockHeadlessSystemUserMode(true);
 
-        // Current user is the main user.
-        when(mUserManagerInternal.getMainUserId()).thenReturn(NON_SYSTEM_USER_ID);
+        // Current user is an admin user.
         mUserId = NON_SYSTEM_USER_ID;
         when(mUserManagerInternal.getUserInfo(mUserId)).thenReturn(mUserInfo);
+        when(mUserInfo.isAdmin()).thenReturn(true);
 
         mockContextForFullUser();
         mBackupEligibilityRules = getBackupEligibilityRules(BackupDestination.CLOUD);
@@ -187,19 +192,45 @@ public class BackupEligibilityRulesTest {
 
         boolean isEligible = mBackupEligibilityRules.appIsEligibleForBackup(applicationInfo);
 
-        // Telephony package is allowed for the main user in HSUM.
+        // Telephony package is allowed for the admin user in HSUM.
         assertThat(isEligible).isTrue();
     }
 
     @Test
-    public void appIsEligibleForBackup_systemUid_hsumNonMainUser_telephonyPackage_returnsFalse()
+    public void appIsEligibleForBackup_systemUid_hsumAdminUser_bluetoothPackage_returnsTrue()
             throws Exception {
         mockHeadlessSystemUserMode(true);
 
-        // Current user is a non-main user.
-        when(mUserManagerInternal.getMainUserId()).thenReturn(NON_SYSTEM_USER_ID);
+        // Current user is an admin user.
+        mUserId = NON_SYSTEM_USER_ID;
+        when(mUserManagerInternal.getUserInfo(mUserId)).thenReturn(mUserInfo);
+        when(mUserInfo.isAdmin()).thenReturn(true);
+
+        mockContextForFullUser();
+        mBackupEligibilityRules = getBackupEligibilityRules(BackupDestination.CLOUD);
+
+        ApplicationInfo applicationInfo =
+                getApplicationInfo(
+                        Process.BLUETOOTH_UID,
+                        ApplicationInfo.FLAG_ALLOW_BACKUP,
+                        CUSTOM_BACKUP_AGENT_NAME,
+                        "com.android.bluetooth");
+
+        boolean isEligible = mBackupEligibilityRules.appIsEligibleForBackup(applicationInfo);
+
+        // Bluetooth package is allowed for the admin user in HSUM.
+        assertThat(isEligible).isTrue();
+    }
+
+    @Test
+    public void appIsEligibleForBackup_systemUid_hsumNonAdminUser_telephonyPackage_returnsFalse()
+            throws Exception {
+        mockHeadlessSystemUserMode(true);
+
+        // Current user is a non-admin user.
         mUserId = NON_SYSTEM_USER_ID + 1;
         when(mUserManagerInternal.getUserInfo(mUserId)).thenReturn(mUserInfo);
+        when(mUserInfo.isAdmin()).thenReturn(false);
 
         mockContextForFullUser();
         mBackupEligibilityRules = getBackupEligibilityRules(BackupDestination.CLOUD);
@@ -213,7 +244,7 @@ public class BackupEligibilityRulesTest {
 
         boolean isEligible = mBackupEligibilityRules.appIsEligibleForBackup(applicationInfo);
 
-        // Telephony package is not allowed for non-main users in HSUM.
+        // Telephony package is not allowed for non-admin users in HSUM.
         assertThat(isEligible).isFalse();
     }
 
@@ -1039,6 +1070,27 @@ public class BackupEligibilityRulesTest {
         boolean isEligible = backupEligibilityRules.isAppEligibleForRestore(applicationInfo);
 
         assertThat(isEligible).isTrue();
+    }
+
+    @Test
+    public void pccBackupAgentAllowed_transportEncrypted_returnsTrue() {
+        assertThat(mBackupEligibilityRules
+                .pccBackupAgentAllowed(FLAG_CLIENT_SIDE_ENCRYPTION_ENABLED))
+                .isTrue();
+    }
+
+    @Test
+    public void pccBackupAgentAllowed_transportD2DTransfer_returnsTrue() {
+        assertThat(mBackupEligibilityRules
+                .pccBackupAgentAllowed(FLAG_DEVICE_TO_DEVICE_TRANSFER))
+                .isTrue();
+    }
+
+    @Test
+    public void pccBackupAgentAllowed_transportNotEncryptedAndNotD2DTransfer_returnsFalse() {
+        assertThat(mBackupEligibilityRules
+                .pccBackupAgentAllowed(0))
+                .isFalse();
     }
 
     private BackupEligibilityRules getBackupEligibilityRules(

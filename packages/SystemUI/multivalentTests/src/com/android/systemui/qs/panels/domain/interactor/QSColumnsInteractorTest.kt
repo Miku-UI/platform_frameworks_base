@@ -17,8 +17,11 @@
 package com.android.systemui.qs.panels.domain.interactor
 
 import android.content.res.mainResources
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.configurationRepository
 import com.android.systemui.flags.EnableSceneContainer
@@ -77,6 +80,7 @@ class QSColumnsInteractorTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun withDualShade_returnsCorrectValue() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.columns)
@@ -87,6 +91,7 @@ class QSColumnsInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun withSplitShade_returnsCorrectValue() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.columns)

@@ -18,6 +18,7 @@ package com.android.systemui.surfaceeffects.ripple
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -77,7 +78,7 @@ class RippleShaderTest : SysuiTestCase() {
             expectedSize3,
             expectedSize2,
             expectedSize4,
-            expectedSize1
+            expectedSize1,
         )
 
         assertThat(rippleShader.rippleSize.sizes.size).isEqualTo(5)
@@ -101,7 +102,7 @@ class RippleShaderTest : SysuiTestCase() {
             expectedSize1,
             expectedSize2,
             expectedSize3,
-            expectedSize4
+            expectedSize4,
         )
 
         rippleShader.rippleSize.update(0.5f)

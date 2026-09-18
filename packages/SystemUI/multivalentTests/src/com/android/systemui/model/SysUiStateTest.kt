@@ -21,8 +21,13 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.runTest
+import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.log.table.tableLogBufferFactory
 import com.android.systemui.model.SysUiState.SysUiStateCallback
 import com.android.systemui.testKosmos
+import com.google.common.truth.Truth.assertThat
+import java.io.PrintWriter
+import java.io.StringWriter
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,12 +44,49 @@ open class SysUiStateTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
     private val callback: SysUiStateCallback = mock()
+    private val tableLogBuffer: TableLogBuffer =
+        kosmos.tableLogBufferFactory.getOrCreate("SysUiState-${Display.DEFAULT_DISPLAY}", 1000)
 
     private lateinit var underTest: SysUiState
 
     @Before
     fun setup() {
         underTest = createInstance(Display.DEFAULT_DISPLAY)
+    }
+
+    @Test
+    fun setFlag_logsToTableBuffer() {
+        underTest.setFlag(FLAG_1, true)
+        underTest.commitUpdate()
+
+        val dumpedString = dumpTableChanges()
+        assertThat(dumpedString).contains("state.screen_pinned|true")
+    }
+
+    @Test
+    fun setFlag_logsToTableBuffer_multipleFlags() {
+        underTest.setFlag(FLAG_1, true)
+        underTest.setFlag(FLAG_2, true)
+        underTest.commitUpdate()
+
+        val dumpedString = dumpTableChanges()
+        assertThat(dumpedString).contains("state.screen_pinned|true")
+        // FLAG_2 is NAV_BAR_HIDDEN (1 << 1)
+        assertThat(dumpedString).contains("state.navbar_hidden|true")
+    }
+
+    @Test
+    fun setFlag_logsToTableBuffer_updatesOnlyChanged() {
+        underTest.setFlag(FLAG_1, true)
+        underTest.commitUpdate()
+
+        underTest.setFlag(FLAG_1, false)
+        underTest.setFlag(FLAG_2, true)
+        underTest.commitUpdate()
+
+        val dumpedString = dumpTableChanges()
+        assertThat(dumpedString).contains("state.screen_pinned|false")
+        assertThat(dumpedString).contains("state.navbar_hidden|true")
     }
 
     @Test
@@ -71,7 +113,7 @@ open class SysUiStateTest : SysuiTestCase() {
         kosmos.runTest {
             setFlags(FLAG_1)
             setFlags(FLAG_2)
-            underTest.setFlag(FLAG_1, false).commitUpdate(DISPLAY_ID)
+            underTest.setFlag(FLAG_1, false).commitUpdate()
 
             verify(callback, times(1)).onSystemUiStateChanged(FLAG_1, Display.DEFAULT_DISPLAY)
             verify(callback, times(1))
@@ -92,7 +134,7 @@ open class SysUiStateTest : SysuiTestCase() {
     fun addMultipleRemoveOne_setFlags() =
         kosmos.runTest {
             setFlags(FLAG_1, FLAG_2, FLAG_3, FLAG_4)
-            underTest.setFlag(FLAG_2, false).commitUpdate(DISPLAY_ID)
+            underTest.setFlag(FLAG_2, false).commitUpdate()
 
             val expected1 = FLAG_1 or FLAG_2 or FLAG_3 or FLAG_4
             verify(callback, times(1)).onSystemUiStateChanged(expected1, Display.DEFAULT_DISPLAY)
@@ -140,6 +182,7 @@ open class SysUiStateTest : SysuiTestCase() {
                 kosmos.fakeSceneContainerPlugin,
                 kosmos.dumpManager,
                 kosmos.sysUIStateDispatcher,
+                kosmos.tableLogBufferFactory,
             )
             .apply { addCallback(callback) }
     }
@@ -153,6 +196,12 @@ open class SysUiStateTest : SysuiTestCase() {
             instance.setFlag(flag, true)
         }
         instance.commitUpdate()
+    }
+
+    private fun dumpTableChanges(): String {
+        val writer = StringWriter()
+        tableLogBuffer.dump(PrintWriter(writer), emptyArray())
+        return writer.toString()
     }
 
     companion object {

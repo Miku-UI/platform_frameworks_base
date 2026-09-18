@@ -32,6 +32,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.util.settings.fakeGlobalSettings
@@ -51,13 +52,19 @@ class BuildNumberInteractorTest : SysuiTestCase() {
             fakeUserRepository.setUserInfos(listOf(adminUserInfo, nonAdminUserInfo))
         }
 
+    val sceneContainerPrefix =
+        if (SceneContainerFlag.isEnabled) {
+            "🥃 "
+        } else ""
+
     private val expectedBuildNumber =
         BuildNumber(
-            kosmos.mainResources.getString(
-                R.string.bugreport_status,
-                Build.VERSION.RELEASE_OR_CODENAME,
-                Build.ID,
-            )
+            sceneContainerPrefix +
+                kosmos.mainResources.getString(
+                    R.string.bugreport_status,
+                    Build.VERSION.RELEASE_OR_CODENAME,
+                    Build.ID,
+                )
         )
 
     private val clipLabel =

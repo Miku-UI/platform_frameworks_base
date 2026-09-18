@@ -59,7 +59,7 @@ import java.lang.annotation.RetentionPolicy;
         genEqualsHashCode = true,
         genToString = true
 )
-final class SingleKeyGestureEvent {
+public final class SingleKeyGestureEvent {
     public static final int SINGLE_KEY_GESTURE_TYPE_PRESS = 0;
     public static final int SINGLE_KEY_GESTURE_TYPE_LONG_PRESS = 1;
     public static final int SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS = 2;
@@ -100,6 +100,12 @@ final class SingleKeyGestureEvent {
      * Start time for the gesture
      */
     private long mStartTime = SystemClock.uptimeMillis();
+
+    /** Whether device was active when key down. */
+    private final boolean mBeganFromNonInteractive;
+
+    /** The default display's state when key down. */
+    private final int mDefaultDisplayStateBeganFrom;
 
     /**
      * Gesture event time
@@ -186,6 +192,8 @@ final class SingleKeyGestureEvent {
             @SingleKeyGestureType int type,
             @Action int action,
             long startTime,
+            boolean beganFromNonInteractive,
+            int defaultDisplayStateBeganFrom,
             long eventTime,
             int pressCount,
             int displayId,
@@ -216,6 +224,8 @@ final class SingleKeyGestureEvent {
         }
 
         this.mStartTime = startTime;
+        this.mBeganFromNonInteractive = beganFromNonInteractive;
+        this.mDefaultDisplayStateBeganFrom = defaultDisplayStateBeganFrom;
         this.mEventTime = eventTime;
         this.mPressCount = pressCount;
         this.mDisplayId = displayId;
@@ -269,6 +279,22 @@ final class SingleKeyGestureEvent {
     }
 
     /**
+     * Whether device was active when key down.
+     */
+    @DataClass.Generated.Member
+    public boolean wasInteractiveOnGestureStart() {
+        return mBeganFromNonInteractive;
+    }
+
+    /**
+     * The default display's state when key down.
+     */
+    @DataClass.Generated.Member
+    public int getDefaultDisplayStateOnGestureStart() {
+        return mDefaultDisplayStateBeganFrom;
+    }
+
+    /**
      * Gesture event time
      */
     @DataClass.Generated.Member
@@ -311,6 +337,8 @@ final class SingleKeyGestureEvent {
                 "type = " + singleKeyGestureTypeToString(mType) + ", " +
                 "action = " + actionToString(mAction) + ", " +
                 "startTime = " + mStartTime + ", " +
+                "beganFromNonInteractive = " + mBeganFromNonInteractive + ", " +
+                "defaultDisplayStateBeganFrom = " + mDefaultDisplayStateBeganFrom + ", " +
                 "eventTime = " + mEventTime + ", " +
                 "pressCount = " + mPressCount + ", " +
                 "displayId = " + mDisplayId + ", " +
@@ -335,6 +363,8 @@ final class SingleKeyGestureEvent {
                 && mType == that.mType
                 && mAction == that.mAction
                 && mStartTime == that.mStartTime
+                && mBeganFromNonInteractive == that.mBeganFromNonInteractive
+                && mDefaultDisplayStateBeganFrom == that.mDefaultDisplayStateBeganFrom
                 && mEventTime == that.mEventTime
                 && mPressCount == that.mPressCount
                 && mDisplayId == that.mDisplayId
@@ -352,6 +382,8 @@ final class SingleKeyGestureEvent {
         _hash = 31 * _hash + mType;
         _hash = 31 * _hash + mAction;
         _hash = 31 * _hash + Long.hashCode(mStartTime);
+        _hash = 31 * _hash + Boolean.hashCode(mBeganFromNonInteractive);
+        _hash = 31 * _hash + mDefaultDisplayStateBeganFrom;
         _hash = 31 * _hash + Long.hashCode(mEventTime);
         _hash = 31 * _hash + mPressCount;
         _hash = 31 * _hash + mDisplayId;
@@ -370,6 +402,8 @@ final class SingleKeyGestureEvent {
         private @SingleKeyGestureType int mType;
         private @Action int mAction;
         private long mStartTime;
+        private boolean mBeganFromNonInteractive;
+        private int mDefaultDisplayStateBeganFrom;
         private long mEventTime;
         private int mPressCount;
         private int mDisplayId;
@@ -427,7 +461,6 @@ final class SingleKeyGestureEvent {
                                 + "ACTION_COMPLETE(" + ACTION_COMPLETE + "), "
                                 + "ACTION_CANCEL(" + ACTION_CANCEL + ")");
             }
-
         }
 
         /**
@@ -487,12 +520,34 @@ final class SingleKeyGestureEvent {
         }
 
         /**
+         * Whether device was active when key down.
+         */
+        @DataClass.Generated.Member
+        public @android.annotation.NonNull Builder setBeganFromNonInteractive(boolean value) {
+            checkNotUsed();
+            mBuilderFieldsSet |= 0x10;
+            mBeganFromNonInteractive = value;
+            return this;
+        }
+
+        /**
+         * The default display's state when key down.
+         */
+        @DataClass.Generated.Member
+        public @android.annotation.NonNull Builder setDefaultDisplayStateBeganFrom(int value) {
+            checkNotUsed();
+            mBuilderFieldsSet |= 0x20;
+            mDefaultDisplayStateBeganFrom = value;
+            return this;
+        }
+
+        /**
          * Gesture event time
          */
         @DataClass.Generated.Member
         public @android.annotation.NonNull Builder setEventTime(long value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x10;
+            mBuilderFieldsSet |= 0x40;
             mEventTime = value;
             return this;
         }
@@ -503,7 +558,7 @@ final class SingleKeyGestureEvent {
         @DataClass.Generated.Member
         public @android.annotation.NonNull Builder setPressCount(int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x20;
+            mBuilderFieldsSet |= 0x80;
             mPressCount = value;
             return this;
         }
@@ -514,7 +569,7 @@ final class SingleKeyGestureEvent {
         @DataClass.Generated.Member
         public @android.annotation.NonNull Builder setDisplayId(int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x40;
+            mBuilderFieldsSet |= 0x100;
             mDisplayId = value;
             return this;
         }
@@ -525,7 +580,7 @@ final class SingleKeyGestureEvent {
         @DataClass.Generated.Member
         public @android.annotation.NonNull Builder setDeviceId(int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x80;
+            mBuilderFieldsSet |= 0x200;
             mDeviceId = value;
             return this;
         }
@@ -533,21 +588,21 @@ final class SingleKeyGestureEvent {
         /** Builds the instance. This builder should not be touched after calling this! */
         public @android.annotation.NonNull SingleKeyGestureEvent build() {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x100; // Mark builder used
+            mBuilderFieldsSet |= 0x400; // Mark builder used
 
             if ((mBuilderFieldsSet & 0x8) == 0) {
                 mStartTime = SystemClock.uptimeMillis();
             }
-            if ((mBuilderFieldsSet & 0x10) == 0) {
+            if ((mBuilderFieldsSet & 0x40) == 0) {
                 mEventTime = SystemClock.uptimeMillis();
             }
-            if ((mBuilderFieldsSet & 0x20) == 0) {
+            if ((mBuilderFieldsSet & 0x80) == 0) {
                 mPressCount = 0;
             }
-            if ((mBuilderFieldsSet & 0x40) == 0) {
+            if ((mBuilderFieldsSet & 0x100) == 0) {
                 mDisplayId = INVALID_DISPLAY;
             }
-            if ((mBuilderFieldsSet & 0x80) == 0) {
+            if ((mBuilderFieldsSet & 0x200) == 0) {
                 mDeviceId = INVALID_INPUT_DEVICE_ID;
             }
             SingleKeyGestureEvent o = new SingleKeyGestureEvent(
@@ -555,6 +610,8 @@ final class SingleKeyGestureEvent {
                     mType,
                     mAction,
                     mStartTime,
+                    mBeganFromNonInteractive,
+                    mDefaultDisplayStateBeganFrom,
                     mEventTime,
                     mPressCount,
                     mDisplayId,
@@ -563,7 +620,7 @@ final class SingleKeyGestureEvent {
         }
 
         private void checkNotUsed() {
-            if ((mBuilderFieldsSet & 0x100) != 0) {
+            if ((mBuilderFieldsSet & 0x400) != 0) {
                 throw new IllegalStateException(
                         "This Builder should not be reused. Use a new Builder instance instead");
             }
@@ -571,10 +628,10 @@ final class SingleKeyGestureEvent {
     }
 
     @DataClass.Generated(
-            time = 1747056679256L,
+            time = 1757025231632L,
             codegenVersion = "1.0.23",
             sourceFile = "frameworks/base/services/core/java/com/android/server/policy/SingleKeyGestureEvent.java",
-            inputSignatures = "public static final  int SINGLE_KEY_GESTURE_TYPE_PRESS\npublic static final  int SINGLE_KEY_GESTURE_TYPE_LONG_PRESS\npublic static final  int SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS\npublic static final  int ACTION_START\npublic static final  int ACTION_COMPLETE\npublic static final  int ACTION_CANCEL\nprivate final  int mKeyCode\nprivate final @com.android.server.policy.SingleKeyGestureEvent.SingleKeyGestureType int mType\nprivate final @com.android.server.policy.SingleKeyGestureEvent.Action int mAction\nprivate  long mStartTime\nprivate  long mEventTime\nprivate  int mPressCount\nprivate  int mDisplayId\nprivate  int mDeviceId\nclass SingleKeyGestureEvent extends java.lang.Object implements []\n@com.android.internal.util.DataClass(genBuilder=true, genEqualsHashCode=true, genToString=true)")
+            inputSignatures = "public static final  int SINGLE_KEY_GESTURE_TYPE_PRESS\npublic static final  int SINGLE_KEY_GESTURE_TYPE_LONG_PRESS\npublic static final  int SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS\npublic static final  int ACTION_START\npublic static final  int ACTION_COMPLETE\npublic static final  int ACTION_CANCEL\nprivate final  int mKeyCode\nprivate final @com.android.server.policy.SingleKeyGestureEvent.SingleKeyGestureType int mType\nprivate final @com.android.server.policy.SingleKeyGestureEvent.Action int mAction\nprivate  long mStartTime\nprivate final  boolean mBeganFromNonInteractive\nprivate final  int mDefaultDisplayStateBeganFrom\nprivate  long mEventTime\nprivate  int mPressCount\nprivate  int mDisplayId\nprivate  int mDeviceId\nclass SingleKeyGestureEvent extends java.lang.Object implements []\n@com.android.internal.util.DataClass(genBuilder=true, genEqualsHashCode=true, genToString=true)")
     @Deprecated
     private void __metadata() {}
 

@@ -46,7 +46,10 @@ import com.android.server.companion.devicepresence.ObservableUuid;
 import com.android.server.companion.transport.CompanionTransportManager;
 
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 class CompanionDeviceShellCommand extends ShellCommand {
     private static final String TAG = "CDM_CompanionDeviceShellCommand";
@@ -95,12 +98,8 @@ class CompanionDeviceShellCommand extends ShellCommand {
                             mAssociationStore.getActiveAssociationsByUser(userId);
                     final int maxId = mAssociationStore.getMaxId();
                     out.println("Max ID: " + maxId);
-                    out.println("Association ID | Package Name | Mac Address");
                     for (AssociationInfo association : associationsForUser) {
-                        // TODO(b/212535524): use AssociationInfo.toShortString(), once it's not
-                        //  longer referenced in tests.
-                        out.println(association.getId() + " | " + association.getPackageName()
-                                + " | " + association.getDeviceMacAddress());
+                        out.println(association.toString() + "\n");
                     }
                 }
                 break;
@@ -108,28 +107,118 @@ class CompanionDeviceShellCommand extends ShellCommand {
                 case "associate": {
                     int userId = getNextIntArgRequired();
                     String packageName = getNextArgRequired();
-                    String address = getNextArgRequired();
-                    String deviceProfile = getNextArg();
-                    boolean selfManaged = getNextBooleanArg();
-                    final MacAddress macAddress = MacAddress.fromString(address);
+
+                    if (!Flags.cmdOptions()) { // old logic
+                        String address = getNextArgRequired();
+                        final MacAddress macAddress = MacAddress.fromString(address);
+
+                        String profileArg = getNextArg();
+                        String deviceProfile = ("null".equalsIgnoreCase(profileArg)
+                                || profileArg == null)
+                                ? null
+                                : profileArg;
+                        boolean selfManaged = Boolean.parseBoolean(getNextArg());
+
+                        // Optional fields
+                        Set<String> permissions = new HashSet<>();
+                        boolean isRemoteAiAgentSupported = false;
+
+                        String opt;
+                        while ((opt = getNextOption()) != null) {
+                            switch (opt) {
+                                case "--extra-permissions":
+                                    permissions.addAll(
+                                            Arrays.asList(getNextArgRequired().split(",")));
+                                    break;
+                                case "--ai-agent":
+                                    isRemoteAiAgentSupported = Boolean.parseBoolean(
+                                            getNextArgRequired());
+                                    break;
+                            }
+                        }
+
+                        mAssociationRequestsProcessor.createAssociation(userId, packageName,
+                                macAddress, deviceProfile, deviceProfile,
+                                /* associatedDevice= */ null, selfManaged, /* callback= */ null,
+                                /* resultReceiver= */ null, /* deviceIcon= */ null,
+                                /* skipRoleGrant= */ false, permissions, isRemoteAiAgentSupported);
+
+                        break;
+                    }
+
+                    // Options
+                    MacAddress macAddress = null;
+                    String deviceProfile = null;
+                    boolean selfManaged = false;
+                    Set<String> permissions = new HashSet<>();
+                    boolean isRemoteAiAgentSupported = false;
+
+                    String opt;
+                    while ((opt = getNextOption()) != null) {
+                        switch (opt) {
+                            case "--mac-address" -> macAddress = MacAddress.fromString(
+                                    getNextArgRequired());
+                            case "--profile" -> deviceProfile = getNextArgRequired();
+                            case "--self-managed" -> selfManaged = Boolean.parseBoolean(
+                                    getNextArgRequired());
+                            case "--extra-permissions" -> permissions.addAll(
+                                    Arrays.asList(getNextArgRequired().split(",")));
+                            case "--ai-agent" -> isRemoteAiAgentSupported = Boolean.parseBoolean(
+                                    getNextArgRequired());
+                            default -> {
+                                out.println("Unknown option: " + opt);
+                            }
+                        }
+                    }
+
                     mAssociationRequestsProcessor.createAssociation(userId, packageName, macAddress,
-                            deviceProfile, deviceProfile, /* associatedDevice= */ null, selfManaged,
-                            /* callback= */ null, /* resultReceiver= */ null,
-                            /* deviceIcon= */ null, /* skipRoleGrant= */ false);
+                            "fakeDisplayName", deviceProfile, /* associatedDevice= */ null,
+                            selfManaged, /* callback= */ null, /* resultReceiver= */ null,
+                            /* deviceIcon= */ null, /* skipRoleGrant= */ false, permissions,
+                            isRemoteAiAgentSupported);
                 }
                 break;
 
                 case "disassociate": {
                     final int userId = getNextIntArgRequired();
                     final String packageName = getNextArgRequired();
-                    final String address = getNextArgRequired();
-                    final AssociationInfo association =
-                            mAssociationStore.getFirstAssociationByAddress(userId, packageName,
-                                    address);
-                    if (association == null) {
-                        out.println("Association doesn't exist.");
+
+                    if (!Flags.cmdOptions()) { // old logic
+                        final String address = getNextArgRequired();
+                        final AssociationInfo association =
+                                mAssociationStore.getFirstAssociationByAddress(userId, packageName,
+                                        address);
+                        if (association == null) {
+                            out.println("Association doesn't exist.");
+                        } else {
+                            mDisassociationProcessor.disassociate(association.getId(),
+                                    REASON_SHELL);
+                        }
+                        break;
+                    }
+
+                    // Options
+                    AssociationInfo association = null;
+                    String opt;
+                    while ((opt = getNextOption()) != null && association == null) {
+                        association = switch (opt) {
+                            case "--id" -> mAssociationStore.getAssociationById(
+                                    Integer.parseInt(getNextArgRequired()));
+                            case "--mac-address" -> mAssociationStore.getFirstAssociationByAddress(
+                                    userId,
+                                    packageName, getNextArgRequired());
+                            default -> {
+                                out.println("Unknown option: " + opt);
+                                yield null;
+                            }
+                        };
+                    }
+
+                    if (association != null) {
+                        mDisassociationProcessor.disassociate(association.getId(),
+                                REASON_SHELL);
                     } else {
-                        mDisassociationProcessor.disassociate(association.getId(), REASON_SHELL);
+                        out.println("Association doesn't exist.");
                     }
                 }
                 break;
@@ -414,14 +503,14 @@ class CompanionDeviceShellCommand extends ShellCommand {
                 case "disable-context-sync": {
                     associationId = getNextIntArgRequired();
                     int flag = getNextIntArgRequired();
-                    mAssociationRequestsProcessor.disableSystemDataSync(associationId, flag);
+                    mDataSyncProcessor.disableSystemDataSync(associationId, flag);
                     break;
                 }
 
                 case "enable-context-sync": {
                     associationId = getNextIntArgRequired();
                     int flag = getNextIntArgRequired();
-                    mAssociationRequestsProcessor.enableSystemDataSync(associationId, flag);
+                    mDataSyncProcessor.enableSystemDataSync(associationId, flag);
                     break;
                 }
 
@@ -557,9 +646,20 @@ class CompanionDeviceShellCommand extends ShellCommand {
         pw.println("      Print this help text.");
         pw.println("  list USER_ID");
         pw.println("      List all Associations for a user.");
-        pw.println("  associate USER_ID PACKAGE MAC_ADDRESS [DEVICE_PROFILE] [SELF_MANAGED]");
+        pw.println("""
+                  associate USER_ID PACKAGE
+                    --mac-address [MAC_ADDRESS]
+                    --profile [DEVICE_PROFILE]
+                    --self-managed [SELF_MANAGED]
+                    --extra-permissions [PERMISSIONS]
+                    --ai-agent [IS_REMOTE_AI_AGENT_SUPPORTED]
+                """);
         pw.println("      Create a new Association.");
-        pw.println("  disassociate USER_ID PACKAGE MAC_ADDRESS");
+        pw.println("""
+                  disassociate USER_ID PACKAGE
+                    --id [ASSOCIATION_ID]
+                    --mac-address [MAC_ADDRESS]
+                """);
         pw.println("      Remove an existing Association.");
         pw.println("  disassociate-all USER_ID");
         pw.println("      Remove all Associations for a user.");

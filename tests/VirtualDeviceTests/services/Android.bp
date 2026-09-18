@@ -1,0 +1,55 @@
+//########################################################################
+// Build VirtualDeviceServicesTests package
+//########################################################################
+
+package {
+    default_team: "trendy_team_virtual_device_framework",
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_test {
+    name: "VirtualDeviceServicesTests",
+    defaults: [
+        // For ExtendedMockito dependencies.
+        "modules-utils-extended-mockito-rule-defaults",
+    ],
+
+    // Include all test java files.
+    srcs: [
+        "src/**/*.java",
+    ],
+
+    static_libs: [
+        "WmTestUtils",
+        "CtsVirtualDeviceCommonLib",
+        "StatsdTestUtils",
+        "androidx.test.runner",
+        "flag-junit",
+        "junit",
+        "junit-params",
+        "mockito-target-extended-minus-junit4",
+        "services.companion",
+        "services.core",
+        "servicestests-utils-mockito-extended",
+        "statsdprotolite",
+        "truth",
+        "truth-liteproto-extension",
+    ],
+
+    libs: [
+        "android.test.runner.stubs.system",
+    ],
+
+    platform_apis: true,
+
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+
+    certificate: "platform",
+
+    optimize: {
+        enabled: false,
+    },
+}

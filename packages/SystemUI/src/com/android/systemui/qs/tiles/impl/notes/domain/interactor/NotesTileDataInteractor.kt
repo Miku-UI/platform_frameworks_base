@@ -38,7 +38,7 @@ constructor(@NoteTaskEnabledKey private val isNoteTaskEnabled: Boolean) :
     override fun availability(user: UserHandle): Flow<Boolean> = flowOf(isAvailable())
 
     fun isAvailable(): Boolean {
-        return Flags.notesRoleQsTile() && isNoteTaskEnabled
+        return Flags.enableNoteQsTile() && isNoteTaskEnabled
     }
 
     fun getCurrentTileModel(): NotesTileModel {

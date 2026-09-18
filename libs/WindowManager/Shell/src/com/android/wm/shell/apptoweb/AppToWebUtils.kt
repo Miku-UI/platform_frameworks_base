@@ -29,35 +29,38 @@ import android.content.pm.verify.domain.DomainVerificationUserState
 import android.net.Uri
 import android.view.Display
 import com.android.internal.protolog.ProtoLog
+import com.android.window.flags.Flags
 import com.android.wm.shell.protolog.ShellProtoLogGroup
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper
 import com.android.wm.shell.shared.desktopmode.DesktopState
 
 private const val TAG = "AppToWebUtils"
 
-private val GenericBrowserIntent = Intent()
-    .setAction(ACTION_VIEW)
-    .addCategory(Intent.CATEGORY_BROWSABLE)
-    .setData(Uri.parse("http:"))
+private val GenericBrowserIntent =
+    Intent()
+        .setAction(ACTION_VIEW)
+        .addCategory(Intent.CATEGORY_BROWSABLE)
+        .setData(Uri.parse("http:"))
 
-/**
- * Check if app links can be shown
- */
+/** Check if app links can be shown */
 fun canShowAppLinks(display: Display, desktopState: DesktopState): Boolean {
-    if (BubbleAnythingFlagHelper.enableBubbleToFullscreen()) {
+    if (BubbleFlagHelper.enableBubbleToFullscreen()) {
         return desktopState.isDesktopModeSupportedOnDisplay(display)
     }
     return true
 }
 
-/**
- * Returns a boolean indicating whether a given package is a browser app.
- */
+/** Returns a boolean indicating whether a given package is a browser app. */
 fun isBrowserApp(context: Context, packageName: String, userId: Int): Boolean {
+    // TODO: b/460011794 - Consider caching the result for the given pair of packageName and userId
+    // as [queryIntentActivitiesAsUser] is a binder call.
     GenericBrowserIntent.setPackage(packageName)
-    val list = context.packageManager.queryIntentActivitiesAsUser(
-        GenericBrowserIntent, PackageManager.MATCH_ALL, userId
-    )
+    val list =
+        context.packageManager.queryIntentActivitiesAsUser(
+            GenericBrowserIntent,
+            PackageManager.MATCH_ALL,
+            userId,
+        )
 
     list.forEach {
         if (it.activityInfo != null && it.handleAllWebDataURI) {
@@ -72,13 +75,14 @@ fun isBrowserApp(context: Context, packageName: String, userId: Int): Boolean {
  * null.
  */
 fun getBrowserIntent(uri: Uri, packageManager: PackageManager, userId: Int): Intent? {
-    val intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER)
-        .setData(uri)
-        .addFlags(FLAG_ACTIVITY_NEW_TASK)
+    val intent =
+        Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER)
+            .setData(uri)
+            .addFlags(FLAG_ACTIVITY_NEW_TASK)
     // If there is a browser application available to handle the intent, return the intent.
     // Otherwise, return null.
-    val resolveInfo = packageManager.resolveActivityAsUser(intent, /* flags= */ 0, userId)
-        ?: return null
+    val resolveInfo =
+        packageManager.resolveActivityAsUser(intent, /* flags= */ 0, userId) ?: return null
     intent.setComponent(resolveInfo.componentInfo.componentName)
     return intent
 }
@@ -89,11 +93,15 @@ fun getBrowserIntent(uri: Uri, packageManager: PackageManager, userId: Int): Int
  */
 fun getAppIntent(uri: Uri, packageManager: PackageManager, userId: Int): Intent? {
     val intent = Intent(ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK)
-    val resolveInfo = packageManager.resolveActivityAsUser(intent, /* flags= */ 0, userId)
-        ?: return null
+    if (Flags.enableEnhancedAppToWebTransition()) {
+        // We explicitly requires a non-browser app so that the first-run prompt will not get shown.
+        intent.addFlags(Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER)
+    }
+    val resolveInfo =
+        packageManager.resolveActivityAsUser(intent, /* flags= */ 0, userId) ?: return null
     // If there is a non-browser application available to handle the intent, return the intent.
     // Otherwise, return null.
-     if (resolveInfo.activityInfo != null && !resolveInfo.handleAllWebDataURI) {
+    if (resolveInfo.activityInfo != null && !resolveInfo.handleAllWebDataURI) {
         intent.setComponent(resolveInfo.componentInfo.componentName)
         return intent
     }
@@ -106,24 +114,21 @@ fun getAppIntent(uri: Uri, packageManager: PackageManager, userId: Int): Intent?
  */
 fun getDomainVerificationUserState(
     manager: DomainVerificationManager,
-    packageName: String
+    packageName: String,
 ): DomainVerificationUserState? {
     try {
         return manager.getDomainVerificationUserState(packageName)
     } catch (e: PackageManager.NameNotFoundException) {
         ProtoLog.w(
             ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE,
-            "%s: Failed to get domain verification user state: %s",
-            TAG,
-            e.message!!
+            "$TAG: Failed to get domain verification user state: %s",
+            e.message!!,
         )
         return null
     }
 }
 
-/**
- * Returns the web uri from the given [AssistContent].
- */
+/** Returns the web uri from the given [AssistContent]. */
 fun AssistContent.getSessionWebUri(): Uri? {
     return sessionTransferUri ?: webUri
 }

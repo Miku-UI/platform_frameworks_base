@@ -21,7 +21,6 @@ import android.os.UserManager.DISALLOW_CAMERA_TOGGLE
 import android.os.UserManager.DISALLOW_CONFIG_LOCATION
 import android.os.UserManager.DISALLOW_MICROPHONE_TOGGLE
 import android.os.UserManager.DISALLOW_SHARE_LOCATION
-import com.android.systemui.Flags
 import com.android.systemui.flashlight.FlashlightModule
 import com.android.systemui.flashlight.flags.FlashlightStrength
 import com.android.systemui.flashlight.shared.model.FlashlightModel
@@ -45,7 +44,6 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTilePolicy
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModel
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModelFactory
-import com.android.systemui.qs.tiles.base.ui.viewmodel.StubQSTileViewModel
 import com.android.systemui.qs.tiles.impl.alarm.domain.interactor.AlarmTileDataInteractor
 import com.android.systemui.qs.tiles.impl.alarm.domain.interactor.AlarmTileUserActionInteractor
 import com.android.systemui.qs.tiles.impl.alarm.domain.model.AlarmTileModel
@@ -436,14 +434,12 @@ interface PolicyModule {
             stateInteractor: ModesTileDataInteractor,
             userActionInteractor: ModesTileUserActionInteractor,
         ): QSTileViewModel =
-            if (Flags.qsNewTilesFuture())
-                factory.create(
-                    TileSpec.create(MODES_TILE_SPEC),
-                    userActionInteractor,
-                    stateInteractor,
-                    mapper,
-                )
-            else StubQSTileViewModel
+            factory.create(
+                TileSpec.create(MODES_TILE_SPEC),
+                userActionInteractor,
+                stateInteractor,
+                mapper,
+            )
 
         @Provides
         @IntoMap

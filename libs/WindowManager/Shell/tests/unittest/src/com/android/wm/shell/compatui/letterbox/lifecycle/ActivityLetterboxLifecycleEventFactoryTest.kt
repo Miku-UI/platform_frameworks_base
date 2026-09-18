@@ -155,6 +155,30 @@ class ActivityLetterboxLifecycleEventFactoryTest : ShellTestCase() {
     }
 
     @Test
+    fun `mainWindowHasRoundedCorners comes from AppCompatTransitionInfo`() {
+        runTestScenario { r ->
+            testLetterboxLifecycleEventFactory(r.getLetterboxLifecycleEventFactory()) {
+                inputChange {
+                    activityTransitionInfo {
+                        taskId = 10
+                        appCompatTransitionInfo { hasRoundedCorners = true }
+                    }
+                }
+                val testLeash = mock<SurfaceControl>()
+                val testToken = mock<WindowContainerToken>()
+                r.addToTaskRepository(
+                    10,
+                    LetterboxTaskInfoState(testToken, testLeash, configuration = Configuration()),
+                )
+                validateCreateLifecycleEvent { event ->
+                    assertNotNull(event)
+                    assertTrue(event.mainWindowHasRoundedCorners)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `Event is null if repository has no task data`() {
         runTestScenario { r ->
             testLetterboxLifecycleEventFactory(r.getLetterboxLifecycleEventFactory()) {

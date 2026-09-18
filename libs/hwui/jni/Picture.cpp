@@ -16,6 +16,11 @@
 
 #include "Picture.h"
 #include "SkStream.h"
+#include "include/core/SkSerialProcs.h"
+#include "include/encode/SkPngEncoder.h"
+#include "include/codec/SkPngDecoder.h"
+#include "include/codec/SkPixmapUtils.h"
+#include "include/codec/SkEncodedOrigin.h"
 
 #include <memory>
 #include <hwui/Canvas.h>
@@ -70,7 +75,25 @@ int Picture::height() const {
 Picture* Picture::CreateFromStream(SkStream* stream) {
     Picture* newPict = new Picture;
 
-    sk_sp<SkPicture> skPicture = SkPicture::MakeFromStream(stream);
+    SkDeserialProcs procs;
+    procs.fImageDataProc = [](sk_sp<SkData> data,
+                              std::optional<SkAlphaType> at, void*) -> sk_sp<SkImage> {
+        auto codec = SkPngDecoder::Decode(data, nullptr, nullptr);
+        if (codec == nullptr) {
+            return nullptr;
+        }
+        SkImageInfo info = codec->getInfo();
+        if (at.has_value()) {
+            info = info.makeAlphaType(*at);
+        } else if (kUnpremul_SkAlphaType == info.alphaType()) {
+            info = info.makeAlphaType(kPremul_SkAlphaType);
+        }
+        if (SkEncodedOriginSwapsWidthHeight(codec->getOrigin())) {
+            info = SkPixmapUtils::SwapWidthHeight(info);
+        }
+        return std::get<0>(codec->getImage(info));
+    };
+    sk_sp<SkPicture> skPicture = SkPicture::MakeFromStream(stream, &procs);
     if (NULL != skPicture) {
         newPict->mPicture = skPicture;
 
@@ -83,15 +106,27 @@ Picture* Picture::CreateFromStream(SkStream* stream) {
 }
 
 void Picture::serialize(SkWStream* stream) const {
+    SkSerialProcs procs;
+    procs.fImageProc = [](SkImage* img, void*) -> SkSerialReturnType {
+        // TODO when migrating to Graphite, readback won't work, so we will only be
+        // able to serialize raster-backed or lazy images. It is unclear if this
+        // is an actual problem, so probably adding an assert like the !isTextureBacked()
+        // will probably be helpful in verifying that.
+        auto raster = img->makeRasterImage(nullptr, SkImage::kDisallow_CachingHint);
+        if (!raster) {
+            return nullptr;
+        }
+        return SkPngEncoder::Encode(nullptr, raster.get(), SkPngEncoder::Options{});
+    };
     if (NULL != mRecorder.get()) {
-        this->makePartialCopy()->serialize(stream);
+        this->makePartialCopy()->serialize(stream, &procs);
     } else if (NULL != mPicture.get()) {
-        mPicture->serialize(stream);
+        mPicture->serialize(stream, &procs);
     } else {
         // serialize "empty" picture
         SkPictureRecorder recorder;
         recorder.beginRecording(0, 0);
-        recorder.finishRecordingAsPicture()->serialize(stream);
+        recorder.finishRecordingAsPicture()->serialize(stream, &procs);
     }
 }
 

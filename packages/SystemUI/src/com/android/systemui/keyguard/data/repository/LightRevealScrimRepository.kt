@@ -200,9 +200,9 @@ constructor(
             .flatMapLatest { biometricUnlockState ->
                 // Use the biometric reveal for any flavor of wake and unlocking.
                 when (biometricUnlockState.mode) {
-                    BiometricUnlockMode.WAKE_AND_UNLOCK,
-                    BiometricUnlockMode.WAKE_AND_UNLOCK_PULSING,
-                    BiometricUnlockMode.WAKE_AND_UNLOCK_FROM_DREAM -> {
+                    BiometricUnlockMode.WAKE_AND_DISMISS,
+                    BiometricUnlockMode.WAKE_AND_DISMISS_PULSING,
+                    BiometricUnlockMode.WAKE_AND_DISMISS_FROM_DREAM -> {
                         if (biometricUnlockState.source == BiometricUnlockSource.FACE_SENSOR) {
                             faceRevealEffect
                         } else {

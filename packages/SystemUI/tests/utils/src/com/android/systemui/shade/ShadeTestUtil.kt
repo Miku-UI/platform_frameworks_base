@@ -135,6 +135,7 @@ class ShadeTestUtilLegacyImpl(
     val shadeInteractor: ShadeInteractor,
 ) : ShadeTestUtilDelegate {
     override fun setShadeAndQsExpansion(shadeExpansion: Float, qsExpansion: Float) {
+        shadeRepository.setLegacyIsQsExpanded(qsExpansion > 0f)
         shadeRepository.setLegacyShadeExpansion(shadeExpansion)
         shadeRepository.setQsExpansion(qsExpansion)
         testScope.runCurrent()

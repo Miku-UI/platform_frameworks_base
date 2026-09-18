@@ -25,14 +25,12 @@ import static com.android.internal.util.LatencyTracker.ACTION_SHOW_VOICE_INTERAC
 import static com.google.common.truth.Truth.assertThat;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.provider.DeviceConfig;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -47,8 +45,6 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = DeviceConfig.class)
 public class FakeLatencyTrackerTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private FakeLatencyTracker mFakeLatencyTracker;
     private int mInitialSyncDisabledMode;

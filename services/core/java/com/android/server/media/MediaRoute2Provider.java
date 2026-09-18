@@ -32,7 +32,6 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 
 import com.android.internal.annotations.GuardedBy;
-import com.android.media.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -119,11 +118,8 @@ abstract class MediaRoute2Provider {
             return;
         }
 
-        List<MediaRoute2Info> possiblyUpdatedRoutes = null;
-        if (Flags.enableRouteVisibilityControlCompatFixes()) {
-            possiblyUpdatedRoutes =
+        List<MediaRoute2Info> possiblyUpdatedRoutes =
                     getVisibilityUpdatedRoutesIfNeeded(providerInfo.getRoutes(), getSessionInfos());
-        }
 
         if (possiblyUpdatedRoutes != null) {
             setProviderStateWithUpdatedRoutes(providerInfo, possiblyUpdatedRoutes);
@@ -201,12 +197,13 @@ abstract class MediaRoute2Provider {
         pw.println(prefix + getDebugString());
         prefix += "  ";
 
-        if (mProviderInfo == null) {
+        var providerInfo = mProviderInfo;
+        if (providerInfo == null) {
             pw.println(prefix + "<provider info not received, yet>");
-        } else if (mProviderInfo.getRoutes().isEmpty()) {
+        } else if (providerInfo.getRoutes().isEmpty()) {
             pw.println(prefix + "<provider info has no routes>");
         } else {
-            for (MediaRoute2Info route : mProviderInfo.getRoutes()) {
+            for (MediaRoute2Info route : providerInfo.getRoutes()) {
                 pw.printf("%s%s | %s\n", prefix, route.getId(), route.getName());
             }
         }
@@ -341,16 +338,14 @@ abstract class MediaRoute2Provider {
     }
 
     private void maybeUpdateProviderStateForRouteVisibility() {
-        if (!Flags.enableRouteVisibilityControlCompatFixes()) {
-            return;
-        }
-        if (mProviderInfo == null) {
+        var providerInfo = mProviderInfo;
+        if (providerInfo == null) {
             return;  // no need to update provider state if we don't have any
         }
         List<MediaRoute2Info> possiblyUpdatedRoutes =
-                getVisibilityUpdatedRoutesIfNeeded(mProviderInfo.getRoutes(), mSessionInfos);
+                getVisibilityUpdatedRoutesIfNeeded(providerInfo.getRoutes(), mSessionInfos);
         if (possiblyUpdatedRoutes != null) {
-            setProviderStateWithUpdatedRoutes(mProviderInfo, possiblyUpdatedRoutes);
+            setProviderStateWithUpdatedRoutes(providerInfo, possiblyUpdatedRoutes);
             notifyProviderStateChanged();
         }
     }

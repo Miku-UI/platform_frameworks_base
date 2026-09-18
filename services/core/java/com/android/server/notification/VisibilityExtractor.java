@@ -74,7 +74,6 @@ public class VisibilityExtractor implements NotificationSignalExtractor {
                         DevicePolicyManager.KEYGUARD_DISABLE_UNREDACTED_NOTIFICATIONS);
                 boolean channelCanShowContents = record.getChannel().getLockscreenVisibility()
                         != Notification.VISIBILITY_PRIVATE;
-
                 if (!userCanShowContents || !dpmCanShowContents || !channelCanShowContents) {
                     record.setPackageVisibilityOverride(Notification.VISIBILITY_PRIVATE);
                 } else {

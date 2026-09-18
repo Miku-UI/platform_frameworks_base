@@ -22,11 +22,8 @@ import static junit.framework.Assert.assertNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import android.content.ContentProvider;
 import android.os.Process;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.provider.Settings;
 import android.test.mock.MockContentResolver;
 
@@ -34,7 +31,6 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -44,13 +40,9 @@ import java.util.ArrayList;
  * Unit tests for FakeSettingsProvider.
  */
 @RunWith(AndroidJUnit4.class)
-@DisabledOnRavenwood(blockedBy = ContentProvider.class)
 public class FakeSettingsProviderTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
-
     private static final String SYSTEM_SETTING = Settings.System.SCREEN_BRIGHTNESS;
-    private static final String SECURE_SETTING = Settings.Secure.BLUETOOTH_NAME;
+    private static final String SECURE_SETTING = Settings.Secure.ANDROID_ID;
     private static final String GLOBAL_SETTING = Settings.Global.MOBILE_DATA_ALWAYS_ON;
 
     private MockContentResolver mCr;
@@ -160,30 +152,30 @@ public class FakeSettingsProviderTest {
                 mCallbacks.add(userId + ":" + uri.toString())));
 
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, "value", 1);
-        assertCallbackReceived("1:content://settings/secure/bluetooth_name");
+        assertCallbackReceived("1:content://settings/secure/" + SECURE_SETTING);
 
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, "newvalue", 1);
-        assertCallbackReceived("1:content://settings/secure/bluetooth_name");
+        assertCallbackReceived("1:content://settings/secure/" + SECURE_SETTING);
 
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, "value", 2);
-        assertCallbackReceived("2:content://settings/secure/bluetooth_name");
+        assertCallbackReceived("2:content://settings/secure/" + SECURE_SETTING);
 
         // Callback is not called if value doesn't change.
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, "newvalue", 1);
         assertNoCallbackReceived();
 
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, null, 2);
-        assertCallbackReceived("2:content://settings/secure/bluetooth_name");
+        assertCallbackReceived("2:content://settings/secure/" + SECURE_SETTING);
 
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, null, 1);
-        assertCallbackReceived("1:content://settings/secure/bluetooth_name");
+        assertCallbackReceived("1:content://settings/secure/" + SECURE_SETTING);
 
         Settings.Secure.putStringForUser(mCr, SECURE_SETTING, null, 1);
         assertNoCallbackReceived();
 
         final int currentUserId = UserHandle.getUserId(Process.myUid());
         Settings.System.putString(mCr, SYSTEM_SETTING, "value");
-        assertCallbackReceived(currentUserId + ":" + "content://settings/system/screen_brightness");
+        assertCallbackReceived(currentUserId + ":" + "content://settings/system/" + SYSTEM_SETTING);
 
     }
 }

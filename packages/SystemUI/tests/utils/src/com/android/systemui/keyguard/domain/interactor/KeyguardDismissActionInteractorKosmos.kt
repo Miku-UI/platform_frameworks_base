@@ -23,6 +23,7 @@ import com.android.systemui.keyguard.data.repository.keyguardRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.logcatLogBuffer
+import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 
@@ -35,9 +36,9 @@ val Kosmos.keyguardDismissActionInteractor by
             applicationScope = testScope.backgroundScope,
             deviceUnlockedInteractor = { deviceUnlockedInteractor },
             shadeInteractor = { shadeInteractor },
-            keyguardInteractor = { keyguardInteractor },
             sceneInteractor = { sceneInteractor },
             keyguardLogger = KeyguardLogger(logcatLogBuffer("keyguard-logger-for-test")),
             primaryBouncerInteractor = primaryBouncerInteractor,
+            sceneBackInteractor = sceneBackInteractor,
         )
     }

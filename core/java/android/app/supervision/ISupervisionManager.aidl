@@ -19,6 +19,10 @@ package android.app.supervision;
 import android.content.Intent;
 import android.app.supervision.ISupervisionListener;
 import android.app.supervision.SupervisionRecoveryInfo;
+import android.app.supervision.Policy;
+import android.content.pm.ResolveInfo;
+import android.content.pm.UserInfo;
+import android.os.Bundle;
 
 /**
  * Internal IPC interface to the supervision service.
@@ -36,4 +40,12 @@ interface ISupervisionManager {
     boolean hasSupervisionCredentials();
     oneway void registerSupervisionListener(int userId, in ISupervisionListener listener);
     oneway void unregisterSupervisionListener(in ISupervisionListener listener);
+    List<Policy> getPolicies(int userId);
+    void setPolicy(int userId, in Policy policy);
+    boolean canLaunchPinRecovery(int userId);
+    List<ResolveInfo> querySupervisionApprovalActivities(int userId);
+    boolean hasValidRecoveryMethod(int userId);
+    List<UserInfo> getUsersThatRequirePlatformCredential();
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BYPASS_ROLE_QUALIFICATION)")
+    void setShouldAllowBypassingSupervisionRoleQualification(boolean allowBypassing);
 }

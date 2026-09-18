@@ -74,6 +74,9 @@ public interface ExpandedViewAnimationController {
      */
     void animateForImeVisibilityChange(boolean visible);
 
+    /** Cancels the clip animation if it's running. */
+    void cancelClipAnimation();
+
     /**
      * Whether this controller should also animate the expansion for the bubble
      */

@@ -16,17 +16,17 @@
 
 package com.android.systemui.dreams.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.compose.animation.scene.Edge
 import com.android.compose.animation.scene.Swipe
 import com.android.compose.animation.scene.UserActionResult
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
-import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
@@ -36,7 +36,6 @@ import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
 import com.android.systemui.power.domain.interactor.powerInteractor
-import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.TransitionKeys.ToSplitShade
@@ -44,9 +43,11 @@ import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.testKosmos
+import com.google.common.truth.Expect
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
 import org.junit.Before
+import org.junit.Rule
 import org.junit.runner.RunWith
 
 @SmallTest
@@ -54,14 +55,16 @@ import org.junit.runner.RunWith
 @EnableSceneContainer
 class DreamUserActionsViewModelTest : SysuiTestCase() {
 
+    @get:Rule val expect: Expect = Expect.create()
+
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private lateinit var underTest: DreamUserActionsViewModel
+    private val Kosmos.underTest: DreamUserActionsViewModel by
+        Kosmos.Fixture { dreamUserActionsViewModelFactory.create() }
 
     @Before
     fun setUp() {
-        underTest = kosmos.dreamUserActionsViewModelFactory.create()
-        underTest.activateIn(kosmos.testScope)
+        with(kosmos) { underTest.activateIn(testScope) }
     }
 
     @Test
@@ -71,107 +74,71 @@ class DreamUserActionsViewModelTest : SysuiTestCase() {
 
             val actions by collectLastValue(underTest.actions)
 
-            setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
+            setUpState(isShadeTouchable = true)
             assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Lockscreen))
-            assertThat(actions?.get(Swipe.Down)).isEqualTo(UserActionResult(Scenes.Shade))
-            assertThat(actions?.get(Swipe.Start)).isNull()
-            assertThat(actions?.get(Swipe.End)).isNull()
+            expect.that(actions?.get(Swipe.Up)).isNull()
+            expect.that(actions?.get(Swipe.Down)).isEqualTo(UserActionResult(Scenes.Shade))
+            expect.that(actions?.get(Swipe.Down(fromSource = Edge.Top))).isNull()
+            expect.that(actions?.get(Swipe.Start)).isNull()
+            expect.that(actions?.get(Swipe.End)).isNull()
 
-            setUpState(isShadeTouchable = false, isDeviceUnlocked = false)
+            setUpState(isShadeTouchable = false)
             assertThat(actions).isEmpty()
-
-            setUpState(isShadeTouchable = true, isDeviceUnlocked = true)
-            assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Gone))
-            assertThat(actions?.get(Swipe.Down)).isEqualTo(UserActionResult(Scenes.Shade))
-            assertThat(actions?.get(Swipe.Start)).isNull()
-            assertThat(actions?.get(Swipe.End)).isNull()
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun actions_splitShade() =
         kosmos.runTest {
             enableSplitShade()
 
             val actions by collectLastValue(underTest.actions)
 
-            setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
+            setUpState(isShadeTouchable = true)
             assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Lockscreen))
-            assertThat(actions?.get(Swipe.Down))
+            expect.that(actions?.get(Swipe.Up)).isNull()
+            expect
+                .that(actions?.get(Swipe.Down))
                 .isEqualTo(UserActionResult(Scenes.Shade, ToSplitShade))
-            assertThat(actions?.get(Swipe.Start)).isNull()
-            assertThat(actions?.get(Swipe.End)).isNull()
+            expect.that(actions?.get(Swipe.Start)).isNull()
+            expect.that(actions?.get(Swipe.End)).isNull()
 
-            setUpState(isShadeTouchable = false, isDeviceUnlocked = false)
+            setUpState(isShadeTouchable = false)
             assertThat(actions).isEmpty()
-
-            setUpState(isShadeTouchable = true, isDeviceUnlocked = true)
-            assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Gone))
-            assertThat(actions?.get(Swipe.Down))
-                .isEqualTo(UserActionResult(Scenes.Shade, ToSplitShade))
-            assertThat(actions?.get(Swipe.Start)).isNull()
-            assertThat(actions?.get(Swipe.End)).isNull()
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun actions_dualShade() =
         kosmos.runTest {
             enableDualShade()
 
             val actions by collectLastValue(underTest.actions)
 
-            setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
+            setUpState(isShadeTouchable = true)
             assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Lockscreen))
-            assertThat(actions?.get(Swipe.Down))
+            expect.that(actions?.get(Swipe.Up)).isNull()
+            expect
+                .that(actions?.get(Swipe.Down(pointerType = PointerType.Eraser)))
                 .isEqualTo(UserActionResult.ShowOverlay(Overlays.NotificationsShade))
-            assertThat(actions?.get(Swipe.Start)).isNull()
-            assertThat(actions?.get(Swipe.End)).isNull()
+            expect
+                .that(actions?.get(Swipe.Down(pointerType = PointerType.Stylus)))
+                .isEqualTo(UserActionResult.ShowOverlay(Overlays.NotificationsShade))
+            expect
+                .that(actions?.get(Swipe.Down(pointerType = PointerType.Touch)))
+                .isEqualTo(UserActionResult.ShowOverlay(Overlays.NotificationsShade))
+            expect.that(actions?.get(Swipe.Start)).isNull()
+            expect.that(actions?.get(Swipe.End)).isNull()
 
-            setUpState(isShadeTouchable = false, isDeviceUnlocked = false)
+            setUpState(isShadeTouchable = false)
             assertThat(actions).isEmpty()
-
-            setUpState(isShadeTouchable = true, isDeviceUnlocked = true)
-            assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Gone))
-            assertThat(actions?.get(Swipe.Down))
-                .isEqualTo(UserActionResult.ShowOverlay(Overlays.NotificationsShade))
-            assertThat(actions?.get(Swipe.Start)).isNull()
-            assertThat(actions?.get(Swipe.End)).isNull()
         }
 
-    private fun Kosmos.setUpState(isShadeTouchable: Boolean, isDeviceUnlocked: Boolean) {
+    private fun Kosmos.setUpState(isShadeTouchable: Boolean) {
         if (isShadeTouchable) {
             powerInteractor.setAwakeForTest()
         } else {
             powerInteractor.setAsleepForTest()
         }
-
-        if (isDeviceUnlocked) {
-            unlockDevice()
-        } else {
-            lockDevice()
-        }
-    }
-
-    private fun Kosmos.lockDevice() {
-        val deviceUnlockStatus by collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus)
-
-        kosmos.fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
-        assertThat(deviceUnlockStatus?.isUnlocked).isFalse()
-        kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "reason")
-    }
-
-    private fun Kosmos.unlockDevice() {
-        val deviceUnlockStatus by collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus)
-
-        fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-            SuccessFingerprintAuthenticationStatus(0, true)
-        )
-        assertThat(deviceUnlockStatus?.isUnlocked).isTrue()
-        sceneInteractor.changeScene(Scenes.Gone, "reason")
     }
 }

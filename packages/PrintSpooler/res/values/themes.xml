@@ -27,7 +27,7 @@
     </style>
 
     <style name="Theme.PrintActivity" parent="@android:style/Theme.DeviceDefault.Light">
-        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsTranslucent" android:featureFlag="!com.android.printspooler.flags.opaque_print_activity">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowLightStatusBar">true</item>

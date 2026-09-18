@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi បីកាំ"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"សេវា Wifi ពេញ"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"បានភ្ជាប់ទៅឧបករណ៍របស់អ្នក។"</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"អ្នកប្រើប្រាស់ទាំងអស់នៅលើឧបករណ៍នេះអាចមើល និងភ្ជាប់បាន។"</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"បើក​បណ្ដាញ"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"បណ្តាញ​ដែល​មានសុវត្ថិភាព"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"ប្រព័ន្ធ​ប្រតិបត្តិការ Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"ការ​កំណត់​ឈ្មោះ​ចូល​ដំណើរការ​មិន​អាច​ប្រើ​បាន​សម្រាប់​អ្នក​ប្រើ​​នេះ"</string>
     <string name="enable_adb" msgid="8072776357237289039">"ការ​ជួសជុលតាម USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"មុខងារជួសជុល នៅពេលភ្ជាប់ USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"ដក​សិទ្ធិ​ជួសជុលតាម USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"ដក​ការអនុញ្ញាត​ការជួសជុល adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"ការជួសជុល​ដោយឥតខ្សែ"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"មុខងារ​ជួសជុល នៅពេល​ភ្ជាប់ Wi‑Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"បញ្ហា"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"កំពុងផ្គូផ្គង​ឧបករណ៍…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"មិនអាច​ផ្គូផ្គង​ឧបករណ៍​បានទេ។ កូដ QR មិនត្រឹមត្រូវ ឬមិនបានភ្ជាប់​ឧបករណ៍​ទៅ​បណ្ដាញ​ដូចគ្នា។"</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"អាសយដ្ឋាន IP និងច្រក"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"មិនអាចប្រើបាន (មិនអនុញ្ញាត)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"មិនអាចប្រើបាន (បានផ្ដាច់ Wi‑Fi)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"ស្កេន​កូដ QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"ផ្គូផ្គង​ឧបករណ៍​តាមរយៈ Wi‑Fi ដោយស្កេន​កូដ QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"សូម​ភ្ជាប់ទៅ​បណ្តាញ Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"ការ​កែ​កំហុស​​យូអេសប៊ី​គឺ​សម្រាប់​តែ​ការ​អភិវឌ្ឍ​ប៉ុណ្ណោះ។ ប្រើ​វា​ដើម្បី​ចម្លង​ទិន្នន័យ​រវាង​កុំព្យូទ័រ និង​ឧបករណ៍​របស់​អ្នក ដំឡើង​កម្មវិធី​ក្នុង​ឧបករណ៍​របស់​អ្នក​ដោយ​មិន​ជូន​ដំណឹង និង​អាន​ទិន្នន័យ​កំណត់ហេតុ។"</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"អនុញ្ញាត​ការជួសជុល​ដោយឥតខ្សែ​ឬ?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"ការជួសជុល​ដោយឥតខ្សែ​គឺសម្រាប់​តែ​ការ​អភិវឌ្ឍ​ប៉ុណ្ណោះ។ ប្រើ​ការជួសជុល​ដោយឥតខ្សែ ដើម្បី​ចម្លង​ទិន្នន័យ​រវាង​កុំព្យូទ័រ និង​ឧបករណ៍​របស់អ្នក ដំឡើង​កម្មវិធី​នៅលើ​ឧបករណ៍​របស់អ្នក​ដោយ​គ្មានការ​ជូន​ដំណឹង និង​អាន​ទិន្នន័យ​កំណត់ហេតុ។"</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"ដក​សិទ្ធិ​ចូល​ការ​កែ​កំហុស​តាម​យូអេសប៊ី​ពី​គ្រប់​កុំព្យូទ័រ​ដែល​អ្នក​បាន​ផ្ដល់​សិទ្ធិ​ពី​មុន?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"ដក​សិទ្ធិ​ចូលប្រើការជួសជុល adb ពី​គ្រប់​កុំព្យូទ័រ និងបណ្ដាញ​ដែល​អ្នក​បាន​អនុញ្ញាត​ពី​មុន​ឬ?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"អនុញ្ញាត​កំណត់​ការ​អភិវឌ្ឍ?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"ការ​កំណត់​ទាំង​នេះ​សម្រាប់​តែ​ការ​ប្រើ​ក្នុង​ការ​អភិវឌ្ឍ​ប៉ុណ្ណោះ។ ពួក​វា​អាច​ធ្វើ​ឲ្យ​ឧបករណ៍ និង​កម្មវិធី​របស់​អ្នក​ខូច ឬ​ដំណើរ​មិន​ត្រឹមត្រូវ។"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"ផ្ទៀងផ្ទាត់​កម្មវិធី​តាម USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"បានផ្តាច់អ៊ីសឺរណិត។"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"អ៊ីសឺរណិត។"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"គ្មាន​ការហៅ​ទូរសព្ទទេ​។"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"ក្ដារចុច​រូបវន្ត"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"ជ្រើសរើស​ប្លង់​ក្ដារចុច"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"លំនាំដើម"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"ការគ្រប់គ្រងការបើកអេក្រង់"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"អនុញ្ញាតឱ្យ​បើកអេក្រង់"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"អនុញ្ញាតឱ្យ​កម្មវិធី​បើកអេក្រង់។ ប្រសិនបើ​អនុញ្ញាត កម្មវិធី​អាចបើកអេក្រង់​បានគ្រប់ពេល ទោះបីជា​អ្នកគ្មានបំណង​ធ្វើអន្តរកម្មក៏ដោយ។"</string>

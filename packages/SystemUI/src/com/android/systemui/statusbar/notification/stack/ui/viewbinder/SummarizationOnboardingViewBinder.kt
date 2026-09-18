@@ -18,7 +18,9 @@ package com.android.systemui.statusbar.notification.stack.ui.viewbinder
 
 import android.content.Intent
 import android.provider.Settings
+import com.android.systemui.res.R
 import com.android.systemui.lifecycle.repeatWhenAttachedToWindow
+import com.android.systemui.statusbar.notification.NmSummarizationAllFlag
 import com.android.systemui.statusbar.notification.NotificationActivityStarter
 import com.android.systemui.statusbar.notification.stack.OnboardingAffordanceView
 import com.android.systemui.statusbar.notification.stack.activityStarterScope
@@ -40,6 +42,11 @@ constructor(private val activityStarter: NotificationActivityStarter) {
                         startSettingsIntent(settingsIntent)
                         viewModel.dismissAffordance()
                     }
+                }
+            }
+            launch {
+                if (NmSummarizationAllFlag.isEnabled) {
+                    view.setMessage(R.string.notification_onboarding_summaries_message_with_apps)
                 }
             }
         }

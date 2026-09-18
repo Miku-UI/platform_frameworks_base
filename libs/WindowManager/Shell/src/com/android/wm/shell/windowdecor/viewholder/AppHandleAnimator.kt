@@ -109,10 +109,8 @@ class AppHandleAnimator(appHandleView: View, private val captionHandle: ImageBut
 
     /** Cancels any active animations. */
     fun cancel() {
-        if (DesktopExperienceFlags.ENABLE_REENABLE_APP_HANDLE_ANIMATIONS.isTrue) {
-            visibilityAnimator.cancel()
-            colorAnimator.cancel()
-        }
+        visibilityAnimator.cancel()
+        colorAnimator.cancel()
         cancelCaptionHandleAlphaAnimation()
     }
 
@@ -189,7 +187,7 @@ class AppHandleAnimator(appHandleView: View, private val captionHandle: ImageBut
                 if (DEBUG_ANIMATOR_STEPS) {
                     addUpdateListener { animator ->
                         logD(
-                            "update: animator=ObjectAnimator@%s f=%f alpha=%f",
+                            "update: animator=ObjectAnimator@%s f=%f alpha=%s",
                             animator.hashCode().toHexString(),
                             animator.animatedFraction,
                             animator.animatedValue,
@@ -217,6 +215,8 @@ class AppHandleAnimator(appHandleView: View, private val captionHandle: ImageBut
             }
         }
 
+        // TODO(b/478792808): Remove suppression
+        @SuppressWarnings("ProtoLogNonConstantFormat")
         private fun logD(msg: String, vararg arguments: Any?) {
             ProtoLog.d(WM_SHELL_WINDOW_DECORATION, "%s: $msg", TAG, *arguments)
         }
@@ -288,7 +288,7 @@ class AppHandleAnimator(appHandleView: View, private val captionHandle: ImageBut
                             ColorStateList.valueOf(animator.animatedValue as Int)
                         if (DEBUG_ANIMATOR_STEPS) {
                             logD(
-                                "update: animator=ValueAnimator@%s f=%f color=%f",
+                                "update: animator=ValueAnimator@%s f=%f color=%s",
                                 animator.hashCode().toHexString(),
                                 animator.animatedFraction,
                                 (animator.animatedValue as Int).toArgbString(),
@@ -306,6 +306,8 @@ class AppHandleAnimator(appHandleView: View, private val captionHandle: ImageBut
                     }
                 }
 
+        // TODO(b/478792808): Remove suppression
+        @SuppressWarnings("ProtoLogNonConstantFormat")
         private fun logD(msg: String, vararg arguments: Any?) {
             ProtoLog.d(WM_SHELL_WINDOW_DECORATION, "%s: $msg", TAG, *arguments)
         }

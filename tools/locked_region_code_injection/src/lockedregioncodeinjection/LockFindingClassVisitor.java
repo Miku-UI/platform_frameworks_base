@@ -25,11 +25,10 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicValue;
@@ -138,7 +137,7 @@ class LockFindingClassVisitor extends ClassVisitor {
                 handlersMap.add(a.getHandlers(i));
             }
 
-            if (ownerMonitor != null) {
+            if (ownerMonitor != null && ownerMonitor.getPre() != null) {
                 AbstractInsnNode s = instructions.getFirst();
                 MethodInsnNode call = new MethodInsnNode(Opcodes.INVOKESTATIC,
                         ownerMonitor.getPreOwner(), ownerMonitor.getPreMethod(), "()V", false);
@@ -157,14 +156,18 @@ class LockFindingClassVisitor extends ClassVisitor {
                         LockTargetState state = (LockTargetState) operand;
                         for (int j = 0; j < state.getTargets().size(); j++) {
                             LockTarget target = state.getTargets().get(j);
+                            i += injectAcquireTracing(mn, frameMap, handlersMap, s, i, target);
                             MethodInsnNode call = methodCall(target, true);
-                            if (target.getScoped()) {
-                                TypeInsnNode cast = typeCast(target);
-                                i += insertInvokeAcquire(mn, frameMap, handlersMap, s, i,
-                                        call, cast);
-                                anyDup = true;
-                            } else {
-                                i += insertMethodCallBefore(mn, frameMap, handlersMap, s, i, call);
+                            if (call != null) {
+                                if (target.getScoped()) {
+                                    TypeInsnNode cast = typeCast(target);
+                                    i += insertInvokeAcquire(mn, frameMap, handlersMap, s, i,
+                                            call, cast);
+                                    anyDup = true;
+                                } else {
+                                    i += insertMethodCallBefore(mn, frameMap, handlersMap, s, i,
+                                            call);
+                                }
                             }
                         }
                     }
@@ -194,21 +197,26 @@ class LockFindingClassVisitor extends ClassVisitor {
                                 "Expected label to be the end of monitor exit's try block");
 
                             LockTarget target = state.getTargets().get(j);
+                            i += injectReleaseTracing(mn, frameMap, handlersMap, s, i, label,
+                                    labelIndex, target);
                             MethodInsnNode call = methodCall(target, false);
-                            if (target.getScoped()) {
-                                TypeInsnNode cast = typeCast(target);
-                                i += insertInvokeRelease(mn, frameMap, handlersMap, s, i,
-                                        call, cast);
-                                anyDup = true;
-                            } else {
-                                insertMethodCallAfter(mn, frameMap, handlersMap, label,
-                                        labelIndex, call);
+                            if (call != null) {
+                                if (target.getScoped()) {
+                                    TypeInsnNode cast = typeCast(target);
+                                    i += insertInvokeRelease(mn, frameMap, handlersMap, s, i,
+                                            call, cast);
+                                    anyDup = true;
+                                } else {
+                                    insertMethodCallAfter(mn, frameMap, handlersMap, label,
+                                            labelIndex, call);
+                                }
                             }
                         }
                     }
                 }
 
-                if (ownerMonitor != null && (s.getOpcode() == Opcodes.RETURN
+                if (ownerMonitor != null && ownerMonitor.getPost() != null
+                        && (s.getOpcode() == Opcodes.RETURN
                         || s.getOpcode() == Opcodes.ARETURN || s.getOpcode() == Opcodes.DRETURN
                         || s.getOpcode() == Opcodes.FRETURN || s.getOpcode() == Opcodes.IRETURN)) {
                     MethodInsnNode call =
@@ -225,6 +233,49 @@ class LockFindingClassVisitor extends ClassVisitor {
 
             super.visitEnd();
             mn.accept(chain);
+        }
+
+        private int injectAcquireTracing(MethodNode mn, List<Frame> frameMap,
+                List<List<TryCatchBlockNode>> handlersMap, AbstractInsnNode s, int i,
+                LockTarget target) {
+            int instructionsAdded = 0;
+            if (target.getTraceBeforeAcquire() != null) {
+                MethodInsnNode call = new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        target.getTraceBeforeAcquireOwner(),
+                        target.getTraceBeforeAcquireMethod(), "()V", false);
+                instructionsAdded += insertMethodCallBefore(mn, frameMap, handlersMap, s, i,
+                        call);
+            }
+            if (target.getTraceAfterAcquire() != null) {
+                MethodInsnNode traceCall = new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        target.getTraceAfterAcquireOwner(),
+                        target.getTraceAfterAcquireMethod(), "()V", false);
+                insertMethodCallAfter(mn, frameMap, handlersMap, s, i + instructionsAdded,
+                        traceCall);
+            }
+            return instructionsAdded;
+        }
+
+        private int injectReleaseTracing(MethodNode mn, List<Frame> frameMap,
+                List<List<TryCatchBlockNode>> handlersMap, AbstractInsnNode s, int i,
+                LabelNode label, int labelIndex, LockTarget target) {
+            int instructionsAdded = 0;
+            if (target.getTraceBeforeRelease() != null) {
+                MethodInsnNode call = new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        target.getTraceBeforeReleaseOwner(),
+                        target.getTraceBeforeReleaseMethod(), "()V", false);
+                instructionsAdded += insertMethodCallBefore(mn, frameMap, handlersMap, s, i, call);
+            }
+            if (target.getTraceAfterRelease() != null) {
+                MethodInsnNode traceCall = new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        target.getTraceAfterReleaseOwner(),
+                        target.getTraceAfterReleaseMethod(), "()V", false);
+                insertMethodCallAfter(mn, frameMap, handlersMap, label,
+                        labelIndex, traceCall);
+            }
+            return instructionsAdded;
         }
 
         // Insert a call to a monitor pre handler.  The node and the index identify the
@@ -291,6 +342,12 @@ class LockFindingClassVisitor extends ClassVisitor {
     }
 
     public static MethodInsnNode methodCall(LockTarget target, boolean pre) {
+        if (pre && target.getPre() == null) {
+            return null;
+        }
+        if (!pre && target.getPost() == null) {
+            return null;
+        }
         String spec = "()V";
         if (!target.getScoped()) {
             if (pre) {
@@ -381,7 +438,6 @@ class LockFindingClassVisitor extends ClassVisitor {
         return 1;
     }
 
-
     @SuppressWarnings("unchecked")
     public static void updateCatchHandler(MethodNode mn, List<TryCatchBlockNode> handlers,
             LabelNode start, LabelNode end, List<List<TryCatchBlockNode>> handlersMap) {
@@ -391,7 +447,7 @@ class LockFindingClassVisitor extends ClassVisitor {
 
         InsnList instructions = mn.instructions;
         List<TryCatchBlockNode> newNodes = new ArrayList<>(handlers.size());
-        for (TryCatchBlockNode handler : handlers) {
+        for (TryCatchBlockNode handler : new ArrayList<>(handlers)) {
             if (!(instructions.indexOf(handler.start) <= instructions.indexOf(start)
                     && instructions.indexOf(end) <= instructions.indexOf(handler.end))) {
                 TryCatchBlockNode newNode =

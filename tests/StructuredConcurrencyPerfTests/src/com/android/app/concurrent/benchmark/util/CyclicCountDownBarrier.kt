@@ -15,12 +15,10 @@
  */
 package com.android.app.concurrent.benchmark.util
 
+import java.util.concurrent.BrokenBarrierException
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import org.junit.Assert.fail
-
-private const val TAG = "CyclicCountDownBarrier"
 
 /**
  * Awaits on the given [barrier] when [CyclicCountDownBarrier.countDown] is called [count] times,
@@ -29,11 +27,6 @@ private const val TAG = "CyclicCountDownBarrier"
  * This class is NOT thread safe. It should only be called from one background thread.
  */
 class CyclicCountDownBarrier(private val barrier: CyclicBarrier, private val count: Int) {
-    class Builder(val count: Int) {
-        fun build(barrier: CyclicBarrier): CyclicCountDownBarrier {
-            return CyclicCountDownBarrier(barrier, count)
-        }
-    }
 
     private var assignedThread: Thread? = null
 
@@ -54,7 +47,7 @@ class CyclicCountDownBarrier(private val barrier: CyclicBarrier, private val cou
             assignedThread = curThread
         }
         if (curThread != assignedThread) {
-            fail(
+            throw AssertionError(
                 "CyclicCountDownBarrier.countDown() must only ever be called from one thread." +
                     " Was first called on Thread #${assignedThread?.threadId()}," +
                     " but was now called on Thread #${curThread.threadId()}"
@@ -66,12 +59,14 @@ class CyclicCountDownBarrier(private val barrier: CyclicBarrier, private val cou
                 dbg { "barrier#await" }
                 barrier.await(BARRIER_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
                 numAwaits++
+            } catch (e: BrokenBarrierException) {
+                throw AssertionError("BrokenBarrierException occurred")
             } catch (e: TimeoutException) {
-                fail(
+                throw AssertionError(
                     "Timeout on Thread #${curThread.threadId()} while awaiting next iteration. " +
-                        "Barrier was used $numAwaits times on this thread prior to this."
+                        "Barrier was used $numAwaits times on this thread prior to this.",
+                    e,
                 )
-                throw e
             }
             currentCount = count
         }

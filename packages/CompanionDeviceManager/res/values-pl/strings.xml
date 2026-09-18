@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"urządzenie medyczne"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"Zezwolić aplikacji &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; na strumieniowanie aplikacji i funkcji systemowych między urządzeniami (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> i &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;)?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> otrzyma te uprawnienia:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> będzie mieć dostęp do wszystkich treści, jakie są wyświetlane i odtwarzane przez <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, w tym do dźwięku, zdjęć, danych do płatności, haseł i wiadomości.&lt;br/&gt;&lt;br/&gt;Aplikacja <xliff:g id="APP_NAME_1">%1$s</xliff:g> będzie mogła strumieniować aplikacje na urządzenie <xliff:g id="DEVICE_NAME">%3$s</xliff:g>, dopóki nie usuniesz dostępu do tego uprawnienia."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"Aplikacja <xliff:g id="APP_NAME">%1$s</xliff:g> prosi w imieniu urządzenia <xliff:g id="DEVICE_NAME">%2$s</xliff:g> o uprawnienie do strumieniowania aplikacji i funkcji systemowych między Twoimi urządzeniami"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"Aplikacja <xliff:g id="APP_NAME">%1$s</xliff:g> prosi w imieniu urządzenia <xliff:g id="DEVICE_NAME">%2$s</xliff:g> o uprawnienia dotyczące dostępu do zdjęć, multimediów i powiadomień na <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Zezwolić aplikacji &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; na strumieniowanie aplikacji i funkcji systemowych między urządzeniami (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> i &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;)?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> otrzyma te uprawnienia:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> będzie mieć dostęp do wszystkich treści, jakie wyświetla i odtwarza <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, w tym do dźwięku, zdjęć, danych do płatności, haseł i wiadomości.&lt;br/&gt;&lt;br/&gt;Aplikacja <xliff:g id="APP_NAME_2">%1$s</xliff:g> będzie mogła strumieniować aplikacje na urządzenie <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>, dopóki nie usuniesz dostępu do tego uprawnienia."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"Aplikacja <xliff:g id="APP_NAME">%1$s</xliff:g> prosi w imieniu urządzenia <xliff:g id="DEVICE_NAME">%2$s</xliff:g> o pozwolenie na strumieniowanie aplikacji z urządzenia <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Zezwolić aplikacji &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; na strumieniowanie dźwięku i funkcji systemowych między urządzeniami <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> i &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> otrzyma te uprawnienia:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"urządzenie"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Ta aplikacja może synchronizować informacje (takie jak imię i nazwisko osoby dzwoniącej) między Twoim telefonem i wybranym urządzeniem"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"Zezwól aplikacji &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; na synchronizowanie informacji, takich jak dane rozmówcy, i wykonywanie inteligentnych działań na urządzeniu (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>)"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"Zezwól aplikacji &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; na synchronizowanie informacji, takich jak dane rozmówcy, i wykonywanie inteligentnych działań na urządzeniu (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>)"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Zezwól"</string>
     <string name="consent_no" msgid="2640796915611404382">"Nie zezwalaj"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Anuluj"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Zmień wyjście multimediów"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Zdjęcia i multimedia"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Powiadomienia"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Powielanie i strumieniowanie"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Strumieniowanie danych na <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Odbicie lustrzane ekranu"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Strumieniowanie aplikacji"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Nagrywanie dźwięku"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Znajdowanie urządzeń w pobliżu, określanie ich względnego położenia oraz łączenie się z nimi"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Odczytywanie wszystkich powiadomień, w tym informacji takich jak kontakty, wiadomości i zdjęcia"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Odczytywanie wszystkich powiadomień, w tym informacji takich jak kontakty, wiadomości i zdjęcia&lt;br/&gt;• Wysyłanie powiadomień&lt;br/&gt;&lt;br/&gt;W każdej chwili możesz zmienić uprawnienia tej aplikacji do odczytywania i wysyłania powiadomień, klikając Ustawienia &gt; Powiadomienia."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Odczytywanie wszystkich powiadomień, w tym informacji takich jak kontakty, wiadomości i zdjęcia&lt;br/&gt;• Wysyłanie powiadomień&lt;br/&gt;&lt;br/&gt;W każdej chwili możesz zmienić uprawnienia tej aplikacji do odczytywania i wysyłania powiadomień, klikając Ustawienia › Powiadomienia."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"Udostępnianie zdjęć i plików multimedialnych z telefonu na inne urządzenia."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Wysyłanie powiadomień"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"Udostępnianie ekranu telefonu, w tym aplikacji, na innych urządzeniach. Będą one miały dostęp do wszystkiego, co jest widoczne na telefonie, w tym do dźwięku, zdjęć, danych do płatności, haseł i wiadomości, nawet gdy telefon jest zablokowany.&lt;br/&gt;&lt;br/&gt;Przekazywanie danych z mikrofonu, aparatu i innych czujników, w tym interakcji takich jak gesty dotykowe i kliknięcia myszą, z urządzeń z powrotem do telefonu."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Strumieniuj dane z mikrofonu, aparatu i innych czujników urządzenia &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; na <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Nagrywaj, przesyłaj lub udostępniaj urządzeniu &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; zawartość ekranu, jaką ma <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>.&lt;br/&gt;&lt;br/&gt;Aplikacja <xliff:g id="APP_NAME">%1$s</xliff:g> będzie mieć dostęp do wszystkich treści, jakie wyświetla i odtwarza <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>, w tym do dźwięku, zdjęć, danych do płatności, haseł i wiadomości."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Strumieniuj aplikacje, jakie ma <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>, na urządzenie &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> będzie mieć dostęp do wszystkich treści, jakie wyświetla i odtwarza <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, w tym do dźwięku, zdjęć, danych do płatności, haseł i wiadomości, nawet jeśli zablokowano <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g>."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Uzyskaj dostęp do listy dostępnych urządzeń i określ, które z nich ma strumieniować lub przesyłać ścieżkę audio bądź wideo z innych aplikacji"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Wysyłanie alertów"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Wysyłanie alertów nawet w trybie Nie przeszkadzać"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"telefon"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"tablet"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"telewizorze"</string>

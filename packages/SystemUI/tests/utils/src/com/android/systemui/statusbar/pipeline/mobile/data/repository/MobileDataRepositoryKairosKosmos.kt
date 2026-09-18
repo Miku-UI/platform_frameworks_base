@@ -24,13 +24,13 @@ import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.demoModeController
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.MutableEvents
 import com.android.systemui.kairos.buildSpec
 import com.android.systemui.kairos.kairos
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.logcatTableLogBuffer
@@ -48,19 +48,17 @@ import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoMod
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoModeWifiDataSourceKairos
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.wifiRepository
 import com.android.systemui.util.mockito.mockFixture
+import org.mockito.Mockito.spy
 import org.mockito.kotlin.mock
 
-@ExperimentalKairosApi
 var Kosmos.mobileConnectionsRepositoryKairos: MobileConnectionsRepositoryKairos by Fixture {
     mobileRepositorySwitcherKairos
 }
 
-@ExperimentalKairosApi
 val Kosmos.fakeMobileConnectionsRepositoryKairos by ActivatedKairosFixture {
-    FakeMobileConnectionsRepositoryKairos(kairos, logcatTableLogBuffer(this), mobileMappingsProxy)
+    FakeMobileConnectionsRepositoryKairos(logcatTableLogBuffer(this), mobileMappingsProxy)
 }
 
-@ExperimentalKairosApi
 val Kosmos.demoMobileConnectionsRepositoryKairos by ActivatedKairosFixture {
     DemoMobileConnectionsRepositoryKairos(
         mobileDataSource = demoModeMobileConnectionDataSourceKairos,
@@ -70,30 +68,32 @@ val Kosmos.demoMobileConnectionsRepositoryKairos by ActivatedKairosFixture {
     )
 }
 
-@ExperimentalKairosApi
 val Kosmos.demoModeMobileConnectionDataSourceKairos:
     DemoModeMobileConnectionDataSourceKairos by Fixture {
     FakeDemoModeMobileConnectionDataSourceKairos(kairos)
 }
 
-val Kosmos.wifiDataSource: DemoModeWifiDataSource by mockFixture()
+val Kosmos.wifiDataSource: DemoModeWifiDataSource by Fixture {
+    spy(
+        DemoModeWifiDataSource(
+            demoModeController = demoModeController,
+            scope = applicationCoroutineScope,
+        )
+    )
+}
 
-@ExperimentalKairosApi
 val Kosmos.wifiDataSourceKairos: DemoModeWifiDataSourceKairos by ActivatedKairosFixture {
     DemoModeWifiDataSourceKairos(wifiDataSource)
 }
 
-@ExperimentalKairosApi
 class FakeDemoModeMobileConnectionDataSourceKairos(kairos: KairosNetwork) :
     DemoModeMobileConnectionDataSourceKairos {
-    override val mobileEvents = MutableEvents<FakeNetworkEventModel?>(kairos)
+    override val mobileEvents = MutableEvents<FakeNetworkEventModel?>()
 }
 
-@ExperimentalKairosApi
 val DemoModeMobileConnectionDataSourceKairos.fake
     get() = this as FakeDemoModeMobileConnectionDataSourceKairos
 
-@ExperimentalKairosApi
 val Kosmos.mobileRepositorySwitcherKairos:
     MobileRepositorySwitcherKairos by ActivatedKairosFixture {
     MobileRepositorySwitcherKairos(
@@ -103,7 +103,6 @@ val Kosmos.mobileRepositorySwitcherKairos:
     )
 }
 
-@ExperimentalKairosApi
 val Kosmos.demoMobileConnectionsRepositoryKairosFactory:
     DemoMobileConnectionsRepositoryKairos.Factory by Fixture {
     // query the wifiDataSourceKairos fixture here, so that it is ready to go when the factory is
@@ -119,7 +118,6 @@ val Kosmos.demoMobileConnectionsRepositoryKairosFactory:
     }
 }
 
-@ExperimentalKairosApi
 val Kosmos.mobileConnectionsRepositoryKairosImpl:
     MobileConnectionsRepositoryKairosImpl by ActivatedKairosFixture {
     MobileConnectionsRepositoryKairosImpl(
@@ -146,10 +144,9 @@ val Kosmos.subscriptionManager: SubscriptionManager by mockFixture()
 val Kosmos.mobileInputLogger: MobileInputLogger by mockFixture()
 val Kosmos.summaryLogger: TableLogBuffer by Fixture { logcatTableLogBuffer(this, "summaryLogger") }
 
-@ExperimentalKairosApi
 val Kosmos.mobileConnectionRepositoryKairosFactory by Fixture {
     MobileConnectionsRepositoryKairosImpl.ConnectionRepoFactory { subId ->
-        buildSpec { FakeMobileConnectionRepositoryKairos(subId, kairos, mock()) }
+        buildSpec { FakeMobileConnectionRepositoryKairos(subId, mock()) }
     }
 }
 

@@ -24,11 +24,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import android.hardware.vibrator.Braking;
 import android.hardware.vibrator.IVibrator;
-import android.os.vibrator.Flags;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Range;
@@ -141,30 +137,38 @@ public class VibratorInfoTest {
         VibratorInfo info = new VibratorInfo.Builder(TEST_VIBRATOR_ID)
                 .setPrimitiveDelayMax(100)
                 .setCompositionSizeMax(10)
-                .setPwlePrimitiveDurationMax(50)
-                .setPwleSizeMax(20)
                 .build();
         assertEquals(100, info.getPrimitiveDelayMax());
         assertEquals(10, info.getCompositionSizeMax());
-        assertEquals(50, info.getPwlePrimitiveDurationMax());
-        assertEquals(20, info.getPwleSizeMax());
 
         VibratorInfo emptyInfo = new VibratorInfo.Builder(TEST_VIBRATOR_ID).build();
         assertEquals(0, emptyInfo.getPrimitiveDelayMax());
         assertEquals(0, emptyInfo.getCompositionSizeMax());
-        assertEquals(0, emptyInfo.getPwlePrimitiveDurationMax());
-        assertEquals(0, emptyInfo.getPwleSizeMax());
     }
 
     @Test
     public void testAreEnvelopeEffectsSupported() {
         VibratorInfo noCapabilities = new VibratorInfo.Builder(TEST_VIBRATOR_ID).build();
         assertFalse(noCapabilities.areEnvelopeEffectsSupported());
-        VibratorInfo envelopeEffectCapability = new VibratorInfo.Builder(TEST_VIBRATOR_ID)
+
+        VibratorInfo oneCapability = new VibratorInfo.Builder(TEST_VIBRATOR_ID)
+                .setCapabilities(IVibrator.CAP_FREQUENCY_CONTROL)
+                .build();
+        assertFalse(oneCapability.areEnvelopeEffectsSupported());
+
+        VibratorInfo twoCapabilities = new VibratorInfo.Builder(TEST_VIBRATOR_ID)
                 .setCapabilities(
                         IVibrator.CAP_FREQUENCY_CONTROL | IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2)
                 .build();
-        assertTrue(envelopeEffectCapability.areEnvelopeEffectsSupported());
+        assertFalse(twoCapabilities.areEnvelopeEffectsSupported());
+
+        VibratorInfo allCapabilities = new VibratorInfo.Builder(TEST_VIBRATOR_ID)
+                .setCapabilities(
+                        IVibrator.CAP_FREQUENCY_CONTROL
+                                | IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2
+                                | IVibrator.CAP_GET_RESONANT_FREQUENCY)
+                .build();
+        assertTrue(allCapabilities.areEnvelopeEffectsSupported());
     }
 
     @Test
@@ -187,41 +191,12 @@ public class VibratorInfoTest {
     }
 
     @Test
-    public void testGetDefaultBraking_returnsFirstSupportedBraking() {
-        assertEquals(Braking.NONE, new VibratorInfo.Builder(
-                TEST_VIBRATOR_ID).build().getDefaultBraking());
-        assertEquals(Braking.CLAB,
-                new VibratorInfo.Builder(TEST_VIBRATOR_ID)
-                        .setSupportedBraking(Braking.NONE, Braking.CLAB)
-                        .build()
-                        .getDefaultBraking());
-    }
-
-    @Test
     public void testGetFrequencyProfile_unsetProfileIsEmpty() {
         assertTrue(new VibratorInfo.Builder(
                 TEST_VIBRATOR_ID).build().getFrequencyProfile().isEmpty());
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_DECOUPLE_FREQUENCY_PROFILE_FROM_RESONANCE)
-    public void testFrequencyProfile_flagDisabled_invalidValuesCreatesEmptyProfile() {
-        // Invalid resonant frequency.
-        assertThat(new VibratorInfo.FrequencyProfile(Float.NaN,
-                TEST_FREQUENCIES, TEST_OUTPUT_ACCELERATIONS).isEmpty()).isTrue();
-        assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/-1f,
-                TEST_FREQUENCIES, TEST_OUTPUT_ACCELERATIONS).isEmpty()).isTrue();
-        // No frequency-acceleration data
-        assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/150f,
-                /*frequenciesHz=*/ null, /*outputAccelerationsGs=*/ null).isEmpty()).isTrue();
-        // Mismatching frequency and output acceleration lists
-        assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/150f,
-                /*frequenciesHz=*/ new float[]{30f, 40f, 50f, 100f},
-                /*outputAccelerationsGs=*/ new float[]{0.8f, 1.0f, 2.0f}).isEmpty()).isTrue();
-    }
-
-    @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DECOUPLE_FREQUENCY_PROFILE_FROM_RESONANCE)
     public void testFrequencyProfile_invalidValuesCreatesEmptyProfile() {
         // Negative resonant frequency.
         assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/-1f,
@@ -236,7 +211,6 @@ public class VibratorInfoTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DECOUPLE_FREQUENCY_PROFILE_FROM_RESONANCE)
     public void testFrequencyProfile_creationWithoutResonantFrequency_isValid() {
         // Frequency profile is not dependent on resonant frequency.
         assertThat(new VibratorInfo.FrequencyProfile(Float.NaN,
@@ -454,9 +428,6 @@ public class VibratorInfoTest {
                     .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 20)
                     .setPrimitiveDelayMax(100)
                     .setCompositionSizeMax(10)
-                    .setSupportedBraking(Braking.CLAB)
-                    .setPwlePrimitiveDurationMax(50)
-                    .setPwleSizeMax(20)
                     .setQFactor(2f)
                     .setFrequencyProfileLegacy(TEST_FREQUENCY_PROFILE_LEGACY)
                     .setFrequencyProfile(TEST_FREQUENCY_PROFILE)
@@ -548,13 +519,6 @@ public class VibratorInfoTest {
                 .build();
         assertNotEquals(unknownEffectSupport, knownEmptyEffectSupport);
         assertFalse(unknownEffectSupport.equalContent(knownEmptyEffectSupport));
-
-        VibratorInfo unknownBrakingSupport = new VibratorInfo.Builder(TEST_VIBRATOR_ID).build();
-        VibratorInfo knownEmptyBrakingSupport = new VibratorInfo.Builder(TEST_VIBRATOR_ID)
-                .setSupportedBraking(new int[0])
-                .build();
-        assertNotEquals(unknownBrakingSupport, knownEmptyBrakingSupport);
-        assertFalse(unknownBrakingSupport.equalContent(knownEmptyBrakingSupport));
     }
 
     @Test

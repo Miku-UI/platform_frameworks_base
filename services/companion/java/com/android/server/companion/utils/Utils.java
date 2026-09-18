@@ -79,5 +79,28 @@ public final class Utils {
         return id;
     }
 
+    /**
+     * @return bitwise OR of two byte arrays.
+     */
+    public static byte[] bitwiseOr(byte[] a, byte[] b) {
+        int maxLength = Math.max(a.length, b.length);
+        byte[] result = new byte[maxLength];
+
+        // Iterate up to the length of the shorter array, performing the OR operation.
+        int minLength = Math.min(a.length, b.length);
+        for (int i = 0; i < minLength; i++) {
+            result[i] = (byte) (a[i] | b[i]);
+        }
+
+        // Copy any remaining bytes from the longer array to the result.
+        if (a.length > b.length) {
+            System.arraycopy(a, minLength, result, minLength, a.length - minLength);
+        } else if (b.length > a.length) {
+            System.arraycopy(b, minLength, result, minLength, b.length - minLength);
+        }
+
+        return result;
+    }
+
     private Utils() {}
 }

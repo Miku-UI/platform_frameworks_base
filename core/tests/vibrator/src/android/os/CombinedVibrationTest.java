@@ -30,7 +30,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 @RunWith(JUnit4.class)
 public class CombinedVibrationTest {
@@ -64,59 +63,9 @@ public class CombinedVibrationTest {
     }
 
     @Test
-    public void testValidateSequential() {
-        CombinedVibration.startSequential()
-                .addNext(0, VALID_EFFECT)
-                .addNext(CombinedVibration.createParallel(VALID_EFFECT))
-                .combine();
-        CombinedVibration.startSequential()
-                .addNext(0, VALID_EFFECT)
-                .addNext(0, VALID_EFFECT, 100)
-                .combine();
-        CombinedVibration.startSequential()
-                .addNext(CombinedVibration.startSequential()
-                        .addNext(0, VALID_EFFECT)
-                        .combine())
-                .combine();
-
-        assertThrows(IllegalArgumentException.class,
-                () -> CombinedVibration.startSequential()
-                        .addNext(0, VALID_EFFECT, -1)
-                        .combine());
-        assertThrows(IllegalArgumentException.class,
-                () -> CombinedVibration.startSequential()
-                        .addNext(0, INVALID_EFFECT)
-                        .combine());
-    }
-
-    @Test
-    public void testNestedSequentialAccumulatesDelays() {
-        CombinedVibration.Sequential combined =
-                (CombinedVibration.Sequential) CombinedVibration.startSequential()
-                        .addNext(CombinedVibration.startSequential()
-                                        .addNext(0, VALID_EFFECT, /* delay= */ 100)
-                                        .addNext(1, VALID_EFFECT, /* delay= */ 100)
-                                        .combine(),
-                                /* delay= */ 10)
-                        .addNext(CombinedVibration.startSequential()
-                                .addNext(0, VALID_EFFECT, /* delay= */ 100)
-                                .combine())
-                        .addNext(CombinedVibration.startSequential()
-                                        .addNext(0, VALID_EFFECT)
-                                        .addNext(0, VALID_EFFECT, /* delay= */ 100)
-                                        .combine(),
-                                /* delay= */ 10)
-                        .combine();
-
-        assertEquals(Arrays.asList(110, 100, 100, 10, 100), combined.getDelays());
-    }
-
-    @Test
     public void testCombineEmptyFails() {
         assertThrows(IllegalStateException.class,
                 () -> CombinedVibration.startParallel().combine());
-        assertThrows(IllegalStateException.class,
-                () -> CombinedVibration.startSequential().combine());
     }
 
     @Test
@@ -276,81 +225,6 @@ public class CombinedVibrationTest {
     }
 
     @Test
-    public void testDurationSequential() {
-        assertEquals(26, CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.createOneShot(10, 10), 10)
-                .addNext(2,
-                        VibrationEffect.createWaveform(new long[]{1, 2, 3}, new int[]{1, 2, 3}, -1))
-                .combine()
-                .getDuration());
-        assertEquals(-1, CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
-                .addNext(2,
-                        VibrationEffect.createWaveform(new long[]{1, 2, 3}, new int[]{1, 2, 3}, -1))
-                .combine()
-                .getDuration());
-        assertEquals(Long.MAX_VALUE, CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
-                .addNext(2,
-                        VibrationEffect.createWaveform(new long[]{1, 2, 3}, new int[]{1, 2, 3}, 0))
-                .combine()
-                .getDuration());
-    }
-
-    @Test
-    public void testDurationSequential_withVibratorSupportingPrimitives() {
-        SparseArray<VibratorInfo> infos = new SparseArray<>(2);
-        infos.put(1, new VibratorInfo.Builder(/* id= */ 1)
-                .setCapabilities(IVibrator.CAP_COMPOSE_EFFECTS)
-                .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 5)
-                .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 5)
-                .build());
-        infos.put(2, new VibratorInfo.Builder(/* id= */ 2)
-                .setCapabilities(IVibrator.CAP_COMPOSE_EFFECTS)
-                .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 10)
-                .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1)
-                .build());
-
-        // Add each duration and delay
-        assertEquals(321, CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK)
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1, 100)
-                        .compose(), 100)
-                .addNext(2, VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK)
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1, 100)
-                        .compose())
-                .combine()
-                .getDuration(infos));
-    }
-
-    @Test
-    public void testDurationSequential_withVibratorNotSupportingPrimitives() {
-        SparseArray<VibratorInfo> infos = new SparseArray<>(2);
-        infos.put(1, new VibratorInfo.Builder(/* id= */ 1)
-                .setCapabilities(IVibrator.CAP_AMPLITUDE_CONTROL)
-                .build());
-        infos.put(2, new VibratorInfo.Builder(/* id= */ 2)
-                .setCapabilities(IVibrator.CAP_COMPOSE_EFFECTS)
-                .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 10)
-                .setSupportedPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1)
-                .build());
-
-        assertEquals(-1, CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK)
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1, 100)
-                        .compose(), 100)
-                .addNext(2, VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK)
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1, 100)
-                        .compose())
-                .combine()
-                .getDuration(infos));
-    }
-
-    @Test
     public void testIsHapticFeedbackCandidateMono() {
         assertTrue(CombinedVibration.createParallel(
                 VibrationEffect.createOneShot(1, 1)).isHapticFeedbackCandidate());
@@ -396,38 +270,6 @@ public class CombinedVibrationTest {
     }
 
     @Test
-    public void testIsHapticFeedbackCandidateSequential() {
-        assertTrue(CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.createOneShot(10, 10), 10)
-                .addNext(2, VibrationEffect.createWaveform(new long[]{5}, new int[]{1}, -1))
-                .combine()
-                .isHapticFeedbackCandidate());
-        assertTrue(CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
-                .addNext(2,
-                        VibrationEffect.startComposition()
-                                .addPrimitive(VibrationEffect.Composition.PRIMITIVE_SLOW_RISE)
-                                .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_FALL)
-                                .compose())
-                .combine()
-                .isHapticFeedbackCandidate());
-        // Repeating vibrations should not be classified as a haptic feedback.
-        assertFalse(CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
-                .addNext(2, VibrationEffect.createWaveform(new long[]{1}, new int[]{1}, 0))
-                .combine()
-                .isHapticFeedbackCandidate());
-        // Too many effects to be classified as a haptic feedback.
-        assertFalse(CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
-                .addNext(2, VibrationEffect.get(VibrationEffect.EFFECT_TICK))
-                .addNext(3, VibrationEffect.get(VibrationEffect.EFFECT_DOUBLE_CLICK))
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_THUD))
-                .combine()
-                .isHapticFeedbackCandidate());
-    }
-
-    @Test
     public void testHasVibratorMono_returnsTrueForAnyVibrator() {
         CombinedVibration effect = CombinedVibration.createParallel(
                 VibrationEffect.get(VibrationEffect.EFFECT_CLICK));
@@ -446,19 +288,6 @@ public class CombinedVibrationTest {
     }
 
     @Test
-    public void testHasVibratorSequential_returnsNestedVibrators() {
-        CombinedVibration effect = CombinedVibration.startSequential()
-                .addNext(1, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
-                .addNext(CombinedVibration.startParallel()
-                        .addVibrator(2, VibrationEffect.get(VibrationEffect.EFFECT_TICK))
-                        .combine())
-                .combine();
-        assertFalse(effect.hasVibrator(0));
-        assertTrue(effect.hasVibrator(1));
-        assertTrue(effect.hasVibrator(2));
-    }
-
-    @Test
     public void testSerializationMono() {
         CombinedVibration original = CombinedVibration.createParallel(VALID_EFFECT);
 
@@ -474,21 +303,6 @@ public class CombinedVibrationTest {
         CombinedVibration original = CombinedVibration.startParallel()
                 .addVibrator(0, VibrationEffect.get(VibrationEffect.EFFECT_CLICK))
                 .addVibrator(1, VibrationEffect.createOneShot(10, 255))
-                .combine();
-
-        Parcel parcel = Parcel.obtain();
-        original.writeToParcel(parcel, 0);
-        parcel.setDataPosition(0);
-        CombinedVibration restored = CombinedVibration.CREATOR.createFromParcel(parcel);
-        assertEquals(original, restored);
-    }
-
-    @Test
-    public void testSerializationSequential() {
-        CombinedVibration original = CombinedVibration.startSequential()
-                .addNext(0, VALID_EFFECT)
-                .addNext(CombinedVibration.createParallel(VALID_EFFECT))
-                .addNext(0, VibrationEffect.get(VibrationEffect.EFFECT_CLICK), 100)
                 .combine();
 
         Parcel parcel = Parcel.obtain();

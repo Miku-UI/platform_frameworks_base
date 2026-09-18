@@ -26,7 +26,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.systemui.CoreStartable;
 import com.android.systemui.Flags;
 import com.android.systemui.res.R;
-import com.android.systemui.screenrecord.service.ScreenRecordingService;
+import com.android.systemui.screenrecord.notification.ScreenRecordingServiceNotificationInteractor;
 import com.android.wm.shell.pip.tv.TvPipNotificationController;
 
 import java.util.Arrays;
@@ -120,7 +120,7 @@ public class NotificationChannels implements CoreStartable {
 
         if (Flags.thinScreenRecordingService()) {
             NotificationChannel notificationChannel = new NotificationChannel(
-                    ScreenRecordingService.CHANNEL_ID,
+                    ScreenRecordingServiceNotificationInteractor.CHANNEL_ID,
                     context.getString(R.string.screenrecord_title),
                     NotificationManager.IMPORTANCE_DEFAULT
             );

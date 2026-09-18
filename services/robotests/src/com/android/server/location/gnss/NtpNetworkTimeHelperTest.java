@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RunWith(RobolectricTestRunner.class)
 @Presubmit
-@LooperMode(LooperMode.Mode.LEGACY)
+@LooperMode(LooperMode.Mode.PAUSED)
 public class NtpNetworkTimeHelperTest {
 
     private static final long MOCK_NTP_TIME = 1519930775453L;
@@ -109,6 +109,7 @@ public class NtpNetworkTimeHelperTest {
         doReturn(MOCK_NTP_TIME).when(result2).getTimeMillis();
         doReturn(result2).when(mMockNtpTrustedTime).getCachedTimeResult();
         SystemClock.sleep(NtpNetworkTimeHelper.RETRY_INTERVAL);
+        ShadowLooper.idleMainLooper();
 
         waitForTasksToBePostedOnHandlerAndRunThem();
         assertThat(mCountDownLatch.await(2, TimeUnit.SECONDS)).isTrue();
@@ -121,7 +122,7 @@ public class NtpNetworkTimeHelperTest {
      */
     private void waitForTasksToBePostedOnHandlerAndRunThem() throws InterruptedException {
         mCountDownLatch.await(1, TimeUnit.SECONDS);
-        ShadowLooper.runUiThreadTasks();
+        ShadowLooper.idleMainLooper();
     }
 }
 

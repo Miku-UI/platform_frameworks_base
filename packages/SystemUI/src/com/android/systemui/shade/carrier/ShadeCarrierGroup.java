@@ -24,7 +24,6 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.android.systemui.Flags;
 import com.android.systemui.res.R;
 
 /**
@@ -38,9 +37,7 @@ public class ShadeCarrierGroup extends LinearLayout {
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        if (Flags.fixShadeHeaderWrongIconSize()) {
-            getNoSimTextView().setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        }
+        getNoSimTextView().setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
     }
 
     TextView getNoSimTextView() {

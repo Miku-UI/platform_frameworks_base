@@ -23,7 +23,6 @@ import android.os.ExternalVibration;
 import android.os.ExternalVibrationScale;
 import android.os.IBinder;
 import android.os.VibrationAttributes;
-import android.os.vibrator.Flags;
 import android.util.Slog;
 
 import com.android.internal.util.FrameworkStatsLog;
@@ -168,25 +167,14 @@ final class ExternalVibrationSession extends Vibration
 
     void muteScale() {
         mScale.scaleLevel = ExternalVibrationScale.ScaleLevel.SCALE_MUTE;
-        if (Flags.hapticsScaleV2Enabled()) {
-            mScale.scaleFactor = 0;
-        }
+        mScale.scaleFactor = 0;
     }
 
     void scale(VibrationScaler scaler, int usage) {
         mScale.scaleLevel = scaler.getScaleLevel(usage);
-        if (Flags.hapticsScaleV2Enabled() || hasScaleConfig(scaler)) {
-            mScale.scaleFactor = scaler.getScaleFactor(usage, /* isExternalVibration= */ true);
-        }
+        mScale.scaleFactor = scaler.getScaleFactor(usage, /* isExternalVibration= */ true);
         mScale.adaptiveHapticsScale = scaler.getAdaptiveHapticsScale(usage);
         stats.reportAdaptiveScale(mScale.adaptiveHapticsScale);
-    }
-
-    // TODO(b/345186129): remove this once we finish migrating to scale factor and clean up flags.
-    private static boolean hasScaleConfig(VibrationScaler scaler) {
-        // Only send scale factor if device config has it, to be used as linear scale.
-        return Flags.vibrationScaleDeviceConfigEnabled()
-                && scaler.getVibrationConfig().hasExternalVibrationScaleFactors();
     }
 
     @Override

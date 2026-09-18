@@ -91,21 +91,20 @@ public class OptPropFactory {
         boolean get() throws Exception;
     }
 
+    public static final int VALUE_UNSET = -2;
+    public static final int VALUE_UNDEFINED = -1;
+    public static final int VALUE_FALSE = 0;
+    public static final int VALUE_TRUE = 1;
+
+    @IntDef(prefix = {"VALUE_"}, value = {
+            VALUE_UNSET,
+            VALUE_UNDEFINED,
+            VALUE_FALSE,
+            VALUE_TRUE,
+    })
+    public @interface OptionalValue {}
+
     public static class OptProp {
-
-        private static final int VALUE_UNSET = -2;
-        private static final int VALUE_UNDEFINED = -1;
-        private static final int VALUE_FALSE = 0;
-        private static final int VALUE_TRUE = 1;
-
-        @IntDef(prefix = {"VALUE_"}, value = {
-                VALUE_UNSET,
-                VALUE_UNDEFINED,
-                VALUE_FALSE,
-                VALUE_TRUE,
-        })
-        @interface OptionalValue {}
-
         private static final String TAG = "OptProp";
 
         // The condition is evaluated every time the OptProp state is accessed.

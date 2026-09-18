@@ -16,19 +16,22 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
+import android.app.ActivityManager
+import android.app.WindowConfiguration
 import android.os.PowerManager
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import android.service.dream.dreamManager
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
 import com.android.systemui.Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR
 import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
+import com.android.systemui.Flags.FLAG_WAKEFULNESS_FOR_ANIMATIONS
 import com.android.systemui.Flags.glanceableHubV2
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
 import com.android.systemui.communal.data.repository.FakeCommunalSceneRepository
 import com.android.systemui.communal.data.repository.communalSceneRepository
 import com.android.systemui.communal.data.repository.fakeCommunalSceneRepository
@@ -36,6 +39,7 @@ import com.android.systemui.communal.domain.interactor.setCommunalAvailable
 import com.android.systemui.communal.domain.interactor.setCommunalV2ConfigEnabled
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepositorySpy
 import com.android.systemui.keyguard.data.repository.keyguardOcclusionRepository
@@ -44,25 +48,23 @@ import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
 import com.android.systemui.keyguard.shared.model.DozeStateModel
 import com.android.systemui.keyguard.shared.model.DozeTransitionModel
 import com.android.systemui.keyguard.shared.model.KeyguardState
-import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.util.KeyguardTransitionRepositorySpySubject.Companion.assertThat
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.advanceTimeBy
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
 import com.android.systemui.power.domain.interactor.powerInteractor
-import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth
-import junit.framework.Assert.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import org.junit.Before
@@ -71,8 +73,6 @@ import org.junit.runner.RunWith
 import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.reset
 import org.mockito.Mockito.spy
-import org.mockito.kotlin.clearInvocations
-import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
@@ -87,6 +87,7 @@ class FromDozingTransitionInteractorTest(flags: FlagsParameterization?) : SysuiT
             this.keyguardTransitionRepository = fakeKeyguardTransitionRepositorySpy
             this.fakeCommunalSceneRepository =
                 spy(FakeCommunalSceneRepository(applicationScope = applicationCoroutineScope))
+            fakeCommunalSceneRepository.activateIn(testScope)
         }
 
     private val Kosmos.underTest by Kosmos.Fixture { fromDozingTransitionInteractor }
@@ -136,6 +137,29 @@ class FromDozingTransitionInteractorTest(flags: FlagsParameterization?) : SysuiT
         }
 
     @Test
+    @EnableSceneContainer
+    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    fun testTransitionToLockscreen_onWake_whenOccludedByDream() =
+        kosmos.runTest {
+            val taskInfo =
+                ActivityManager.RunningTaskInfo().apply {
+                    topActivityType = WindowConfiguration.ACTIVITY_TYPE_DREAM
+                }
+            kosmos.keyguardOcclusionRepository.setOccludedFromRemoteAnimation(
+                onTop = true,
+                taskInfo = taskInfo,
+            )
+
+            powerInteractor.setAwakeForTest()
+
+            // We should still transition to LOCKSCREEN (not OCCLUDED) when waking up
+            // from DOZING while a dream is stopping.
+            assertThat(transitionRepository)
+                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.LOCKSCREEN)
+        }
+
+    @Test
+    @DisableSceneContainer
     fun testTransitionToDreaming() =
         kosmos.runTest {
             // Ensure dozing is off
@@ -149,23 +173,6 @@ class FromDozingTransitionInteractorTest(flags: FlagsParameterization?) : SysuiT
 
             assertThat(transitionRepository)
                 .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.DREAMING)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @DisableFlags(FLAG_GLANCEABLE_HUB_V2)
-    @DisableSceneContainer // Specifically testing keyguard_wm_state_refactor enabled w/o flexi.
-    fun testTransitionToLockscreen_onWake_canDream_ktfRefactor() =
-        kosmos.runTest {
-            setCommunalAvailable(true)
-            whenever(dreamManager.canStartDreaming(anyBoolean())).thenReturn(true)
-
-            clearInvocations(fakeCommunalSceneRepository)
-            powerInteractor.setAwakeForTest()
-
-            // If dreaming is possible and communal is available, then we should transition to
-            // GLANCEABLE_HUB when waking up due to power button press.
-            verify(fakeCommunalSceneRepository).instantlyTransitionTo(CommunalScenes.Communal, null)
         }
 
     @Test
@@ -257,6 +264,26 @@ class FromDozingTransitionInteractorTest(flags: FlagsParameterization?) : SysuiT
         }
 
     @Test
+    @DisableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR, FLAG_SCENE_CONTAINER)
+    fun testTransitionToPrimaryBouncer_onWakeup_withLockscreenNotEnabledButLockscreenIsNotDismissible() =
+        kosmos.runTest {
+            val primaryBouncerShowing by collectLastValue(keyguardInteractor.primaryBouncerShowing)
+            fakeKeyguardRepository.setKeyguardShowing(true)
+            fakeKeyguardBouncerRepository.setPrimaryShow(true)
+            fakeKeyguardRepository.setKeyguardEnabled(false)
+            runCurrent()
+            Truth.assertThat(primaryBouncerShowing).isTrue()
+
+            // Device turns on.
+            powerInteractor.setAwakeForTest()
+            advanceTimeBy(100.milliseconds)
+
+            // starts transition to primary bouncer.
+            assertThat(transitionRepository)
+                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.PRIMARY_BOUNCER)
+        }
+
+    @Test
     @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR, FLAG_GLANCEABLE_HUB_V2)
     fun testTransitionToLockscreen_onWake_glanceableHubAvailable_glanceableHubV2Enabled() =
         kosmos.runTest {
@@ -271,180 +298,48 @@ class FromDozingTransitionInteractorTest(flags: FlagsParameterization?) : SysuiT
         }
 
     @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testTransitionToOccluded_onWakeup_whenOccludingActivityOnTop() =
+    @EnableFlags(FLAG_WAKEFULNESS_FOR_ANIMATIONS)
+    @DisableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR) // Test the legacy path
+    fun testTransition_flagOn_onlyTriggersOnAwake_notOnStartingToWake() =
         kosmos.runTest {
-            keyguardOcclusionRepository.setShowWhenLockedActivityInfo(true)
-            powerInteractor.setAwakeForTest()
+            // We start in AOD and asleep (from setup())
 
-            // Waking with a SHOW_WHEN_LOCKED activity on top should transition to OCCLUDED.
+            // Start waking up
+            powerInteractor.onStartedWakingUp(
+                PowerManager.WAKE_REASON_POWER_BUTTON,
+                /* powerButtonLaunchGestureTriggeredOnWakeUp = */ false,
+            )
+
+            // Ensure transition isn't playing yet
+            assertThat(transitionRepository).noTransitionsStarted()
+
+            // Finish waking up
+            powerInteractor.onFinishedWakingUp()
+
+            // Ensure transition plays
             assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.OCCLUDED)
+                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.LOCKSCREEN)
         }
 
     @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testTransitionToOccluded_onWakeup_whenOccludingActivityOnTop_evenIfIdleOnCommunal() =
+    @DisableFlags(
+        FLAG_WAKEFULNESS_FOR_ANIMATIONS,
+        FLAG_KEYGUARD_WM_STATE_REFACTOR,
+    ) // Test legacy path
+    fun testTransition_flagOff_triggersOnStartingToWake() =
         kosmos.runTest {
-            fakeCommunalSceneRepository.setTransitionState(
-                flowOf(ObservableTransitionState.Idle(CommunalScenes.Communal))
+            // We start in AOD and asleep (from setup())
+
+            // Start waking up
+            powerInteractor.onStartedWakingUp(
+                PowerManager.WAKE_REASON_POWER_BUTTON,
+                /* powerButtonLaunchGestureTriggeredOnWakeUp = */ false,
             )
 
-            keyguardOcclusionRepository.setShowWhenLockedActivityInfo(true)
-            powerInteractor.setAwakeForTest()
+            advanceTimeBy(100) // account for debouncing
 
-            // Waking with a SHOW_WHEN_LOCKED activity on top should transition to OCCLUDED.
+            // Ensure transition plays
             assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.OCCLUDED)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @Suppress("ktlint:standard:max-line-length")
-    fun testTransitionToOccluded_onWakeUp_ifPowerButtonGestureDetected_fromAod_nonDismissableKeyguard() =
-        kosmos.runTest {
-            powerInteractor.onCameraLaunchGestureDetected()
-            powerInteractor.setAwakeForTest()
-
-            // We should head back to GONE since we started there.
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.OCCLUDED)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @DisableSceneContainer
-    fun testTransitionToGone_onWakeUp_ifPowerButtonGestureDetected_fromAod_dismissableKeyguard() =
-        kosmos.runTest {
-            fakeKeyguardRepository.setKeyguardDismissible(true)
-            powerInteractor.onCameraLaunchGestureDetected()
-            powerInteractor.setAwakeForTest()
-
-            // We should head back to GONE since we started there.
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.GONE)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @DisableSceneContainer
-    fun testTransitionToGone_onWakeUp_ifPowerButtonGestureDetected_fromGone() =
-        kosmos.runTest {
-            val isGone by
-                collectLastValue(
-                    keyguardTransitionInteractor.isFinishedIn(Scenes.Gone, KeyguardState.GONE)
-                )
-            powerInteractor.setAwakeForTest()
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.DOZING,
-                to = KeyguardState.GONE,
-                testScope,
-            )
-
-            // Make sure we're GONE.
-            assertEquals(true, isGone)
-
-            // Get part way to AOD.
-            powerInteractor.onStartedGoingToSleep(PowerManager.GO_TO_SLEEP_REASON_MIN)
-
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.GONE,
-                to = KeyguardState.DOZING,
-                testScope = testScope,
-                throughTransitionState = TransitionState.RUNNING,
-            )
-
-            // Detect a power gesture and then wake up.
-            fakeKeyguardRepository.setKeyguardDismissible(true)
-            reset(transitionRepository)
-            powerInteractor.onCameraLaunchGestureDetected()
-            powerInteractor.setAwakeForTest()
-
-            // We should head back to GONE since we started there.
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.GONE)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @Suppress("ktlint:standard:max-line-length")
-    @DisableSceneContainer
-    fun testTransitionToOccluded_onWakeUp_ifPowerButtonGestureDetectedAfterFinishedInAod_fromGone() =
-        kosmos.runTest {
-            val isGone by
-                collectLastValue(
-                    kosmos.keyguardTransitionInteractor.isFinishedIn(
-                        Scenes.Gone,
-                        KeyguardState.GONE,
-                    )
-                )
-            powerInteractor.setAwakeForTest()
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.DOZING,
-                to = KeyguardState.GONE,
-                testScope,
-            )
-
-            // Make sure we're GONE.
-            assertEquals(true, isGone)
-
-            // Get all the way to AOD
-            powerInteractor.onStartedGoingToSleep(PowerManager.GO_TO_SLEEP_REASON_MIN)
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.GONE,
-                to = KeyguardState.DOZING,
-                testScope = testScope,
-            )
-
-            // Detect a power gesture and then wake up.
-            reset(transitionRepository)
-            powerInteractor.onCameraLaunchGestureDetected()
-            powerInteractor.setAwakeForTest()
-
-            // We should go to OCCLUDED - we came from GONE, but we finished in AOD, so this is no
-            // longer an insecure camera launch and it would be bad if we unlocked now.
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.OCCLUDED)
-        }
-
-    @Test
-    @EnableFlags(FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    fun testTransitionToOccluded_onWakeUp_ifPowerButtonGestureDetected_fromLockscreen() =
-        kosmos.runTest {
-            val isLockscreen by
-                collectLastValue(
-                    kosmos.keyguardTransitionInteractor.isFinishedIn(
-                        Scenes.Lockscreen,
-                        KeyguardState.LOCKSCREEN,
-                    )
-                )
-            powerInteractor.setAwakeForTest()
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.DOZING,
-                to = KeyguardState.LOCKSCREEN,
-                testScope,
-            )
-
-            // Make sure we're in LOCKSCREEN.
-            assertEquals(true, isLockscreen)
-
-            // Get part way to AOD.
-            powerInteractor.onStartedGoingToSleep(PowerManager.GO_TO_SLEEP_REASON_MIN)
-
-            transitionRepository.sendTransitionSteps(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.DOZING,
-                testScope = testScope,
-                throughTransitionState = TransitionState.RUNNING,
-            )
-
-            // Detect a power gesture and then wake up.
-            reset(transitionRepository)
-            powerInteractor.onCameraLaunchGestureDetected()
-            powerInteractor.setAwakeForTest()
-
-            // We should head back to GONE since we started there.
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.OCCLUDED)
+                .startedTransition(from = KeyguardState.DOZING, to = KeyguardState.LOCKSCREEN)
         }
 }

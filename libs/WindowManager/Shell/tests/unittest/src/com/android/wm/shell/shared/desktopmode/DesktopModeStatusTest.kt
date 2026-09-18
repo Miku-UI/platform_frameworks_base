@@ -38,15 +38,12 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
-/**
- * Test class for [DesktopModeStatus].
- */
+/** Test class for [DesktopModeStatus]. */
 @SmallTest
 @Presubmit
 @EnableFlags(Flags.FLAG_SHOW_DESKTOP_WINDOWING_DEV_OPTION)
 class DesktopModeStatusTest : ShellTestCase() {
-    @get:Rule
-    val mSetFlagsRule = SetFlagsRule()
+    @get:Rule val mSetFlagsRule = SetFlagsRule()
 
     private val mockContext = mock<Context>()
     private val mockResources = mock<Resources>()
@@ -55,9 +52,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     fun setUp() {
         doReturn(mockResources).whenever(mockContext).resources
         setDeviceEligibleForDesktopMode(false)
-        doReturn(false).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(false)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
         setCanInternalDisplayHostDesktops(false)
         doReturn(context.contentResolver).whenever(mockContext).contentResolver
         resetDesktopModeFlagsCache()
@@ -72,7 +69,7 @@ class DesktopModeStatusTest : ShellTestCase() {
 
     @DisableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagDisabled_deviceNotEligible_returnsFalse() {
@@ -81,15 +78,15 @@ class DesktopModeStatusTest : ShellTestCase() {
 
     @DisableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagDisabled_deviceEligible_configDevOptionOn_returnsFalse() {
         setDeviceEligibleForDesktopMode(true)
         setCanInternalDisplayHostDesktops(true)
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
         disableEnforceDeviceRestriction()
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isFalse()
@@ -97,26 +94,26 @@ class DesktopModeStatusTest : ShellTestCase() {
 
     @DisableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagDisabled_deviceNotEligible_configDevOptionOn_returnsFalse() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isFalse()
     }
 
     @DisableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagDisabled_deviceNotEligible_forceUsingDevOption_returnsTrue() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
         setFlagOverride(DesktopModeFlags.ToggleOverride.OVERRIDE_ON)
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isTrue()
@@ -124,13 +121,13 @@ class DesktopModeStatusTest : ShellTestCase() {
 
     @DisableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagDisabled_deviceNotEligible_forceNotUsingDevOption_returnsFalse() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
         setFlagOverride(DesktopModeFlags.ToggleOverride.OVERRIDE_OFF)
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isFalse()
@@ -140,9 +137,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
     @Test
     fun canEnterDesktopMode_DWFlagEnabled_deviceNotEligible_returnsFalse() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isFalse()
     }
@@ -173,9 +170,7 @@ class DesktopModeStatusTest : ShellTestCase() {
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isFalse()
     }
 
-    @DisableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
-    )
+    @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION)
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
         Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
@@ -188,16 +183,15 @@ class DesktopModeStatusTest : ShellTestCase() {
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isTrue()
     }
 
-
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagEnabled_deviceNotEligible_forceUsingDevOption_returnsTrue() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
         setFlagOverride(DesktopModeFlags.ToggleOverride.OVERRIDE_ON)
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isTrue()
@@ -205,13 +199,13 @@ class DesktopModeStatusTest : ShellTestCase() {
 
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagEnabled_deviceNotEligible_forceNotUsingDevOption_returnsFalse() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
         setFlagOverride(DesktopModeFlags.ToggleOverride.OVERRIDE_OFF)
 
         assertThat(DesktopModeStatus.canEnterDesktopMode(mockContext)).isFalse()
@@ -220,7 +214,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     @Test
     fun isDeviceEligibleForDesktopMode_configDEModeOnAndIntDispHostsDesktop_returnsTrue() {
         doReturn(true).whenever(mockResources).getBoolean(eq(R.bool.config_isDesktopModeSupported))
-        doReturn(true).whenever(mockResources).getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
 
         assertThat(DesktopModeStatus.isDeviceEligibleForDesktopMode(mockContext)).isTrue()
     }
@@ -228,7 +224,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     @Test
     fun isDeviceEligibleForDesktopMode_configDEModeOffAndIntDispHostsDesktop_returnsFalse() {
         doReturn(false).whenever(mockResources).getBoolean(eq(R.bool.config_isDesktopModeSupported))
-        doReturn(true).whenever(mockResources).getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
 
         assertThat(DesktopModeStatus.isDeviceEligibleForDesktopMode(mockContext)).isFalse()
     }
@@ -237,7 +235,8 @@ class DesktopModeStatusTest : ShellTestCase() {
     @Test
     fun isDeviceEligibleForDesktopMode_configDEModeOnAndIntDispHostsDesktopOff_returnsTrue() {
         doReturn(true).whenever(mockResources).getBoolean(eq(R.bool.config_isDesktopModeSupported))
-        doReturn(false).whenever(mockResources)
+        doReturn(false)
+            .whenever(mockResources)
             .getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
 
         assertThat(DesktopModeStatus.isDeviceEligibleForDesktopMode(mockContext)).isTrue()
@@ -247,7 +246,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     @Test
     fun isPDDeviceEligibleForDesktopMode_configDEModeOnAndIntDispHostsDesktopOff_returnsTrue() {
         doReturn(true).whenever(mockResources).getBoolean(eq(R.bool.config_isDesktopModeSupported))
-        doReturn(false).whenever(mockResources).getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
+        doReturn(false)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
 
         assertThat(DesktopModeStatus.isDeviceEligibleForDesktopMode(mockContext)).isTrue()
     }
@@ -268,9 +269,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION)
     @Test
     fun isInternalDisplayEligibleToHostDesktops_supportFlagOn_configDevOptModeOn_returnsTrue() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
 
         assertThat(DesktopModeStatus.isDeviceEligibleForDesktopMode(mockContext)).isTrue()
     }
@@ -292,9 +293,9 @@ class DesktopModeStatusTest : ShellTestCase() {
     @EnableFlags(Flags.FLAG_SHOW_DESKTOP_EXPERIENCE_DEV_OPTION)
     @Test
     fun canShowDesktopExperienceDevOption_flagEnabled_deviceNotEligible_forceDevOpt_returnsTrue() {
-        doReturn(true).whenever(mockResources).getBoolean(
-            eq(R.bool.config_isDesktopModeDevOptionSupported)
-        )
+        doReturn(true)
+            .whenever(mockResources)
+            .getBoolean(eq(R.bool.config_isDesktopModeDevOptionSupported))
 
         assertThat(DesktopModeStatus.canShowDesktopExperienceDevOption(mockContext)).isTrue()
     }
@@ -358,12 +359,14 @@ class DesktopModeStatusTest : ShellTestCase() {
     }
 
     private fun setDeviceEligibleForDesktopMode(eligible: Boolean) {
-        doReturn(eligible).whenever(mockResources)
+        doReturn(eligible)
+            .whenever(mockResources)
             .getBoolean(eq(R.bool.config_isDesktopModeSupported))
     }
 
     private fun setCanInternalDisplayHostDesktops(eligible: Boolean) {
-        doReturn(eligible).whenever(mockResources)
+        doReturn(eligible)
+            .whenever(mockResources)
             .getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops))
     }
 

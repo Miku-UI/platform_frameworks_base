@@ -17,6 +17,10 @@
 package com.android.systemui.statusbar.notification.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
 import org.mockito.kotlin.mock
 
 val Kosmos.notificationAlertsInteractor by Kosmos.Fixture { mock<NotificationAlertsInteractor>() }
+
+val Kosmos.notificationAlertsInteractorImpl by
+    Kosmos.Fixture { NotificationAlertsInteractor(shadeStatusBarComponentsInteractor) }

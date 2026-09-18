@@ -16,7 +16,6 @@
 package com.android.systemui.statusbar.notification.collection.coordinator
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationChannel.SYSTEM_RESERVED_IDS
 import android.app.NotificationManager.IMPORTANCE_DEFAULT
 import android.app.NotificationManager.IMPORTANCE_LOW
@@ -28,7 +27,9 @@ import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.statusbar.statusBarStateController
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntryBuilder
@@ -53,6 +54,7 @@ import com.android.systemui.util.settings.FakeSettings
 import com.android.systemui.util.settings.fakeSettings
 import com.google.common.truth.StringSubject
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -213,11 +215,7 @@ class LockScreenMinimalismCoordinatorTest : SysuiTestCase() {
     fun testTopOngoingSectioner_rejects_classifiedConversation() {
         runCoordinatorTest {
             for (id in SYSTEM_RESERVED_IDS) {
-                assertFalse(
-                    topOngoingSectioner.isInSection(
-                        kosmos.makeClassifiedConversation(id)
-                    )
-                )
+                assertFalse(topOngoingSectioner.isInSection(kosmos.makeClassifiedConversation(id)))
             }
         }
     }
@@ -226,11 +224,7 @@ class LockScreenMinimalismCoordinatorTest : SysuiTestCase() {
     fun testTopUnseenSectioner_rejects_classifiedConversation() {
         runCoordinatorTest {
             for (id in SYSTEM_RESERVED_IDS) {
-                assertFalse(
-                    topUnseenSectioner.isInSection(
-                        kosmos.makeClassifiedConversation(id)
-                    )
-                )
+                assertFalse(topUnseenSectioner.isInSection(kosmos.makeClassifiedConversation(id)))
             }
         }
     }
@@ -367,27 +361,45 @@ class LockScreenMinimalismCoordinatorTest : SysuiTestCase() {
             assertThatTopOngoingKey().isEqualTo(null)
             assertThatTopUnseenKey().isEqualTo(solo2.key)
 
-            // TEST: QS Expansion does not mark entries as seen
-            setShadeAndQsExpansionThenWait(0f, 1f)
-            onBeforeTransformGroupsListener.onBeforeTransformGroups(listEntryList)
-            assertThatTopOngoingKey().isEqualTo(null)
-            assertThatTopUnseenKey().isEqualTo(solo2.key)
+            // Skip this test for Split Shade because Split Shade doesn't have QS Shade on landscape
+            if (kosmos.shadeModeInteractor.shadeMode.value != ShadeMode.Split) {
+                // TEST: QS Expansion does not mark entries as seen
+                // Expand QS
+                setShadeAndQsExpansionThenWait(0f, 1f)
+                // Collapse QS and back to KEYGUARD
+                setShadeAndQsExpansionThenWait(0f, 0f)
+                // Make sure the StatusBarState is KEYGUARD so that topUnseenKey can be updated
+                assertEquals(StatusBarState.KEYGUARD, statusBarState)
+                onBeforeTransformGroupsListener.onBeforeTransformGroups(listEntryList)
+                assertThatTopOngoingKey().isEqualTo(null)
+                assertThatTopUnseenKey().isEqualTo(solo2.key)
+            }
 
             // TEST: Shade expansion does mark entries as seen
+            // Expand SHADE
             setShadeAndQsExpansionThenWait(1f, 0f)
+            // Collapse SHADE and back to KEYGUARD
+            setShadeAndQsExpansionThenWait(0f, 0f)
+            // Make sure the StatusBarState is KEYGUARD so that topUnseenKey can be updated
+            assertEquals(StatusBarState.KEYGUARD, statusBarState)
             onBeforeTransformGroupsListener.onBeforeTransformGroups(listEntryList)
             assertThatTopOngoingKey().isEqualTo(null)
             assertThatTopUnseenKey().isEqualTo(null)
 
             // TEST: Entries updated while shade is expanded are NOT marked unseen
+            // Expand SHADE
+            setShadeAndQsExpansionThenWait(1f, 0f)
             collectionListener.onEntryUpdated(solo1)
             collectionListener.onEntryUpdated(solo2)
+            // Collapse SHADE and back to KEYGUARD
+            setShadeAndQsExpansionThenWait(0f, 0f)
+            // Make sure the StatusBarState is KEYGUARD so that topUnseenKey can be updated
+            assertEquals(StatusBarState.KEYGUARD, statusBarState)
             onBeforeTransformGroupsListener.onBeforeTransformGroups(listEntryList)
             assertThatTopOngoingKey().isEqualTo(null)
             assertThatTopUnseenKey().isEqualTo(null)
 
             // TEST: Entries updated after shade is collapsed ARE marked unseen
-            setShadeAndQsExpansionThenWait(0f, 0f)
             collectionListener.onEntryUpdated(solo1)
             collectionListener.onEntryUpdated(solo2)
             onBeforeTransformGroupsListener.onBeforeTransformGroups(listEntryList)

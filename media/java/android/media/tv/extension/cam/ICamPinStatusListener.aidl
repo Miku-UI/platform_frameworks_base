@@ -22,5 +22,15 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ICamPinStatusListener {
-    void onCamPinValidationReply(int slotId, in Bundle bundle);
+    /**
+     * Called to notify the result of a PIN code validation by the CICAM.
+     *
+     * @param slotId The slot ID of the corresponding CICAM.
+     * @param pinValidationReply A Bundle that provides the status of the PIN code validation
+     *                           with keys follow @CamConstants.CamPinStatusBundleKey; values for
+     *                           KEY_PIN_VALIDATION_PINCODE_STATUS as @CamConstants.CamPinCodeStatus
+     *                           and values for KEY_PIN_VALIDATION_RESULT should follow
+     *                           @CamConstants.@CamPinValidationResult.
+     */
+    void onCamPinValidationReply(int slotId, in Bundle pinValidationReply);
 }

@@ -19,7 +19,6 @@ package com.android.systemui.util.composable.kairos
 import androidx.compose.runtime.State as ComposeState
 import androidx.compose.runtime.mutableStateOf
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State as KairosState
 import com.android.systemui.kairos.changes
 import com.android.systemui.kairos.util.NameTag
@@ -28,7 +27,6 @@ import com.android.systemui.kairos.util.NameTag
  * Returns a [ComposeState] that is kept hydrated with the current value of [state] within this
  * [BuildScope].
  */
-@ExperimentalKairosApi
 fun <T> BuildScope.toComposeState(state: KairosState<T>, name: NameTag? = null): ComposeState<T> {
     val initial = state.sample()
     val cState = mutableStateOf(initial)

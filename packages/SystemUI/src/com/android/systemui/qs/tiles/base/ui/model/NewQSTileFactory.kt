@@ -16,6 +16,7 @@
 
 package com.android.systemui.qs.tiles.base.ui.model
 
+import com.android.systemui.Flags.qsNewTilesFuture
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.plugins.qs.QSFactory
 import com.android.systemui.plugins.qs.QSTile
@@ -53,7 +54,9 @@ constructor(
     override fun createTile(tileSpec: String): QSTile? {
         val viewModel: QSTileViewModel =
             when (val spec = TileSpec.create(tileSpec)) {
-                is TileSpec.CustomTileSpec -> createCustomTileViewModel(spec)
+                is TileSpec.CustomTileSpec ->
+                    // Fall back to old-style custom tiles when qs_new_tiles_future is off
+                    if (qsNewTilesFuture()) createCustomTileViewModel(spec) else null
                 // when using the stub, we default to old tile rather than adding the stub
                 is TileSpec.PlatformTileSpec ->
                     tileMap[tileSpec]?.get()?.takeIf { it !is StubQSTileViewModel }

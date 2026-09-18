@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.chips.screenrecord.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.kosmos.backgroundCoroutineContext
 import com.android.systemui.mediaprojection.data.repository.fakeMediaProjectionRepository
 import com.android.systemui.screenrecord.data.repository.screenRecordRepository
 import com.android.systemui.statusbar.chips.statusBarChipsLogger
@@ -26,6 +27,7 @@ val Kosmos.screenRecordChipInteractor: ScreenRecordChipInteractor by
     Kosmos.Fixture {
         ScreenRecordChipInteractor(
             scope = applicationCoroutineScope,
+            backgroundContext = backgroundCoroutineContext,
             screenRecordRepository = screenRecordRepository,
             mediaProjectionRepository = fakeMediaProjectionRepository,
             logger = statusBarChipsLogger,

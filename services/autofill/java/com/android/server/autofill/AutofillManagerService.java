@@ -17,7 +17,8 @@
 package com.android.server.autofill;
 
 import static android.Manifest.permission.MANAGE_AUTO_FILL;
-import static android.content.Context.AUTOFILL_MANAGER_SERVICE;
+import static android.content.Context.AUTOFILL_SERVICE;
+import static android.os.UserManager.isVisibleBackgroundUsersEnabled;
 import static android.view.autofill.AutofillManager.MAX_TEMP_AUGMENTED_SERVICE_DURATION_MS;
 import static android.view.autofill.AutofillManager.getSmartSuggestionModeToString;
 
@@ -46,6 +47,7 @@ import android.graphics.Rect;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.os.Parcelable;
 import android.os.RemoteCallback;
@@ -57,12 +59,14 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
+import android.service.autofill.Dataset;
 import android.service.autofill.FillEventHistory;
 import android.service.autofill.Flags;
 import android.service.autofill.UserData;
 import android.text.TextUtils;
 import android.text.TextUtils.SimpleStringSplitter;
 import android.util.ArrayMap;
+import android.util.AtomicFile;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Slog;
@@ -90,20 +94,28 @@ import com.android.internal.util.DumpUtils;
 import com.android.internal.util.Preconditions;
 import com.android.internal.util.SyncResultReceiver;
 import com.android.server.FgThread;
+import com.android.server.IoThread;
 import com.android.server.LocalServices;
 import com.android.server.autofill.ui.AutoFillUI;
 import com.android.server.infra.AbstractMasterSystemService;
 import com.android.server.infra.FrameworkResourcesServiceNameResolver;
 import com.android.server.infra.SecureSettingsServiceNameResolver;
+import com.android.server.pm.UserManagerInternal;
 
+import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Entry point service for autofill management.
@@ -147,6 +159,9 @@ public final class AutofillManagerService
     @GuardedBy("sLock")
     private static int sVisibleDatasetsMaxCount = 0;
 
+    public static boolean sSupportMultiUserMultiDisplay = Flags.supportMultiUserMultiDisplay()
+            && isVisibleBackgroundUsersEnabled();
+
     /**
      * Object used to set the name of the augmented autofill service.
      */
@@ -160,7 +175,21 @@ public final class AutofillManagerService
     final FrameworkResourcesServiceNameResolver mFieldClassificationResolver;
 
     private final AutoFillUI mUi;
+    @GuardedBy("mLock")
+    private final SparseArray<AutoFillUI> mUis = new SparseArray<>();
     final ComponentName mCredentialAutofillService;
+
+    private static final String NOISE_SEED_FILE_NAME = "noise_injection_masterseed";
+
+    /**
+     * Master seed for injecting noise to sensitive texts in AssistStructure to obfuscate user
+     * private info.
+     * We intend to maintain a master seed to keep the noise injected to the same activity's same
+     * view consistent for the same device so that the Autofill provider can not accumulate enough
+     * copies with different randomized noise for the same view of the same device to rebuild the
+     * user's private info.
+     */
+    private final AtomicReference<String> mNoiseInjectionMasterSeed = new AtomicReference<>(null);
 
     private final LocalLog mRequestsHistory = new LocalLog(20);
     private final LocalLog mUiLatencyHistory = new LocalLog(20);
@@ -171,6 +200,7 @@ public final class AutofillManagerService
 
     private final LocalService mLocalService = new LocalService();
     private final ActivityManagerInternal mAm;
+    private final UserManagerInternal mUm;
 
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
@@ -185,7 +215,22 @@ public final class AutofillManagerService
                 synchronized (mLock) {
                     visitServicesLocked((s) -> s.forceRemoveFinishedSessionsLocked());
                 }
-                mUi.hideAll(null);
+                if (sSupportMultiUserMultiDisplay) {
+                    final int userId = getSendingUserId();
+                    if (userId >= 0) {
+                        // The Broadcast was sent by a specific user, so hide UI for this particular
+                        // user.
+                        hideAutoFillUIForUser(userId);
+                    } else {
+                        // The Broadcast was sent by the system, so hide UI for all users.
+                        final int[] userIds = mUm.getUserIds();
+                        for (int i = 0; i < userIds.length; i++) {
+                            hideAutoFillUIForUser(userIds[i]);
+                        }
+                    }
+                } else {
+                    mUi.hideAll(null);
+                }
             }
         }
     };
@@ -248,6 +293,7 @@ public final class AutofillManagerService
                 UserManager.DISALLOW_AUTOFILL, PACKAGE_UPDATE_POLICY_REFRESH_EAGER);
         mUi = new AutoFillUI(ActivityThread.currentActivityThread().getSystemUiContext());
         mAm = LocalServices.getService(ActivityManagerInternal.class);
+        mUm = LocalServices.getService(UserManagerInternal.class);
 
         DeviceConfig.addOnPropertiesChangedListener(DeviceConfig.NAMESPACE_AUTOFILL,
                 ActivityThread.currentApplication().getMainExecutor(),
@@ -299,6 +345,85 @@ public final class AutofillManagerService
         } else {
             mCredentialAutofillService = null;
             Slog.w(TAG, "Invalid CredentialAutofillService");
+        }
+    }
+
+    private File getNoiseSeedFile() {
+        File systemDir = Environment.getDataSystemDirectory();
+        File autofillDir = new File(systemDir, "autofill_service");
+        return new File(autofillDir, NOISE_SEED_FILE_NAME);
+    }
+
+    private void loadNoiseInjectionMasterSeed() {
+        String seed = null;
+        AtomicFile noiseSeedFile = new AtomicFile(getNoiseSeedFile());
+        try {
+            seed = new String(noiseSeedFile.readFully(), StandardCharsets.UTF_8);
+            if (TextUtils.isEmpty(seed)) {
+                // Treat empty file as no seed
+                seed = null;
+            } else {
+                Slog.i(TAG, "Loaded existing noise injection master seed.");
+            }
+        } catch (IOException e) {
+            Slog.i(TAG, "No existing noise injection master seed file found.");
+        }
+
+        // If no seed is loaded, generate a new one and save it to the file.
+        if (seed == null) {
+            seed = UUID.randomUUID().toString();
+            FileOutputStream fos = null;
+            try {
+                // Ensure directory exists
+                File parentDir = noiseSeedFile.getBaseFile().getParentFile();
+                if (!parentDir.exists() && !parentDir.mkdirs()) {
+                    Slog.e(TAG, "Failed to create directory for noise seed: " + parentDir);
+                    mNoiseInjectionMasterSeed.set(null);
+                    return;
+                }
+                fos = noiseSeedFile.startWrite();
+                fos.write(seed.getBytes(StandardCharsets.UTF_8));
+                noiseSeedFile.finishWrite(fos);
+                Slog.i(TAG, "Generated and wrote new noise injection master seed.");
+            } catch (IOException e) {
+                Slog.e(TAG, "Failed to write noise injection master seed to file.", e);
+                if (fos != null) {
+                    noiseSeedFile.failWrite(fos);
+                }
+                // Set seed to null on failure
+                seed = null;
+            }
+        }
+        mNoiseInjectionMasterSeed.set(seed);
+    }
+
+    /**
+     * Returns the noise injection master seed.
+     *
+     * @return The seed string, or null if not loaded yet.
+     */
+    @Nullable
+    String getNoiseInjectionMasterSeedValue() {
+        String seed = mNoiseInjectionMasterSeed.get();
+        if (seed == null) {
+            Slog.e(TAG, "Noise injection master seed not loaded yet.");
+        }
+        return seed;
+    }
+
+    @Override // from AbstractMasterSystemService
+    public void onBootPhase(int phase) {
+        super.onBootPhase(phase);
+        if (phase == PHASE_BOOT_COMPLETED) {
+            // Loading the masterseed involves file I/O using the IoThread, hence doing it after
+            // boot completed to avoid regressing boot time.
+            if (Flags.stringRebuildPersistentMasterseed()) {
+                Slog.d(TAG, "Loading master seed from the storage");
+                IoThread.getExecutor().execute(this::loadNoiseInjectionMasterSeed);
+            } else {
+                Slog.d(TAG, "Persistent masterseed flag is OFF, generating new seed");
+                mNoiseInjectionMasterSeed.set(UUID.randomUUID().toString());
+            }
         }
     }
 
@@ -444,14 +569,36 @@ public final class AutofillManagerService
     @Override // from AbstractMasterSystemService
     protected AutofillManagerServiceImpl newServiceLocked(@UserIdInt int resolvedUserId,
             boolean disabled) {
+        AutoFillUI ui;
+        if (sSupportMultiUserMultiDisplay) {
+            ui = mUis.get(resolvedUserId);
+            if (ui == null) {
+                final int displayId = mUm.getMainDisplayAssignedToUser(resolvedUserId);
+                final Context context =
+                        ActivityThread.currentActivityThread().getSystemUiContext(displayId);
+                final Context userContext =
+                        context.createContextAsUser(UserHandle.of(resolvedUserId), 0);
+                ui = new AutoFillUI(userContext);
+                if (sDebug) {
+                    Slog.d(TAG, "Creating AutoFillUI as user " + userContext.getUserId()
+                            + " on display " + userContext.getDisplayId());
+                }
+                mUis.put(resolvedUserId, ui);
+            }
+        } else {
+            ui = mUi;
+        }
         return new AutofillManagerServiceImpl(this, mLock, mUiLatencyHistory, mWtfHistory,
-                resolvedUserId, mUi, mAutofillCompatState, disabled, mDisabledInfoCache);
+                resolvedUserId, ui, mAutofillCompatState, disabled, mDisabledInfoCache);
     }
 
     @Override // AbstractMasterSystemService
     protected void onServiceRemoved(@NonNull AutofillManagerServiceImpl service,
             @UserIdInt int userId) {
         service.destroyLocked();
+        if (sSupportMultiUserMultiDisplay) {
+            mUis.remove(userId);
+        }
         mDisabledInfoCache.remove(userId);
         mAutofillCompatState.removeCompatibilityModeRequests(userId);
     }
@@ -469,7 +616,7 @@ public final class AutofillManagerService
 
     @Override // from SystemService
     public void onStart() {
-        publishBinderService(AUTOFILL_MANAGER_SERVICE, new AutoFillManagerServiceStub());
+        publishBinderService(AUTOFILL_SERVICE, new AutoFillManagerServiceStub());
         publishLocalService(AutofillManagerInternal.class, mLocalService);
     }
 
@@ -481,7 +628,18 @@ public final class AutofillManagerService
     @Override // from SystemService
     public void onUserSwitching(@Nullable TargetUser from, @NonNull TargetUser to) {
         if (sDebug) Slog.d(TAG, "Hiding UI when user switched");
-        mUi.hideAll(null);
+        if (sSupportMultiUserMultiDisplay) {
+            hideAutoFillUIForUser(from.getUserIdentifier());
+        } else {
+            mUi.hideAll(null);
+        }
+    }
+
+    private void hideAutoFillUIForUser(@UserIdInt int userId) {
+        final AutoFillUI ui = mUis.get(userId);
+        if (ui != null) {
+            ui.hideAll(null);
+        }
     }
 
     @SmartSuggestionMode int getSupportedSmartSuggestionModesLocked() {
@@ -1117,13 +1275,18 @@ public final class AutofillManagerService
 
     private final class LocalService extends AutofillManagerInternal {
         @Override
-        public void onBackKeyPressed() {
-            if (sDebug) Slog.d(TAG, "onBackKeyPressed()");
-            mUi.hideAll(null);
+        public void onBackKeyPressed(@UserIdInt int userId) {
+            if (sDebug) Slog.d(TAG, "onBackKeyPressed():userId=" + userId);
+            if (sSupportMultiUserMultiDisplay) {
+                hideAutoFillUIForUser(userId);
+            } else {
+                mUi.hideAll(null);
+            }
             synchronized (mLock) {
                 final AutofillManagerServiceImpl service =
-                        getServiceForUserWithLocalBinderIdentityLocked(
-                            UserHandle.getCallingUserId());
+                        getServiceForUserWithLocalBinderIdentityLocked(sSupportMultiUserMultiDisplay
+                                ? userId
+                                : UserHandle.getCallingUserId());
                 service.onBackKeyPressed();
             }
         }
@@ -1706,7 +1869,8 @@ public final class AutofillManagerService
                         getServiceForUserWithLocalBinderIdentityLocked(userId);
                 result = service.startSessionLocked(activityToken, taskId, getCallingUid(),
                         clientCallback, autofillId, bounds, value, hasCallback, clientActivity,
-                        compatMode, mAllowInstantService, flags);
+                        compatMode, mAllowInstantService, getNoiseInjectionMasterSeedValue(),
+                        flags);
             }
             final int sessionId = (int) result;
             final int resultFlags = (int) (result >> 32);
@@ -2184,6 +2348,25 @@ public final class AutofillManagerService
         }
 
         @Override
+        public void getNoiseInjectionMasterSeed(IResultReceiver result) {
+            send(result, getNoiseInjectionMasterSeedValue());
+        }
+
+        @Override
+        public void notifySystemInlineSuggestions(
+                int sessionId, List<Dataset> inlineSuggestionsData, int userId) {
+            synchronized (mLock) {
+                final AutofillManagerServiceImpl service =
+                        peekServiceForUserWithLocalBinderIdentityLocked(userId);
+                if (service != null) {
+                    service.notifySystemInlineSuggestions(sessionId, inlineSuggestionsData);
+                } else if (sVerbose) {
+                    Slog.v(TAG, "notifySystemInlineSuggestions(): no service for " + userId);
+                }
+            }
+        }
+
+        @Override
         public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
             if (!DumpUtils.checkDumpPermission(getContext(), TAG, pw)) return;
 
@@ -2208,7 +2391,14 @@ public final class AutofillManagerService
             }
 
             if (uiOnly) {
-                mUi.dump(pw);
+                if (sSupportMultiUserMultiDisplay) {
+                    for (int i = 0; i < mUis.size(); i++) {
+                        final AutoFillUI ui = mUis.get(i);
+                        ui.dump(pw);
+                    }
+                } else {
+                    mUi.dump(pw);
+                }
                 return;
             }
 
@@ -2253,7 +2443,14 @@ public final class AutofillManagerService
                     }
                     pw.println("User data constraints: ");
                     UserData.dumpConstraints(prefix, pw);
-                    mUi.dump(pw);
+                    if (sSupportMultiUserMultiDisplay) {
+                        for (int i = 0; i < mUis.size(); i++) {
+                            final AutoFillUI ui = mUis.get(i);
+                            ui.dump(pw);
+                        }
+                    } else {
+                        mUi.dump(pw);
+                    }
                     pw.print("Autofill Compat State: ");
                     mAutofillCompatState.dump(prefix, pw);
                     pw.print("from device config: ");

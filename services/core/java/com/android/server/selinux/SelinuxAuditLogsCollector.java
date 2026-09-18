@@ -15,7 +15,6 @@
  */
 package com.android.server.selinux;
 
-import android.provider.DeviceConfig;
 import android.util.EventLog;
 import android.util.EventLog.Event;
 import android.util.Log;
@@ -31,7 +30,6 @@ import java.time.Instant;
 import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,16 +41,9 @@ class SelinuxAuditLogsCollector {
 
     private static final String SELINUX_PATTERN = "^.*\\bavc:\\s+(?<denial>.*)$";
 
-    // This config indicates which Selinux logs for source domains to collect. The string will be
-    // inserted into a regex, so it must follow the regex syntax. For example, a valid value would
-    // be "system_server|untrusted_app".
-    @VisibleForTesting static final String CONFIG_SELINUX_AUDIT_DOMAIN = "selinux_audit_domain";
-    @VisibleForTesting static final String DEFAULT_SELINUX_AUDIT_DOMAIN = "no_match^";
-
     @VisibleForTesting
     static final Matcher SELINUX_MATCHER = Pattern.compile(SELINUX_PATTERN).matcher("");
 
-    private final Supplier<String> mAuditDomainSupplier;
     private final RateLimiter mRateLimiter;
     private final QuotaLimiter mQuotaLimiter;
     private EventLogCollection mEventCollection;
@@ -61,45 +52,25 @@ class SelinuxAuditLogsCollector {
 
     AtomicBoolean mStopRequested = new AtomicBoolean(false);
 
-    SelinuxAuditLogsCollector(
-            Supplier<String> auditDomainSupplier,
-            RateLimiter rateLimiter,
-            QuotaLimiter quotaLimiter) {
-        mAuditDomainSupplier = auditDomainSupplier;
+    SelinuxAuditLogsCollector(RateLimiter rateLimiter, QuotaLimiter quotaLimiter) {
         mRateLimiter = rateLimiter;
         mQuotaLimiter = quotaLimiter;
         mEventCollection = new EventLogCollection();
-    }
-
-    SelinuxAuditLogsCollector(RateLimiter rateLimiter, QuotaLimiter quotaLimiter) {
-        this(new DefaultDomainSupplier(), rateLimiter, quotaLimiter);
-    }
-
-    private static class DefaultDomainSupplier implements Supplier<String> {
-        @Override
-        public String get() {
-            if (SelinuxAuditLogsService.enabledForAllDomains()) {
-                return "\\w+";
-            }
-            return DeviceConfig.getString(
-                    DeviceConfig.NAMESPACE_ADSERVICES,
-                    CONFIG_SELINUX_AUDIT_DOMAIN,
-                    DEFAULT_SELINUX_AUDIT_DOMAIN);
-        }
     }
 
     public void setStopRequested(boolean stopRequested) {
         mStopRequested.set(stopRequested);
     }
 
-    /** A Collection to work around EventLog.readEvents() constraints.
+    /**
+     * A Collection to work around EventLog.readEvents() constraints.
      *
-     * This collection only supports add(). Any other method inherited from
-     * Collection will throw an UnsupportedOperationException exception.
+     * <p>This collection only supports add(). Any other method inherited from Collection will throw
+     * an UnsupportedOperationException exception.
      *
-     * This collection ensures that we are processing one event at a time and
-     * avoid collecting all the event objects before processing (e.g.,
-     * ArrayList), which could lead to an OOM situation.
+     * <p>This collection ensures that we are processing one event at a time and avoid collecting
+     * all the event objects before processing (e.g., ArrayList), which could lead to an OOM
+     * situation.
      */
     class EventLogCollection extends AbstractCollection<Event> {
 
@@ -110,7 +81,7 @@ class SelinuxAuditLogsCollector {
         void reset() {
             mAuditsWritten = 0;
             mLatestTimestamp = mLastWrite;
-            mAuditLogBuilder = new SelinuxAuditLogBuilder(mAuditDomainSupplier.get());
+            mAuditLogBuilder = new SelinuxAuditLogBuilder();
         }
 
         int getAuditsWritten() {
@@ -185,8 +156,8 @@ class SelinuxAuditLogsCollector {
     /**
      * Collect and push SELinux audit logs for the provided {@code tagCode}.
      *
-     * @return true if the job was completed. If the job was interrupted or
-     * failed because of IOException, return false.
+     * @return true if the job was completed. If the job was interrupted or failed because of
+     *     IOException, return false.
      * @throws QuotaExceededException if it ran out of quota.
      */
     boolean collect(int tagCode) throws QuotaExceededException {
@@ -196,7 +167,9 @@ class SelinuxAuditLogsCollector {
         } catch (IllegalStateException e) {
             if (e.getCause() instanceof QuotaExceededException) {
                 if (DEBUG) {
-                    Slogf.d(TAG, "Running out of quota after %d logs.",
+                    Slogf.d(
+                            TAG,
+                            "Running out of quota after %d logs.",
                             mEventCollection.getAuditsWritten());
                 }
                 // next run we will ignore all these logs.

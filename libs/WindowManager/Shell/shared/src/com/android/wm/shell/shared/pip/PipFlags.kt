@@ -18,7 +18,6 @@ package com.android.wm.shell.shared.pip
 
 import android.app.AppGlobals
 import android.content.pm.PackageManager
-import android.window.DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_PIP
 import com.android.wm.shell.Flags
 
 class PipFlags {
@@ -26,20 +25,15 @@ class PipFlags {
         /**
          * @return {@code true} if PiP2 implementation should be used.
          *
-         * Note: if PiP on Desktop Windowing is enabled, override the PiP2 gantry flag to be ON.
-         * Note: For form factors other than phone, such as TV, separate flag needs to be ON.
+         * Note: PiP2 is now enabled by default on all non-TV devices.
          */
         @JvmStatic
         val isPip2ExperimentEnabled: Boolean by lazy {
-            val isTv = AppGlobals.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_LEANBACK, 0)
-            (Flags.enablePip2() || ENABLE_DESKTOP_WINDOWING_PIP.isTrue) &&
-                    (!isTv || Flags.enablePip2OnTv())
+            val isTv =
+                AppGlobals.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK, 0)
+            Flags.enablePip2() && (!isTv || Flags.enablePip2OnTv())
         }
 
-        @JvmStatic
-        val isPipUmoExperienceEnabled: Boolean by lazy {
-            Flags.enablePipUmoExperience()
-        }
+        @JvmStatic val isPipUmoExperienceEnabled: Boolean by lazy { Flags.enablePipUmoExperience() }
     }
 }

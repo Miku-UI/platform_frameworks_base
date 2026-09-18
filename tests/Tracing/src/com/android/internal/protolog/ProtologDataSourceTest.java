@@ -17,16 +17,15 @@
 package com.android.internal.protolog;
 
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assume.assumeTrue;
 
 import android.tracing.perfetto.CreateTlsStateArgs;
+import android.tracing.perfetto.DataSource;
 import android.util.proto.ProtoInputStream;
 
 import com.android.internal.protolog.common.LogLevel;
 
 import com.google.common.truth.Truth;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -147,13 +146,14 @@ public class ProtologDataSourceTest {
     @Test
     public void registerAndUnregisterAllCallbacksSuccessfully() {
         final ProtoLogDataSource ds = new ProtoLogDataSource();
-        ProtoLogDataSource.Instance.TracingInstanceStartCallback mockStartCallback =
-                Mockito.mock(ProtoLogDataSource.Instance.TracingInstanceStartCallback.class);
+        ProtoLogDataSource.Instance.ProtoLogTracingInstanceStartCallback mockStartCallback =
+                Mockito.mock(
+                        ProtoLogDataSource.Instance.ProtoLogTracingInstanceStartCallback.class);
         // Updated type for mockFlushCallback
-        ProtoLogDataSource.Instance.TracingFlushCallback mockFlushCallback =
-                Mockito.mock(ProtoLogDataSource.Instance.TracingFlushCallback.class);
-        ProtoLogDataSource.Instance.TracingInstanceStopCallback mockStopCallback =
-                Mockito.mock(ProtoLogDataSource.Instance.TracingInstanceStopCallback.class);
+        DataSource.TracingInstanceFlushCallback mockFlushCallback =
+                Mockito.mock(DataSource.TracingInstanceFlushCallback.class);
+        ProtoLogDataSource.Instance.ProtoLogTracingInstanceStopCallback mockStopCallback =
+                Mockito.mock(ProtoLogDataSource.Instance.ProtoLogTracingInstanceStopCallback.class);
 
         // Register all callbacks
         ds.registerOnStartCallback(mockStartCallback);

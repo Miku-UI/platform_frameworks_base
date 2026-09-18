@@ -21,6 +21,7 @@ package com.android.wm.shell.pinnedlayer.phone
 object PinnedLayerFlags {
 
     /** Checks whether pinned layer flag is enabled or not. */
+    @JvmStatic
     fun isPinnedLayerEnabled(): Boolean =
         com.android.window.flags.Flags.enableInteractivePictureInPicture()
 }

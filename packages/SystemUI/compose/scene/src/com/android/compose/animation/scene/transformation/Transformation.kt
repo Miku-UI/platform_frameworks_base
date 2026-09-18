@@ -31,7 +31,6 @@ import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.ElementMatcher
 import com.android.compose.animation.scene.ElementStateScope
 import com.android.compose.animation.scene.content.state.TransitionState
-import com.android.compose.animation.scene.transformation.PropertyTransformation.Property
 import kotlinx.coroutines.CoroutineScope
 
 /** A transformation applied to one or more elements during a transition. */
@@ -84,11 +83,14 @@ sealed interface PropertyTransformation<T> : Transformation {
     }
 }
 
+/** A transformation applied to an element that is not shared. */
+sealed interface TransformedElementPropertyTransformation<T> : PropertyTransformation<T>
+
 /**
  * A transformation to a target/transformed value that is automatically interpolated using the
  * transition progress and transformation range.
  */
-interface InterpolatedPropertyTransformation<T> : PropertyTransformation<T> {
+interface InterpolatedPropertyTransformation<T> : TransformedElementPropertyTransformation<T> {
     /**
      * Return the transformed value for the given property, i.e.:
      * - the value at progress = 0% for elements that are entering the layout (i.e. elements in the
@@ -107,7 +109,7 @@ interface InterpolatedPropertyTransformation<T> : PropertyTransformation<T> {
     ): T
 }
 
-interface CustomPropertyTransformation<T> : PropertyTransformation<T> {
+interface CustomPropertyTransformation<T> : TransformedElementPropertyTransformation<T> {
     /**
      * Return the value that the property should have in the current frame for the given [content]
      * and [element].
@@ -124,6 +126,49 @@ interface CustomPropertyTransformation<T> : PropertyTransformation<T> {
         element: ElementKey,
         transition: TransitionState.Transition,
         transitionScope: CoroutineScope,
+    ): T
+}
+
+/** A transformation applied to a shared element. */
+sealed interface SharedElementPropertyTransformation<T> : PropertyTransformation<T>
+
+/**
+ * A transformation to a target/transformed value that is automatically interpolated using the
+ * transition *preview progress*.
+ *
+ * Important: This type of shared transformation can only be used inside previews. During the
+ * preview stage, i.e. when the user is swiping, we will seek to the value returned by
+ * [targetPreviewValue] using the preview progress. When the user release their finger, we will
+ * animate from the last preview value to the final target value.
+ */
+interface InterpolatedSharedPropertyTransformation<T> : SharedElementPropertyTransformation<T> {
+    /** Return the target preview value to which we should animate during the preview stage. */
+    fun PropertyTransformationScope.targetPreviewValue(
+        element: ElementKey,
+        transition: TransitionState.Transition,
+        fromValue: T,
+        toValue: T,
+    ): T
+}
+
+interface CustomSharedPropertyTransformation<T> : SharedElementPropertyTransformation<T> {
+    /**
+     * Return the value that the property should have in the current frame for the given [content]
+     * and shared [element].
+     *
+     * This transformation can use [transitionScope] to launch animations associated to
+     * [transition], which will not finish until at least one animation/job is still running in the
+     * scope.
+     *
+     * Important: Make sure to never launch long-running jobs in [transitionScope], otherwise
+     * [transition] will never be considered as finished.
+     */
+    fun PropertyTransformationScope.transform(
+        element: ElementKey,
+        transition: TransitionState.Transition,
+        transitionScope: CoroutineScope,
+        fromValue: T,
+        toValue: T,
     ): T
 }
 

@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Parcel;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -28,6 +29,24 @@ import java.util.Set;
  * @hide
  */
 public final class PackageSetPolicyValue extends PolicyValue<Set<String>> {
+
+    /**
+     * Creates a PackageSetPolicyValue unless the input is null, in which case this method returns
+     * null.
+     */
+    public static @Nullable PackageSetPolicyValue createIfNotNull(
+            @Nullable Collection<String> packages) {
+        return packages == null ? null : new PackageSetPolicyValue(new HashSet<>(packages));
+    }
+
+    /**
+     * Creates a PackageSetPolicyValue unless the input is empty, in which case this method returns
+     * null.
+     */
+    public static @Nullable PackageSetPolicyValue createIfNotEmpty(
+            @NonNull Collection<String> packages) {
+        return packages.isEmpty() ? null : new PackageSetPolicyValue(new HashSet<>(packages));
+    }
 
     public PackageSetPolicyValue(@NonNull Set<String> value) {
         super(value);

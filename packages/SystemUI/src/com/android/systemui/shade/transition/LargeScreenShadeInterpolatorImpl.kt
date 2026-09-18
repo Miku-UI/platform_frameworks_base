@@ -20,11 +20,17 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.annotation.VisibleForTesting
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
 import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** Interpolator responsible for the shade when on large screens. */
 @SysUISingleton
@@ -38,23 +44,36 @@ constructor(
     private val splitShadeInterpolator: SplitShadeInterpolator,
     private val portraitShadeInterpolator: LargeScreenPortraitShadeInterpolator,
     private val splitShadeStateController: SplitShadeStateController,
+    shadeModeInteractor: ShadeModeInteractor,
+    @Background private val backgroundScope: CoroutineScope,
 ) : LargeScreenShadeInterpolator {
 
-    private var inSplitShade = false
+    internal var inSplitShade = shadeModeInteractor.isSplitShade
 
     init {
-        configurationController.addCallback(
-            object : ConfigurationController.ConfigurationListener {
-                override fun onConfigChanged(newConfig: Configuration?) {
-                    updateResources()
+        if (SceneContainerFlag.isEnabled) {
+            backgroundScope.launch {
+                shadeModeInteractor.shadeMode.collect { shadeMode ->
+                    inSplitShade = shadeMode is ShadeMode.Split
                 }
             }
-        )
-        updateResources()
+        } else {
+            configurationController.addCallback(
+                object : ConfigurationController.ConfigurationListener {
+                    override fun onConfigChanged(newConfig: Configuration?) {
+                        updateResources()
+                    }
+                }
+            )
+            updateResources()
+        }
     }
 
     private fun updateResources() {
-        inSplitShade = splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
+        if (!SceneContainerFlag.isEnabled) {
+            inSplitShade =
+                splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
+        }
     }
 
     private val impl: LargeScreenShadeInterpolator

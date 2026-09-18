@@ -122,7 +122,10 @@ public class SystemUIDialogManager implements Dumpable {
 
     private void updateDialogListeners() {
         if (shouldHideAffordance()) {
-            mKeyguardViewController.hideAlternateBouncer(true);
+            mKeyguardViewController.hideAlternateBouncer(
+                    /* updateScrim */ true,
+                    /* clearDismissAction */ true
+            );
         }
 
         for (Listener listener : mListeners) {

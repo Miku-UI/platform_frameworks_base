@@ -17,30 +17,37 @@ package com.android.hoststubgen
 
 import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.filters.printAsTextPolicy
-import com.android.hoststubgen.utils.ConcurrentZipFile
+import com.android.hoststubgen.utils.ConcurrentZipProcessor
 import com.android.hoststubgen.utils.ZipEntryData
 import java.io.PrintWriter
+import java.util.regex.Pattern
 
 /**
  * Actual main class.
  */
 class HostStubGen(val options: HostStubGenOptions) {
+    /**
+     * Take a regex from $HSG_ENTRY_FILTER. If set, we only process entries that match it.
+     * Used by "invoketest".
+     */
+    val entryFilter = Pattern.compile(System.getenv("HSG_ENTRY_FILTER") ?: "")
+
     fun run() {
         val errors = HostStubGenErrors()
-        val inJar = ConcurrentZipFile(options.inJar.get, options.numShards.get)
+        val inJars = ConcurrentZipProcessor(options.inJars, options.numShards.get)
         val stats = HostStubGenStats()
 
         lateinit var allClasses: ClassNodes
 
         stats.totalTime = log.nTime {
             // Load all classes.
-            allClasses = ClassNodes.loadClassStructures(inJar) {
+            allClasses = ClassNodes.loadClassStructures(inJars) {
                 stats.loadStructureTime = it
             }
 
-            convert(inJar, allClasses, options, errors, stats)
+            convert(inJars, allClasses, options, errors, stats)
         }
-        log.i(stats.toString())
+        log.v(stats.toString())
 
         // Dump the classes, if specified.
         options.inputJarDumpFile.ifSet {
@@ -64,19 +71,19 @@ class HostStubGen(val options: HostStubGenOptions) {
      * Convert a JAR file.
      */
     private fun convert(
-        inJar: ConcurrentZipFile,
+        inJars: ConcurrentZipProcessor,
         allClasses: ClassNodes,
         options: HostStubGenOptions,
         errors: HostStubGenErrors,
         stats: HostStubGenStats,
     ) {
-        log.v("Converting %s into %s ...", inJar.fileName, options.outJar.get)
+        log.v("Converting %s into %s ...", inJars.sourceFiles, options.outJar.get)
         log.v("ASM CheckClassAdapter is %s",
             if (options.enableClassChecker.get) "enabled" else "disabled")
 
         stats.totalProcessTime = log.nTime {
             log.withIndent {
-                inJar.forEachThread { entries ->
+                inJars.forEachThread { entries ->
                     // Create a new processor for each thread
                     val processor = HostStubGenClassProcessor(options, allClasses, errors)
                     entries.process { entry ->
@@ -87,9 +94,10 @@ class HostStubGen(val options: HostStubGenOptions) {
             }
         }
 
-        options.outJar.get?.let {
-            inJar.write(it) { time -> stats.totalWriteTime = time }
-            log.d("Created: $it")
+        options.outJar.get?.let { outJar ->
+            val meta = getJarMetadata("hoststubgen", inJars.sourceFiles, outJar)
+            inJars.write(outJar, meta) { time -> stats.totalWriteTime = time }
+            log.d("Created: $outJar")
         }
     }
 
@@ -101,6 +109,10 @@ class HostStubGen(val options: HostStubGenOptions) {
         processor: HostStubGenClassProcessor,
         stats: HostStubGenStats,
     ): ZipEntryData? {
+        if (!entryFilter.matcher(entry.name).find()) {
+            log.w("Entry filtered out: %s", entry.name)
+            return null
+        }
         log.d("Entry: %s", entry.name)
         log.withIndent {
             val name = entry.name
@@ -108,6 +120,10 @@ class HostStubGen(val options: HostStubGenOptions) {
             // Just ignore all the directories. (TODO: make sure it's okay)
             if (name.endsWith("/")) {
                 return null
+            }
+            if (entry.name.startsWith("META-INF/")) {
+                // Do not touch any files in it.
+                return entry
             }
 
             // If it's a class, convert it.
@@ -143,7 +159,11 @@ class HostStubGen(val options: HostStubGenOptions) {
         log.v("Creating class: %s Policy: %s", entryInfo.classInternalName, entryInfo.policy)
         log.withIndent {
             val data = processor.processClassBytecode(entry.data)
-            return ZipEntryData.fromBytes(entryInfo.renamedEntryName, data)
+            return ZipEntryData.fromBytes(
+                entry.container,
+                entryInfo.renamedEntryName,
+                data,
+            )
         }
     }
 }

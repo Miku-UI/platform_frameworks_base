@@ -17,7 +17,6 @@
 package com.android.systemui.log.table
 
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.changes
 import com.android.systemui.kairos.effectSync
@@ -26,7 +25,6 @@ import com.android.systemui.kairos.util.NameTag
 // See [com.android.systemui.log.table.DiffableExtensions.kt] for non-Kairos extension functions.
 
 /** See [logDiffsForTable(TableLogBuffer, String, T)]. */
-@ExperimentalKairosApi
 @JvmName("logIntDiffsForTable")
 fun BuildScope.logDiffsForTable(
     name: NameTag,
@@ -50,7 +48,6 @@ fun BuildScope.logDiffsForTable(
  *
  * @param columnPrefix a prefix that will be applied to every column name that gets logged.
  */
-@ExperimentalKairosApi
 fun <T : Diffable<T>> BuildScope.logDiffsForTable(
     name: NameTag,
     diffableState: State<T>,
@@ -71,7 +68,6 @@ fun <T : Diffable<T>> BuildScope.logDiffsForTable(
 }
 
 /** See [logDiffsForTable(TableLogBuffer, String, T)]. */
-@ExperimentalKairosApi
 @JvmName("logBooleanDiffsForTable")
 fun BuildScope.logDiffsForTable(
     name: NameTag,
@@ -88,7 +84,6 @@ fun BuildScope.logDiffsForTable(
 }
 
 /** See [logDiffsForTable(TableLogBuffer, String, T)]. */
-@ExperimentalKairosApi
 @JvmName("logStringDiffsForTable")
 fun BuildScope.logDiffsForTable(
     name: NameTag,
@@ -105,7 +100,6 @@ fun BuildScope.logDiffsForTable(
 }
 
 /** See [logDiffsForTable(TableLogBuffer, String, T)]. */
-@ExperimentalKairosApi
 @JvmName("logListDiffsForTable")
 fun <T> BuildScope.logDiffsForTable(
     name: NameTag,

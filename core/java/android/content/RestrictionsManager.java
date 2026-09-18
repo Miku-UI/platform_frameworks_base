@@ -605,7 +605,9 @@ public class RestrictionsManager {
         } catch (NameNotFoundException pnfe) {
             throw new IllegalArgumentException("No such package " + packageName);
         }
-        if (appInfo == null || !appInfo.metaData.containsKey(META_DATA_APP_RESTRICTIONS)) {
+        if (appInfo == null
+            || appInfo.metaData == null
+            || !appInfo.metaData.containsKey(META_DATA_APP_RESTRICTIONS)) {
             return null;
         }
 

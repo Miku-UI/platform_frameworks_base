@@ -37,6 +37,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import platform.test.motion.MotionTestRule
 import platform.test.motion.RecordedMotion
+import platform.test.motion.golden.feature
 import platform.test.motion.testing.createGoldenPathManager
 import platform.test.motion.view.ViewFeatureCaptures
 import platform.test.screenshot.DeviceEmulationRule
@@ -73,9 +74,10 @@ class AnimatorTestRuleToolkitTest {
     fun setUp() {
         // Do not run on Automotive.
         assumeFalse(
-            InstrumentationRegistry.getInstrumentation().context.packageManager.hasSystemFeature(
-                PackageManager.FEATURE_AUTOMOTIVE
-            )
+            InstrumentationRegistry.getInstrumentation()
+                .context
+                .packageManager
+                .hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
         )
     }
 
@@ -203,7 +205,7 @@ class AnimatorTestRuleToolkitTest {
             }
         return motionRule.recordMotion(
             AnimatorRuleRecordingSpec(container, motionControl, sampleIntervalMs, visualCapture) {
-                feature(ViewFeatureCaptures.alpha, "alpha")
+                feature("alpha", ViewFeatureCaptures.alpha)
             }
         )
     }

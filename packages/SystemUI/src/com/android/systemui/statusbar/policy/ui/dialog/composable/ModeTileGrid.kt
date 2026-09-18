@@ -37,6 +37,7 @@ import com.android.systemui.Flags
 import com.android.systemui.common.ui.compose.PagerDots
 import com.android.systemui.compose.modifiers.sysUiResTagContainer
 import com.android.systemui.compose.modifiers.sysuiResTag
+import com.android.systemui.flags.DesktopSizing
 import com.android.systemui.statusbar.policy.ui.dialog.viewmodel.ModesDialogViewModel
 
 @Composable
@@ -76,6 +77,12 @@ fun ModeTileGrid(
                             viewModel = tiles[index],
                             modifier = Modifier.fillMaxWidth(),
                             type = getModeTileType(inDetailsView, index, tiles.size),
+                            dimension =
+                                if (inDetailsView && DesktopSizing.isEnabled) {
+                                    ModeTileDimension.DesktopSizingDimens
+                                } else {
+                                    ModeTileDimension.Default
+                                },
                         )
                     }
                 }
@@ -104,6 +111,12 @@ fun ModeTileGrid(
                 ModeTile(
                     viewModel = tiles[index],
                     type = getModeTileType(inDetailsView, index, tiles.size),
+                    dimension =
+                        if (inDetailsView && DesktopSizing.isEnabled) {
+                            ModeTileDimension.DesktopSizingDimens
+                        } else {
+                            ModeTileDimension.Default
+                        },
                 )
             }
         }

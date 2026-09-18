@@ -15,16 +15,12 @@ package com.android.systemui.statusbar.notification.domain.interactor
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.SysUITestComponent
-import com.android.systemui.SysUITestModule
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.collectLastValue
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.runCurrent
-import com.android.systemui.runTest
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runCurrent
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import dagger.BindsInstance
-import dagger.Component
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -32,21 +28,12 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NotificationsKeyguardInteractorTest : SysuiTestCase() {
 
-    @SysUISingleton
-    @Component(modules = [SysUITestModule::class])
-    interface TestComponent : SysUITestComponent<NotificationsKeyguardInteractor> {
-        @Component.Factory
-        interface Factory {
-            fun create(@BindsInstance test: SysuiTestCase): TestComponent
-        }
-    }
-
-    private val testComponent: TestComponent =
-        DaggerNotificationsKeyguardInteractorTest_TestComponent.factory().create(test = this)
+    private val kosmos = testKosmos()
+    private val underTest = kosmos.notificationsKeyguardInteractor
 
     @Test
     fun areNotifsFullyHidden_reflectsRepository() =
-        testComponent.runTest {
+        kosmos.runTest {
             underTest.setNotificationsFullyHidden(false)
             val notifsFullyHidden by collectLastValue(underTest.areNotificationsFullyHidden)
             runCurrent()

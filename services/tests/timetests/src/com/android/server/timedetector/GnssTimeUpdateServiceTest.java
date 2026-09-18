@@ -66,15 +66,18 @@ public final class GnssTimeUpdateServiceTest {
 
         installGpsProviderInMockLocationManager();
 
-        mGnssTimeUpdateService = new GnssTimeUpdateService(
-                mMockContext, mMockAlarmManager, mMockLocationManager, mMockLocationManagerInternal,
-                mMockTimeDetectorInternal);
+        mGnssTimeUpdateService =
+                new GnssTimeUpdateService(
+                        mMockContext,
+                        mMockAlarmManager,
+                        mMockLocationManager,
+                        mMockLocationManagerInternal,
+                        mMockTimeDetectorInternal);
     }
 
     @Test
     public void testLocationListenerOnLocationChanged_validLocationTime_suggestsGnssTime() {
-        UnixEpochTime timeSignal = new UnixEpochTime(
-                ELAPSED_REALTIME_MS, GNSS_TIME);
+        UnixEpochTime timeSignal = new UnixEpochTime(ELAPSED_REALTIME_MS, GNSS_TIME);
         GnssTimeSuggestion timeSuggestion = new GnssTimeSuggestion(timeSignal);
         LocationTime locationTime = new LocationTime(GNSS_TIME, ELAPSED_REALTIME_NS);
         doReturn(locationTime).when(mMockLocationManagerInternal).getGnssTimeMillis();
@@ -83,13 +86,15 @@ public final class GnssTimeUpdateServiceTest {
 
         ArgumentCaptor<LocationListener> locationListenerCaptor =
                 ArgumentCaptor.forClass(LocationListener.class);
-        verify(mMockLocationManager).requestLocationUpdates(
-                eq(LocationManager.GPS_PROVIDER),
-                eq(new LocationRequest.Builder(LocationRequest.PASSIVE_INTERVAL)
-                    .setMinUpdateIntervalMillis(0)
-                    .build()),
-                any(),
-                locationListenerCaptor.capture());
+        verify(mMockLocationManager)
+                .requestLocationUpdates(
+                        eq(LocationManager.GPS_PROVIDER),
+                        eq(
+                                new LocationRequest.Builder(LocationRequest.PASSIVE_INTERVAL)
+                                        .setMinUpdateIntervalMillis(0)
+                                        .build()),
+                        any(),
+                        locationListenerCaptor.capture());
         LocationListener locationListener = locationListenerCaptor.getValue();
         Location location = new Location(LocationManager.GPS_PROVIDER);
 
@@ -97,12 +102,8 @@ public final class GnssTimeUpdateServiceTest {
 
         verify(mMockLocationManager).removeUpdates(locationListener);
         verify(mMockTimeDetectorInternal).suggestGnssTime(timeSuggestion);
-        verify(mMockAlarmManager).set(
-                eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
-                anyLong(),
-                any(),
-                any(),
-                any());
+        verify(mMockAlarmManager)
+                .set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP), anyLong(), any(), any(), any());
     }
 
     @Test
@@ -113,13 +114,15 @@ public final class GnssTimeUpdateServiceTest {
 
         ArgumentCaptor<LocationListener> locationListenerCaptor =
                 ArgumentCaptor.forClass(LocationListener.class);
-        verify(mMockLocationManager).requestLocationUpdates(
-                eq(LocationManager.GPS_PROVIDER),
-                eq(new LocationRequest.Builder(LocationRequest.PASSIVE_INTERVAL)
-                    .setMinUpdateIntervalMillis(0)
-                    .build()),
-                any(),
-                locationListenerCaptor.capture());
+        verify(mMockLocationManager)
+                .requestLocationUpdates(
+                        eq(LocationManager.GPS_PROVIDER),
+                        eq(
+                                new LocationRequest.Builder(LocationRequest.PASSIVE_INTERVAL)
+                                        .setMinUpdateIntervalMillis(0)
+                                        .build()),
+                        any(),
+                        locationListenerCaptor.capture());
         LocationListener locationListener = locationListenerCaptor.getValue();
         Location location = new Location(LocationManager.GPS_PROVIDER);
 
@@ -127,12 +130,8 @@ public final class GnssTimeUpdateServiceTest {
 
         verify(mMockLocationManager).removeUpdates(locationListener);
         verifyNoMoreInteractions(mMockTimeDetectorInternal);
-        verify(mMockAlarmManager).set(
-                eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
-                anyLong(),
-                any(),
-                any(),
-                any());
+        verify(mMockAlarmManager)
+                .set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP), anyLong(), any(), any(), any());
     }
 
     @Test
@@ -178,16 +177,15 @@ public final class GnssTimeUpdateServiceTest {
     private void advanceServiceToSleepingState(
             ArgumentCaptor<LocationListener> locationListenerCaptor,
             ArgumentCaptor<OnAlarmListener> alarmListenerCaptor) {
-        UnixEpochTime timeSignal = new UnixEpochTime(
-                ELAPSED_REALTIME_MS, GNSS_TIME);
+        UnixEpochTime timeSignal = new UnixEpochTime(ELAPSED_REALTIME_MS, GNSS_TIME);
         GnssTimeSuggestion timeSuggestion = new GnssTimeSuggestion(timeSignal);
         LocationTime locationTime = new LocationTime(GNSS_TIME, ELAPSED_REALTIME_NS);
         doReturn(locationTime).when(mMockLocationManagerInternal).getGnssTimeMillis();
 
         assertTrue(mGnssTimeUpdateService.startGnssListeningInternal());
 
-        verify(mMockLocationManager).requestLocationUpdates(
-                any(), any(), any(), locationListenerCaptor.capture());
+        verify(mMockLocationManager)
+                .requestLocationUpdates(any(), any(), any(), locationListenerCaptor.capture());
         LocationListener locationListener = locationListenerCaptor.getValue();
         Location location = new Location(LocationManager.GPS_PROVIDER);
         verifyNoMoreInteractions(mMockAlarmManager, mMockTimeDetectorInternal);
@@ -199,15 +197,19 @@ public final class GnssTimeUpdateServiceTest {
 
         // Verify the service is now "sleeping", i.e. waiting for a period before listening for
         // GNSS locations again.
-        verify(mMockAlarmManager).set(
-                eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
-                anyLong(),
-                any(),
-                alarmListenerCaptor.capture(),
-                any());
+        verify(mMockAlarmManager)
+                .set(
+                        eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                        anyLong(),
+                        any(),
+                        alarmListenerCaptor.capture(),
+                        any());
 
         // Reset mocks making it easier to verify the calls that follow.
-        reset(mMockAlarmManager, mMockTimeDetectorInternal, mMockLocationManager,
+        reset(
+                mMockAlarmManager,
+                mMockTimeDetectorInternal,
+                mMockLocationManager,
                 mMockLocationManagerInternal);
         installGpsProviderInMockLocationManager();
     }
@@ -217,7 +219,6 @@ public final class GnssTimeUpdateServiceTest {
      * locationManager.hasProvider(LocationManager.GPS_PROVIDER) == true }
      */
     private void installGpsProviderInMockLocationManager() {
-        when(mMockLocationManager.hasProvider(LocationManager.GPS_PROVIDER))
-                .thenReturn(true);
+        when(mMockLocationManager.hasProvider(LocationManager.GPS_PROVIDER)).thenReturn(true);
     }
 }

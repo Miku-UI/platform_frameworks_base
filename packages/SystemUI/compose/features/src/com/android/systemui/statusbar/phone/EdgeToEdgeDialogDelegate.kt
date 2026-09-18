@@ -19,12 +19,17 @@ package com.android.systemui.statusbar.phone
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.WindowManager
 import com.android.systemui.animation.back.BackAnimationSpec
 import com.android.systemui.animation.back.bottomSheetForSysUi
 
 /** [DialogDelegate] that configures a dialog to be an edge-to-edge one. */
-class EdgeToEdgeDialogDelegate : DialogDelegate<SystemUIDialog> {
+class EdgeToEdgeDialogDelegate(
+    private val touchEvent: (dialog: SystemUIDialog, event: MotionEvent) -> Boolean = { _, _ ->
+        false
+    }
+) : DialogDelegate<SystemUIDialog> {
 
     override fun onCreate(dialog: SystemUIDialog, savedInstanceState: Bundle?) {
         dialog.window?.apply {
@@ -48,5 +53,9 @@ class EdgeToEdgeDialogDelegate : DialogDelegate<SystemUIDialog> {
         displayMetricsProvider: () -> DisplayMetrics
     ): BackAnimationSpec {
         return BackAnimationSpec.bottomSheetForSysUi(displayMetricsProvider)
+    }
+
+    override fun onTouchEvent(dialog: SystemUIDialog, motionEvent: MotionEvent): Boolean {
+        return touchEvent(dialog, motionEvent)
     }
 }

@@ -18,6 +18,8 @@ package com.android.server.backup;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
+import static com.android.server.backup.internal.BackupHandler.MSG_RUN_DELAYED_RESTORE;
+import static com.android.server.backup.internal.BackupHandler.MSG_RUN_DELAYED_RESTORE_CLEANUP;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -26,6 +28,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
@@ -36,16 +40,19 @@ import android.app.backup.BackupAgent;
 import android.app.backup.BackupAnnotations.BackupDestination;
 import android.app.backup.BackupAnnotations.OperationType;
 import android.app.backup.BackupRestoreEventLogger.DataTypeResult;
+import android.app.backup.DelayedRestoreRequest;
 import android.app.backup.IBackupManagerMonitor;
 import android.app.backup.IBackupObserver;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.compat.testing.PlatformCompatChangeRule;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Handler;
+import android.os.Message;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
@@ -62,6 +69,8 @@ import com.android.server.backup.internal.BackupHandler;
 import com.android.server.backup.internal.LifecycleOperationStorage;
 import com.android.server.backup.internal.OnTaskFinishedListener;
 import com.android.server.backup.params.BackupParams;
+import com.android.server.backup.params.DelayedRestoreParams;
+import com.android.server.backup.restore.DelayedRestoreJournal;
 import com.android.server.backup.transport.BackupTransportClient;
 import com.android.server.backup.transport.TransportConnection;
 import com.android.server.backup.utils.BackupEligibilityRules;
@@ -79,7 +88,10 @@ import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Presubmit
 @RunWith(AndroidJUnit4.class)
@@ -104,6 +116,7 @@ public class UserBackupManagerServiceTest {
     @Mock BackupManagerMonitorEventSender mBackupManagerMonitorEventSender;
     @Mock IActivityManager mActivityManager;
     @Mock ActivityManagerInternal mActivityManagerInternal;
+    @Mock DelayedRestoreJournal mDelayedRestoreJournal;
 
     @UserIdInt private int mUserId;
     private TestableContext mContext;
@@ -348,6 +361,211 @@ public class UserBackupManagerServiceTest {
         assertThat(eligibilityRules.getBackupDestination()).isEqualTo(BackupDestination.CLOUD);
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testOnDelayedRestoreConditionMet_flagOn_schedulesDelayedRestoreParams()
+            throws Exception {
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+        Set<String> requesters = Collections.singleton(TEST_PACKAGE);
+
+        when(mTransportManager.getCurrentTransportClient(anyString()))
+                .thenReturn(mTransportConnection);
+        when(mTransportConnection.getTransportComponent())
+                .thenReturn(new ComponentName("pkg", "cls"));
+        when(mTransportManager.getTransportDirName(any(ComponentName.class)))
+                .thenReturn(TEST_TRANSPORT);
+        when(mDelayedRestoreJournal.getPackagesForRequest(eq(request))).thenReturn(requesters);
+
+        Message msg = mock(Message.class);
+        when(mBackupHandler.obtainMessage(eq(MSG_RUN_DELAYED_RESTORE), any()))
+                .thenReturn(msg);
+
+        mService.onDelayedRestoreConditionMet(request);
+
+        verify(mBackupHandler).sendMessage(msg);
+        verify(mBackupHandler)
+                .obtainMessage(
+                        eq(MSG_RUN_DELAYED_RESTORE),
+                        argThat(
+                                params ->
+                                        params instanceof DelayedRestoreParams
+                                                && Objects.equals(
+                                                        ((DelayedRestoreParams) params).request,
+                                                        request)
+                                                && ((DelayedRestoreParams) params)
+                                                        .requesterPackageNames.contains(
+                                                                TEST_PACKAGE)));
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testOnDelayedRestoreConditionMet_flagOff_doesNothing() throws Exception {
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        mService.onDelayedRestoreConditionMet(request);
+
+        verify(mTransportManager, never()).getCurrentTransportClient(anyString());
+        verify(mDelayedRestoreJournal, never()).getPackagesForRequest(any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testOnDelayedRestoreCachedDataExpired_flagOn_sendsMessage() {
+        Message msg = mock(Message.class);
+        when(mBackupHandler.obtainMessage(
+                        eq(MSG_RUN_DELAYED_RESTORE_CLEANUP), eq(TEST_PACKAGE)))
+                .thenReturn(msg);
+
+        mService.onDelayedRestoreCachedDataExpired(TEST_PACKAGE);
+
+        verify(mBackupHandler).sendMessage(msg);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testOnDelayedRestoreCachedDataExpired_flagOff_doesNothing() {
+        mService.onDelayedRestoreCachedDataExpired(TEST_PACKAGE);
+
+        verify(mBackupHandler, never()).sendMessage(any());
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testScheduleDelayedRestore_flagOff_returnsFalse() {
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        boolean result = mService.scheduleDelayedRestore(request);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testScheduleDelayedRestore_noRestoreInProgress_returnsFalse() {
+        mService.setRestoreInProgress(false);
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        boolean result = mService.scheduleDelayedRestore(request);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testScheduleDelayedRestore_uidMismatch_returnsFalse() throws Exception {
+        mService.setRestoreInProgress(true);
+        mService.setRestoreInProgressPackageName(TEST_PACKAGE);
+        // Calling uid != package uid
+        when(mPackageManager.getPackageUidAsUser(eq(TEST_PACKAGE), anyInt(), anyInt()))
+                .thenReturn(android.os.Binder.getCallingUid() + 1);
+
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        boolean result = mService.scheduleDelayedRestore(request);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testScheduleDelayedRestore_addRequestFails_returnsFalse() throws Exception {
+        mService.setRestoreInProgress(true);
+        mService.setRestoreInProgressPackageName(TEST_PACKAGE);
+        when(mPackageManager.getPackageUidAsUser(eq(TEST_PACKAGE), anyInt(), anyInt()))
+                .thenReturn(android.os.Binder.getCallingUid());
+
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        when(mDelayedRestoreJournal.addRequest(eq(request), eq(TEST_PACKAGE))).thenReturn(false);
+
+        boolean result = mService.scheduleDelayedRestore(request);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testScheduleDelayedRestore_success_conditionNotMet() throws Exception {
+        mService.setRestoreInProgress(true);
+        mService.setRestoreInProgressPackageName(TEST_PACKAGE);
+        when(mPackageManager.getPackageUidAsUser(eq(TEST_PACKAGE), anyInt(), anyInt()))
+                .thenReturn(android.os.Binder.getCallingUid());
+
+        // Use TYPE_APP_UPDATE which returns false for isDelayedRestoreRequestAlreadyMet
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_UPDATE)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        when(mDelayedRestoreJournal.addRequest(eq(request), eq(TEST_PACKAGE))).thenReturn(true);
+
+        boolean result = mService.scheduleDelayedRestore(request);
+
+        assertThat(result).isTrue();
+        // Verify no message sent for running delayed restore
+        verify(mBackupHandler, never()).sendMessage(any());
+        verify(mBackupHandler, never()).obtainMessage(eq(MSG_RUN_DELAYED_RESTORE), any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    public void testScheduleDelayedRestore_success_conditionMet() throws Exception {
+        mService.setRestoreInProgress(true);
+        mService.setRestoreInProgressPackageName(TEST_PACKAGE);
+        when(mPackageManager.getPackageUidAsUser(eq(TEST_PACKAGE), anyInt(), anyInt()))
+                .thenReturn(android.os.Binder.getCallingUid());
+
+        // TYPE_APP_INSTALL checks if package exists.
+        DelayedRestoreRequest request =
+                new DelayedRestoreRequest.Builder(DelayedRestoreRequest.TYPE_APP_INSTALL)
+                        .setPackageName(TEST_PACKAGE)
+                        .build();
+
+        when(mDelayedRestoreJournal.addRequest(eq(request), eq(TEST_PACKAGE))).thenReturn(true);
+        // Package exists
+        when(mPackageManager.getPackageInfoAsUser(eq(TEST_PACKAGE), anyInt(), anyInt()))
+                .thenReturn(new PackageInfo());
+
+        when(mDelayedRestoreJournal.getPackagesForRequest(eq(request)))
+                .thenReturn(Collections.singleton(TEST_PACKAGE));
+
+        // Transport setup
+        when(mTransportManager.getCurrentTransportClient(anyString()))
+                .thenReturn(mTransportConnection);
+        when(mTransportConnection.connectOrThrow(any())).thenReturn(mBackupTransport);
+        when(mTransportConnection.getTransportComponent())
+                .thenReturn(new ComponentName("pkg", "cls"));
+        when(mTransportManager.getTransportDirName(any(ComponentName.class)))
+                .thenReturn(TEST_TRANSPORT);
+
+        // Handler message setup
+        Message msg = mock(Message.class);
+        when(mBackupHandler.obtainMessage(eq(MSG_RUN_DELAYED_RESTORE), any())).thenReturn(msg);
+
+        boolean result = mService.scheduleDelayedRestore(request);
+
+        assertThat(result).isTrue();
+        verify(mBackupHandler).sendMessage(msg);
+    }
+
     private static PackageInfo getPackageInfo(String packageName) {
         PackageInfo packageInfo = new PackageInfo();
         packageInfo.applicationInfo = new ApplicationInfo();
@@ -368,7 +586,8 @@ public class UserBackupManagerServiceTest {
                     mBackupHandler,
                     createConstants(mContext),
                     mActivityManager,
-                    mActivityManagerInternal);
+                    mActivityManagerInternal,
+                    mDelayedRestoreJournal);
         }
 
         private static BackupManagerConstants createConstants(Context context) {

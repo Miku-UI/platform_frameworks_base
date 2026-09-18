@@ -39,6 +39,7 @@ import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
 import android.content.pm.SigningDetails;
 import android.content.pm.SigningInfo;
+import android.content.pm.ValidGeneralPurposeInfo;
 import android.content.pm.ValidPurposeInfo;
 import android.os.Debug;
 import android.os.PatternMatcher;
@@ -59,6 +60,7 @@ import com.android.internal.pm.pkg.component.ParsedPermission;
 import com.android.internal.pm.pkg.component.ParsedProvider;
 import com.android.internal.pm.pkg.component.ParsedService;
 import com.android.internal.pm.pkg.component.ParsedUsesPermission;
+import com.android.internal.pm.pkg.component.ParsedValidGeneralPurpose;
 import com.android.internal.pm.pkg.component.ParsedValidPurpose;
 import com.android.internal.pm.pkg.parsing.ParsingPackageHidden;
 import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
@@ -166,6 +168,11 @@ public class PackageInfoCommonUtils {
                             & ParsedUsesPermission.FLAG_NEVER_FOR_LOCATION) != 0) {
                         info.requestedPermissionsFlags[index] |=
                                 PackageInfo.REQUESTED_PERMISSION_NEVER_FOR_LOCATION;
+                    }
+                    if ((usesPermission.getUsesPermissionFlags()
+                                    & ParsedUsesPermission.FLAG_ONLY_FOR_LOCATION_BUTTON) != 0) {
+                        info.requestedPermissionsFlags[index] |=
+                                PackageInfo.REQUESTED_PERMISSION_ONLY_FOR_LOCATION_BUTTON;
                     }
                     if (pkg.getImplicitPermissions().contains(info.requestedPermissions[index])) {
                         info.requestedPermissionsFlags[index] |=
@@ -515,8 +522,9 @@ public class PackageInfoCommonUtils {
         pi.descriptionRes = p.getDescriptionRes();
         pi.flags = p.getFlags();
         pi.knownCerts = p.getKnownCerts();
-        pi.requiresPurpose = p.isPurposeRequired();
         pi.requiresPurposeTargetSdkVersion = p.getRequiresPurposeTargetSdkVersion();
+        pi.requiresGeneralPurposeTargetSdkVersion = p.getRequiresGeneralPurposeTargetSdkVersion();
+        pi.requiresPurposeStringTargetSdkVersion = p.getRequiresPurposeStringTargetSdkVersion();
         for (ParsedValidPurpose validPurpose : p.getValidPurposes()) {
             if (validPurpose != null) {
                 pi.validPurposes =
@@ -524,6 +532,15 @@ public class PackageInfoCommonUtils {
                                 new ValidPurposeInfo(
                                         validPurpose.getName(),
                                         validPurpose.getMaxTargetSdkVersion()));
+            }
+        }
+        for (ParsedValidGeneralPurpose validGeneralPurpose : p.getValidGeneralPurposes()) {
+            if (validGeneralPurpose != null) {
+                pi.validGeneralPurposes =
+                        CollectionUtils.add(pi.validGeneralPurposes, validGeneralPurpose.getName(),
+                                new ValidGeneralPurposeInfo(
+                                        validGeneralPurpose.getName(),
+                                        validGeneralPurpose.getMaxTargetSdkVersion()));
             }
         }
 

@@ -23,6 +23,7 @@ import androidx.fragment.app.testing.FragmentScenario
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceScreen
+import com.android.settingslib.metadata.CatalystFlagProviderFactory
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_ARGS
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_KEY
 import com.android.settingslib.metadata.PersistentPreference
@@ -57,6 +58,9 @@ private object DummyPreferenceScreenMetadata : PreferenceScreenMetadata {
     override val key: String
         get() = ""
 
+    override val purpose: Int
+        get() = 0
+
     override fun fragmentClass() = null
 
     override fun getPreferenceHierarchy(context: Context, coroutineScope: CoroutineScope) =
@@ -70,6 +74,10 @@ fun PreferenceScreenMetadata.launchFragmentScenario() =
         fragmentClass() as Class<out PreferenceFragmentCompat>,
         Bundle(2).also {
             it.putString(EXTRA_BINDING_SCREEN_KEY, key)
-            it.putBundle(EXTRA_BINDING_SCREEN_ARGS, arguments)
+            if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+                it.putBundle(EXTRA_BINDING_SCREEN_ARGS, keyParameters?.toBundle())
+            } else {
+                it.putBundle(EXTRA_BINDING_SCREEN_ARGS, arguments)
+            }
         },
     )

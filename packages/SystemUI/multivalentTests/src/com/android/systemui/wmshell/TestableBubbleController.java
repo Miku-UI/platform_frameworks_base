@@ -28,12 +28,13 @@ import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.bubbles.BubbleController;
 import com.android.wm.shell.bubbles.BubbleData;
 import com.android.wm.shell.bubbles.BubbleDataRepository;
-import com.android.wm.shell.bubbles.BubbleLogger;
+import com.android.wm.shell.bubbles.BubbleHelper;
 import com.android.wm.shell.bubbles.BubblePositioner;
-import com.android.wm.shell.bubbles.BubbleTransitions;
+import com.android.wm.shell.bubbles.BubbleViewInfoTask;
 import com.android.wm.shell.bubbles.ResizabilityChecker;
-import com.android.wm.shell.bubbles.appinfo.BubbleAppInfoProvider;
+import com.android.wm.shell.bubbles.logging.BubbleLogger;
 import com.android.wm.shell.bubbles.logging.BubbleSessionTracker;
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.DisplayImeController;
 import com.android.wm.shell.common.DisplayInsetsController;
@@ -44,6 +45,7 @@ import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.common.TaskStackListenerImpl;
 import com.android.wm.shell.draganddrop.DragAndDropController;
 import com.android.wm.shell.onehanded.OneHandedController;
+import com.android.wm.shell.shared.bubbles.BubbleFeatureConfig;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.sysui.ShellCommandHandler;
 import com.android.wm.shell.sysui.ShellController;
@@ -88,9 +90,11 @@ public class TestableBubbleController extends BubbleController {
             IWindowManager wmService,
             ResizabilityChecker resizabilityChecker,
             HomeIntentProvider homeIntentProvider,
-            BubbleAppInfoProvider appInfoProvider,
             Optional<SplitScreenController> splitScreenController,
-            BubbleSessionTracker sessionTracker) {
+            BubbleSessionTracker sessionTracker,
+            BubbleViewInfoTask.Factory bubbleViewInfoTaskFactory,
+            BubbleHelper bubbleHelper,
+            BubbleFeatureConfig featureConfig) {
         super(context, shellInit, shellCommandHandler, shellController, data, Runnable::run,
                 floatingContentCoordinator, dataRepository, bubbleTransitions, statusBarService,
                 windowManager, displayInsetsController, displayImeController, userManager,
@@ -98,8 +102,8 @@ public class TestableBubbleController extends BubbleController {
                 displayController, oneHandedOptional, dragAndDropController, shellMainExecutor,
                 shellMainHandler, new SyncExecutor(), taskViewTransitions,
                 transitions, syncQueue, wmService, resizabilityChecker, homeIntentProvider,
-                appInfoProvider, () -> splitScreenController, Optional.empty(), () -> false,
-                sessionTracker);
+                () -> splitScreenController, Optional.empty(), () -> false, sessionTracker,
+                bubbleViewInfoTaskFactory, bubbleHelper, featureConfig);
         setInflateSynchronously(true);
         onInit();
     }

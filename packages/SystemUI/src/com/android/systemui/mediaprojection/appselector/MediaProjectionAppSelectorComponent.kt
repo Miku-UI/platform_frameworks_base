@@ -64,7 +64,7 @@ import kotlinx.coroutines.SupervisorJob
 
 @Module(
     subcomponents = [MediaProjectionAppSelectorComponent::class],
-    includes = [MediaProjectionDevicePolicyModule::class]
+    includes = [MediaProjectionDevicePolicyModule::class],
 )
 interface MediaProjectionActivitiesModule {
     @Binds
@@ -125,7 +125,7 @@ interface MediaProjectionAppSelectorModule {
         @MediaProjectionAppSelectorScope
         fun bindConfigurationController(
             context: Context,
-            configurationControlleFactory: ConfigurationControllerImpl.Factory
+            configurationControlleFactory: ConfigurationControllerImpl.Factory,
         ): ConfigurationController = configurationControlleFactory.create(context)
 
         @Provides fun bindIconFactory(context: Context): IconFactory = IconFactory.obtain(context)

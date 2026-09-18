@@ -16,6 +16,8 @@
 
 package com.android.server.accessibility;
 
+import static com.android.server.accessibility.Flags.keyEventDispatcherFixFlushRaceCondition;
+
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.accessibilityservice.AccessibilityTrace;
@@ -52,7 +54,7 @@ import java.io.PrintWriter;
 class UiAutomationManager {
     private static final ComponentName COMPONENT_NAME =
             new ComponentName("com.android.server.accessibility", "UiAutomation");
-    private static final String LOG_TAG = "UiAutomationManager";
+    private static final String LOG_TAG = UiAutomationManager.class.getSimpleName();
 
     private final Object mLock;
 
@@ -326,6 +328,14 @@ class UiAutomationManager {
         @Override
         protected boolean supportsFlagForNotImportantViews(AccessibilityServiceInfo info) {
             return true;
+        }
+
+        @Override
+        public void resetLocked() {
+            if (keyEventDispatcherFixFlushRaceCondition()) {
+                mSystemSupport.getKeyEventDispatcher().flush(mUiAutomationService);
+            }
+            super.resetLocked();
         }
 
         @PermissionManuallyEnforced

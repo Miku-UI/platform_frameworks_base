@@ -19,6 +19,7 @@ package android.app;
 import static android.app.Instrumentation.DEBUG_FINISH_ACTIVITY;
 import static android.app.WindowConfiguration.activityTypeToString;
 import static android.app.WindowConfiguration.windowingModeToString;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
 import static android.content.pm.ActivityInfo.RESIZE_MODE_RESIZEABLE;
 
@@ -83,12 +84,20 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepStaticInitializer;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Singleton;
 import android.util.Size;
+import android.view.Display;
 import android.view.WindowInsetsController.Appearance;
 
 import com.android.internal.annotations.GuardedBy;
@@ -115,6 +124,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -155,7 +165,9 @@ import java.util.function.Consumer;
  * </p>
  */
 @SystemService(Context.ACTIVITY_SERVICE)
-@android.ravenwood.annotation.RavenwoodKeepPartialClass
+@RavenwoodKeepPartialClass
+@RavenwoodKeepStaticInitializer
+@RavenwoodRedirectionClass("ActivityManager_ravenwood")
 public class ActivityManager {
     private static String TAG = "ActivityManager";
 
@@ -210,6 +222,11 @@ public class ActivityManager {
      * @hide
      */
     public static final int INSTR_FLAG_INSTRUMENT_SDK_IN_SANDBOX = 1 << 6;
+    /**
+     * Run the target process in pcc sandbox.
+     * @hide
+     */
+    public static final int INSTR_FLAG_RUN_IN_PCC = 1 << 7;
 
     static final class MyUidObserver extends UidObserver {
         final OnUidImportanceListener mListener;
@@ -221,7 +238,8 @@ public class ActivityManager {
         }
 
         @Override
-        public void onUidStateChanged(int uid, int procState, long procStateSeq, int capability) {
+        public void onUidStateChanged(int uid, @ProcessState int procState,
+                long procStateSeq, @ProcessCapability int capability) {
             mListener.onUidImportance(uid, RunningAppProcessInfo.procStateToImportanceForClient(
                     procState, mContext));
         }
@@ -547,6 +565,22 @@ public class ActivityManager {
     public static final int START_ASSISTANT_NOT_ACTIVE_SESSION = FIRST_START_FATAL_ERROR_CODE + 11;
 
     /**
+     * Result for IActivityManager.startAssistantActivity: activity is not allowed to be launched
+     * for the given user.
+     * @hide
+     */
+    public static final int START_NOT_ALLOWED_FOR_USER =
+            FIRST_START_FATAL_ERROR_CODE + 12;
+
+    /**
+     * Result for IActivityManager.startActivity: the system cannot guarantee that the new task
+     * will be movable right after launch.
+     * @hide
+     */
+    public static final int START_CANNOT_GUARANTEE_TASK_MOVABILITY =
+            FIRST_START_FATAL_ERROR_CODE + 13;
+
+    /**
      * Result for IActivityManager.startActivity: the activity was started
      * successfully as normal.
      * @hide
@@ -711,17 +745,9 @@ public class ActivityManager {
 
     /**
      * Process states, describing the kind of state a particular process is in.
-     * When updating these, make sure to also check all related references to the
-     * constant in code, and update these arrays:
-     *
-     * @see com.android.internal.app.procstats.ProcessState#PROCESS_STATE_TO_STATE
-     * @see com.android.server.am.ProcessList#sProcStateToProcMem
-     * @see com.android.server.am.ProcessList#sFirstAwakePssTimes
-     * @see com.android.server.am.ProcessList#sSameAwakePssTimes
-     * @see com.android.server.am.ProcessList#sTestFirstPssTimes
-     * @see com.android.server.am.ProcessList#sTestSamePssTimes
      * @hide
      */
+    // LINT.IfChange
     @IntDef(flag = false, prefix = { "PROCESS_STATE_" }, value = {
         PROCESS_STATE_UNKNOWN, // -1
         PROCESS_STATE_PERSISTENT, // 0
@@ -744,9 +770,14 @@ public class ActivityManager {
         PROCESS_STATE_CACHED_ACTIVITY_CLIENT,
         PROCESS_STATE_CACHED_RECENT,
         PROCESS_STATE_CACHED_EMPTY,
+        PROCESS_STATE_NONEXISTENT,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ProcessState {}
+    // LINT.ThenChange(
+    //     /core/java/com/android/internal/app/procstats/ProcessState.java:process_state_to_state,
+    //     /services/core/java/com/android/server/am/ProcessList.java:process_state_to_memory
+    // )
 
     /*
      * PROCESS_STATE_* must come from frameworks/base/core/java/android/app/ProcessStateEnum.aidl.
@@ -1046,20 +1077,23 @@ public class ActivityManager {
             | PROCESS_CAPABILITY_IMPLICIT_CPU_TIME;
 
     /**
-     * All implicit capabilities. This capability set is currently only used for processes under
-     * active instrumentation. The intent is to allow CTS tests to always have these capabilities
-     * so that every test doesn't need to launch FGS.
+     * Default capabilities for processes under active instrumentation. The intent is to allow CTS
+     * tests to always have these capabilities so that every test doesn't need to launch a
+     * foreground service or other special lifecycle only to get these capabilities.
+     *
      * @hide
      */
-    @TestApi
-    public static final int PROCESS_CAPABILITY_ALL_IMPLICIT = PROCESS_CAPABILITY_FOREGROUND_CAMERA
-            | PROCESS_CAPABILITY_FOREGROUND_MICROPHONE;
+    public static final int PROCESS_CAPABILITY_INSTRUMENTATION_DEFAULTS =
+            // TODO: b/467684465 - CTS tests should gain capabilities explicitly where necessary
+            PROCESS_CAPABILITY_FOREGROUND_CAMERA
+            | PROCESS_CAPABILITY_FOREGROUND_MICROPHONE
+            | PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL;
 
     /**
      * Print capability bits in human-readable form.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static void printCapabilitiesSummary(PrintWriter pw, @ProcessCapability int caps) {
         pw.print((caps & PROCESS_CAPABILITY_FOREGROUND_LOCATION) != 0 ? 'L' : '-');
         pw.print((caps & PROCESS_CAPABILITY_FOREGROUND_CAMERA) != 0 ? 'C' : '-');
@@ -1073,7 +1107,7 @@ public class ActivityManager {
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static void printCapabilitiesSummary(StringBuilder sb, @ProcessCapability int caps) {
         sb.append((caps & PROCESS_CAPABILITY_FOREGROUND_LOCATION) != 0 ? 'L' : '-');
         sb.append((caps & PROCESS_CAPABILITY_FOREGROUND_CAMERA) != 0 ? 'C' : '-');
@@ -1090,7 +1124,7 @@ public class ActivityManager {
      * Print capability bits in human-readable form.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static void printCapabilitiesFull(PrintWriter pw, @ProcessCapability int caps) {
         printCapabilitiesSummary(pw, caps);
         final int remain = caps & ~PROCESS_CAPABILITY_ALL;
@@ -1101,7 +1135,7 @@ public class ActivityManager {
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static String getCapabilitiesSummary(@ProcessCapability int caps) {
         final StringBuilder sb = new StringBuilder();
         printCapabilitiesSummary(sb, caps);
@@ -1121,7 +1155,7 @@ public class ActivityManager {
      * @return the value of the corresponding enums.proto ProcessCapabilityEnum value.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static final int processCapabilityAmToProto(int amInt) {
         switch (amInt) {
             case PROCESS_CAPABILITY_FOREGROUND_LOCATION:
@@ -1162,7 +1196,7 @@ public class ActivityManager {
      * @return the value of the corresponding enums.proto ProcessStateEnum value.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static final int processStateAmToProto(int amInt) {
         switch (amInt) {
             case PROCESS_STATE_UNKNOWN:
@@ -1223,25 +1257,25 @@ public class ActivityManager {
     public static final int MAX_PROCESS_STATE = PROCESS_STATE_NONEXISTENT;
 
     /** @hide Should this process state be considered a background state? */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static final boolean isProcStateBackground(int procState) {
+    @RavenwoodKeep
+    public static final boolean isProcStateBackground(@ProcessState int procState) {
         return procState >= PROCESS_STATE_TRANSIENT_BACKGROUND;
     }
 
     /** @hide Should this process state be considered in the cache? */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static final boolean isProcStateCached(int procState) {
+    @RavenwoodKeep
+    public static final boolean isProcStateCached(@ProcessState int procState) {
         return procState >= PROCESS_STATE_CACHED_ACTIVITY;
     }
 
     /** @hide Is this a foreground service type? */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static boolean isForegroundService(int procState) {
+    @RavenwoodKeep
+    public static boolean isForegroundService(@ProcessState int procState) {
         return procState == PROCESS_STATE_FOREGROUND_SERVICE;
     }
 
     /** @hide Should this process state be considered jank perceptible? */
-    public static final boolean isProcStateJankPerceptible(int procState) {
+    public static final boolean isProcStateJankPerceptible(@ProcessState int procState) {
         if (Flags.jankPerceptibleNarrow() && !Flags.jankPerceptibleNarrowHoldback()) {
             return procState == PROCESS_STATE_PERSISTENT_UI
                 || procState == PROCESS_STATE_TOP
@@ -1263,6 +1297,12 @@ public class ActivityManager {
 
     /** @hide requestType for assist context: generate AssistContent but not AssistStructure. */
     public static final int ASSIST_CONTEXT_CONTENT = 3;
+
+    /**
+     * @hide requestType for assist context: generate AssistStructure, but skip screen content
+     * & view hierarchy.
+     **/
+    public static final int ASSIST_CONTEXT_SKIP_SCREEN_CONTENT = 4;
 
     /** @hide Flag for registerUidObserver: report changes in process state. */
     public static final int UID_OBSERVER_PROCSTATE = 1<<0;
@@ -1321,25 +1361,11 @@ public class ActivityManager {
         mContext = context;
     }
 
-    private static volatile int sCurrentUser$ravenwood = UserHandle.USER_NULL;
-
-    /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static void init$ravenwood(int currentUser) {
-        sCurrentUser$ravenwood = currentUser;
-    }
-
-    /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static void reset$ravenwood() {
-        sCurrentUser$ravenwood = UserHandle.USER_NULL;
-    }
-
     /**
      * Returns whether the launch was successful.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static final boolean isStartResultSuccessful(int result) {
         return FIRST_START_SUCCESS_CODE <= result && result <= LAST_START_SUCCESS_CODE;
     }
@@ -1348,7 +1374,7 @@ public class ActivityManager {
      * Returns whether the launch result was a fatal error.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static final boolean isStartResultFatalError(int result) {
         return FIRST_START_FATAL_ERROR_CODE <= result && result <= LAST_START_FATAL_ERROR_CODE;
     }
@@ -1668,7 +1694,7 @@ public class ActivityManager {
     public @interface RestrictionSource{}
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static String restrictionLevelToName(@RestrictionLevel int level) {
         switch (level) {
             case RESTRICTION_LEVEL_UNKNOWN:
@@ -1805,12 +1831,14 @@ public class ActivityManager {
      * something with 1GB or less of RAM.  This is mostly intended to be used by apps
      * to determine whether they should turn off certain features that require more RAM.
      */
+    @RavenwoodKeep
     public boolean isLowRamDevice() {
         return isLowRamDeviceStatic();
     }
 
     /** @hide */
     @UnsupportedAppUsage
+    @RavenwoodIgnore
     public static boolean isLowRamDeviceStatic() {
         return RoSystemProperties.CONFIG_LOW_RAM ||
                 (Build.IS_DEBUGGABLE && DEVELOPMENT_FORCE_LOW_RAM);
@@ -1888,6 +1916,8 @@ public class ActivityManager {
         private String mLabel;
         @Nullable
         private Icon mIcon;
+        @Nullable
+        private Icon mBadge;
         private String mIconFilename;
         private int mColorPrimary;
         private int mColorBackground;
@@ -1918,8 +1948,10 @@ public class ActivityManager {
              */
             @Nullable
             private String mLabel = null;
-            @DrawableRes
-            private int mIconRes = Resources.ID_NULL;
+            @Nullable
+            private Icon mIcon = null;
+            @Nullable
+            private Icon mBadge = null;
             private int mPrimaryColor = 0;
             private int mBackgroundColor = 0;
             private int mStatusBarColor = 0;
@@ -1944,7 +1976,41 @@ public class ActivityManager {
              */
             @NonNull
             public Builder setIcon(@DrawableRes int iconRes) {
-                this.mIconRes = iconRes;
+                if (iconRes == Resources.ID_NULL) {
+                    this.mIcon = null;
+                } else {
+                    this.mIcon =
+                            Icon.createWithResource(ActivityThread.currentPackageName(), iconRes);
+                }
+                return this;
+            }
+
+            /**
+             * Set the icon to use in the TaskDescription.
+             * @param icon An icon that represents the current state of this activity.
+             * @return The same instance of the builder.
+             */
+            @FlaggedApi(Flags.FLAG_ENABLE_DYNAMIC_ICONS_AND_BADGING)
+            @NonNull
+            public Builder setIcon(@Nullable Icon icon) {
+                this.mIcon = icon;
+                return this;
+            }
+
+            /**
+             * Set the icon of the badge to use in the TaskDescription.
+             *
+             * <p>The badge is an optional, small icon that is displayed on bottom corner of the
+             * icon in places like the taskbar and launcher. There is no default badge, and if not
+             * set, no badge will be shown.
+             *
+             * @param badge An Icon of a badge to be attached to the icon.
+             * @return The same instance of the builder.
+             */
+            @FlaggedApi(Flags.FLAG_ENABLE_DYNAMIC_ICONS_AND_BADGING)
+            @NonNull
+            public Builder setBadge(@Nullable Icon badge) {
+                this.mBadge = badge;
                 return this;
             }
 
@@ -1999,9 +2065,7 @@ public class ActivityManager {
              */
             @NonNull
             public TaskDescription build() {
-                final Icon icon = mIconRes == Resources.ID_NULL ? null :
-                        Icon.createWithResource(ActivityThread.currentPackageName(), mIconRes);
-                return new TaskDescription(mLabel, icon, mPrimaryColor, mBackgroundColor,
+                return new TaskDescription(mLabel, mIcon, mBadge, mPrimaryColor, mBackgroundColor,
                         mStatusBarColor, mNavigationBarColor, 0, 0, false, false,
                         RESIZE_MODE_RESIZEABLE, -1, -1, 0);
             }
@@ -2021,7 +2085,8 @@ public class ActivityManager {
         @Deprecated
         public TaskDescription(String label, @DrawableRes int iconRes, int colorPrimary) {
             this(label, Icon.createWithResource(ActivityThread.currentPackageName(), iconRes),
-                    colorPrimary, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
+                    null, colorPrimary, 0, 0, 0, 0, 0,
+                    false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
             if ((colorPrimary != 0) && (Color.alpha(colorPrimary) != 255)) {
                 throw new RuntimeException("A TaskDescription's primary color should be opaque");
             }
@@ -2039,7 +2104,7 @@ public class ActivityManager {
         @Deprecated
         public TaskDescription(String label, @DrawableRes int iconRes) {
             this(label, Icon.createWithResource(ActivityThread.currentPackageName(), iconRes),
-                    0, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
+                    null, 0, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
         }
 
         /**
@@ -2051,7 +2116,8 @@ public class ActivityManager {
          */
         @Deprecated
         public TaskDescription(String label) {
-            this(label, null, 0, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
+            this(label, null, null, 0, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1,
+                    0);
         }
 
         /**
@@ -2061,7 +2127,8 @@ public class ActivityManager {
          */
         @Deprecated
         public TaskDescription() {
-            this(null, null, 0, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
+            this(null, null, null, 0, 0, 0, 0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1,
+                    0);
         }
 
         /**
@@ -2076,8 +2143,8 @@ public class ActivityManager {
          */
         @Deprecated
         public TaskDescription(String label, Bitmap icon, int colorPrimary) {
-            this(label, icon != null ? Icon.createWithBitmap(icon) : null, colorPrimary, 0, 0, 0,
-                    0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
+            this(label, icon != null ? Icon.createWithBitmap(icon) : null, null, colorPrimary, 0, 0,
+                    0, 0, 0, false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
             if ((colorPrimary != 0) && (Color.alpha(colorPrimary) != 255)) {
                 throw new RuntimeException("A TaskDescription's primary color should be opaque");
             }
@@ -2093,13 +2160,13 @@ public class ActivityManager {
          */
         @Deprecated
         public TaskDescription(String label, Bitmap icon) {
-            this(label, icon != null ? Icon.createWithBitmap(icon) : null, 0, 0, 0, 0, 0, 0, false,
-                    false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
+            this(label, icon != null ? Icon.createWithBitmap(icon) : null, null, 0, 0, 0, 0, 0, 0,
+                    false, false, RESIZE_MODE_RESIZEABLE, -1, -1, 0);
         }
 
         /** @hide */
         public TaskDescription(@Nullable String label, @Nullable Icon icon,
-                int colorPrimary, int colorBackground,
+                @Nullable Icon badge, int colorPrimary, int colorBackground,
                 int statusBarColor, int navigationBarColor,
                 @Appearance int systemBarsAppearance,
                 @Appearance int topOpaqueSystemBarsAppearance,
@@ -2108,6 +2175,7 @@ public class ActivityManager {
                 int minHeight, int colorBackgroundFloating) {
             mLabel = label;
             mIcon = icon;
+            mBadge = badge;
             mColorPrimary = colorPrimary;
             mColorBackground = colorBackground;
             mStatusBarColor = statusBarColor;
@@ -2137,6 +2205,7 @@ public class ActivityManager {
         public void copyFrom(TaskDescription other) {
             mLabel = other.mLabel;
             mIcon = other.mIcon;
+            mBadge = other.mBadge;
             mIconFilename = other.mIconFilename;
             mColorPrimary = other.mColorPrimary;
             mColorBackground = other.mColorBackground;
@@ -2161,6 +2230,7 @@ public class ActivityManager {
         public void copyFromPreserveHiddenFields(TaskDescription other) {
             mLabel = other.mLabel;
             mIcon = other.mIcon;
+            mBadge = other.mBadge;
             mIconFilename = other.mIconFilename;
             mColorPrimary = other.mColorPrimary;
 
@@ -2283,6 +2353,14 @@ public class ActivityManager {
         }
 
         /**
+         * Sets the badge for this task description.
+         * @hide
+         */
+        public void setBadge(Icon badge) {
+            mBadge = badge;
+        }
+
+        /**
          * Sets the resize mode for this task description. Resize mode as in
          * {@link android.content.pm.ActivityInfo}.
          * @hide
@@ -2399,6 +2477,17 @@ public class ActivityManager {
                 }
             }
             return null;
+        }
+
+        /**
+         * @return the icon badge for this task description.
+         * @hide
+         */
+        @TestApi
+        @FlaggedApi(Flags.FLAG_ENABLE_DYNAMIC_ICONS_AND_BADGING)
+        @Nullable
+        public Icon getBadge() {
+            return mBadge;
         }
 
         /**
@@ -2606,6 +2695,7 @@ public class ActivityManager {
                 dest.writeInt(1);
                 mIcon.writeToParcel(dest, 0);
             }
+            dest.writeTypedObject(mBadge, flags);
             dest.writeInt(mColorPrimary);
             dest.writeInt(mColorBackground);
             dest.writeInt(mStatusBarColor);
@@ -2631,6 +2721,7 @@ public class ActivityManager {
             if (source.readInt() > 0) {
                 mIcon = Icon.CREATOR.createFromParcel(source);
             }
+            mBadge = source.readTypedObject(Icon.CREATOR);
             mColorPrimary = source.readInt();
             mColorBackground = source.readInt();
             mStatusBarColor = source.readInt();
@@ -2659,6 +2750,7 @@ public class ActivityManager {
         @Override
         public String toString() {
             return "TaskDescription Label: " + mLabel + " Icon: " + mIcon
+                    + " Badge: " + mBadge
                     + " IconFilename: " + mIconFilename
                     + " colorPrimary: " + mColorPrimary + " colorBackground: " + mColorBackground
                     + " statusBarColor: " + mStatusBarColor
@@ -2681,6 +2773,9 @@ public class ActivityManager {
             }
             if (mIcon != null) {
                 result = result * 31 + mIcon.hashCode();
+            }
+            if (mBadge != null) {
+                result = result * 31 + mBadge.hashCode();
             }
             if (mIconFilename != null) {
                 result = result * 31 + mIconFilename.hashCode();
@@ -2710,6 +2805,7 @@ public class ActivityManager {
             return TextUtils.equals(mLabel, other.mLabel)
                     && TextUtils.equals(mIconFilename, other.mIconFilename)
                     && mIcon == other.mIcon
+                    && mBadge == other.mBadge
                     && mColorPrimary == other.mColorPrimary
                     && mColorBackground == other.mColorBackground
                     && mStatusBarColor == other.mStatusBarColor
@@ -2779,6 +2875,16 @@ public class ActivityManager {
         public int affiliatedTaskId;
 
         public RecentTaskInfo() {
+        }
+
+        /**
+         * @hide
+         */
+        public RecentTaskInfo(@NonNull RecentTaskInfo other) {
+            super(other);
+            id = other.id;
+            persistentId = other.persistentId;
+            // Ignore other fields in RecentTaskInfo as they are deprecated post-Q
         }
 
         private RecentTaskInfo(Parcel source) {
@@ -2966,6 +3072,15 @@ public class ActivityManager {
         public int numRunning;
 
         public RunningTaskInfo() {
+        }
+
+        /**
+         * @hide
+         */
+        public RunningTaskInfo(@NonNull RunningTaskInfo other) {
+            super(other);
+            id = other.id;
+            // Ignore other fields in RunningTaskInfo as they are deprecated post-Q
         }
 
         private RunningTaskInfo(Parcel source) {
@@ -3230,32 +3345,6 @@ public class ActivityManager {
     }
 
     /**
-     * Checks if a task opened on the display with the given ID can be repositioned on screen using
-     * the {@link android.app.ActivityManager.AppTask#moveTaskTo} method.
-     * <p>
-     * This method does not guarantee that a subsequent call to reposition a task on the given
-     * display will succeed. Instead, it indicates whether the given display's windowing mode
-     * configuration allows for handling repositioning requests.
-     * <p>
-     * Apps without the {@link android.Manifest.permission#REPOSITION_SELF_WINDOWS} permission are
-     * not allowed to move tasks and this method will always return {@code false} for such apps.
-     *
-     * @param displayId Target display ID
-     * @return Whether the windowing mode active on display with given ID allows task repositioning
-     *
-     * @throws IllegalArgumentException if there is no display with given display ID
-     */
-    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_WINDOW_REPOSITIONING_API)
-    @SuppressLint("RequiresPermission")
-    public boolean isTaskMoveAllowedOnDisplay(int displayId) {
-        try {
-            return getTaskService().isTaskMoveAllowedOnDisplay(displayId);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /**
      * Information you can retrieve about a particular Service that is
      * currently running in the system.
      */
@@ -3470,7 +3559,6 @@ public class ActivityManager {
         private final @NonNull String mPackageName;
 
         @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
-        /** @hide */
         public ConnectionInfo(long flags,
                 @NonNull String processName,
                 @NonNull String packageName) {
@@ -3480,7 +3568,6 @@ public class ActivityManager {
         }
 
         @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
-        /** @hide */
         private ConnectionInfo(@NonNull Parcel source) {
             mFlags = source.readLong();
             mProcessName = source.readString8();
@@ -3488,7 +3575,6 @@ public class ActivityManager {
         }
 
         @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
-        /** @hide */
         public static final @NonNull Creator<ConnectionInfo> CREATOR =
                 new Creator<ConnectionInfo>() {
                     public ConnectionInfo createFromParcel(Parcel source) {
@@ -3501,7 +3587,6 @@ public class ActivityManager {
 
         /**
          * Write parcel.
-         * @hide
          */
         @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
         public void writeToParcel(@NonNull Parcel dest, int flags) {
@@ -3512,7 +3597,6 @@ public class ActivityManager {
 
         /**
          * Describe contents.
-         * @hide
          */
         @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
         public int describeContents() {
@@ -3583,6 +3667,7 @@ public class ActivityManager {
      * Information you can retrieve about the available memory through
      * {@link ActivityManager#getMemoryInfo}.
      */
+    @RavenwoodKeepWholeClass
     public static class MemoryInfo implements Parcelable {
         /**
          * The advertised memory of the system, as the end user would encounter in a retail display
@@ -3602,11 +3687,11 @@ public class ActivityManager {
         public long availMem;
 
         /**
-         * The free memory on the system.  This is the unused RAM size of the
+         * The free memory on the system. This is the unused RAM size of the
          * device. Unlike {@link #availMem}, it's a basic snapshot of free RAM,
          * not accounting for reclaimable memory.
          */
-        @FlaggedApi(Flags.FLAG_GET_FREE_MEMORY)
+        @FlaggedApi(Flags.FLAG_GET_FREE_MEMORY_V2)
         @SuppressLint("MutableBareField")
         public long freeMem;
 
@@ -3740,9 +3825,24 @@ public class ActivityManager {
             Manifest.permission.ACCESS_INSTANT_APPS})
     @UnsupportedAppUsage
     public boolean clearApplicationUserData(String packageName, IPackageDataObserver observer) {
+        return clearApplicationUserData(packageName, observer, true);
+    }
+
+    /**
+     * @hide
+     */
+    @RequiresPermission(anyOf = {Manifest.permission.CLEAR_APP_USER_DATA,
+            Manifest.permission.ACCESS_INSTANT_APPS})
+    private boolean clearApplicationUserData(String packageName, IPackageDataObserver observer,
+            boolean restorePregrantedPermissions) {
         try {
-            return getService().clearApplicationUserData(packageName, false,
-                    observer, mContext.getUserId());
+            if (restorePregrantedPermissions) {
+                return getService().clearApplicationUserData(packageName, false,
+                        observer, mContext.getUserId());
+            } else {
+                return getService().clearApplicationUserDataWithoutPermissionReset(packageName,
+                        false, observer, mContext.getUserId());
+            }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -3760,7 +3860,7 @@ public class ActivityManager {
      *     data be erased; {@code false} otherwise.
      */
     public boolean clearApplicationUserData() {
-        return clearApplicationUserData(mContext.getPackageName(), null);
+        return clearApplicationUserData(mContext.getPackageName(), null, false);
     }
 
     /**
@@ -3930,6 +4030,7 @@ public class ActivityManager {
     /**
      * Information you can retrieve about a running process.
      */
+    @RavenwoodKeepWholeClass
     public static class RunningAppProcessInfo implements Parcelable {
         // The list of fields must be kept in sync with RunningAppProcessInfo.aidl.
         // LINT.IfChange
@@ -4122,7 +4223,7 @@ public class ActivityManager {
          * @hide
          */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-        public static @Importance int procStateToImportance(int procState) {
+        public static @Importance int procStateToImportance(@ProcessState int procState) {
             if (procState == PROCESS_STATE_NONEXISTENT) {
                 return IMPORTANCE_GONE;
             } else if (procState >= PROCESS_STATE_HOME) {
@@ -4151,7 +4252,7 @@ public class ActivityManager {
          * client's target SDK < {@link VERSION_CODES#O}.
          * @hide
          */
-        public static @Importance int procStateToImportanceForClient(int procState,
+        public static @Importance int procStateToImportanceForClient(@ProcessState int procState,
                 Context clientContext) {
             return procStateToImportanceForTargetSdk(procState,
                     clientContext.getApplicationInfo().targetSdkVersion);
@@ -4161,7 +4262,7 @@ public class ActivityManager {
          * See {@link #procStateToImportanceForClient}.
          * @hide
          */
-        public static @Importance int procStateToImportanceForTargetSdk(int procState,
+        public static @Importance int procStateToImportanceForTargetSdk(@ProcessState int procState,
                 int targetSdkVersion) {
             final int importance = procStateToImportance(procState);
 
@@ -4180,7 +4281,7 @@ public class ActivityManager {
         }
 
         /** @hide */
-        public static int importanceToProcState(@Importance int importance) {
+        public static @ProcessState int importanceToProcState(@Importance int importance) {
             if (importance == IMPORTANCE_GONE) {
                 return PROCESS_STATE_NONEXISTENT;
             } else if (importance >= IMPORTANCE_CACHED) {
@@ -4267,7 +4368,8 @@ public class ActivityManager {
 
         /**
          * When {@link #importanceReasonPid} is non-0, this is the importance
-         * of the other pid. @hide
+         * of the other pid.
+         * @hide
          */
         public int importanceReasonImportance;
 
@@ -4561,7 +4663,7 @@ public class ActivityManager {
      * The callback doesn't wait for {@link Activity#reportFullyDrawn} to occur. Retrieve a copy
      * of {@link ApplicationStartInfo} after {@link Activity#reportFullyDrawn} is called (using this
      * callback or {@link getHistoricalProcessStartReasons}) if you need the
-     * {@link ApplicationStartInfo.START_TIMESTAMP_FULLY_DRAWN} timestamp.
+     * {@link ApplicationStartInfo#START_TIMESTAMP_FULLY_DRAWN} timestamp.
      *
      * If the current start record has already been completed (that is, the process is not currently
      * starting), the callback will be invoked immediately on the specified executor with the
@@ -4832,7 +4934,7 @@ public class ActivityManager {
     @RequiresPermission(Manifest.permission.PACKAGE_USAGE_STATS)
     public @RunningAppProcessInfo.Importance int getUidImportance(int uid) {
         try {
-            int procState = getService().getUidProcessState(uid,
+            @ProcessState int procState = getService().getUidProcessState(uid,
                     mContext.getOpPackageName());
             return RunningAppProcessInfo.procStateToImportanceForClient(procState, mContext);
         } catch (RemoteException e) {
@@ -4859,7 +4961,7 @@ public class ActivityManager {
     @RequiresPermission(Manifest.permission.GET_BINDING_UID_IMPORTANCE)
     public @RunningAppProcessInfo.Importance int getBindingUidImportance(int uid) {
         try {
-            int procState = getService().getBindingUidProcessState(uid,
+            @ProcessState int procState = getService().getBindingUidProcessState(uid,
                     mContext.getOpPackageName());
             return RunningAppProcessInfo.procStateToImportanceForClient(procState, mContext);
         } catch (RemoteException e) {
@@ -4933,7 +5035,6 @@ public class ActivityManager {
      * @throws IllegalArgumentException If the listener is already registered.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_UID_IMPORTANCE_LISTENER_FOR_UIDS)
     @SystemApi
     @SuppressLint("SamShouldBeLast")
     @RequiresPermission(Manifest.permission.PACKAGE_USAGE_STATS)
@@ -5292,19 +5393,13 @@ public class ActivityManager {
      * Returns "true" if the user interface is currently being messed with
      * by a monkey.
      */
-    @android.ravenwood.annotation.RavenwoodReplace
+    @RavenwoodRedirect
     public static boolean isUserAMonkey() {
         try {
             return getService().isUserAMonkey();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
-    }
-
-    /** @hide */
-    public static boolean isUserAMonkey$ravenwood() {
-        // Ravenwood environment is never considered a "monkey"
-        return false;
     }
 
     /**
@@ -5412,11 +5507,41 @@ public class ActivityManager {
         if (UserHandle.isIsolated(uid)) {
             return PackageManager.PERMISSION_DENIED;
         }
+
         // If there is a uid that owns whatever is being accessed, it has
         // blanket access to it regardless of the permissions it requires.
         if (owningUid >= 0 && UserHandle.isSameApp(uid, owningUid)) {
             return PackageManager.PERMISSION_GRANTED;
         }
+
+        if (owningUid >= 0 && enablePccFrameworkSupport()) {
+            boolean isCallerPcc = Process.isPrivateComputeCoreUid(uid);
+            boolean isOwnerPcc = Process.isPrivateComputeCoreUid(owningUid);
+
+            // If a PCC process and a non-PCC process from the same app are trying to communicate,
+            // convert the PCC UID back to an app UID to check if they are the same app.
+            // This allows accessing non-exported PCC components.
+            if (isCallerPcc != isOwnerPcc) {
+                int callerAppUid = uid;
+                int ownerAppUid = owningUid;
+                try {
+                    if (isCallerPcc) {
+                        callerAppUid = AppGlobals.getPackageManager()
+                                .getAppUidForPrivateComputeCoreUid(uid);
+                    } else {
+                        ownerAppUid = AppGlobals.getPackageManager()
+                                .getAppUidForPrivateComputeCoreUid(owningUid);
+                    }
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+
+                if (UserHandle.isSameApp(callerAppUid, ownerAppUid)) {
+                    return PackageManager.PERMISSION_GRANTED;
+                }
+            }
+        }
+
         // If the target is not exported, then nobody else can get to it.
         if (!exported) {
             /*
@@ -5493,14 +5618,9 @@ public class ActivityManager {
             "android.permission.INTERACT_ACROSS_USERS",
             "android.permission.INTERACT_ACROSS_USERS_FULL"
     })
-    @android.ravenwood.annotation.RavenwoodReplace
+    @RavenwoodRedirect
     public static int getCurrentUser() {
         return mGetCurrentUserIdCache.query(null);
-    }
-
-    /** @hide */
-    public static int getCurrentUser$ravenwood() {
-        return sCurrentUser$ravenwood;
     }
 
     /**
@@ -5756,7 +5876,7 @@ public class ActivityManager {
      *
      * @param mcc The new MCC.
      * @param mnc The new MNC.
-     * @throws RemoteException; IllegalArgumentException if mcc or mnc is null;
+     * @throws IllegalArgumentException if mcc or mnc is null;
      * @return Returns {@code true} if the configuration was updated successfully;
      *         {@code false} otherwise.
      * @hide
@@ -5874,7 +5994,7 @@ public class ActivityManager {
     /**
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodReplace
+    @RavenwoodRedirect
     public static boolean isSystemReady() {
         if (!sSystemReady) {
             if (ActivityThread.isSystem()) {
@@ -5887,12 +6007,6 @@ public class ActivityManager {
             }
         }
         return sSystemReady;
-    }
-
-    /** @hide */
-    public static boolean isSystemReady$ravenwood() {
-        // Ravenwood environment is always considered as booted and ready
-        return true;
     }
 
     /**
@@ -6212,7 +6326,7 @@ public class ActivityManager {
      * </p>
      *
      * @param pids The list of the pids to be killed
-     * @pram reason The reason of the kill
+     * @param reason The reason of the kill
      *
      * @hide
      */
@@ -6227,14 +6341,14 @@ public class ActivityManager {
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static boolean isProcStateConsideredInteraction(@ProcessState int procState) {
         return (procState <= PROCESS_STATE_TOP || procState == PROCESS_STATE_BOUND_TOP);
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static String procStateToString(int procState) {
+    @RavenwoodKeep
+    public static String procStateToString(@ProcessState int procState) {
         final String procStateStr;
         switch (procState) {
             case ActivityManager.PROCESS_STATE_PERSISTENT:
@@ -6316,19 +6430,65 @@ public class ActivityManager {
         /**
          * The windowing layer is not specified. The system will use a
          * {@link #WINDOWING_LAYER_NORMAL_APP} layer.
-         * @hide
          */
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
         public static final int WINDOWING_LAYER_UNDEFINED = 0;
+
         /**
          * The windowing layer for normal application windows.
-         * @hide
+         *
+         * <p>If an application does not explicitly request a windowing layer for its task, it is
+         * considered to be in this layer.
+         *
+         * <p>Requesting this layer using {@link AppTask#requestWindowingLayer} is typically done
+         * to exit a previously requested layer.
+         *
+         * @see AppTask#requestWindowingLayer
          */
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
         public static final int WINDOWING_LAYER_NORMAL_APP = 1;
+
         /**
-         * The windowing layer for pinned windows, these windows are typically displayed above
+         * The windowing layer for pinned windows. These windows are typically displayed above
          * normal application windows.
-         * @hide
+         *
+         * <p>To ensure system integrity and a consistent user experience, the system imposes
+         * several restrictions on tasks using this layer. These may include, but are not limited
+         * to:
+         * <ul>
+         *  <li>Forcing the task to be completely opaque and display system decorations.</li>
+         *  <li>Strictly limiting the number of tasks in this layer (e.g., only one at a time).</li>
+         *  <li>Limiting the application's control over the task's size and position.</li>
+         *  <li>Limiting the maximum window size to which the user can resize the task.</li>
+         *  <li>Making the task non-movable programmatically (including restrictions on workarounds
+         *   like resizing).</li>
+         *  <li>Providing users with immediate settings access to disable the feature.</li>
+         *  <li>Providing users with a way to close the window.</li>
+         *  <li>The task may be finished by the system if it can no longer be hosted on this layer
+         *   due to windowing changes.</li>
+         *  <li>The available display modes may be limited for tasks on this layer. These may
+         *   include, but are not limited to: Picture-in-Picture mode, Split-screen mode, and
+         *   fullscreen.</li>
+         * </ul>
+         *
+         * <p>This layer might be shared with Picture-in-Picture (PiP) tasks; therefore, tasks on
+         * this layer might be dismissed when another enters PiP.
+         *
+         * <p>The task's window on this layer has the following requirements:
+         * <ul>
+         *  <li>Must be opaque.</li>
+         *  <li>Must have affordances to close the window and to allow users to disable
+         *   showing and running tasks on this layer, per app.</li>
+         *  <li>Must have a minimum size of 220dp according to <a
+         *   href="https://source.android.com/docs/compatibility/16/android-16-cdd#3814_multi-windows">
+         *   the established Multi-windows CDD</a> requirements.</li>
+         *  <li>The task cannot change to another layer unless requested by the app with a call to
+         *   {@link AppTask#requestWindowingLayer}.</li>
+         * </ul>
+         *
+         * @see AppTask#requestWindowingLayer
          */
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
         public static final int WINDOWING_LAYER_PINNED = 2;
 
         /**
@@ -6342,6 +6502,33 @@ public class ActivityManager {
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface WindowingLayer {
+        }
+
+        /**
+         * The request to change the windowing layer was granted.
+         */
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
+        public static final int WINDOWING_LAYER_REQUEST_GRANTED = 0;
+
+        /**
+         * The request to change the windowing layer was rejected.
+         *
+         * <p>This result implies the system is in a state where the request cannot be fulfilled,
+         * but the request itself was valid.
+         */
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
+        public static final int WINDOWING_LAYER_REQUEST_REJECTED = 1;
+
+        /**
+         * Defines the result of a windowing layer request.
+         * @hide
+         */
+        @IntDef(prefix = { "WINDOWING_LAYER_REQUEST_" }, value = {
+                WINDOWING_LAYER_REQUEST_GRANTED,
+                WINDOWING_LAYER_REQUEST_REJECTED,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface WindowingLayerResult {
         }
 
         private IAppTask mAppTaskImpl;
@@ -6371,6 +6558,7 @@ public class ActivityManager {
          *
          * @return The RecentTaskInfo for this task, or null if the task no longer exists.
          */
+        @Nullable
         public RecentTaskInfo getTaskInfo() {
             try {
                 return mAppTaskImpl.getTaskInfo();
@@ -6414,6 +6602,8 @@ public class ActivityManager {
          * <ul>
          * <li>{@link SecurityException} if the requester doesn't hold the permission required to
          * use this method;</li>
+         * <li>{@link SecurityException} if this task cannot be placed as requested due to violation
+         * of the Background Activity Launch (BAL) policy;</li>
          * <li>{@link IllegalStateException} if the task is not in a state that allows it to
          * change its {@link TaskLocation} programmatically at runtime of the request;</li>
          * <li>{@link SecurityException} if this task cannot be placed on the target display
@@ -6495,19 +6685,39 @@ public class ActivityManager {
          * Requests the windowing layer for this task. This can be used to affect the Z-ordering
          * of the activity's window relative to other windows.
          *
-         * <p>
-         * The task will be moved to the requested layer if possible.
+         * <p>The task will be moved to the requested layer if possible. When the request is
+         * approved or rejected, the {@code callback} will be invoked. If rejected, the callback
+         * will receive an exception with a descriptive message accessible via
+         * {@link Exception#getMessage()}.
          *
-         * @param layer the {@link WindowingLayer} to move task to.
-         * @param executor an Executor used to invoke the callback
-         * @param callback a callback to receive the result of the request
-         * @hide
+         * <p>If the request is rejected due to a system state, the callback will receive
+         * {@link AppTask#WINDOWING_LAYER_REQUEST_REJECTED}. If the request is granted, the callback
+         * will receive {@link AppTask#WINDOWING_LAYER_REQUEST_GRANTED}.
+         *
+         * <p>To ensure system integrity and a consistent user experience, the system might impose
+         * restrictions on tasks requesting a specific layer. See
+         * {@link AppTask#WINDOWING_LAYER_PINNED} for implications when requesting the pinned layer.
+         *
+         * <p>If {@link AppTask#WINDOWING_LAYER_PINNED} is requested,
+         * {@link android.app.AppOpsManager#OPSTR_PICTURE_IN_PICTURE} must be allowed and the
+         * {@link android.Manifest.permission#USE_PINNED_WINDOWING_LAYER} permission must be
+         * granted.
+         *
+         * <p>If the request fails due to a developer error (such as missing permissions or
+         * invalid arguments), {@link OutcomeReceiver#onError} will be invoked with a
+         * {@link Exception} describing the error.
+         *
+         * @param layer The {@link WindowingLayer} to move the task to.
+         * @param executor An {@link Executor} used to invoke the callback.
+         * @param callback A callback to receive the result of the request.
          */
-        // TODO(b/442807136): Complete javadoc, add all requirements and detals needed
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
+        @RequiresPermission(value = Manifest.permission.USE_PINNED_WINDOWING_LAYER,
+                conditional = true)
         public void requestWindowingLayer(
                 @WindowingLayer int layer,
                 @NonNull @CallbackExecutor Executor executor,
-                @NonNull OutcomeReceiver<Void, Exception> callback) {
+                @NonNull OutcomeReceiver<Integer, Exception> callback) {
             Objects.requireNonNull(executor, "executor cannot be null");
             Objects.requireNonNull(callback, "callback cannot be null");
             TaskWindowingLayerRequestHandler.requestWindowingLayer(
@@ -6540,6 +6750,111 @@ public class ActivityManager {
             getService().appNotResponding(reason);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
+        }
+    }
+
+    // Map of App listener to executor.
+    private final Map<Consumer<AnrWarningResult>, Executor> mAnrWarningAppListeners =
+            new ArrayMap<>();
+
+    // Binder callback for receiving imminent ANR warnings from the system.
+    // This is registered with the Activity Manager Service when the first ANR warning listener is
+    // added to this process.
+    @GuardedBy("mAnrWarningAppListeners")
+    @Nullable
+    private IAnrWarningCallback mAnrWarningCallback = null;
+
+    private void dispatchAnrWarning(AnrWarningResult anrWarningResult) {
+        synchronized (mAnrWarningAppListeners) {
+            mAnrWarningAppListeners.forEach(
+                    (listener, executor) ->
+                            executor.execute(() -> listener.accept(anrWarningResult)));
+        }
+    }
+
+    /**
+     * Registers a listener that is called when the app is close to the ANR timeout.
+     *
+     * <p>This is intended to give the app a chance to collect and store any additional information
+     * they may want to gather at this time, or take any pre-ANR actions. Note that these listeners
+     * are called at best-effort, and may not be successfully called (or be provided time to
+     * execute) before the ANR occurs and the app is killed.
+     *
+     * <p>If the app registers multiple distinct listeners, all registered listeners will be
+     * notified on the potential ANR condition. The order in which listeners are notified is not
+     * guaranteed.
+     *
+     * <p>The app can unregister the listener using {@link #unregisterAnrWarningListener}.
+     *
+     * @param executor The executor on which listener will be invoked. This should not be the
+     *     application's main thread.
+     * @param listener The listener to be triggered on the ANR warning condition.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_ENABLE_ANR_WARNING_CALLBACK)
+    public void registerAnrWarningListener(
+            @NonNull Executor executor, @NonNull Consumer<AnrWarningResult> listener) {
+        Objects.requireNonNull(listener, "listener should not be null");
+        Objects.requireNonNull(executor, "executor should not be null");
+
+        synchronized (mAnrWarningAppListeners) {
+            if (mAnrWarningAppListeners.containsKey(listener)) {
+                return;
+            }
+
+            mAnrWarningAppListeners.put(listener, executor);
+
+            // Only register the first listener with the Activity Manager service to avoid redundant
+            // IPC calls. Subsequent listeners will be notified when the first one receives the
+            // event.
+            if (mAnrWarningAppListeners.size() == 1) {
+                if (mAnrWarningCallback == null) {
+                    mAnrWarningCallback =
+                            new IAnrWarningCallback.Stub() {
+                                @Override
+                                public void onAnrImminent(AnrWarningResult anrWarningResult) {
+                                    dispatchAnrWarning(anrWarningResult);
+                                }
+                            };
+                }
+
+                try {
+                    getService().registerAnrWarningListener(mAnrWarningCallback);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "Unable to register ANR callback with ActivityManagerService", e);
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
+    }
+
+    /**
+     * Unregisters a previously registered ANR warning listener.
+     *
+     * @param listener The listener to unregister. This must be the same object that was previously
+     *     passed to {@link #registerAnrWarningListener}.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_ENABLE_ANR_WARNING_CALLBACK)
+    public void unregisterAnrWarningListener(@NonNull Consumer<AnrWarningResult> listener) {
+        Objects.requireNonNull(listener, "listener should not be null");
+
+        synchronized (mAnrWarningAppListeners) {
+            if (!mAnrWarningAppListeners.containsKey(listener)) {
+                return;
+            }
+            mAnrWarningAppListeners.remove(listener);
+
+            // When app unregisters all the ANR warning listeners, also unregister the binder
+            // callback for ANR warning from the ActivityManagerService.
+            if (mAnrWarningAppListeners.isEmpty()) {
+                try {
+                    getService().unregisterAnrWarningListener(mAnrWarningCallback);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "Unable to unregister ANR callback with ActivityManagerService", e);
+                    throw e.rethrowFromSystemServer();
+                } finally {
+                    mAnrWarningCallback = null;
+                }
+            }
         }
     }
 

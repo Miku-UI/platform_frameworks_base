@@ -16,6 +16,8 @@
 
 package com.android.server.wm;
 
+import static com.android.server.am.psc.Constants.SCHED_GROUP_TOP_APP;
+
 import android.content.ComponentName;
 import android.os.Process;
 import android.service.vr.IPersistentVrStateCallbacks;
@@ -25,7 +27,6 @@ import android.util.proto.ProtoUtils;
 
 import com.android.server.LocalServices;
 import com.android.server.am.ActivityManagerService;
-import com.android.server.am.ProcessList;
 import com.android.server.am.VrControllerProto;
 import com.android.server.vr.VrManagerInternal;
 
@@ -110,21 +111,21 @@ final class VrController {
 
     private final IPersistentVrStateCallbacks mPersistentVrModeListener =
             new IPersistentVrStateCallbacks.Stub() {
-        @Override
-        public void onPersistentVrStateChanged(boolean enabled) {
-            synchronized(mGlobalAmLock) {
-                // Note: This is the only place where mVrState should have its
-                // FLAG_PERSISTENT_VR_MODE setting changed.
-                if (enabled) {
-                    setVrRenderThreadLocked(0, ProcessList.SCHED_GROUP_TOP_APP, true);
-                    mVrState |= FLAG_PERSISTENT_VR_MODE;
-                } else {
-                    setPersistentVrRenderThreadLocked(0, true);
-                    mVrState &= ~FLAG_PERSISTENT_VR_MODE;
+                @Override
+                public void onPersistentVrStateChanged(boolean enabled) {
+                    synchronized (mGlobalAmLock) {
+                        // Note: This is the only place where mVrState should have its
+                        // FLAG_PERSISTENT_VR_MODE setting changed.
+                        if (enabled) {
+                            setVrRenderThreadLocked(0, SCHED_GROUP_TOP_APP, true);
+                            mVrState |= FLAG_PERSISTENT_VR_MODE;
+                        } else {
+                            setPersistentVrRenderThreadLocked(0, true);
+                            mVrState &= ~FLAG_PERSISTENT_VR_MODE;
+                        }
+                    }
                 }
-            }
-        }
-    };
+            };
 
     /** If it is null after system ready, then VR mode is not supported. */
     VrManagerInternal mVrService;
@@ -167,7 +168,7 @@ final class VrController {
      */
     public void onTopProcChangedLocked(WindowProcessController proc) {
         final int curSchedGroup = proc.getCurrentSchedulingGroup();
-        if (curSchedGroup == ProcessList.SCHED_GROUP_TOP_APP) {
+        if (curSchedGroup == SCHED_GROUP_TOP_APP) {
             setVrRenderThreadLocked(proc.mVrThreadTid, curSchedGroup, true);
         } else {
             if (proc.mVrThreadTid == mVrRenderThreadTid) {
@@ -397,7 +398,7 @@ final class VrController {
     private int setVrRenderThreadLocked(int newTid, int schedGroup, boolean suppressLogs) {
         boolean inVr = inVrMode();
         boolean inPersistentVr = hasPersistentVrFlagSet();
-        if (!inVr || inPersistentVr || schedGroup != ProcessList.SCHED_GROUP_TOP_APP) {
+        if (!inVr || inPersistentVr || schedGroup != SCHED_GROUP_TOP_APP) {
             if (!suppressLogs) {
                String reason = "caller is not the current top application.";
                if (!inVr) {

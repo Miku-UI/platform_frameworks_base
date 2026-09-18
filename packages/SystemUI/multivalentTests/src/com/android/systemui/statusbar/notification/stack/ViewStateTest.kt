@@ -49,22 +49,22 @@ class ViewStateTest : SysuiTestCase() {
     fun testWtfs() {
         // Setting valid values doesn't cause any wtfs.
         assertDoesNotLogWtf {
-            viewState.alpha = 0.1f
+            viewState.setAlpha(0.1f, "test")
             viewState.xTranslation = 0f
-            viewState.yTranslation = 10f
+            viewState.setYTranslation(10f, "test")
             viewState.zTranslation = 20f
             viewState.scaleX = 0.5f
             viewState.scaleY = 0.25f
         }
 
         // Setting NaN values leads to wtfs being logged, and the value not being changed.
-        assertLogsWtf { viewState.alpha = 0.0f / 0.0f }
+        assertLogsWtf { viewState.setAlpha(0.0f / 0.0f, "test NaN") }
         Assert.assertEquals(viewState.alpha, 0.1f)
 
         assertLogsWtf { viewState.xTranslation = Float.NaN }
         Assert.assertEquals(viewState.xTranslation, 0f)
 
-        assertLogsWtf { viewState.yTranslation = log2(-10.0).toFloat() }
+        assertLogsWtf { viewState.setYTranslation(log2(-10.0).toFloat(), "test NaN") }
         Assert.assertEquals(viewState.yTranslation, 10f)
 
         assertLogsWtf { viewState.zTranslation = sqrt(-1.0).toFloat() }
@@ -82,7 +82,7 @@ class ViewStateTest : SysuiTestCase() {
         val animatedView = View(context)
         viewState.setUsePhysicsForMovement(true)
         viewState.applyToView(animatedView)
-        viewState.yTranslation = 100f
+        viewState.setYTranslation(100f, "test")
         val animationFilter = AnimationFilter().animateY()
         val animationProperties = object : AnimationProperties() {
             override fun getAnimationFilter(): AnimationFilter {
@@ -98,7 +98,7 @@ class ViewStateTest : SysuiTestCase() {
         val animatedView = View(context)
         viewState.setUsePhysicsForMovement(true)
         viewState.applyToView(animatedView)
-        viewState.yTranslation = 100f
+        viewState.setYTranslation(100f, "test")
         val animationFilter = AnimationFilter().animateY()
         val animationProperties = object : AnimationProperties() {
             override fun getAnimationFilter(): AnimationFilter {
@@ -130,7 +130,7 @@ class ViewStateTest : SysuiTestCase() {
         val animatedView = View(context)
         viewState.setUsePhysicsForMovement(true)
         viewState.applyToView(animatedView)
-        viewState.yTranslation = 100f
+        viewState.setYTranslation(100f, "test")
         val animationFilter = AnimationFilter().animateY()
         val animationProperties = object : AnimationProperties() {
             override fun getAnimationFilter(): AnimationFilter {
@@ -162,7 +162,7 @@ class ViewStateTest : SysuiTestCase() {
         val animatedView = View(context)
         viewState.setUsePhysicsForMovement(false)
         viewState.applyToView(animatedView)
-        viewState.yTranslation = 100f
+        viewState.setYTranslation(100f, "test")
         val animationFilter = AnimationFilter().animateY()
         val animationProperties = object : AnimationProperties() {
             override fun getAnimationFilter(): AnimationFilter {

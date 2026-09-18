@@ -184,7 +184,13 @@ public class XmlConfigSource implements ConfigSource {
 
     private boolean parseCertificateTransparency(XmlResourceParser parser)
             throws IOException, XmlPullParserException, ParserException {
-        return parser.getAttributeBooleanValue(null, "enabled", false);
+        return parser.getAttributeBooleanValue(
+                /* namespace= */ null, "enabled", /* defaultValue= */ false);
+    }
+
+    private String parseDomainEncryptionMode(XmlResourceParser parser)
+            throws IOException, XmlPullParserException, ParserException {
+        return parser.getAttributeValue(/* namespace= */ null, "mode");
     }
 
     private CertificatesEntryRef parseCertificatesEntry(XmlResourceParser parser,
@@ -306,6 +312,14 @@ public class XmlConfigSource implements ConfigSource {
                 }
                 builder.setCertificateTransparencyVerificationRequired(
                         parseCertificateTransparency(parser));
+            } else if ("domainEncryption".equals(tagName)) {
+                if (configType != CONFIG_BASE && configType != CONFIG_DOMAIN) {
+                    throw new ParserException(
+                        parser,
+                        "domainEncryption not allowed in "
+                                    + getConfigString(configType));
+                }
+                builder.setDomainEncryptionMode(parseDomainEncryptionMode(parser));
             } else {
                 XmlUtils.skipCurrentTag(parser);
             }

@@ -200,6 +200,7 @@ private fun FooterBar(
             nonActiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f),
             modifier = Modifier.wrapContentWidth(),
             showArrows = showArrowsInPager,
+            clickToCyclePages = !showArrowsInPager,
         )
         Row(Modifier.weight(1f)) {
             Spacer(modifier = Modifier.weight(1f))

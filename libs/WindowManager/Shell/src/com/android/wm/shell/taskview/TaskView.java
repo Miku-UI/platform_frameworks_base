@@ -88,18 +88,44 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
     private final TaskViewTaskController mTaskViewTaskController;
     private Region mObscuredTouchRegion;
     private Insets mCaptionInsets;
-    private Handler mHandler;
+    private final Handler mHandler;
     private boolean mIsMovingWindows;
 
+    /**
+     * Create a new instance of TaskView with the main handler for running ui operations on.
+     * <p>
+     * TaskView should be attached to a ViewRoot that using the main handler.
+     */
     public TaskView(Context context, TaskViewController taskViewController,
             TaskViewTaskController taskViewTaskController) {
-        super(context, null, 0, 0, true /* disableBackgroundLayer */);
+        this(context, taskViewController, taskViewTaskController, Handler.getMain());
+    }
+
+    /**
+     * Create a new instance of TaskView with the given handler for running ui operations on.
+     * <p>
+     * TaskView should be attached to a ViewRoot that is using the given handler.
+     */
+    public TaskView(Context context, TaskViewController taskViewController,
+            TaskViewTaskController taskViewTaskController, Handler handler) {
+        this(context, taskViewController, taskViewTaskController, handler, true);
+    }
+
+    /**
+     * Create a new instance of TaskView with the given handler for running ui operations on.
+     * <p>
+     * TaskView should be attached to a ViewRoot that is using the given handler.
+     */
+    public TaskView(Context context, TaskViewController taskViewController,
+            TaskViewTaskController taskViewTaskController, Handler handler,
+            boolean disableBackgroundLayer) {
+        super(context, null, 0, 0, disableBackgroundLayer);
         mTaskViewController = taskViewController;
         mTaskViewTaskController = taskViewTaskController;
         // TODO(b/266736992): Think about a better way to set the TaskViewBase on the
         //  TaskViewTaskController and vice-versa
         mTaskViewTaskController.setTaskViewBase(this);
-        mHandler = Handler.getMain();
+        mHandler = handler;
         getHolder().addCallback(this);
     }
 
@@ -115,13 +141,14 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
      * from the old window and again with {@code false} before adding it to the new window.
      */
     public void setIsMovingWindows(boolean isMovingWindows) {
+        if (isMovingWindows == mIsMovingWindows) {
+            return;
+        }
         mIsMovingWindows = isMovingWindows;
-        if (isMovingWindows) {
-            getViewTreeObserver().removeOnComputeInternalInsetsListener(this);
-            mHandler = Handler.getMain();
-        } else {
+        if (!isMovingWindows && isAttachedToWindow()) {
             getViewTreeObserver().addOnComputeInternalInsetsListener(this);
-            mHandler = getHandler();
+        } else {
+            getViewTreeObserver().removeOnComputeInternalInsetsListener(this);
         }
     }
 
@@ -184,8 +211,8 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * @return {@code True} when the TaskView's surface has been created, {@code False} otherwise.
      */
-    public boolean isInitialized() {
-        return mTaskViewTaskController.isInitialized();
+    public boolean isSurfaceCreated() {
+        return mTaskViewTaskController.isSurfaceCreated();
     }
 
     @Override
@@ -204,6 +231,11 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
         } else {
             runOnViewThread(() -> setResizeBackgroundColor(bgColor));
         }
+    }
+
+    @Override
+    public boolean shouldHideSurfaceWhileClosing() {
+        return getAlpha() == 0 || getVisibility() != VISIBLE;
     }
 
     /**
@@ -264,6 +296,11 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
     public void onLocationChanged() {
         getBoundsOnScreen(mTmpRect);
         mTaskViewController.setTaskBounds(mTaskViewTaskController, mTmpRect);
+    }
+
+    /** Update the bounds for this task view with {@code bounds}. */
+    public void onLocationChanged(Rect bounds) {
+        mTaskViewController.setTaskBounds(mTaskViewTaskController, bounds);
     }
 
     /**
@@ -358,7 +395,6 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
         }
         super.onAttachedToWindow();
         getViewTreeObserver().addOnComputeInternalInsetsListener(this);
-        mHandler = getHandler();
     }
 
     @Override
@@ -368,21 +404,12 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
         }
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnComputeInternalInsetsListener(this);
-        mHandler = Handler.getMain();
     }
 
     /** Returns the task info for the task in the TaskView. */
     @Nullable
     public ActivityManager.RunningTaskInfo getTaskInfo() {
         return mTaskViewTaskController.getTaskInfo();
-    }
-
-    /**
-     * Sets the handler, only for testing.
-     */
-    @VisibleForTesting
-    void setHandler(Handler viewHandler) {
-        mHandler = viewHandler;
     }
 
     /**

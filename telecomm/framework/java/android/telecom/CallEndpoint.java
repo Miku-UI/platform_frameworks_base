@@ -21,7 +21,8 @@ import android.annotation.NonNull;
 import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
-import android.text.TextUtils;
+
+import com.android.internal.telecom.ParcelUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -145,7 +146,7 @@ public final class CallEndpoint implements Parcelable {
      */
     @Override
     public String toString() {
-        return TextUtils.formatSimple("[CallEndpoint Name: %s, Type: %s, Identifier: %s]",
+        return String.format("[CallEndpoint Name: %s, Type: %s, Identifier: %s]",
                 mName.toString(), endpointTypeToString(mType), mIdentifier.toString());
     }
 
@@ -204,19 +205,19 @@ public final class CallEndpoint implements Parcelable {
     public static final @android.annotation.NonNull Parcelable.Creator<CallEndpoint> CREATOR =
             new Parcelable.Creator<CallEndpoint>() {
 
-        @Override
-        public CallEndpoint createFromParcel(Parcel source) {
-            CharSequence name = source.readCharSequence();
-            int type = source.readInt();
-            ParcelUuid id = ParcelUuid.CREATOR.createFromParcel(source);
+                @Override
+                public CallEndpoint createFromParcel(Parcel source) {
+                    CharSequence name = ParcelUtils.readCharSequence(source);
+                    int type = source.readInt();
+                    ParcelUuid id = ParcelUuid.CREATOR.createFromParcel(source);
 
-            return new CallEndpoint(name, type, id);
-        }
+                    return new CallEndpoint(name, type, id);
+                }
 
-        @Override
-        public CallEndpoint[] newArray(int size) {
-            return new CallEndpoint[size];
-        }
+                @Override
+                public CallEndpoint[] newArray(int size) {
+                    return new CallEndpoint[size];
+                }
     };
 
     /**
@@ -232,7 +233,7 @@ public final class CallEndpoint implements Parcelable {
      */
     @Override
     public void writeToParcel(@NonNull Parcel destination, int flags) {
-        destination.writeCharSequence(mName);
+        ParcelUtils.writeCharSequence(destination, mName);
         destination.writeInt(mType);
         mIdentifier.writeToParcel(destination, flags);
     }

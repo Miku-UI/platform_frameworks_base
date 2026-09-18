@@ -26,6 +26,7 @@ import java.util.List;
 
 /** Represents a step to ramp down the vibrator amplitude before turning it off. */
 final class RampOffVibratorStep extends AbstractVibratorStep {
+    private static final int STEP_DURATION_IN_MILLIS = 5;
     private final float mAmplitudeTarget;
     private final float mAmplitudeDelta;
 
@@ -77,7 +78,7 @@ final class RampOffVibratorStep extends AbstractVibratorStep {
             }
             return Arrays.asList(new RampOffVibratorStep(
                     conductor,
-                    startTime + conductor.vibrationSettings.getRampStepDuration(),
+                    startTime + STEP_DURATION_IN_MILLIS,
                     newAmplitudeTarget, mAmplitudeDelta, vibrator,
                     mPendingVibratorOffDeadline));
         } finally {

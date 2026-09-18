@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -32,6 +33,7 @@ import java.util.Objects;
  * capabilities. The capabilities are described by a byte array, which is defined by a
  * particular standard. This is used when the format is unrecognized to the platform.
  */
+@RavenwoodKeepWholeClass
 public class AudioDescriptor implements Parcelable {
     /**
      * The audio standard is not specified.

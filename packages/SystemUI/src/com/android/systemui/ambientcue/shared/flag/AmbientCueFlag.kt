@@ -19,6 +19,7 @@
 package com.android.systemui.ambientcue.shared.flag
 
 import com.android.systemui.Flags.ambientCuePlugin
+import com.android.systemui.Flags.enableAmbientCueWithImeVisible
 import com.android.systemui.Flags.enableCueBarAnimatedIcon
 import com.android.systemui.Flags.enableUnderlay
 
@@ -36,4 +37,8 @@ object AmbientCueFlag {
     @JvmStatic
     inline val isCueBarAnimatedIconEnabled
         get() = enableCueBarAnimatedIcon()
+
+    @JvmStatic
+    inline val isAmbientCueWithImeVisibleEnabled
+        get() = enableAmbientCueWithImeVisible()
 }

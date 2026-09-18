@@ -24,9 +24,6 @@ import static org.robolectric.Shadows.shadowOf;
 import static java.util.stream.Collectors.toSet;
 
 import android.os.Looper;
-import android.os.Message;
-import android.os.MessageQueue;
-import android.os.SystemClock;
 
 import com.android.server.testing.shadows.ShadowEventLog;
 
@@ -44,21 +41,6 @@ import java.util.stream.IntStream;
 public class TestUtils {
     private static final long TIMEOUT_MS = 3000;
     private static final long STEP_MS = 50;
-
-    /**
-     * Counts the number of messages in the looper {@code looper} that satisfy {@code
-     * messageFilter}.
-     */
-    public static int messagesInLooper(Looper looper, Predicate<Message> messageFilter) {
-        MessageQueue queue = looper.getQueue();
-        int i = 0;
-        for (Message m = shadowOf(queue).getHead(); m != null; m = shadowOf(m).getNext()) {
-            if (messageFilter.test(m)) {
-                i += 1;
-            }
-        }
-        return i;
-    }
 
     public static void waitUntil(Supplier<Boolean> condition)
             throws InterruptedException, TimeoutException {
@@ -83,12 +65,6 @@ public class TestUtils {
     public static void runToEndOfTasks(Looper looper) {
         ShadowLooper shadowLooper = shadowOf(looper);
         shadowLooper.runToEndOfTasks();
-        // Handler instances have their own clock, so advancing looper (with runToEndOfTasks())
-        // above does NOT advance the handlers' clock, hence whenever a handler post messages with
-        // specific time to the looper the time of those messages will be before the looper's time.
-        // To fix this we advance SystemClock as well since that is from where the handlers read
-        // time.
-        SystemClock.setCurrentTimeMillis(shadowLooper.getScheduler().getCurrentTime());
     }
 
     /**

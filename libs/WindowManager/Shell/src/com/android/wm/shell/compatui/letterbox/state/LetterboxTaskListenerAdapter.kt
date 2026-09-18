@@ -18,7 +18,6 @@ package com.android.wm.shell.compatui.letterbox.state
 
 import android.app.ActivityManager.RunningTaskInfo
 import android.view.SurfaceControl
-import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTaskOrganizer.TaskAppearedListener
 import com.android.wm.shell.ShellTaskOrganizer.TaskInfoChangedListener
@@ -42,47 +41,28 @@ constructor(
 ) : TaskVanishedListener, TaskAppearedListener, TaskInfoChangedListener {
 
     init {
-        if (Flags.appCompatRefactoring()) {
-            shellInit.addInitCallback(
-                {
-                    shellTaskOrganizer.addTaskAppearedListener(this)
-                    shellTaskOrganizer.addTaskVanishedListener(this)
-                    shellTaskOrganizer.addTaskInfoChangedListener(this)
-                },
-                this,
-            )
-        }
+        shellInit.addInitCallback(
+            {
+                shellTaskOrganizer.addTaskAppearedListener(this)
+                shellTaskOrganizer.addTaskVanishedListener(this)
+                shellTaskOrganizer.addTaskInfoChangedListener(this)
+            },
+            this,
+        )
     }
 
     override fun onTaskAppeared(taskInfo: RunningTaskInfo, leash: SurfaceControl) {
-        if (Flags.appCompatRefactoringFixMultiwindowTaskHierarchy()) {
-            letterboxTaskInfoRepository.updateTaskLeafState(taskInfo, leash)
-        } else {
-            letterboxTaskInfoRepository.insert(
-                key = taskInfo.taskId,
-                item =
-                    LetterboxTaskInfoState(
-                        containerToken = taskInfo.token,
-                        containerLeash = leash,
-                        configuration = taskInfo.configuration,
-                    ),
-                overrideIfPresent = true,
-            )
-        }
+        letterboxTaskInfoRepository.updateTaskLeafState(taskInfo, leash)
     }
 
     override fun onTaskInfoChanged(taskInfo: RunningTaskInfo) {
-        if (Flags.appCompatRefactoringFixMultiwindowTaskHierarchy()) {
-            if (!taskInfo.isALeafTask) {
-                letterboxTaskInfoRepository.delete(taskInfo.taskId)
-            }
+        if (!taskInfo.isALeafTask) {
+            letterboxTaskInfoRepository.delete(taskInfo.taskId)
         }
-        if (Flags.appCompatRefactoringRoundedCorners()) {
-            letterboxTaskInfoRepository.update(
-                key = taskInfo.taskId,
-                updateItem = { item -> item.copy(configuration = taskInfo.configuration) },
-            )
-        }
+        letterboxTaskInfoRepository.update(
+            key = taskInfo.taskId,
+            updateItem = { item -> item.copy(configuration = taskInfo.configuration) },
+        )
     }
 
     override fun onTaskVanished(taskInfo: RunningTaskInfo) {

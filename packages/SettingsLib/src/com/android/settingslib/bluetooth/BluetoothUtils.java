@@ -80,6 +80,11 @@ public class BluetoothUtils {
     public static final String BT_ADVANCED_HEADER_ENABLED = "bt_advanced_header_enabled";
     public static final String DEVELOPER_OPTION_PREVIEW_KEY =
             "bluetooth_le_audio_sharing_ui_preview_enabled";
+    public static final String CONNECTION_FAILURE_TIME_KEY = "connection_failure_time";
+
+    public static final int CAN_NOT_PAIR_TIME_OUT_MILLS = 60000;
+    public static final int CAN_NOT_CONNECT_TIME_OUT_MILLS = 60000;
+
     private static final int METADATA_FAST_PAIR_CUSTOMIZED_FIELDS = 25;
     private static final String KEY_HEARABLE_CONTROL_SLICE = "HEARABLE_CONTROL_SLICE_WITH_WIDTH";
     private static final String KEY_BATTERY_ALL_THE_TIME = "BATT";
@@ -95,8 +100,6 @@ public class BluetoothUtils {
     private static final String TEMP_BOND_DEVICE_METADATA_VALUE = "le_audio_sharing";
     private static final String BLUETOOTH_DIAGNOSIS_KEY = "cs_bt_diagnostics_enabled";
 
-    private static final int CAN_NOT_PAIR_TIME_OUT_MILLS = 60000;
-    private static final int CAN_NOT_CONNECT_TIME_OUT_MILLS = 60000;
 
     private static ErrorListener sErrorListener;
 

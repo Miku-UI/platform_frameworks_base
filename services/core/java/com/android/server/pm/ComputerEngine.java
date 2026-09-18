@@ -87,6 +87,7 @@ import android.content.pm.InstantAppResolveInfo;
 import android.content.pm.InstrumentationInfo;
 import android.content.pm.KeySet;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoList;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ParceledListSlice;
@@ -115,6 +116,7 @@ import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+import android.util.IntArray;
 import android.util.Log;
 import android.util.LogPrinter;
 import android.util.LongSparseLongArray;
@@ -244,7 +246,11 @@ public class ComputerEngine implements Computer {
         // TODO: Find replacement
         @Nullable
         public SettingBase getSettingBase(int appId) {
-            return mSettings.getSettingLPr(appId);
+            if (Process.isPrivateComputeCoreUid(appId)) {
+                return mSettings.getPccSettingLPr(appId);
+            } else {
+                return mSettings.getSettingLPr(appId);
+            }
         }
 
         @Nullable
@@ -1693,22 +1699,24 @@ public class ComputerEngine implements Computer {
         }
     }
 
-    public final ParceledListSlice<PackageInfo> getInstalledPackages(long flags, int userId) {
+    public final PackageInfoList getInstalledPackages(long flags, int userId) {
         final int callingUid = Binder.getCallingUid();
         if (getInstantAppPackageName(callingUid) != null) {
-            return ParceledListSlice.emptyList();
+            return PackageInfoList.emptyList();
         }
-        if (!mUserManager.exists(userId)) return ParceledListSlice.emptyList();
-        flags = updateFlagsForPackage(flags, userId);
+        if (!mUserManager.exists(userId)) return PackageInfoList.emptyList();
+        final long updatedFlags = updateFlagsForPackage(flags, userId);
 
         enforceCrossUserPermission(callingUid, userId, false /* requireFullPermission */,
                 false /* checkShell */, "get installed packages");
 
-        return getInstalledPackagesBody(flags, userId, callingUid);
+        Slog.i(TAG, "getInstalledPackages: callingUid=" + callingUid + " flags=" + flags
+               + " updatedFlags=" + updatedFlags + " userId=" + userId);
+
+        return getInstalledPackagesBody(updatedFlags, userId, callingUid);
     }
 
-    protected ParceledListSlice<PackageInfo> getInstalledPackagesBody(long flags, int userId,
-            int callingUid) {
+    private PackageInfoList getInstalledPackagesBody(long flags, int userId, int callingUid) {
         // writer
         final boolean listUninstalled = (flags & MATCH_KNOWN_PACKAGES) != 0;
         final boolean listApex = (flags & MATCH_APEX) != 0;
@@ -1778,7 +1786,7 @@ public class ComputerEngine implements Computer {
                 }
             }
         }
-        return new ParceledListSlice<>(list);
+        return new PackageInfoList(list);
     }
 
     public final ResolveInfo createForwardingResolveInfoUnchecked(WatchedIntentFilter filter,
@@ -1889,6 +1897,18 @@ public class ComputerEngine implements Computer {
             return isolatedUid;
         }
         return ownerUid;
+    }
+
+    @Override
+    public final @NonNull IntArray getIsolatedUidsForUid(int ownerUid) {
+        final IntArray isolatedUids = new IntArray();
+        // mIsolatedOwners maps isolatedUid to ownerUid
+        for (int i = 0; i < mIsolatedOwners.size(); i++) {
+            if (mIsolatedOwners.valueAt(i) == ownerUid) {
+                isolatedUids.add(mIsolatedOwners.keyAt(i));
+            }
+        }
+        return isolatedUids;
     }
 
     public final String resolveExternalPackageName(AndroidPackage pkg) {
@@ -2267,12 +2287,24 @@ public class ComputerEngine implements Computer {
             return (packageName != null
                     && packageName.equals(mService.getSdkSandboxPackageName()));
         }
-        AndroidPackage pkg = mPackages.get(packageName);
+
+        final AndroidPackage pkg = mPackages.get(packageName);
+
+        if (pkg == null) {
+            return false;
+        }
+
+        if (Process.isPrivateComputeCoreUid(uid)) {
+            PackageSetting packageSetting =
+                    (PackageSetting) mSettings.mSettings.getPccSettingLPr(UserHandle.getAppId(uid));
+            return packageSetting != null && packageSetting.getAppId() == pkg.getUid();
+        }
+
         if (resolveIsolatedUid && Process.isIsolated(uid)) {
             uid = getIsolatedOwner(uid);
         }
-        return pkg != null
-                && UserHandle.getAppId(uid) == pkg.getUid();
+
+        return UserHandle.getAppId(uid) == pkg.getUid();
     }
 
     private boolean isCallerFromManagedUserOrProfile(@UserIdInt int userId) {
@@ -2706,6 +2738,16 @@ public class ComputerEngine implements Computer {
 
     public int getPackageUidInternal(String packageName,
             @PackageManager.PackageInfoFlagsBits long flags, int userId, int callingUid) {
+        return getPackageUidInternal(packageName, flags, userId, callingUid, /*forPcc*/ false);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getPackageUidInternal(String packageName,
+            @PackageManager.PackageInfoFlagsBits long flags, int userId, int callingUid,
+            boolean forPcc) {
         // reader
         var packageState = mSettings.getPackage(packageName);
         final AndroidPackage p = mPackages.get(packageName);
@@ -2713,14 +2755,14 @@ public class ComputerEngine implements Computer {
             final PackageStateInternal ps = getPackageStateInternal(p.getPackageName(), callingUid);
             if (ps != null && ps.getUserStateOrDefault(userId).isInstalled()
                     && !shouldFilterApplication(ps, callingUid, userId)) {
-                return UserHandle.getUid(userId, p.getUid());
+                return UserHandle.getUid(userId, forPcc ? ps.getPccId() : ps.getAppId());
             }
         }
         if ((flags & (MATCH_KNOWN_PACKAGES | MATCH_ARCHIVED_PACKAGES)) != 0) {
             final PackageStateInternal ps = mSettings.getPackage(packageName);
             if (ps != null && PackageStateUtils.isMatch(ps, flags)
                     && !shouldFilterApplication(ps, callingUid, userId)) {
-                return UserHandle.getUid(userId, ps.getAppId());
+                return UserHandle.getUid(userId, forPcc ? ps.getPccId() : ps.getAppId());
             }
         }
 
@@ -2728,7 +2770,9 @@ public class ComputerEngine implements Computer {
     }
 
     /**
-     * Update given flags based on encryption status of current user.
+     * Update given flags based on encryption status of current user. Additionally, check that if
+     * {@link PackageManager#GET_APP_LOCK_INFO} is supplied, the caller has the
+     * {@link Manifest.permission.LOCK_APPS} permission.
      */
     private long updateFlags(long flags, int userId) {
         if ((flags & (PackageManager.MATCH_DIRECT_BOOT_UNAWARE
@@ -2743,6 +2787,34 @@ public class ComputerEngine implements Computer {
                 flags |= PackageManager.MATCH_DIRECT_BOOT_AWARE | MATCH_DIRECT_BOOT_UNAWARE;
             } else {
                 flags |= PackageManager.MATCH_DIRECT_BOOT_AWARE;
+            }
+        }
+        if (android.security.Flags.appLockApis()
+                && (flags & (PackageManager.GET_APP_LOCK_INFO)) != 0) {
+            // If the caller specifies the GET_ATTRIBUTIONS int flag, when the flag gets converted
+            // to a long, it will result in unintended sign extension, causing the first 32 bits of
+            // the long to be set to 1. This means that the bit representing the GET_APP_LOCK_INFO
+            // flag will be set to 1, even if the caller did not specify the flag. If sign extension
+            // can be reasonably assumed to have happened, remove the GET_APP_LOCK_INFO flag since
+            // it was unintentionally added, and requires the LOCK_APPS permission to use. If a
+            // caller wants to both retrieve attributions and app lock info, they should use the
+            // long flag GET_ATTRIBUTIONS_LONG instead of GET_ATTRIBUTIONS, combined with whatever
+            // other flags the caller wants.
+            final boolean isGetAttributionsBitSet =
+                    (flags & PackageManager.GET_ATTRIBUTIONS_LONG) != 0;
+            // Check if the upper 32 bits are all 1s
+            final boolean upperBitsAllOnes = ((flags >>> 32) == 0xFFFFFFFFL);
+            // Heuristic to detect sign extension from the int version of GET_ATTRIBUTIONS
+            final boolean likelySignExtended = isGetAttributionsBitSet && upperBitsAllOnes;
+            if (likelySignExtended) {
+                flags &= ~PackageManager.GET_APP_LOCK_INFO;
+                Slog.w(TAG,
+                        "updateFlags: Removing GET_APP_LOCK_INFO due to likely sign extension of "
+                                + "the deprecated GET_ATTRIBUTIONS flag. Please use "
+                                + "GET_ATTRIBUTIONS_LONG");
+            } else if (!hasPermission(Manifest.permission.LOCK_APPS, Binder.getCallingUid())) {
+                throw new SecurityException("Caller must hold the LOCK_APPS permission to use "
+                        + "GET_APP_LOCK_INFO");
             }
         }
         return flags;
@@ -4731,13 +4803,13 @@ public class ComputerEngine implements Computer {
     public ProviderInfo resolveContentProvider(@NonNull String name,
             @PackageManager.ResolveInfoFlagsBits long flags, @UserIdInt int userId,
             int callingUid) {
-        if (!mUserManager.exists(userId)) return null;
-        flags = updateFlagsForComponent(flags, userId);
-
         // Callers of this API may not always separate the userID and authority. Let's parse it
         // before resolving
         String authorityWithoutUserId = ContentProvider.getAuthorityWithoutUserId(name);
         userId = ContentProvider.getUserIdFromAuthority(name, userId);
+
+        if (!mUserManager.exists(userId)) return null;
+        flags = updateFlagsForComponent(flags, userId);
 
         final ProviderInfo providerInfo = mComponentResolver.queryProvider(this,
                 authorityWithoutUserId, flags, userId);
@@ -4796,7 +4868,7 @@ public class ComputerEngine implements Computer {
         ProviderInfo contactsProvider = resolveContentProvider(
                 ContactsContract.AUTHORITY, 0, UserHandle.getUserId(callingUid), callingUid);
         if (contactsProvider == null || contactsProvider.applicationInfo == null
-                || !UserHandle.isSameApp(contactsProvider.applicationInfo.uid, callingUid)) {
+                || !isCallerSameApp(contactsProvider.packageName, callingUid)) {
             throw new SecurityException(
                     callingUid + " is not allow to call grantImplicitAccess");
         }
@@ -5313,7 +5385,7 @@ public class ComputerEngine implements Computer {
                     + ", uid:" + callingUid);
             throw new IllegalArgumentException("Unknown package: " + packageName);
         }
-        if (!UserHandle.isSameApp(callingUid, pkg.getUid())
+        if (!isCallerSameApp(pkg.getPackageName(), callingUid)
                 && Process.SYSTEM_UID != callingUid) {
             throw new SecurityException("May not access signing KeySet of other apps.");
         }
@@ -5442,12 +5514,19 @@ public class ComputerEngine implements Computer {
     @Override
     public int getPackageUid(@NonNull String packageName,
             @PackageManager.PackageInfoFlagsBits long flags, @UserIdInt int userId) {
+        return getPackageUid(packageName, flags, userId, /*forPcc*/ false);
+    }
+
+    @Override
+    public int getPackageUid(@NonNull String packageName,
+            @PackageManager.PackageInfoFlagsBits long flags, @UserIdInt int userId,
+            boolean forPcc) {
         if (!mUserManager.exists(userId)) return -1;
         final int callingUid = Binder.getCallingUid();
         flags = updateFlagsForPackage(flags, userId);
         enforceCrossUserPermission(callingUid, userId, false /*requireFullPermission*/,
                 false /*checkShell*/, "getPackageUid");
-        return getPackageUidInternal(packageName, flags, userId, callingUid);
+        return getPackageUidInternal(packageName, flags, userId, callingUid, forPcc);
     }
 
     @Override
@@ -5472,7 +5551,7 @@ public class ComputerEngine implements Computer {
         final PackageStateInternal installerPackageState = getPackageStateInternal(
                 packageState.getInstallSource().mInstallerPackageName);
         return installerPackageState != null
-                && UserHandle.isSameApp(installerPackageState.getAppId(), callingUid);
+                && isCallerSameApp(installerPackageState.getPackageName(), callingUid);
     }
 
     @PackageManager.InstallReason

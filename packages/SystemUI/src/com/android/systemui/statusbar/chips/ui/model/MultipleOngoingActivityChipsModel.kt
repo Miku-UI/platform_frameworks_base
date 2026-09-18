@@ -37,24 +37,3 @@ data class MultipleOngoingActivityChipsModel(
      */
     val inactive: List<OngoingActivityChipModel.Inactive> = emptyList(),
 )
-
-/** Models multiple active ongoing activity chips at once. */
-@Deprecated("Since StatusBarChipsModernization, use the new MultipleOngoingActivityChipsModel")
-data class MultipleOngoingActivityChipsModelLegacy(
-    /** The primary chip to show. This will *always* be shown. */
-    val primary: OngoingActivityChipModel = OngoingActivityChipModel.Inactive(),
-    /**
-     * The secondary chip to show. If there's not enough room in the status bar, this chip will
-     * *not* be shown.
-     */
-    val secondary: OngoingActivityChipModel = OngoingActivityChipModel.Inactive(),
-) {
-    init {
-        if (
-            primary is OngoingActivityChipModel.Inactive &&
-                secondary is OngoingActivityChipModel.Active
-        ) {
-            throw IllegalArgumentException("`secondary` cannot be Active if `primary` is Inactive")
-        }
-    }
-}

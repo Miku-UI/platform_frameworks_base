@@ -18,7 +18,6 @@ package com.android.server.wm;
 
 import static android.content.pm.ActivityInfo.OVERRIDE_ANY_ORIENTATION;
 import static android.content.pm.ActivityInfo.OVERRIDE_ANY_ORIENTATION_TO_USER;
-import static android.content.pm.ActivityInfo.OVERRIDE_CAMERA_COMPAT_DISABLE_REFRESH;
 import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION;
 import static android.content.pm.ActivityInfo.OVERRIDE_LANDSCAPE_ORIENTATION_TO_REVERSE_LANDSCAPE;
 import static android.content.pm.ActivityInfo.OVERRIDE_ORIENTATION_ONLY_FOR_CAMERA;
@@ -39,10 +38,12 @@ import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_USER_ASPECT_RATIO
 import static android.view.WindowManager.PROPERTY_COMPAT_IGNORE_REQUESTED_ORIENTATION;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
+import static com.android.window.flags.Flags.FLAG_CAMERA_COMPAT_IGNORE_REQUESTED_ORIENTATION_ALLOWED;
 import static com.android.window.flags.Flags.FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES;
-import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
 import android.compat.testing.PlatformCompatChangeRule;
@@ -93,8 +94,12 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
             robot.applyOnActivity((a) -> {
                 a.setDisplayId(DEFAULT_DISPLAY);
                 a.createActivityWithComponent();
-                a.setIgnoreOrientationRequest(true);
             });
+
+            robot.checkOverrideOrientation(/* candidate */ SCREEN_ORIENTATION_PORTRAIT,
+                    /* expected */ SCREEN_ORIENTATION_PORTRAIT);
+
+            robot.applyOnActivity(AppCompatActivityRobot::setOnLargeScreen);
 
             robot.checkOverrideOrientation(/* candidate */ SCREEN_ORIENTATION_PORTRAIT,
                     /* expected */ SCREEN_ORIENTATION_USER);
@@ -143,8 +148,8 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
             robot.conf().enableUserAppAspectRatioFullscreen(true);
             robot.applyOnActivity((a) -> {
                 a.setDisplayId(DEFAULT_DISPLAY);
+                a.setOnLargeScreen();
                 a.createActivityWithComponent();
-                a.setIgnoreOrientationRequest(true);
                 a.setGetUserMinAspectRatioOverrideCode(USER_MIN_ASPECT_RATIO_FULLSCREEN);
             });
 
@@ -155,8 +160,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
 
     @Test
     @EnableCompatChanges({OVERRIDE_ANY_ORIENTATION_TO_USER})
-    public void testOverrideOrientationIfNeeded_fullscreenOverrideEnabled_returnsUnchanged()
-            throws Exception {
+    public void testOverrideOrientationIfNeeded_fullscreenOverrideEnabled_returnsUnchanged() {
         runTestScenarioWithActivity((robot) -> {
             robot.activity().setIgnoreOrientationRequest(false);
 
@@ -283,7 +287,6 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
         runTestScenario((robot) -> {
             robot.applyOnConf((c)-> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -303,7 +306,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
         runTestScenario((robot) -> {
             robot.applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
+                robot.dw().allowEnterDesktopMode(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -334,7 +337,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
         runTestScenario((robot) -> {
             robot.applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
+                robot.dw().allowEnterDesktopMode(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -347,11 +350,14 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
+    @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     public void testOverrideOrientationIfNeeded_fullscrOverrideFreeform_cameraActivity_unchanged() {
         runTestScenario((robot) -> {
-            robot.applyOnActivity((a) -> {
+            robot.applyOnConf(c -> {
+                c.enableCameraCompatSimReqOrientationTreatment(true);
                 robot.dw().allowEnterDesktopMode(true);
+            });
+            robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
                 a.setIsCameraRunningAndWindowingModeEligibleFreeform(false);
             });
@@ -449,14 +455,36 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     }
 
     @Test
+    @EnableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
+    @DisableFlags(FLAG_CAMERA_COMPAT_IGNORE_REQUESTED_ORIENTATION_ALLOWED)
+    @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
+    public void testShouldIgnoreRequestedOrientation_cameraCompatFlagNotEnabled_returnsFalse() {
+        runTestScenario((robot) -> {
+            robot.applyOnConf((c) -> {
+                c.enableCameraCompatForceRotateTreatment(false);
+                c.enablePolicyForIgnoringRequestedOrientation(true);
+                robot.dw().allowEnterDesktopMode(true);
+            });
+            robot.applyOnActivity((a) -> {
+                a.createActivityWithComponentInNewTaskAndDisplay();
+                a.enableFullscreenCameraCompatTreatmentForTopActivity(false);
+            });
+            robot.prepareRelaunchingAfterRequestedOrientationChanged(false);
+
+            robot.checkShouldIgnoreRequestedOrientation(/* expected */ false,
+                    /* requestedOrientation */ SCREEN_ORIENTATION_UNSPECIFIED);
+        });
+    }
+
+    @Test
     @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
-    public void testShouldIgnoreRequestedOrientation_cameraCompatTreatment_returnsTrue() {
+    public void testShouldIgnoreRequestedOrientation_cameraCompatForceRotate_returnsTrue() {
         runTestScenario((robot) -> {
             robot.applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
                 c.enablePolicyForIgnoringRequestedOrientation(true);
+                robot.dw().allowEnterDesktopMode(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -498,8 +526,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
 
     @Test
     @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
-    public void testShouldIgnoreRequestedOrientation_propertyIsFalseAndOverride_returnsFalse()
-            throws Exception {
+    public void testShouldIgnoreRequestedOrientation_propertyIsFalseAndOverride_returnsFalse() {
         runTestScenario((robot) -> {
             robot.conf().enablePolicyForIgnoringRequestedOrientation(true);
             robot.prop().disable(PROPERTY_COMPAT_IGNORE_REQUESTED_ORIENTATION);
@@ -513,7 +540,84 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     }
 
     @Test
-    @EnableCompatChanges({OVERRIDE_CAMERA_COMPAT_DISABLE_REFRESH})
+    @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
+    @EnableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
+    @DisableFlags(FLAG_CAMERA_COMPAT_IGNORE_REQUESTED_ORIENTATION_ALLOWED)
+    public void testShouldIgnoreRequestedOrientation_cameraFlagDisabled_returnsFalse() {
+        runTestScenario((robot) -> {
+            robot.applyOnConf((c) -> {
+                c.setCanEnterDesktopMode(true);
+                c.enableCameraCompatSimReqOrientationTreatment(true);
+                c.enablePolicyForIgnoringRequestedOrientation(true);
+            });
+            robot.applyOnActivity(
+                    AppCompatActivityRobot::createActivityWithComponentInNewTaskAndDisplay);
+            robot.setCameraCompatTreatmentActive(true);
+
+            robot.checkShouldIgnoreRequestedOrientation(/* expected */ false,
+                    /* requestedOrientation */ SCREEN_ORIENTATION_UNSPECIFIED);
+        });
+    }
+
+
+    @Test
+    @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
+    @EnableFlags({FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES,
+            FLAG_CAMERA_COMPAT_IGNORE_REQUESTED_ORIENTATION_ALLOWED})
+    public void testShouldIgnoreRequestedOrientation_cameraCompatSROActive_returnsTrue() {
+        runTestScenario((robot) -> {
+            robot.applyOnConf(c -> {
+                c.setCanEnterDesktopMode(true);
+                c.enableCameraCompatSimReqOrientationTreatment(true);
+                c.enablePolicyForIgnoringRequestedOrientation(true);
+            });
+            robot.applyOnActivity(
+                    AppCompatActivityRobot::createActivityWithComponentInNewTaskAndDisplay);
+            robot.setCameraCompatTreatmentActive(true);
+
+            robot.checkShouldIgnoreRequestedOrientation(/* expected */ true,
+                    /* requestedOrientation */ SCREEN_ORIENTATION_UNSPECIFIED);
+        });
+    }
+
+    @Test
+    @EnableFlags({FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES,
+            FLAG_CAMERA_COMPAT_IGNORE_REQUESTED_ORIENTATION_ALLOWED})
+    public void testShouldIgnoreRequestedOrientation_cameraCompatSROActive_noOverride_retFalse() {
+        runTestScenario((robot) -> {
+            robot.applyOnConf(c -> {
+                c.enableCameraCompatSimReqOrientationTreatment(true);
+                c.enablePolicyForIgnoringRequestedOrientation(true);
+            });
+            robot.applyOnActivity(
+                    AppCompatActivityRobot::createActivityWithComponentInNewTaskAndDisplay);
+            robot.setCameraCompatTreatmentActive(true);
+
+            robot.checkShouldIgnoreRequestedOrientation(/* expected */ false,
+                    /* requestedOrientation */ SCREEN_ORIENTATION_UNSPECIFIED);
+        });
+    }
+
+    @Test
+    @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
+    @EnableFlags({FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES,
+            FLAG_CAMERA_COMPAT_IGNORE_REQUESTED_ORIENTATION_ALLOWED})
+    public void testShouldIgnoreRequestedOrientation_cameraCompatNotActive_returnsFalse() {
+        runTestScenario((robot) -> {
+            robot.applyOnConf(c -> {
+                c.enableCameraCompatSimReqOrientationTreatment(true);
+                c.enablePolicyForIgnoringRequestedOrientation(true);
+            });
+            robot.applyOnActivity(
+                    AppCompatActivityRobot::createActivityWithComponentInNewTaskAndDisplay);
+            robot.setCameraCompatTreatmentActive(false);
+
+            robot.checkShouldIgnoreRequestedOrientation(/* expected */ false,
+                    /* requestedOrientation */ SCREEN_ORIENTATION_UNSPECIFIED);
+        });
+    }
+
+    @Test
     public void testShouldIgnoreRequestedOrientation_flagIsDisabled_returnsFalse() {
         runTestScenario((robot) -> {
             robot.conf().enablePolicyForIgnoringRequestedOrientation(true);
@@ -572,19 +676,31 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
         }
 
         @Override
-        void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
-            super.onPostDisplayContentCreation(displayContent);
-            spyOn(displayContent.mAppCompatCameraPolicy);
-            if (displayContent.mAppCompatCameraPolicy.hasDisplayRotationPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mDisplayRotationPolicy);
+        void applyOnConf(@NonNull Consumer<AppCompatConfigurationRobot> consumer) {
+            super.applyOnConf(consumer);
+            reInitCameraPolicy();
+            spyOnCameraPolicy();
+        }
+
+        private void spyOnCameraPolicy() {
+            final AppCompatCameraPolicy cameraPolicy = mWm.mAppCompatCameraPolicy;
+            spyOn(cameraPolicy);
+            if (cameraPolicy.hasDisplayRotationPolicy()) {
+                spyOn(cameraPolicy.mDisplayRotationPolicy);
             }
-            if (displayContent.mAppCompatCameraPolicy.hasSimReqOrientationPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy);
+            if (cameraPolicy.hasSimReqOrientationPolicy()) {
+                spyOn(cameraPolicy.mSimReqOrientationPolicy);
             }
         }
 
         void prepareRelaunchingAfterRequestedOrientationChanged(boolean enabled) {
             getTopOrientationOverrides().setRelaunchingAfterRequestedOrientationChanged(enabled);
+        }
+
+        void setCameraCompatTreatmentActive(boolean enabled) {
+            doReturn(enabled).when(activity().top().mWmService.mAppCompatCameraPolicy
+                            .mSimReqOrientationPolicy)
+                    .shouldIgnoreReqOrientationForCameraCompat(any());
         }
 
         int overrideOrientationIfNeeded(@ActivityInfo.ScreenOrientation int candidate) {

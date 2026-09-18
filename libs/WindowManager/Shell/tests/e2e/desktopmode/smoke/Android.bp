@@ -35,7 +35,6 @@ android_test {
         "androidx.test.ext.junit",
         "desktop-test-lib",
         "flickerlib-helpers",
-        "flickerlib-trace_processor_shell",
         "flickertestapplib",
         "launcher-aosp-tapl",
         "launcher-helper-lib",

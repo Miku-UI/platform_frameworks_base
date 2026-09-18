@@ -19,54 +19,138 @@ package com.android.systemui.scene.data.repository
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
+import com.android.compose.animation.scene.TransitionKey
+import com.android.compose.animation.scene.content.state.TransitionState
+import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockStatus
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.runBlocking
 
 private val mutableTransitionState =
     MutableStateFlow<ObservableTransitionState>(ObservableTransitionState.Idle(Scenes.Lockscreen))
 
 suspend fun Kosmos.setTransition(
+    /** The scene transition to be set on the scene container. */
     sceneTransition: ObservableTransitionState,
+    /**
+     * The transition step to be set on KTF. When sceneContainerFlag is true and you pass deprecated
+     * KeyguardStates they will be automatically converted to UNDEFINED to match what would be
+     * possible in prod.
+     */
     stateTransition: TransitionStep? = null,
-    fillInStateSteps: Boolean = true,
-    scope: TestScope = testScope,
-    repository: SceneContainerRepository = sceneContainerRepository,
+    /**
+     * If true unlock the device before changing the scene. This makes transitions to Gone or
+     * Idle(Gone) possible. The device will be locked afterwards again.
+     */
+    unlockDevice: Boolean = false,
+    /**
+     * If true skip the actual `changeScene` call which contains validity checks about the current
+     * scene. If you are just observing the `transitionState` (ObservableTransitionState) in your
+     * test you can skip this. If you need the `currentScene` or other fields provided by the
+     * SceneDataSource you need to pass false here so the sceneInteractor is actually making a scene
+     * change including all checks.
+     */
+    skipChangeScene: Boolean = false,
 ) {
     var state: TransitionStep? = stateTransition
     if (SceneContainerFlag.isEnabled) {
-        setSceneTransition(sceneTransition, scope, repository)
+        setSceneTransition(
+            transition = sceneTransition,
+            unlockDevice = unlockDevice,
+            skipChangeScene = skipChangeScene,
+        )
 
         if (state != null) {
-            state = getStateWithUndefined(sceneTransition, state)
+            state = getSceneContainerConvertedState(state)
         }
     }
 
     if (state == null) return
     fakeKeyguardTransitionRepository.sendTransitionSteps(
         step = state,
-        testScope = scope,
-        fillInSteps = fillInStateSteps,
+        testScope = testScope,
+        fillInSteps = true,
     )
-    scope.testScheduler.runCurrent()
+    runCurrent()
 }
 
 fun Kosmos.setSceneTransition(
+    /** The scene transition to be set on the scene container. */
     transition: ObservableTransitionState,
-    scope: TestScope = testScope,
-    repository: SceneContainerRepository = sceneContainerRepository,
+    /**
+     * If true unlock the device before changing the scene. This makes transitions to Gone or
+     * Idle(Gone) possible. The device will be locked afterwards again.
+     */
+    unlockDevice: Boolean = false,
+    /**
+     * If true skip the actual `changeScene` call which contains validity checks about the current
+     * scene. If you are just observing the `transitionState` (ObservableTransitionState) in your
+     * test you can skip this. If you need the `currentScene` or other fields provided by the
+     * SceneDataSource you need to pass false here so the sceneInteractor is actually making a scene
+     * change including all checks.
+     */
+    skipChangeScene: Boolean = false,
 ) {
-    repository.setTransitionState(mutableTransitionState)
+    sceneContainerRepository.setTransitionState(mutableTransitionState)
     mutableTransitionState.value = transition
-    scope.testScheduler.runCurrent()
+    if (unlockDevice) {
+        unlockDevice()
+    }
+    if (!skipChangeScene) {
+        runCurrent()
+        testScope.backgroundScope
+        if (transition is ObservableTransitionState.Idle && transition.isIdle()) {
+            sceneContainerRepository.instantlyTransitionTo(
+                transition.currentScene,
+                transition.currentOverlays,
+            )
+        } else {
+            sceneInteractor.startTransitionImmediately(
+                transition.toTransitionState() as TransitionState.Transition
+            )
+        }
+    }
+    if (unlockDevice) {
+        lockDevice()
+    }
+    runCurrent()
+}
+
+fun Kosmos.unlockDevice() {
+    fakeDeviceEntryRepository.deviceUnlockStatus.value =
+        DeviceUnlockStatus(isUnlocked = true, deviceUnlockSource = null)
+    runCurrent()
+}
+
+fun Kosmos.lockDevice() {
+    fakeDeviceEntryRepository.deviceUnlockStatus.value =
+        DeviceUnlockStatus(isUnlocked = false, deviceUnlockSource = null)
+    runCurrent()
+}
+
+private fun getCurrentCurrentScene(transition: ObservableTransitionState): SceneKey {
+    return when (transition) {
+        is ObservableTransitionState.Idle -> transition.currentScene
+        is ObservableTransitionState.Transition.ChangeScene ->
+            runBlocking {
+                transition.currentScene.firstOrNull()
+                    ?: throw error("Empty currentScene Flow provided")
+            }
+        is ObservableTransitionState.Transition.ReplaceOverlay -> transition.currentScene
+        is ObservableTransitionState.Transition.ShowOrHideOverlay -> transition.currentScene
+    }
 }
 
 fun Transition(
@@ -78,6 +162,7 @@ fun Transition(
     isUserInputOngoing: Flow<Boolean> = flowOf(false),
     previewProgress: Flow<Float> = flowOf(0f),
     isInPreviewStage: Flow<Boolean> = flowOf(false),
+    key: TransitionKey? = null,
 ): ObservableTransitionState.Transition {
     return ObservableTransitionState.Transition(
         fromScene = from,
@@ -88,6 +173,7 @@ fun Transition(
         isUserInputOngoing = isUserInputOngoing,
         previewProgress = previewProgress,
         isInPreviewStage = isInPreviewStage,
+        key = key,
     )
 }
 
@@ -142,42 +228,14 @@ fun Idle(
     return ObservableTransitionState.Idle(currentScene, currentOverlays)
 }
 
-private fun getStateWithUndefined(
-    sceneTransition: ObservableTransitionState,
-    state: TransitionStep,
-): TransitionStep {
-    return when (sceneTransition) {
-        is ObservableTransitionState.Idle -> {
-            TransitionStep(
-                from = state.from,
-                to =
-                    if (sceneTransition.currentScene != Scenes.Lockscreen) {
-                        KeyguardState.UNDEFINED
-                    } else {
-                        state.to
-                    },
-                value = state.value,
-                transitionState = state.transitionState,
-            )
-        }
-        is ObservableTransitionState.Transition -> {
-            TransitionStep(
-                from =
-                    if (sceneTransition.fromContent != Scenes.Lockscreen) {
-                        KeyguardState.UNDEFINED
-                    } else {
-                        state.from
-                    },
-                to =
-                    if (sceneTransition.toContent != Scenes.Lockscreen) {
-                        KeyguardState.UNDEFINED
-                    } else {
-                        state.from
-                    },
-                value = state.value,
-                transitionState = state.transitionState,
-            )
-        }
-        else -> state
-    }
+private fun getSceneContainerConvertedState(state: TransitionStep): TransitionStep? {
+    val step =
+        TransitionStep(
+            from = state.from.mapToSceneContainerState(),
+            to = state.to.mapToSceneContainerState(),
+            value = state.value,
+            transitionState = state.transitionState,
+        )
+    if (step.from == KeyguardState.UNDEFINED && step.to == KeyguardState.UNDEFINED) return null
+    return step
 }

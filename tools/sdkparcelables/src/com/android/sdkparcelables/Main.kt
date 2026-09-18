@@ -16,11 +16,11 @@
 
 package com.android.sdkparcelables
 
-import org.objectweb.asm.ClassReader
-import org.objectweb.asm.Opcodes
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.Opcodes
 
 fun main(args: Array<String>) {
     if (args.size < 2 || args.size > 3) {
@@ -52,8 +52,10 @@ fun main(args: Array<String>) {
     for (entry in zipFile.entries()) {
         if (entry.name.endsWith(".class")) {
             val reader = ClassReader(zipFile.getInputStream(entry))
-            reader.accept(ancestorCollector,
-                    ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+            reader.accept(
+                ancestorCollector,
+                    ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES
+            )
         }
     }
 

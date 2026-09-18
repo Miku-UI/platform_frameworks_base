@@ -42,10 +42,8 @@ sealed interface WifiIcon : Diffable<WifiIcon> {
      * Represents a visible wifi icon that uses [res] as its image and [contentDescription] as its
      * description.
      */
-    class Visible(
-        @DrawableRes val res: Int,
-        val contentDescription: ContentDescription.Loaded,
-    ) : WifiIcon {
+    class Visible(@DrawableRes val res: Int, val contentDescription: ContentDescription.Loaded) :
+        WifiIcon {
         val icon = Icon.Resource(res, contentDescription)
 
         override fun toString() = contentDescription.description.toString()
@@ -89,7 +87,7 @@ sealed interface WifiIcon : Diffable<WifiIcon> {
                             "${context.getString(WIFI_NO_CONNECTION)},${context.getString(
                                 NO_INTERNET
                             )}"
-                        )
+                        ),
                     )
                 is WifiNetworkModel.Active -> model.toIcon(showHotspotInfo, context)
             }
@@ -131,16 +129,13 @@ sealed interface WifiIcon : Diffable<WifiIcon> {
 
         private fun WifiNetworkModel.Active.toBasicIcon(context: Context): Visible {
             val levelDesc = context.getString(WIFI_CONNECTION_STRENGTH[this.level])
-            return if (this.isValidated) {
-                Visible(
-                    WifiIcons.WIFI_FULL_ICONS[this.level],
-                    ContentDescription.Loaded(levelDesc),
-                )
-            } else {
+            return if (this.showExclamation) {
                 Visible(
                     WifiIcons.WIFI_NO_INTERNET_ICONS[this.level],
                     ContentDescription.Loaded("$levelDesc,${context.getString(NO_INTERNET)}"),
                 )
+            } else {
+                Visible(WifiIcons.WIFI_FULL_ICONS[this.level], ContentDescription.Loaded(levelDesc))
             }
         }
     }

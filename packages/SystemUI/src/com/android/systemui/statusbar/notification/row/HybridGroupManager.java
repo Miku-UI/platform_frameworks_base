@@ -22,14 +22,11 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.content.Context;
 import android.content.res.Resources;
-import android.os.Trace;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.android.internal.widget.ConversationLayout;
 import com.android.systemui.res.R;
 
 /**
@@ -56,18 +53,6 @@ public class HybridGroupManager {
         Resources res = mContext.getResources();
         mOverflowNumberSize = res.getDimensionPixelSize(R.dimen.group_overflow_number_size);
         mOverflowNumberPadding = res.getDimensionPixelSize(R.dimen.group_overflow_number_padding);
-    }
-
-    private HybridNotificationView inflateHybridView(View contentView, ViewGroup parent) {
-        Trace.beginSection("HybridGroupManager#inflateHybridView");
-        LayoutInflater inflater = LayoutInflater.from(mContext);
-        int layout = HybridNotificationView.getLayoutResource(
-                /* isConversation = */ contentView instanceof ConversationLayout);
-        HybridNotificationView hybrid = (HybridNotificationView)
-                inflater.inflate(layout, parent, false);
-        parent.addView(hybrid);
-        Trace.endSection();
-        return hybrid;
     }
 
     private TextView inflateOverflowNumber(ViewGroup parent) {

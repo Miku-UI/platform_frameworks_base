@@ -127,8 +127,7 @@ collect_apis() {
         # Dump each module.
         dump "framework-minus-apex"  "$files_dir"/hoststubgen_framework-minus-apex_apis.csv
         dump "service.core"  "$files_dir"/hoststubgen_services.core_apis.csv
-        dump "framework-configinfrastructure"  "$files_dir"/framework-configinfrastructure_apis.csv
-        dump "framework-statsd" "$files_dir"/framework-statsd_apis.csv
+        dump "hoststubgen_framework-updatable_apis.csv"  "$files_dir"/hoststubgen_framework-updatable_apis.csv
     } > "$out"
 
     echo "API CVS created at $out (import it as 'ravenwood_supported_apis3')"

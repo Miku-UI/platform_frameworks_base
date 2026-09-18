@@ -98,13 +98,21 @@ public class ChangeReporter {
      */
     public void reportChange(int uid, long changeId, int state, boolean isKnownSystemApp,
             boolean doStatsLog) {
-        boolean isAlreadyReported =
-                checkAndSetIsAlreadyReported(uid, new ChangeReport(changeId, state));
-        if (doStatsLog && shouldWriteToStatsLog(isKnownSystemApp, isAlreadyReported)) {
+        boolean statsEligible = doStatsLog && !isKnownSystemApp;
+        boolean debugEligible = shouldWriteToDebug(uid, changeId, state);
+        if (!statsEligible && !debugEligible) {
+            return;
+        }
+
+        ChangeReport report = new ChangeReport(changeId, state);
+        boolean isAlreadyReported = checkAndSetIsAlreadyReported(uid, report);
+
+        if (statsEligible && !isAlreadyReported) {
             FrameworkStatsLog.write(FrameworkStatsLog.APP_COMPATIBILITY_CHANGE_REPORTED, uid,
                     changeId, state, mSource);
         }
-        if (shouldWriteToDebug(isAlreadyReported, state)) {
+
+        if (debugEligible && (!isAlreadyReported || mDebugLogAll)) {
             debugLog(uid, changeId, state);
         }
     }
@@ -151,30 +159,8 @@ public class ChangeReporter {
     }
 
     /**
-     * Returns whether the next report should be logged to logcat.
-     *
-     * @param isAlreadyReported is the change already reported
-     * @param state             of the reported change - enabled/disabled/only logged
-     * @return true if the report should be logged
-     */
-    private boolean shouldWriteToDebug(boolean isAlreadyReported, int state) {
-        // If log all bit is on, always return true.
-        if (mDebugLogAll) return true;
-        // If the change has already been reported, do not write.
-        if (isAlreadyReported) return false;
-
-        // If the flag is turned off or the TAG's logging is forced to debug level with
-        // `adb setprop log.tag.CompatChangeReporter=DEBUG`, write to debug since the above checks
-        // have already passed.
-        boolean skipLoggingFlag = Flags.skipOldAndDisabledCompatLogging();
-        if (!skipLoggingFlag || Log.isLoggable(TAG, Log.DEBUG)) return true;
-
-        // Log if the change is enabled
-        return state != STATE_DISABLED;
-    }
-
-    /**
-     * Returns whether the next report should be logged to logcat.
+     * Checks configuration and state to determine if debug logging is allowed,
+     * ignoring deduplication.
      *
      * @param uid               affected by the change
      * @param changeId          the reported change id
@@ -183,8 +169,16 @@ public class ChangeReporter {
      */
     @VisibleForTesting
     public boolean shouldWriteToDebug(int uid, long changeId, int state) {
-        return shouldWriteToDebug(
-                isAlreadyReported(uid, new ChangeReport(changeId, state)), state);
+        // If log all bit is on, always return true.
+        if (mDebugLogAll) return true;
+
+        // If the flag is turned off or the TAG's logging is forced to debug level with
+        // `adb setprop log.tag.CompatChangeReporter=DEBUG`, write to debug.
+        boolean skipLoggingFlag = Flags.skipOldAndDisabledCompatLogging();
+        if (!skipLoggingFlag || Log.isLoggable(TAG, Log.DEBUG)) return true;
+
+        // Log if the change is enabled
+        return state != STATE_DISABLED;
     }
 
     /**
@@ -196,11 +190,9 @@ public class ChangeReporter {
      * @return true if change has been reported, and vice versa.
      */
     private boolean checkAndSetIsAlreadyReported(int uid, ChangeReport changeReport) {
-        boolean isAlreadyReported = isAlreadyReported(uid, changeReport);
-        if (!isAlreadyReported) {
-            markAsReported(uid, changeReport);
-        }
-        return isAlreadyReported;
+        Set<ChangeReport> reports = mReportedChanges.computeIfAbsent(uid, NEW_CHANGE_REPORT_SET);
+        boolean added = reports.add(changeReport);
+        return !added;
     }
 
     private boolean isAlreadyReported(int uid, ChangeReport report) {
@@ -218,10 +210,6 @@ public class ChangeReporter {
     @VisibleForTesting
     public boolean isAlreadyReported(int uid, long changeId, int state) {
         return isAlreadyReported(uid, new ChangeReport(changeId, state));
-    }
-
-    private void markAsReported(int uid, ChangeReport report) {
-        mReportedChanges.computeIfAbsent(uid, NEW_CHANGE_REPORT_SET).add(report);
     }
 
     /**

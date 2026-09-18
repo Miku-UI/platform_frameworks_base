@@ -47,6 +47,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
@@ -2603,6 +2604,43 @@ public class IntentFilter implements Parcelable {
             N = countUriRelativeFilterGroups();
             for (int i = 0; i < N; i++) {
                 mUriRelativeFilterGroups.get(i).writeToXml(serializer);
+            }
+        }
+    }
+
+    /** @hide */
+    public void printIntentFilterMatchDetails(PrintWriter pw, Intent intent) {
+        pw.println("\n  Intent Filter Match (AndroidManifest.xml)");
+        if (hasDataScheme(intent.getScheme())) {
+            pw.println("    Scheme: '" + intent.getScheme() + "' matched android:scheme=\""
+                    + intent.getScheme() + "\"");
+        }
+
+        if (intent.getData().getHost() != null) {
+            Iterator<AuthorityEntry> it = authoritiesIterator();
+            if (it != null) {
+                while (it.hasNext()) {
+                    AuthorityEntry ae = it.next();
+                    if (ae.match(intent.getData()) >= 0) {
+                        pw.println("    Host: '" + intent.getData().getHost()
+                                + "' matched android:host=\"" + ae.getHost() + "\"");
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (intent.getData().getPath() != null) {
+            Iterator<PatternMatcher> it = pathsIterator();
+            if (it != null) {
+                while (it.hasNext()) {
+                    PatternMatcher pm = it.next();
+                    if (pm.match(intent.getData().getPath())) {
+                        pw.println("    Path: '" + intent.getData().getPath() + "' matched "
+                                + pm.toPrettyString());
+                        break;
+                    }
+                }
             }
         }
     }

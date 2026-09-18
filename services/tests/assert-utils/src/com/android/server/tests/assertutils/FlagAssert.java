@@ -53,6 +53,7 @@ public class FlagAssert {
 
     /**
      * Returns an object that can be used for chaining assertions on
+     *
      * @param flags the bit field describing the flags that subsequent assertions will be made on.
      */
     public static FlagAssert assertThat(int flags) {
@@ -99,5 +100,14 @@ public class FlagAssert {
     /** Asserts that no flags are set in the flags passed to {@link #assertThat}. */
     public FlagAssert isEmpty() {
         return isEqualTo(0);
+    }
+
+    /** Asserts that exactly {@code expectedCount} flags are set. */
+    public FlagAssert hasSetBits(int expectedCount) {
+        final int actualCount = Integer.bitCount(mFlags);
+        assertWithMessage("Expected exactly " + expectedCount + " set bits but found "
+                + actualCount + " (flags: 0x" + Integer.toHexString(mFlags) + ")")
+                .that(actualCount).isEqualTo(expectedCount);
+        return this;
     }
 }

@@ -17,6 +17,7 @@
 package com.android.systemui.bouncer.ui.viewmodel
 
 import android.content.applicationContext
+import com.android.systemui.accessibility.domain.interactor.accessibilityInteractor
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.bouncer.domain.interactor.bouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.simBouncerInteractor
@@ -43,6 +44,7 @@ val Kosmos.bouncerMessageViewModel by Fixture {
         deviceUnlockedInteractor = deviceUnlockedInteractor,
         deviceEntryBiometricsAllowedInteractor = deviceEntryBiometricsAllowedInteractor,
         secureLockDeviceInteractor = secureLockDeviceInteractor,
+        a11yInteractor = accessibilityInteractor,
     )
 }
 

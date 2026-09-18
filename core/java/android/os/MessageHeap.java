@@ -189,7 +189,13 @@ public final class MessageHeap {
         boolean unused = siftUp(i);
     }
 
-    public void maybeShrink() {
+    /**
+     * Shrinks the underlying array if the number of elements is significantly smaller than the
+     * current capacity.
+     *
+     * @return {@code true} if the heap was shrunk, {@code false} otherwise.
+     */
+    public boolean maybeShrink() {
         int nextShrinkSize = mHeap.length;
         final int minElem = Math.max(mNumElements, INITIAL_SIZE);
         int newSize = INITIAL_SIZE;
@@ -203,7 +209,8 @@ public final class MessageHeap {
         }
 
         if (newSize >= INITIAL_SIZE
-                && mNumElements <= newSize) {
+                && mNumElements <= newSize
+                && newSize < mHeap.length) {
             Message[] newHeap;
 
             newHeap = Arrays.copyOf(mHeap, newSize);
@@ -213,7 +220,9 @@ public final class MessageHeap {
                 Log.d(TAG, "maybeShrink SHRUNK mNumElements " + mNumElements + " mHeap.length "
                         + mHeap.length + " newSize " + newSize);
             }
+            return true;
         }
+        return false;
     }
 
     public @Nullable Message poll() {

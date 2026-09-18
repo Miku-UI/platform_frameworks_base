@@ -20,7 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.privacy.OngoingPrivacyChip
+import com.android.systemui.privacy.AbstractOngoingPrivacyChip
 import com.android.systemui.privacy.privacyDialogController
 import com.android.systemui.privacy.privacyDialogControllerV2
 import com.android.systemui.shade.data.repository.fakePrivacyChipRepository
@@ -46,7 +46,7 @@ class PrivacyChipInteractorTest : SysuiTestCase() {
     private val privacyChipRepository = kosmos.fakePrivacyChipRepository
     private val privacyDialogController = kosmos.privacyDialogController
     private val privacyDialogControllerV2 = kosmos.privacyDialogControllerV2
-    @Mock private lateinit var privacyChip: OngoingPrivacyChip
+    @Mock private lateinit var privacyChip: AbstractOngoingPrivacyChip
 
     val underTest = kosmos.privacyChipInteractor
 

@@ -17,7 +17,6 @@
 package android.media.tv.extension.scan;
 
 import android.media.tv.extension.scan.ITargetRegionListener;
-
 import android.os.Bundle;
 
 /**
@@ -27,10 +26,28 @@ import android.os.Bundle;
  * @hide
  */
 interface ITargetRegion {
-    // Get the target regions information. If there are no conflicts, the array of Bundle is empty.
+    /**
+     * Get the target regions information.
+     * If there are no conflicts, the array of Bundle is empty. If multiple regions are found,
+     * select any region with ITargetRegion.setTargetRegion(), and then store it in the service
+     * database with IScanSession.storeServiceList().
+     *
+     * @return an array of bundle containing target regions information, bundle keys as defined in
+     *         @ScanConstants.TargetRegionBundleKey.
+     */
     Bundle[] getTargetRegions();
-    // Select and set one of two or more target region detected by the service scan.
+    /**
+     * Select and set one of two or more target region detected by the service scan.
+     *
+     * @param targetRegionSettings bundle, keys as defined in @ScanConstants.TargetRegionBundleKey.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if successfully sets else RESULT_FAILED.
+     */
     int setTargetRegion(in Bundle targetRegionSettings);
-    // Set the listener to be invoked when two or more regions are detected.
+    /**
+     * Set the listener to be invoked when two or more regions are detected.
+     *
+     * @param listener ITargetRegionListener.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if successfully sets else RESULT_FAILED.
+     */
     int setListener(in ITargetRegionListener listener);
 }

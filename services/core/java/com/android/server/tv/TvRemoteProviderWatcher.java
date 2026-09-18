@@ -137,7 +137,7 @@ final class TvRemoteProviderWatcher {
                     TvRemoteProviderProxy providerProxy =
                             new TvRemoteProviderProxy(mContext, mLock,
                                     new ComponentName(serviceInfo.packageName, serviceInfo.name),
-                                    mUserId, serviceInfo.applicationInfo.uid);
+                                    mUserId, serviceInfo.getUid());
                     providerProxy.start();
                     mProviderProxies.add(targetIndex++, providerProxy);
                 } else if (sourceIndex >= targetIndex) {

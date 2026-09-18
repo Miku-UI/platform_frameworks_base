@@ -241,6 +241,11 @@ enum DebugLevel {
  */
 #define PROPERTY_SKTYPEFACE_BACKEND "debug.hwui.text.backend"
 
+/**
+ * Property for ashmem bitmaps to use long filenames with more information
+ */
+#define PROPERTY_BITMAP_ASHMEM_LONG_NAME "debug.hwui.bitmap_ashmem_long_name"
+
 enum class SkTypefaceBackend {
     kAuto = 0,
     kFreeType = 1,
@@ -358,6 +363,8 @@ public:
     static bool skipTelemetry;
 
     static int timeoutMultiplier;
+
+    static bool bitmapAshmemLongName;
 
     static StretchEffectBehavior getStretchEffectBehavior() {
         return stretchEffectBehavior;

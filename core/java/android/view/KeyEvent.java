@@ -29,6 +29,7 @@ import android.os.Build;
 import android.os.IInputConstants;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.method.MetaKeyKeyListener;
 import android.util.Log;
 import android.util.SparseIntArray;
@@ -94,6 +95,7 @@ import java.util.concurrent.TimeUnit;
  * input devices and sources represent keys and buttons.
  * </p>
  */
+@RavenwoodKeepWholeClass
 public class KeyEvent extends InputEvent implements Parcelable {
     /** Key code constant: Unknown key code. */
     public static final int KEYCODE_UNKNOWN         = 0;
@@ -1314,70 +1316,82 @@ public class KeyEvent extends InputEvent implements Parcelable {
      */
     public static final int KEYCODE_SCREENSHOT = 318;
     /** Key code constant: To start dictate to an input field */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_DICTATE = 319;
     /**
      * Key code constant: AC New.
      * <p>
      * e.g. To create a new instance of a window, open a new tab, etc.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_NEW = 320;
     /**
      * Key code constant: AC Close.
      * <p>
      * e.g. To close current instance of the application window, close the current tab, etc.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_CLOSE = 321;
     /** Key code constant: To toggle 'Do Not Disturb' mode. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_DO_NOT_DISTURB = 322;
     /** Key code constant: To print. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_PRINT = 323;
     /** Key code constant: To lock the screen. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_LOCK = 324;
     /** Key code constant: To toggle fullscreen mode (on the current application). */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_FULLSCREEN = 325;
     /** Key code constant: F13 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F13 = 326;
     /** Key code constant: F14 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F14 = 327;
     /** Key code constant: F15 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F15 = 328;
     /** Key code constant: F16 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F16 = 329;
     /** Key code constant: F17 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F17 = 330;
     /** Key code constant: F18 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F18 = 331;
     /** Key code constant: F19 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F19 = 332;
     /** Key code constant: F20 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F20 = 333;
     /** Key code constant: F21 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F21 = 334;
     /** Key code constant: F22 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F22 = 335;
     /** Key code constant: F23 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F23 = 336;
     /** Key code constant: F24 key. */
-    @FlaggedApi(Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES)
     public static final int KEYCODE_F24 = 337;
+    /**
+     * Key code constant: System Accessibility key.
+     * <p>
+     * Introduced by HUTRR116, toggles the system bound accessibility UI/command
+     * (i.e. invoke system-specific accessibility UI or user-customized accessibility
+     * feature). Some example usages could be to toggle Talkback or toggle display
+     * color inversion. Applications will not receive this keycode.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_NEW_26Q2_KEYCODES)
+    public static final int KEYCODE_ACCESSIBILITY = 338;
+    /** Key code constant: Contextual Search key.
+     * <p>
+     * Introduced by HUTRR119, invokes an AI agent to perform an action on the
+     * content currently selected by the user (e.g., highlighted text, active
+     * image, or selected file) or invoke a selection experience. Often referred
+     * to as "Select to Search" or "Summarize Selection."
+     *
+     * This key is fully handled by the framework and will not be sent to the
+     * foreground app.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_NEW_26Q2_KEYCODES)
+    public static final int KEYCODE_CONTEXTUAL_SEARCH = 339;
+    /**
+     * Key code constant: Contextual Insert key.
+     * <p>
+     * Introduced by HUTRR119, triggers a contextual overlay that enables the
+     * user to search, retrieve, and generate content for immediate insertion
+     * into the active focused element.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_NEW_26Q2_KEYCODES)
+    public static final int KEYCODE_CONTEXTUAL_INSERT = 340;
 
     /**
      * Integer value of the last KEYCODE. Increases as new keycodes are added to KeyEvent.
@@ -1385,7 +1399,7 @@ public class KeyEvent extends InputEvent implements Parcelable {
      */
     @TestApi
     @SuppressWarnings("FlaggedApi")
-    public static final int LAST_KEYCODE = KEYCODE_F24;
+    public static final int LAST_KEYCODE = KEYCODE_CONTEXTUAL_INSERT;
 
     /** @hide */
     @IntDef(prefix = {"KEYCODE_"}, value = {
@@ -1727,6 +1741,9 @@ public class KeyEvent extends InputEvent implements Parcelable {
             KEYCODE_F22,
             KEYCODE_F23,
             KEYCODE_F24,
+            KEYCODE_ACCESSIBILITY,
+            KEYCODE_CONTEXTUAL_SEARCH,
+            KEYCODE_CONTEXTUAL_INSERT,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface KeyCode {}
@@ -2927,6 +2944,9 @@ public class KeyEvent extends InputEvent implements Parcelable {
             case KeyEvent.KEYCODE_SYSTEM_NAVIGATION_LEFT:
             case KeyEvent.KEYCODE_SYSTEM_NAVIGATION_RIGHT:
             case KeyEvent.KEYCODE_STEM_PRIMARY:
+            case KeyEvent.KEYCODE_ACCESSIBILITY:
+            case KeyEvent.KEYCODE_CONTEXTUAL_SEARCH:
+            case KeyEvent.KEYCODE_CONTEXTUAL_INSERT:
                 return true;
         }
 
@@ -3660,7 +3680,7 @@ public class KeyEvent extends InputEvent implements Parcelable {
      * Gets the {@link KeyCharacterMap} associated with the keyboard device.
      *
      * @return The associated key character map.
-     * @throws {@link KeyCharacterMap.UnavailableException} if the key character map
+     * @throws KeyCharacterMap.UnavailableException if the key character map
      * could not be loaded because it was malformed or the default key character map
      * is missing from the system.
      *

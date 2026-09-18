@@ -16,10 +16,14 @@
 
 package android.hardware.camera2.params;
 
+import android.annotation.FlaggedApi;
 import android.annotation.LongDef;
 import android.annotation.NonNull;
 
+import android.annotation.TestApi;
 import android.hardware.camera2.CameraMetadata;
+
+import com.android.internal.camera.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -149,7 +153,124 @@ public final class DynamicRangeProfiles {
     public static final long PUBLIC_MAX =
             CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_MAX;
 
-     /** @hide */
+    /**
+     * <p>8-bit SDR profile with adaptive global tone mapping SMPTE 2094-50 per-frame metadata.
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long STANDARD_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD_SMPTE_2094_50;
+
+    /**
+     * 10-bit pixel samples encoded using the Hybrid log-gamma transfer function with
+     * adaptive global tone mapping SMPTE 2094-50 per-frame metadata.
+     *
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long HLG10_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HLG10_SMPTE_2094_50;
+
+    /**
+     * 10-bit pixel samples encoded using the SMPTE ST 2084 transfer function.
+     *
+     * <p>This profile utilizes internal static metadata to increase the quality
+     * of the capture and includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata.
+     * </p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long HDR10_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HDR10_SMPTE_2094_50;
+
+    /**
+     * 10-bit pixel samples encoded using the SMPTE ST 2084 transfer function.
+     *
+     * <p>In contrast to HDR10, this profile uses internal per-frame metadata
+     * to further enhance the quality of the capture and also includes adaptive global tone mapping
+     * SMPTE 2094-50 per-frame metadata.</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long HDR10_PLUS_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HDR10_PLUS_SMPTE_2094_50;
+
+    /**
+     * <p>This is a camera mode for Dolby Vision capture optimized for a more scene
+     * accurate capture. This would typically differ from what a specific device
+     * might want to tune for a consumer optimized Dolby Vision general capture. This mode
+     * also includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata.</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_10B_HDR_REF_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_REF_SMPTE_2094_50;
+
+    /**
+     * <p>This is the power optimized mode for 10-bit Dolby Vision HDR Reference Mode and also
+     * includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata..</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_10B_HDR_REF_PO_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_REF_PO_SMPTE_2094_50;
+
+    /**
+     * <p>This is the camera mode for the default Dolby Vision capture mode for the
+     * specific device. This would be tuned by each specific device for consumer
+     * pleasing results that resonate with their particular audience. We expect
+     * that each specific device would have a different look for their default
+     * Dolby Vision capture. This format and also includes adaptive global tone mapping
+     * SMPTE 2094-50 per-frame metadata.</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_10B_HDR_OEM_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_OEM_SMPTE_2094_50;
+
+    /**
+     * <p>This is the power optimized mode for 10-bit Dolby Vision HDR device specific capture
+     * Mode and also includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata.</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_10B_HDR_OEM_PO_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_OEM_PO_SMPTE_2094_50;
+
+    /**
+     * <p>This is the 8-bit version of the Dolby Vision reference capture mode optimized
+     * for scene accuracy and also includes adaptive global tone mapping SMPTE 2094-50 per-frame
+     * metadata.</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_8B_HDR_REF_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_REF_SMPTE_2094_50;
+
+    /**
+     * <p>This is the power optimized mode for 8-bit Dolby Vision HDR Reference Mode and
+     * also includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata.</p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_8B_HDR_REF_PO_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_REF_PO_SMPTE_2094_50;
+
+    /**
+     * <p>This is the 8-bit version of device specific tuned and optimized Dolby Vision
+     * capture mode and also includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata.
+     * </p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_8B_HDR_OEM_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_OEM_SMPTE_2094_50;
+
+    /**
+     * <p>This is the power optimized mode for 8-bit Dolby Vision HDR device specific
+     * capture Mode and also includes adaptive global tone mapping SMPTE 2094-50 per-frame metadata.
+     * </p>
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long DOLBY_VISION_8B_HDR_OEM_PO_SMPTE_2094_50 =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_OEM_PO_SMPTE_2094_50;
+
+    /** @hide */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final long CURRENT_MAX =
+            CameraMetadata.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_MAX_312;
+
+    /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     @LongDef(prefix = {"PROFILE_"}, value =
             {STANDARD,
@@ -163,7 +284,19 @@ public final class DynamicRangeProfiles {
              DOLBY_VISION_8B_HDR_REF,
              DOLBY_VISION_8B_HDR_REF_PO,
              DOLBY_VISION_8B_HDR_OEM,
-             DOLBY_VISION_8B_HDR_OEM_PO})
+             DOLBY_VISION_8B_HDR_OEM_PO,
+             STANDARD_SMPTE_2094_50,
+             HLG10_SMPTE_2094_50,
+             HDR10_SMPTE_2094_50,
+             HDR10_PLUS_SMPTE_2094_50,
+             DOLBY_VISION_10B_HDR_REF_SMPTE_2094_50,
+             DOLBY_VISION_10B_HDR_REF_PO_SMPTE_2094_50,
+             DOLBY_VISION_10B_HDR_OEM_SMPTE_2094_50,
+             DOLBY_VISION_10B_HDR_OEM_PO_SMPTE_2094_50,
+             DOLBY_VISION_8B_HDR_REF_SMPTE_2094_50,
+             DOLBY_VISION_8B_HDR_REF_PO_SMPTE_2094_50,
+             DOLBY_VISION_8B_HDR_OEM_SMPTE_2094_50,
+             DOLBY_VISION_8B_HDR_OEM_PO_SMPTE_2094_50})
     public @interface Profile {
     }
 
@@ -202,6 +335,11 @@ public final class DynamicRangeProfiles {
         }
 
         for (int i = 0; i < elements.length; i += 3) {
+            if (!Flags.newDynamicRangeProfiles() && (elements[i] >= PUBLIC_MAX)) {
+                // Device implementations do not use trunk stable flags and may still advertise
+                // newer profiles.
+                continue;
+            }
             checkProfileValue(elements[i]);
             // STANDARD is not expected to be included
             if (elements[i] == STANDARD) {
@@ -210,8 +348,12 @@ public final class DynamicRangeProfiles {
             }
             HashSet<Long> profiles = new HashSet<>();
 
+            long currentMax = PUBLIC_MAX;
+            if (Flags.newDynamicRangeProfiles()) {
+                currentMax = CURRENT_MAX;
+            }
             if (elements[i+1] != 0) {
-                for (long profile = STANDARD; profile < PUBLIC_MAX; profile <<= 1) {
+                for (long profile = STANDARD; profile < currentMax; profile <<= 1) {
                     if ((elements[i+1] & profile) != 0) {
                         profiles.add(profile);
                     }
@@ -247,6 +389,22 @@ public final class DynamicRangeProfiles {
                 || profile == DOLBY_VISION_8B_HDR_OEM
                 || profile == DOLBY_VISION_8B_HDR_OEM_PO) {//No-op
         } else {
+            if (Flags.newDynamicRangeProfiles()) {
+                if (profile == STANDARD_SMPTE_2094_50 || profile == HLG10_SMPTE_2094_50
+                        || profile == HDR10_SMPTE_2094_50
+                        || profile == HDR10_PLUS_SMPTE_2094_50
+                        || profile == DOLBY_VISION_10B_HDR_REF_SMPTE_2094_50
+                        || profile == DOLBY_VISION_10B_HDR_REF_PO_SMPTE_2094_50
+                        || profile == DOLBY_VISION_10B_HDR_OEM_SMPTE_2094_50
+                        || profile == DOLBY_VISION_10B_HDR_OEM_PO_SMPTE_2094_50
+                        || profile == DOLBY_VISION_8B_HDR_REF_SMPTE_2094_50
+                        || profile == DOLBY_VISION_8B_HDR_REF_PO_SMPTE_2094_50
+                        || profile == DOLBY_VISION_8B_HDR_OEM_SMPTE_2094_50
+                        || profile == DOLBY_VISION_8B_HDR_OEM_PO_SMPTE_2094_50) {
+                    // No-op
+                    return;
+                }
+            }
             throw new IllegalArgumentException("Unknown profile " + profile);
         }
     }

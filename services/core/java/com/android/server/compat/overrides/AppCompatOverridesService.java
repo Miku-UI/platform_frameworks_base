@@ -19,6 +19,7 @@ package com.android.server.compat.overrides;
 import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.ACTION_PACKAGE_CHANGED;
 import static android.content.Intent.ACTION_PACKAGE_REMOVED;
+import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_VIRTUAL_GAMEPAD;
 import static android.content.pm.PackageManager.MATCH_ANY_USER;
 import static android.provider.DeviceConfig.NAMESPACE_APP_COMPAT_OVERRIDES;
 
@@ -74,6 +75,17 @@ public final class AppCompatOverridesService {
 
     private static final List<String> SUPPORTED_NAMESPACES = Arrays.asList(
             NAMESPACE_APP_COMPAT_OVERRIDES);
+
+    /**
+     * Set of change IDs that are considered pre-install required to be known even before a
+     * package is installed.
+     *
+     * <p>These overrides are preserved in CompatChange even if the targeted package is not yet
+     * installed, to allow for predictive checks.
+     */
+    private static final Set<Long> PRE_INSTALL_REQUIRED_CHANGE_IDS = Set.of(
+            OVERRIDE_ENABLE_VIRTUAL_GAMEPAD
+    );
 
     private final Context mContext;
     private final PackageManager mPackageManager;
@@ -153,6 +165,12 @@ public final class AppCompatOverridesService {
                 overridesToAdd = mOverridesParser.parsePackageOverrides(
                         properties.getString(packageName, /* defaultValue= */ ""), packageName,
                         versionCode, changeIdsToSkip);
+            } else {
+                // If package not installed, only add pre-install required overrides.
+                overridesToAdd = filterPreInstallRequiredOverrides(
+                        mOverridesParser.parsePackageOverrides(
+                                properties.getString(packageName, ""), packageName,
+                                -1L, changeIdsToSkip));
             }
             if (!overridesToAdd.isEmpty()) {
                 packageNameToOverridesToAdd.put(packageName,
@@ -208,10 +226,44 @@ public final class AppCompatOverridesService {
                 // No overrides for this package in this namespace.
                 continue;
             }
-            // We remove overrides for each namespace separately so that if there is a failure for
-            // one namespace, the other namespaces won't be affected.
-            removePackageOverrides(packageName, getOwnedChangeIds(namespace));
+            // Filter out pre-install required change IDs so they persist for predictive checks.
+            final Set<Long> overridesToRemove = filterNonPreInstallRequiredChangeIds(
+                    getOwnedChangeIds(namespace));
+            if (!overridesToRemove.isEmpty()) {
+                removePackageOverrides(packageName, overridesToRemove);
+            }
         }
+    }
+
+    /**
+     * Filters the given overrides to only include those that are considered pre-install required
+     * for pre-install predictive checks (e.g., Virtual Gamepad enablement).
+     */
+    private Map<Long, PackageOverride> filterPreInstallRequiredOverrides(
+            Map<Long, PackageOverride> overrides) {
+        final Map<Long, PackageOverride> preInstallRequiredOverrides = new ArrayMap<>();
+        for (final Map.Entry<Long, PackageOverride> entry : overrides.entrySet()) {
+            if (PRE_INSTALL_REQUIRED_CHANGE_IDS.contains(entry.getKey())) {
+                preInstallRequiredOverrides.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return preInstallRequiredOverrides;
+    }
+
+    /**
+     * Filters the given change IDs to exclude those that are considered pre-install required for
+     * pre-install predictive checks. This ensures that pre-install required overrides persist even
+     * when a package is uninstalled, allowing for accurate predictive enablement during
+     * the next package scan.
+     */
+    private Set<Long> filterNonPreInstallRequiredChangeIds(Set<Long> changeIds) {
+        final Set<Long> nonPreInstallRequiredChangeIds = new ArraySet<>();
+        for (final Long changeId : changeIds) {
+            if (!PRE_INSTALL_REQUIRED_CHANGE_IDS.contains(changeId)) {
+                nonPreInstallRequiredChangeIds.add(changeId);
+            }
+        }
+        return nonPreInstallRequiredChangeIds;
     }
 
     /**

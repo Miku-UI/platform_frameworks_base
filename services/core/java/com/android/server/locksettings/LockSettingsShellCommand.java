@@ -28,9 +28,9 @@ import android.text.TextUtils;
 import android.util.Slog;
 
 import com.android.internal.widget.LockPatternUtils;
-import com.android.internal.widget.LockPatternUtils.RequestThrottledException;
 import com.android.internal.widget.LockscreenCredential;
 import com.android.internal.widget.PasswordValidationError;
+import com.android.internal.widget.VerifyCredentialResponse;
 
 import java.io.PrintWriter;
 import java.util.List;
@@ -346,23 +346,23 @@ class LockSettingsShellCommand extends ShellCommand {
                 return false;
             }
 
-            try {
-                final boolean result = mLockPatternUtils.checkCredential(getOldCredential(),
-                        mCurrentUserId, null);
-                if (!result) {
-                    if (!mLockPatternUtils.isManagedProfileWithUnifiedChallenge(mCurrentUserId)) {
-                        mLockPatternUtils.reportFailedPasswordAttempt(mCurrentUserId);
-                    }
-                    getOutPrintWriter().println("Old password '" + mOld + "' didn't match");
-                } else {
-                    // Resets the counter for failed password attempts to 0.
-                    mLockPatternUtils.reportSuccessfulPasswordAttempt(mCurrentUserId);
+            final VerifyCredentialResponse response = mLockPatternUtils.checkCredential(
+                    getOldCredential(), mCurrentUserId, null);
+            final boolean result = response.isMatched();
+            if (!result) {
+                if (response.hasTimeout()) {
+                    getOutPrintWriter().println("Request throttled");
+                    return false;
                 }
-                return result;
-            } catch (RequestThrottledException e) {
-                getOutPrintWriter().println("Request throttled");
-                return false;
+                if (!mLockPatternUtils.isManagedProfileWithUnifiedChallenge(mCurrentUserId)) {
+                    mLockPatternUtils.reportFailedPasswordAttempt(mCurrentUserId);
+                }
+                getOutPrintWriter().println("Old password '" + mOld + "' didn't match");
+            } else {
+                // Resets the counter for failed password attempts to 0.
+                mLockPatternUtils.reportSuccessfulPasswordAttempt(mCurrentUserId);
             }
+            return result;
         } else {
             if (!mOld.isEmpty()) {
                 getOutPrintWriter().println("Old password provided but user has no password");

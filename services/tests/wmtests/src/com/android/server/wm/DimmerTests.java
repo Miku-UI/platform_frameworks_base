@@ -16,36 +16,41 @@
 
 package com.android.server.wm;
 
+import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
+import static android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
+import static android.view.WindowManager.LayoutParams.TYPE_SYSTEM_DIALOG;
+
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.never;
-import static com.android.dx.mockito.inline.extended.ExtendedMockito.spy;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.times;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.server.wm.utils.LastCallVerifier.lastCall;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 
+import android.graphics.Color;
 import android.graphics.Rect;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.view.Choreographer;
 import android.view.SurfaceControl;
-import android.view.SurfaceSession;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
-import com.android.server.testutils.StubTransaction;
-import com.android.server.wm.utils.MockAnimationAdapter;
+import android.window.ITaskFragmentOrganizer;
+import android.window.TaskFragmentOrganizer;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.verification.VerificationMode;
 
 /**
  * Build/Install/Run:
@@ -55,198 +60,118 @@ import org.junit.runner.RunWith;
 @RunWith(WindowTestRunner.class)
 public class DimmerTests extends WindowTestsBase {
 
-    private static class MockSurfaceBuildingContainer extends WindowContainer<WindowState> {
-        final SurfaceSession mSession = new SurfaceSession();
-        final SurfaceControl mHostControl = mock(SurfaceControl.class);
-        final SurfaceControl.Transaction mHostTransaction = spy(StubTransaction.class);
-        Rect mBounds = new Rect(10, 20, 30, 40);
-
-        MockSurfaceBuildingContainer(WindowManagerService wm) {
-            super(wm);
-            mVisibleRequested = true;
-        }
-
-        static class MockSurfaceBuilder extends SurfaceControl.Builder {
-            MockSurfaceBuilder(SurfaceSession ss) {
-                super(ss);
-            }
-
-            @NonNull
-            @Override
-            public SurfaceControl build() {
-                SurfaceControl mSc = mock(SurfaceControl.class);
-                when(mSc.isValid()).thenReturn(true);
-                return mSc;
-            }
-        }
-
-        @NonNull
-        @Override
-        SurfaceControl.Builder makeChildSurface(@Nullable WindowContainer child) {
-            return new MockSurfaceBuilder(mSession);
-        }
-
-        @Nullable
-        @Override
-        public SurfaceControl getSurfaceControl() {
-            return mHostControl;
-        }
-
-        @NonNull
-        @Override
-        public SurfaceControl.Transaction getSyncTransaction() {
-            return mHostTransaction;
-        }
-
-        @NonNull
-        @Override
-        public SurfaceControl.Transaction getPendingTransaction() {
-            return mHostTransaction;
-        }
-
-        @NonNull
-        @Override
-        public Rect getBounds() {
-            return mBounds;
-        }
-    }
-
-    static class MockAnimationAdapterFactory extends DimmerAnimationHelper.AnimationAdapterFactory {
-        @NonNull
-        @Override
-        public AnimationAdapter get(@NonNull LocalAnimationAdapter.AnimationSpec alphaAnimationSpec,
-                @NonNull SurfaceAnimationRunner runner) {
-            return sTestAnimation;
-        }
-    }
-
-    static class TestActivityEmbeddingMock {
-        Task mTask = mock(Task.class);
-        TaskFragment mLeft = mock(TaskFragment.class);
-        TaskFragment mRight = mock(TaskFragment.class);
-        Rect mTaskBounds = new Rect(10, 0, 50, 40);
-        Rect mLeftBounds = new Rect(10, 0, 30, 40);
-        Rect mRightBounds = new Rect(30, 0, 50, 40);
-
-        TestActivityEmbeddingMock() {
-            when(mTask.getBounds()).thenReturn(mTaskBounds);
-            when(mLeft.getBounds()).thenReturn(mLeftBounds);
-            when(mRight.getBounds()).thenReturn(mRightBounds);
-            when(mLeft.isEmbedded()).thenReturn(true);
-            when(mRight.isEmbedded()).thenReturn(true);
-        }
-
-        void pretendParentToTask(WindowState child) {
-            when(child.getTaskFragment()).thenReturn(mTask);
-            when(child.getTask()).thenReturn(mTask);
-        }
-
-        void pretendParentToRight(WindowState child) {
-            when(child.getTaskFragment()).thenReturn(mRight);
-            when(child.getTask()).thenReturn(mTask);
-        }
-    }
-
-    WindowState getMockDimmingContainer() {
-        WindowState window = mock(WindowState.class);
-        SurfaceControl surface = mock(SurfaceControl.class);
-        when(window.getSurfaceControl()).thenReturn(surface);
-        return window;
-    }
-
-    private Dimmer mDimmer;
-    private SurfaceControl.Transaction mTransaction;
-    MockSurfaceBuildingContainer mHost;
-    private WindowState mChild1;
-    private WindowState mChild2;
-    private static AnimationAdapter sTestAnimation;
-
     @Before
     public void setUp() throws Exception {
-        mHost = new MockSurfaceBuildingContainer(mWm);
-        mTransaction = mHost.getSyncTransaction();
-
-        SurfaceAnimator animator = mock(SurfaceAnimator.class);
-        when(animator.getAnimation()).thenReturn(null);
-
-        mChild1 = getMockDimmingContainer();
-        mChild2 = getMockDimmingContainer();
-
-        mHost.addChild(mChild1, 0);
-        mHost.addChild(mChild2, 1);
-
-        sTestAnimation = spy(new MockAnimationAdapter());
-        mDimmer = new Dimmer(mHost, new MockAnimationAdapterFactory());
+        spyOn(mWm.mSurfaceAnimationRunner);
+        // Avoid scheduling frame on animation thread.
+        mWm.mSurfaceAnimationRunner.mChoreographer = mock(Choreographer.class);
     }
 
     @Test
     public void testBoundsInActivityEmbeddingForWholeTask() {
-        final WindowState dimmingWindow = getMockDimmingContainer();
-        TestActivityEmbeddingMock embedding = new TestActivityEmbeddingMock();
-        embedding.pretendParentToRight(dimmingWindow);
-        when(embedding.mRight.isDimmingOnParentTask()).thenReturn(true);
+        final WindowState win = createNonFillEmbeddedActivityWindow();
+        final TaskFragment taskFragment = win.getTaskFragment();
+        taskFragment.setEmbeddedDimArea(TaskFragment.EMBEDDED_DIM_AREA_PARENT_TASK);
+        final Task task = win.getTask();
+        final Dimmer dimmer = task.mDimmer;
 
-        mDimmer.adjustAppearance(dimmingWindow, 1, 1);
-        mDimmer.adjustPosition(dimmingWindow, dimmingWindow);
-        mDimmer.updateDims(mTransaction);
-        verify(mTransaction).setWindowCrop(mDimmer.getDimLayer(),
-                embedding.mTaskBounds.width(), embedding.mTaskBounds.height());
-        verify(mTransaction).setPosition(mDimmer.getDimLayer(), 0, 0);
+        dimmer.adjustAppearance(win, 1 /* alpha */, 1 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
+        verifySurfaceCrop(dimmer.getDimLayer(), task.getBounds(), 0 /* x */, 0 /* y */);
     }
 
     @Test
     public void testBoundsInActivityEmbeddingForTaskFragmentOnly() {
-        final WindowState dimmingWindow = getMockDimmingContainer();
-        TestActivityEmbeddingMock embedding = new TestActivityEmbeddingMock();
-        embedding.pretendParentToRight(dimmingWindow);
-        when(embedding.mRight.isDimmingOnParentTask()).thenReturn(false);
+        final WindowState win = createNonFillEmbeddedActivityWindow();
+        final TaskFragment taskFragment = win.getTaskFragment();
+        taskFragment.setEmbeddedDimArea(TaskFragment.EMBEDDED_DIM_AREA_TASK_FRAGMENT);
+        final Task task = win.getTask();
+        final Dimmer dimmer = task.mDimmer;
 
-        mDimmer.adjustAppearance(dimmingWindow, 1, 1);
-        mDimmer.adjustPosition(dimmingWindow, dimmingWindow);
-        mDimmer.updateDims(mTransaction);
-        Rect expectedAbsoluteBounds = embedding.mRightBounds;
-        Rect expectedRelativeBounds = new Rect(expectedAbsoluteBounds);
-        expectedRelativeBounds.offset(-embedding.mTaskBounds.left, -embedding.mTaskBounds.top);
-        verify(mTransaction).setWindowCrop(mDimmer.getDimLayer(),
-                embedding.mRightBounds.width(), embedding.mRightBounds.height());
-        verify(mTransaction).setPosition(mDimmer.getDimLayer(),
-                expectedRelativeBounds.left, expectedRelativeBounds.top);
-        assertEquals(expectedAbsoluteBounds, mDimmer.getDimBounds());
+        dimmer.adjustAppearance(win, 1 /* alpha */, 1 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
+        final Rect tfBounds = taskFragment.getBounds();
+        final int expectedRelativeX = tfBounds.left - task.getBounds().left;
+        final int expectedRelativeY = tfBounds.top - task.getBounds().top;
+        verifySurfaceCrop(dimmer.getDimLayer(), tfBounds, expectedRelativeX, expectedRelativeY);
+        assertEquals(tfBounds, dimmer.getDimBounds());
     }
 
+    /**
+     * Creates an embedded activity window which belongs to a TF that doesn't fill the task.
+     * The dimmer will be from the task.
+     */
+    private WindowState createNonFillEmbeddedActivityWindow() {
+        final TaskFragmentOrganizer organizer = new TaskFragmentOrganizer(Runnable::run);
+        registerTaskFragmentOrganizer(ITaskFragmentOrganizer.Stub.asInterface(
+                organizer.getOrganizerToken().asBinder()));
+        final Task task = createTask(mDisplayContent, WINDOWING_MODE_MULTI_WINDOW,
+                ACTIVITY_TYPE_STANDARD);
+        // Use a non-zero position to verify the dim crop.
+        final Rect shrinkBounds = new Rect(task.getBounds());
+        shrinkBounds.inset(10, 10, 10, 10);
+        task.setBounds(shrinkBounds);
+        final TaskFragment taskFragment = createTaskFragmentWithEmbeddedActivity(task, organizer);
+        // Simulate a right-side split to verify EmbeddedDimArea.
+        final Rect halfBounds = new Rect(taskFragment.getBounds());
+        halfBounds.left += halfBounds.width() / 2;
+        taskFragment.setBounds(halfBounds);
+        final WindowState win = newWindowBuilder("embedded", TYPE_BASE_APPLICATION)
+                .setWindowToken(taskFragment.getTopMostActivity()).build();
+        win.mActivityRecord.setVisibleRequested(true);
+        win.mActivityRecord.setVisible(true);
+        // Reduce the unrelated recorded operations of the global mocked transaction.
+        clearInvocations(mTransaction);
+        return win;
+    }
+
+    @SetupWindows(addWindows = W_ACTIVITY)
     @Test
     public void testDimBoundsAdaptToResizing() {
+        final Task task = mAppWindow.getTask();
+        final Dimmer dimmer = task.mDimmer;
         // First call with some generic bounds
-        mDimmer.adjustAppearance(mChild1, 0.5f, 1);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
-        verify(mTransaction).setWindowCrop(mDimmer.getDimLayer(),
-                mHost.getBounds().width(), mHost.getBounds().height());
+        dimmer.adjustAppearance(mAppWindow, 0.5f /* alpha */, 1 /* blurRadius */);
+        dimmer.adjustPosition(mAppWindow, mAppWindow);
+        dimmer.updateDims(mTransaction);
+        verifySurfaceCrop(dimmer.getDimLayer(), task.getBounds(), 0 /* x */, 0 /* y */);
 
         // Change bounds
-        mHost.getBounds().left += 5;
-        mHost.getBounds().top += 6;
-        mDimmer.adjustAppearance(mChild1, 1, 1);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
-        verify(mTransaction).setWindowCrop(mDimmer.getDimLayer(),
-                mHost.getBounds().width(), mHost.getBounds().height());
+        final Rect newBounds = new Rect(task.getBounds());
+        newBounds.left += 5;
+        newBounds.top += 6;
+        task.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
+        task.setBounds(newBounds);
+        dimmer.adjustAppearance(mAppWindow, 1 /* alpha */, 1 /* blurRadius */);
+        dimmer.adjustPosition(mAppWindow, mAppWindow);
+        clearInvocations(mTransaction);
+        dimmer.updateDims(mTransaction);
+        verifySurfaceCrop(dimmer.getDimLayer(), newBounds, 0 /* x */, 0 /* y */);
+    }
+
+    private void verifySurfaceCrop(SurfaceControl dimLayer, Rect crop, int x, int y) {
+        crop = new Rect(crop);
+        crop.offsetTo(x, y);
+        verify(mTransaction).setCrop(dimLayer, crop);
     }
 
     @Test
     public void testDimBelowWithChildSurfaceCreatesSurfaceBelowChild() {
         final float alpha = 0.7f;
         final int blur = 50;
-        mDimmer.adjustAppearance(mChild1, alpha, blur);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win, alpha, blur);
+        dimmer.adjustPosition(win, win);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
 
         assertNotNull("Dimmer should have created a surface", dimLayer);
 
-        mDimmer.updateDims(mTransaction);
-        verify(sTestAnimation).startAnimation(eq(dimLayer), eq(mTransaction),
-                anyInt(), any(SurfaceAnimator.OnAnimationFinishedCallback.class));
-        verify(mTransaction).setRelativeLayer(dimLayer, mChild1.getSurfaceControl(), -1);
+        dimmer.updateDims(mTransaction);
+        invokeAnimationEndCallback();
+        verify(mTransaction).setRelativeLayer(dimLayer, win.getSurfaceControl(), -1);
         verify(mTransaction, lastCall()).setAlpha(dimLayer, alpha);
         verify(mTransaction).setBackgroundBlurRadius(dimLayer, blur);
     }
@@ -255,15 +180,17 @@ public class DimmerTests extends WindowTestsBase {
     public void testDimBelowWithChildSurfaceDestroyedWhenReset() {
         final float alpha = 0.8f;
         final int blur = 50;
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
         // Dim once
-        mDimmer.adjustAppearance(mChild1, alpha, blur);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.updateDims(mTransaction);
+        dimmer.adjustAppearance(win, alpha, blur);
+        dimmer.adjustPosition(win, win);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        updateDimsToRequestedState(dimmer);
         // Reset, and don't dim
-        mDimmer.resetDimStates();
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustPosition(win, win);
+        updateDimsToRequestedState(dimmer);
         verify(mTransaction).show(dimLayer);
         verify(mTransaction).remove(dimLayer);
     }
@@ -272,65 +199,65 @@ public class DimmerTests extends WindowTestsBase {
     public void testDimBelowWithChildSurfaceNotDestroyedWhenPersisted() {
         final float alpha = 0.8f;
         final int blur = 20;
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
         // Dim once
-        mDimmer.adjustAppearance(mChild1, alpha, blur);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.updateDims(mTransaction);
+        dimmer.adjustAppearance(win, alpha, blur);
+        dimmer.adjustPosition(win, win);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        dimmer.updateDims(mTransaction);
         // Reset and dim again
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, alpha, blur);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win, alpha, blur);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
         verify(mTransaction).show(dimLayer);
         verify(mTransaction, never()).remove(dimLayer);
     }
 
     @Test
     public void testRemoveDimImmediately() {
-        mDimmer.adjustAppearance(mChild1, 1, 2);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.updateDims(mTransaction);
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win, 1 /* alpha */, 2 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        dimmer.updateDims(mTransaction);
         verify(mTransaction, times(1)).show(dimLayer);
 
-        reset(sTestAnimation);
-        mDimmer.dontAnimateExit();
-        mDimmer.resetDimStates();
-        mDimmer.updateDims(mTransaction);
-        verify(sTestAnimation, never()).startAnimation(
-                any(SurfaceControl.class), any(SurfaceControl.Transaction.class),
-                anyInt(), any(SurfaceAnimator.OnAnimationFinishedCallback.class));
+        clearInvocations(mWm.mSurfaceAnimationRunner);
+        dimmer.dontAnimateExit();
+        dimmer.resetDimStates();
+        dimmer.updateDims(mTransaction);
+        invokeAnimationEndCallback(never());
         verify(mTransaction).remove(dimLayer);
     }
 
     /**
-     * mChild is requesting the dim values to be set directly. In this case, dim won't play the
-     * standard animation, but directly apply mChild's requests to the dim surface
+     * A window is requesting the dim values to be set directly. In this case, dim won't play the
+     * standard animation, but directly apply the window's requests to the dim surface.
      */
     @Test
     public void testContainerDimsOpeningAnimationByItself() {
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, 0.1f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.updateDims(mTransaction);
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win, 0.1f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        updateDimsToRequestedState(dimmer);
 
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, 0.2f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win, 0.2f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
 
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, 0.3f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win, 0.3f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
 
         verify(mTransaction).setAlpha(dimLayer, 0.2f);
         verify(mTransaction).setAlpha(dimLayer, 0.3f);
-        verify(sTestAnimation, times(1)).startAnimation(
-                any(SurfaceControl.class), any(SurfaceControl.Transaction.class),
-                anyInt(), any(SurfaceAnimator.OnAnimationFinishedCallback.class));
     }
 
     /**
@@ -339,24 +266,26 @@ public class DimmerTests extends WindowTestsBase {
      */
     @Test
     public void testContainerDimsClosingAnimationByItself() {
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, 0.2f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.updateDims(mTransaction);
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win, 0.2f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        dimmer.updateDims(mTransaction);
 
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, 0.1f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win, 0.1f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
 
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild1, 0f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win, 0f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        dimmer.updateDims(mTransaction);
 
-        mDimmer.resetDimStates();
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.updateDims(mTransaction);
         verify(mTransaction).remove(dimLayer);
     }
 
@@ -365,19 +294,21 @@ public class DimmerTests extends WindowTestsBase {
      */
     @Test
     public void testMultipleContainersDimmingConsecutively() {
-        mDimmer.adjustAppearance(mChild1, 0.5f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.updateDims(mTransaction);
+        final WindowState win1 = createSystemWindow("win1");
+        final WindowState win2 = createSystemWindow("win2");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win1, 0.5f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win1, win1);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        dimmer.updateDims(mTransaction);
+        invokeAnimationEndCallback();
 
-        mDimmer.resetDimStates();
-        mDimmer.adjustAppearance(mChild2, 0.9f, 0);
-        mDimmer.adjustPosition(mChild1, mChild2);
-        mDimmer.updateDims(mTransaction);
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win2, 0.9f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win1, win2);
+        dimmer.updateDims(mTransaction);
+        invokeAnimationEndCallback();
 
-        verify(sTestAnimation, times(2)).startAnimation(
-                any(SurfaceControl.class), any(SurfaceControl.Transaction.class),
-                anyInt(), any(SurfaceAnimator.OnAnimationFinishedCallback.class));
         verify(mTransaction).setAlpha(dimLayer, 0.5f);
         verify(mTransaction).setAlpha(dimLayer, 0.9f);
     }
@@ -388,18 +319,19 @@ public class DimmerTests extends WindowTestsBase {
      */
     @Test
     public void testMultipleContainersDimmingAtTheSameTime() {
-        mDimmer.adjustAppearance(mChild1, 0.5f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        SurfaceControl dimLayer = mDimmer.getDimLayer();
-        mDimmer.adjustAppearance(mChild2, 0.9f, 0);
-        mDimmer.adjustPosition(mChild1, mChild2);
-        mDimmer.updateDims(mTransaction);
+        final WindowState win1 = createSystemWindow("win1");
+        final WindowState win2 = createSystemWindow("win2");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win1, 0.5f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win1, win1);
+        final SurfaceControl dimLayer = dimmer.getDimLayer();
+        final SurfaceControl.Transaction t = dimmer.mDimState.mHostContainer.getSyncTransaction();
+        dimmer.adjustAppearance(win2, 0.9f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win1, win2);
+        updateDimsToRequestedState(dimmer);
 
-        verify(sTestAnimation, times(1)).startAnimation(
-                any(SurfaceControl.class), any(SurfaceControl.Transaction.class),
-                anyInt(), any(SurfaceAnimator.OnAnimationFinishedCallback.class));
-        verify(mTransaction, never()).setAlpha(dimLayer, 0.5f);
-        verify(mTransaction).setAlpha(dimLayer, 0.9f);
+        verify(t, never()).setAlpha(dimLayer, 0.5f);
+        verify(t).setAlpha(dimLayer, 0.9f);
     }
 
     /**
@@ -409,15 +341,17 @@ public class DimmerTests extends WindowTestsBase {
      */
     @Test
     public void testDimNotCreatedIfNoAlphaNoBlur() {
-        mDimmer.adjustAppearance(mChild1, 0.0f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        assertNull(mDimmer.getDimLayer());
-        mDimmer.updateDims(mTransaction);
-        assertNull(mDimmer.getDimLayer());
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win, 0.0f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        assertNull(dimmer.getDimLayer());
+        dimmer.updateDims(mTransaction);
+        assertNull(dimmer.getDimLayer());
 
-        mDimmer.adjustAppearance(mChild1, 0.9f, 0);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        assertNotNull(mDimmer.getDimLayer());
+        dimmer.adjustAppearance(win, 0.9f /* alpha */, 0 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        assertNotNull(dimmer.getDimLayer());
     }
 
     /**
@@ -425,8 +359,123 @@ public class DimmerTests extends WindowTestsBase {
      */
     @Test
     public void testDimCreatedIfNoAlphaButHasBlur() {
-        mDimmer.adjustAppearance(mChild1, 0.0f, 10);
-        mDimmer.adjustPosition(mChild1, mChild1);
-        assertNotNull(mDimmer.getDimLayer());
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+        dimmer.adjustAppearance(win, 0.0f /* alpha */, 10 /* blurRadius */);
+        dimmer.adjustPosition(win, win);
+        assertNotNull(dimmer.getDimLayer());
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+    public void testCustomDimColorApplied() {
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+
+        long customColor = Color.pack(Color.GREEN);
+        float[] expectedColor = new float[] {0f, 1f, 0f};
+
+        dimmer.adjustAppearance(win, 0.7f , 20 , customColor);
+        dimmer.adjustPosition(win, win);
+
+        updateDimsToRequestedState(dimmer);
+
+        verify(mTransaction).setColor(dimmer.getDimLayer(), expectedColor);
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+    public void testDefaultDimColorIsBlack() {
+        final WindowState win = createSystemWindow("win");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+
+        float[] expectedBlack = new float[] {0f, 0f, 0f};
+
+        dimmer.adjustAppearance(win, 0.5f, 10);
+        dimmer.adjustPosition(win, win);
+        updateDimsToRequestedState(dimmer);
+
+        verify(mTransaction).setColor(dimmer.getDimLayer(), expectedBlack);
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+    public void testMultipleWindowsDifferentDimColors() {
+        final WindowState bottomWin = createSystemWindow("bottomWin");
+        final WindowState topWin = createSystemWindow("topWin");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+
+        long bottomColor = Color.pack(Color.RED);
+        long topColor = Color.pack(Color.BLUE);
+        float[] expectedTopColor = new float[] {0f, 0f, 1f}; // BLUE
+        float[] bottomColorArray = new float[] {1f, 0f, 0f}; // RED
+
+        dimmer.adjustAppearance(bottomWin, 0.5f, 10, bottomColor);
+        dimmer.adjustAppearance(topWin, 0.5f, 10, topColor);
+        dimmer.adjustPosition(topWin, topWin);
+
+        updateDimsToRequestedState(dimmer);
+
+        verify(mTransaction).setColor(dimmer.getDimLayer(), expectedTopColor);
+        verify(mTransaction, never()).setColor(dimmer.getDimLayer(), bottomColorArray);
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+    public void testDimColorHandover() {
+        final WindowState win1 = createSystemWindow("win1");
+        final WindowState win2 = createSystemWindow("win2");
+        final Dimmer dimmer = mDisplayContent.mDimmer;
+
+        dimmer.adjustAppearance(win1, 1.0f, 0, Color.pack(Color.RED));
+        dimmer.adjustPosition(win1, win1);
+        updateDimsToRequestedState(dimmer);
+
+        dimmer.resetDimStates();
+        dimmer.adjustAppearance(win2, 1.0f, 0, Color.pack(Color.BLUE));
+        dimmer.adjustPosition(win1, win2);
+
+        updateDimsToRequestedState(dimmer);
+
+        // Assert: Verify the final color applied to the dim layer's surface is BLUE.
+        final ArgumentCaptor<float[]> colorCaptor = ArgumentCaptor.forClass(float[].class);
+        // The animation, when finished, should have set the final color on the transaction.
+        // We verify the last call to setColor for the dim layer.
+        verify(mTransaction, atLeastOnce())
+                .setColor(eq(dimmer.getDimLayer()), colorCaptor.capture());
+
+        float[] expectedBlue = new float[] { 0f, 0f, 1f }; // Color.BLUE
+        assertArrayEquals("Dimmer color should be set to BLUE after the animation.",
+                expectedBlue, colorCaptor.getValue(), 0.0f);
+    }
+
+    /** Called after {@link Dimmer#updateDims} to apply the end state of dim. */
+    private void invokeAnimationEndCallback() {
+        invokeAnimationEndCallback(times(1));
+    }
+
+    /** This also asserts that the dim animation is played. */
+    private void updateDimsToRequestedState(Dimmer dimmer) {
+        dimmer.updateDims(mTransaction);
+        invokeAnimationEndCallback(times(1));
+    }
+
+    private void invokeAnimationEndCallback(VerificationMode verification) {
+        final ArgumentCaptor<Runnable> endCallbackCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(mWm.mSurfaceAnimationRunner, verification).startAnimation(
+                any(LocalAnimationAdapter.AnimationSpec.class), any(SurfaceControl.class),
+                any(SurfaceControl.Transaction.class), endCallbackCaptor.capture());
+        for (Runnable finishCallback : endCallbackCaptor.getAllValues()) {
+            finishCallback.run();
+        }
+        clearInvocations(mWm.mSurfaceAnimationRunner);
+    }
+
+    /** Creates a non-activity window. The dimmer will be from DisplayArea.Dimmable. */
+    private WindowState createSystemWindow(String name) {
+        final WindowState win = newWindowBuilder(name, TYPE_SYSTEM_DIALOG).build();
+        // Reduce the unrelated recorded operations of the global mocked transaction.
+        clearInvocations(mTransaction);
+        return win;
     }
 }

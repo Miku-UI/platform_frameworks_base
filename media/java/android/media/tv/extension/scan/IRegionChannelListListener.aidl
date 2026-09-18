@@ -20,5 +20,10 @@ package android.media.tv.extension.scan;
  * @hide
  */
 oneway interface IRegionChannelListListener {
+    /**
+    * Notify listeners when region channel list are detected in region channel list search.
+    *
+    * @param detectRegionChannelList String array containing region channel list.
+    */
     void onDetectRegionChannelList(in String[] detectRegionChannelList);
 }

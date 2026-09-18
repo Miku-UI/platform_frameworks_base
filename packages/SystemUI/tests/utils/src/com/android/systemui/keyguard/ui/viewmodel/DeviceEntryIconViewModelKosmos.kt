@@ -45,7 +45,6 @@ val Kosmos.deviceEntryIconViewModel by Fixture {
         deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
         transitionInteractor = keyguardTransitionInteractor,
         keyguardInteractor = keyguardInteractor,
-        viewModel = aodToLockscreenTransitionViewModel,
         keyguardViewController = { statusBarKeyguardViewManager },
         deviceEntryInteractor = deviceEntryInteractor,
         deviceEntrySourceInteractor = deviceEntrySourceInteractor,

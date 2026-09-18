@@ -50,7 +50,7 @@ class FakeHeadsUpNotificationRepository : HeadsUpRepository {
         // do nothing
     }
 
-    override fun unpinAll(userUnPinned: Boolean) {
+    override fun unpinAll(userUnPinned: Boolean, reason: String) {
         orderedHeadsUpRows.value.forEach { row ->
             (row.pinnedStatus as? MutableStateFlow<PinnedStatus>)?.value = PinnedStatus.NotPinned
         }

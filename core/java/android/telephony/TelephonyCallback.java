@@ -23,6 +23,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
+import android.app.compat.CompatChanges;
 import android.compat.annotation.ChangeId;
 import android.os.Binder;
 import android.os.Build;
@@ -31,6 +32,7 @@ import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.MediaQualityStatus;
 import android.telephony.ims.MediaThreshold;
 import android.telephony.satellite.NtnSignalStrength;
+import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -112,6 +114,24 @@ public class TelephonyCallback {
      */
     @ChangeId
     public static final long PHONE_STATE_LISTENER_LIMIT_CHANGE_ID = 150880553L;
+
+    /**
+     * This change prevents re-registration of TelephonyCallback without previous de-registration.
+     *
+     * Without this change, re-registration of the callback has a few surprising and negative
+     * behaviors. It will silently leak the previous callback, meaning that any expected code will
+     * continue to be invoked when events occur. But, this will only occur until garbage collection
+     * at which point the events will silently drop. In addition, re-registration of the callback
+     * will re-invoke the "initial" callbacks for each listener.
+     *
+     * With this change enabled, re-registration of an already-registered listener will result in
+     * an {@link IllegalStateException}.
+     *
+     * @hide
+     */
+    @ChangeId
+    public static final long PREVENT_CALLBACK_REREGISTRATION = 433336412L;
+
 
     /**
      * Event for changes to the network service state (cellular).
@@ -645,7 +665,6 @@ public class TelephonyCallback {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
     @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
     @SystemApi
     public static final int EVENT_SIMULTANEOUS_CELLULAR_CALLING_SUBSCRIPTIONS_CHANGED = 41;
@@ -723,7 +742,6 @@ public class TelephonyCallback {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
     @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
     @SystemApi
     public static final int EVENT_SECURITY_ALGORITHMS_CHANGED = 46;
@@ -734,10 +752,44 @@ public class TelephonyCallback {
       *
       * @hide
       */
-    @FlaggedApi(Flags.FLAG_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
     @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
     @SystemApi
     public static final int EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED = 47;
+
+    /**
+     * Event for updates to network security events.
+     * See {@link NetworkSecurityEventListener#onNetworkSecurityEvents}
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NETWORK_SECURITY_EVENT_INDICATIONS)
+    @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
+    @SystemApi
+    public static final int EVENT_NETWORK_SECURITY_EVENTS = 48;
+
+    /**
+     * Event for changes to the emergency mode when AP domain selection is enabled.
+     *
+     * <p>Requires permission {@link android.Manifest.permission#READ_BASIC_PHONE_STATE}
+     *
+     * @see DomainSelectionEmergencyModeListener#onEmergencyModeEntered(int, int, int)
+     * @see DomainSelectionEmergencyModeListener#onEmergencyModeExited(int, int, int)
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_DOMAIN_SELECTION_EMERGENCY_MODE_NOTIFICATION)
+    @RequiresPermission(Manifest.permission.READ_BASIC_PHONE_STATE)
+    public static final int EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED = 49;
+
+    /**
+     * Event for listening to satellite purchase mode changes.
+     *
+     * @see SatellitePurchaseModeListener
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL_26Q4)
+    public static final int EVENT_SATELLITE_PURCHASE_MODE_CHANGED = 50;
 
     /**
      * @hide
@@ -789,7 +841,10 @@ public class TelephonyCallback {
             EVENT_CARRIER_ROAMING_NTN_AVAILABLE_SERVICES_CHANGED,
             EVENT_CARRIER_ROAMING_NTN_SIGNAL_STRENGTH_CHANGED,
             EVENT_SECURITY_ALGORITHMS_CHANGED,
-            EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED
+            EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED,
+            EVENT_NETWORK_SECURITY_EVENTS,
+            EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED,
+            EVENT_SATELLITE_PURCHASE_MODE_CHANGED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface TelephonyEvent {
@@ -802,12 +857,34 @@ public class TelephonyCallback {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public IPhoneStateListener callback;
 
+    // Lock to prevent race conditions during registration/unregistration.
+    private final Object mLock = new Object();
+
     /**
      * @hide
      */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void init(@NonNull @CallbackExecutor Executor executor) {
         Objects.requireNonNull(executor, "TelephonyCallback Executor must be non-null");
-        callback = new IPhoneStateListenerStub(this, executor);
+
+        synchronized (mLock) {
+            if (CompatChanges.isChangeEnabled(PREVENT_CALLBACK_REREGISTRATION)
+                    && callback != null) {
+                throw new IllegalStateException(
+                        "TelephonyCallback: re-registering an already registered callback!");
+            }
+            callback = new IPhoneStateListenerStub(this, executor);
+        }
+    }
+
+    /**
+     * @hide
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public void close() {
+        synchronized (mLock) {
+            if (callback != null) callback = null;
+        }
     }
 
     /**
@@ -1496,7 +1573,6 @@ public class TelephonyCallback {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
     @SystemApi
     public interface SimultaneousCellularCallingSupportListener {
         /**
@@ -1552,8 +1628,8 @@ public class TelephonyCallback {
          * {@link android.Manifest.permission#READ_PRECISE_PHONE_STATE}.
          *
          * @param callAttributes the call attributes
-         * @deprecated Use onCallStatesChanged({@link List<CallState>}) to get each of call
-         *          state for all ongoing calls on the subscription.
+         * @deprecated Use onCallStatesChanged({@link List List<CallState>}) to get each
+         *          of call state for all ongoing calls on the subscription.
          */
         @RequiresPermission(Manifest.permission.READ_PRECISE_PHONE_STATE)
         @Deprecated
@@ -1865,7 +1941,6 @@ public class TelephonyCallback {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
     public interface CellularIdentifierDisclosedListener {
         /**
          * Callback invoked when a device identifier (IMSI, IMEI, or unciphered SUCI)
@@ -1883,7 +1958,6 @@ public class TelephonyCallback {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SECURITY_ALGORITHMS_UPDATE_INDICATIONS)
     public interface SecurityAlgorithmsListener {
         /**
          * Callback invoked when the most recently reported security algorithms has changed,
@@ -1893,6 +1967,112 @@ public class TelephonyCallback {
          * See {@link SecurityAlgorithmUpdate} for more details
          */
         void onSecurityAlgorithmsChanged(@NonNull SecurityAlgorithmUpdate securityAlgorithmUpdate);
+    }
+
+
+    /**
+     * Interface for NetworkSecurityEventsListener
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_NETWORK_SECURITY_EVENT_INDICATIONS)
+    public interface NetworkSecurityEventsListener {
+        /**
+         * Callback invoked when network security events are received.
+         *
+         * @param events details of the network security events
+         * See {@link NetworkSecurityEvent} for more details
+         */
+        void onNetworkSecurityEvents(@NonNull Set<NetworkSecurityEvent>  events);
+    }
+
+    /**
+     * Interface for the emergency mode listener.
+     *
+     * Note: This listener is only available when AP domain selection is enabled.
+     * If the domain selection is not enabled, even if this listener is registered,
+     * the callbacks will not be called when an emergency call/SMS is made.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_DOMAIN_SELECTION_EMERGENCY_MODE_NOTIFICATION)
+    public interface DomainSelectionEmergencyModeListener {
+        /**
+         * Callback invoked when the device enters the emergency mode.
+         *
+         * When an emergency call or SMS starts, domain selection triggers the modem to enter
+         * emergency mode, and once that is complete, it notifies the application of the entry
+         * of emergency mode.
+         *
+         * If the emergency mode was started for an emergency call and an emergency SMS is sent
+         * while in emergency mode, then this method will be called once again with
+         * {@link TelephonyManager#DOMAIN_SELECTION_EMERGENCY_TYPE_SMS}.
+         *
+         * The calling app should have the
+         * {@link android.Manifest.permission#READ_BASIC_PHONE_STATE}.
+         *
+         * @param type for the emergency mode entry
+         *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+         * @param slotIndex for which emergency mode entered.
+         *                  Can be derived from {@code subscriptionId} except
+         *                  when {@code subscriptionId} is invalid.
+         * @param subscriptionId The subscription ID used to start the emergency mode.
+         *
+         * @see TelephonyManager#DOMAIN_SELECTION_EMERGENCY_TYPE_CALL
+         * @see TelephonyManager#DOMAIN_SELECTION_EMERGENCY_TYPE_SMS
+         */
+        @RequiresPermission(Manifest.permission.READ_BASIC_PHONE_STATE)
+        void onDomainSelectionEmergencyModeEntered(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId);
+
+        /**
+         * Callback invoked when the device exits the emergency mode.
+         *
+         * When the emergency call or SMS ends and all emergency modes are exited, domain
+         * selection notifies the modem to exit emergency mode and simultaneously reports
+         * the emergency mode exit to the application.
+         *
+         * If the emergency callback mode is supported, this method will be called
+         * after the emergency callback mode is ended.
+         *
+         * The calling app should have the
+         * {@link android.Manifest.permission#READ_BASIC_PHONE_STATE}.
+         *
+         * @param type for the emergency mode exit
+         *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+         * @param slotIndex for which emergency mode exited.
+         *                  Can be derived from {@code subscriptionId} except
+         *                  when {@code subscriptionId} is invalid.
+         * @param subscriptionId The subscription ID used to end the emergency mode.
+         *
+         * @see TelephonyManager#DOMAIN_SELECTION_EMERGENCY_TYPE_CALL
+         * @see TelephonyManager#DOMAIN_SELECTION_EMERGENCY_TYPE_SMS
+         */
+        @RequiresPermission(Manifest.permission.READ_BASIC_PHONE_STATE)
+        void onDomainSelectionEmergencyModeExited(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId);
+    }
+
+    /**
+     * Interface for satellite purchase mode listener.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL_26Q4)
+    public interface SatellitePurchaseModeListener {
+        /**
+         * Callback invoked when satellite purchase mode changed.
+         *
+         * @param subId subscription ID.
+         * @param isEnabled {@code true} If satellite purchase mode is in progress,
+         *                         {@code false} otherwise.
+         * @param purchaseModeState State of the purchase mode. Network setup, teardown and Purchase
+         *                          Mode active or inactive. Inactive by default.
+         */
+        void onSatellitePurchaseModeChanged(int subId, boolean isEnabled,
+                @TelephonyManager.SatellitePurchaseModeState int purchaseModeState);
     }
 
     /**
@@ -2357,8 +2537,6 @@ public class TelephonyCallback {
         }
 
         public void onSecurityAlgorithmsChanged(SecurityAlgorithmUpdate update) {
-            if (!Flags.securityAlgorithmsUpdateIndications()) return;
-
             SecurityAlgorithmsListener listener =
                     (SecurityAlgorithmsListener) mTelephonyCallbackWeakRef.get();
             if (listener == null) return;
@@ -2368,14 +2546,63 @@ public class TelephonyCallback {
         }
 
         public void onCellularIdentifierDisclosedChanged(CellularIdentifierDisclosure disclosure) {
-            if (!Flags.cellularIdentifierDisclosureIndications()) return;
-
             CellularIdentifierDisclosedListener listener =
                     (CellularIdentifierDisclosedListener) mTelephonyCallbackWeakRef.get();
             if (listener == null) return;
 
             Binder.withCleanCallingIdentity(() -> mExecutor.execute(
                     () -> listener.onCellularIdentifierDisclosedChanged(disclosure)));
+        }
+
+        public void onNetworkSecurityEvents(List<NetworkSecurityEvent> events) {
+            if (!Flags.networkSecurityEventIndications()) return;
+            NetworkSecurityEventsListener listener =
+                    (NetworkSecurityEventsListener) mTelephonyCallbackWeakRef.get();
+            if (listener == null) return;
+
+            Binder.withCleanCallingIdentity(() -> mExecutor.execute(
+                    () -> listener.onNetworkSecurityEvents(new ArraySet<>(events))));
+        }
+
+        public void onDomainSelectionEmergencyModeEntered(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId) {
+            if (!Flags.domainSelectionEmergencyModeNotification()) return;
+
+            DomainSelectionEmergencyModeListener listener =
+                    (DomainSelectionEmergencyModeListener) mTelephonyCallbackWeakRef.get();
+            if (listener == null) return;
+
+            Binder.withCleanCallingIdentity(() -> mExecutor.execute(
+                    () -> listener.onDomainSelectionEmergencyModeEntered(
+                            type, slotIndex, subscriptionId)));
+        }
+
+        public void onDomainSelectionEmergencyModeExited(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId) {
+            if (!Flags.domainSelectionEmergencyModeNotification()) return;
+
+            DomainSelectionEmergencyModeListener listener =
+                    (DomainSelectionEmergencyModeListener) mTelephonyCallbackWeakRef.get();
+            if (listener == null) return;
+
+            Binder.withCleanCallingIdentity(() -> mExecutor.execute(
+                    () -> listener.onDomainSelectionEmergencyModeExited(
+                            type, slotIndex, subscriptionId)));
+        }
+
+        public void onSatellitePurchaseModeChanged(int subId, boolean isEnabled,
+                @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+            if (!Flags.satelliteUpsell26q4()) return;
+
+            SatellitePurchaseModeListener listener =
+                    (SatellitePurchaseModeListener) mTelephonyCallbackWeakRef.get();
+            if (listener == null) return;
+
+            Binder.withCleanCallingIdentity(() -> mExecutor.execute(
+                    () -> listener.onSatellitePurchaseModeChanged(
+                            subId, isEnabled, purchaseModeState)));
         }
     }
 }

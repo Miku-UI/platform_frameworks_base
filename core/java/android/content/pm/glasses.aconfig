@@ -6,4 +6,5 @@ flag {
     name: "xr_glasses_feature"
     description: "Adds features used by Android XR Glasses"
     bug: "430302860"
+    is_exported: true
 }

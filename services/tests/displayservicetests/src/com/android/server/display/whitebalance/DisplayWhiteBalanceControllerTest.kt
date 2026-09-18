@@ -16,11 +16,18 @@
 
 package com.android.server.display.whitebalance
 
+import android.hardware.Sensor
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.util.test.LocalServiceKeeperRule
+import com.android.server.display.DisplayDeviceConfig
 import com.android.server.display.color.ColorDisplayService.ColorDisplayServiceInternal
+import com.android.server.display.config.createSensorData
+import com.android.server.display.feature.flags.Flags
 import com.android.server.display.utils.AmbientFilter
+import com.android.server.display.utils.SensorUtils
 import com.android.server.testutils.TestHandler
 import org.junit.Before
 import org.junit.Rule
@@ -32,6 +39,7 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -40,11 +48,14 @@ class DisplayWhiteBalanceControllerTest {
     @get:Rule
     val localServiceKeeperRule = LocalServiceKeeperRule()
 
+    @get:Rule
+    val setFlagRule = SetFlagsRule()
     private val mockBrightnessSensor = mock<AmbientSensor.AmbientBrightnessSensor>()
     private val mockBrightnessFilter = mock<AmbientFilter>()
     private val mockColorTemperatureSensor = mock<AmbientSensor.AmbientColorTemperatureSensor>()
     private val mockColorTemperatureFilter = mock<AmbientFilter>()
     private val mockThrottler = mock<DisplayWhiteBalanceThrottler>()
+    private val mockDisplayDeviceConfig = mock<DisplayDeviceConfig>()
     private val testHandler = TestHandler(null)
 
     @Before
@@ -130,6 +141,21 @@ class DisplayWhiteBalanceControllerTest {
         controller.onAmbientColorTemperatureChanged(colorTemperature)
 
         verifyNoInteractions(mockColorTemperatureFilter)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_WHITE_BALANCE_CONTROLLER_DDC_CONFIG)
+    fun setsNewSensorDataOnDisplayChange() {
+        val controller = createDisplayWhiteBalanceController()
+        val colorSensor = createSensorData()
+        val ambientLightSensor = createSensorData()
+        whenever(mockDisplayDeviceConfig.colorSensor).thenReturn(colorSensor)
+        whenever(mockDisplayDeviceConfig.ambientLightSensor).thenReturn(ambientLightSensor)
+
+        controller.onDisplayChanged(mockDisplayDeviceConfig)
+
+        verify(mockColorTemperatureSensor).setSensorData(colorSensor, SensorUtils.NO_FALLBACK)
+        verify(mockBrightnessSensor).setSensorData(ambientLightSensor, Sensor.TYPE_LIGHT)
     }
 
     fun createDisplayWhiteBalanceController(): DisplayWhiteBalanceController {

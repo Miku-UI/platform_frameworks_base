@@ -19,10 +19,12 @@ package com.android.systemui.wallpapers
 import android.app.Presentation
 import android.util.Log
 import android.view.Display
+import android.view.WindowManager.InvalidDisplayException
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.log.DebugLogger.debugLog
 import com.android.systemui.wallpapers.domain.interactor.DisplayWallpaperPresentationInteractor
 import com.android.systemui.wallpapers.domain.interactor.DisplayWallpaperPresentationInteractor.WallpaperPresentationType
@@ -37,6 +39,7 @@ import kotlinx.coroutines.launch
 /**
  * A manager which controls the lifecycle of wallpaper [Presentation] on all compatible displays.
  */
+@PerDisplaySingleton
 class WallpaperPresentationManager
 @Inject
 constructor(
@@ -92,7 +95,14 @@ constructor(
                 debugLog(enabled = DEBUG, tag = TAG) {
                     "Show presentation $it for display ${display.displayId}"
                 }
-                it.show()
+                try {
+                    it.show()
+                } catch (e: InvalidDisplayException) {
+                    Log.w(
+                        TAG,
+                        "Display not found. Not showing presentation for ${display.displayId}",
+                    )
+                }
             }
     }
 

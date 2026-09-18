@@ -27,8 +27,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.compose.animation.scene.TestElements
-import com.android.compose.animation.scene.element
 import com.android.compose.animation.scene.testTransition
+import com.android.compose.modifiers.skipToLookaheadSize
 import com.android.compose.test.assertSizeIsEqualTo
 import org.junit.Rule
 import org.junit.Test
@@ -48,7 +48,7 @@ class SizeTest {
             toSceneContent = {
                 // Don't resize the parent of Foo during transitions so that it's always the same
                 // size as when there is no transition (200dp).
-                Box(Modifier.noResizeDuringTransitions().testTag(parentTag)) {
+                Box(Modifier.testTag(parentTag).noResizeDuringTransitions()) {
                     Box(Modifier.element(TestElements.Foo).size(200.dp))
                 }
             },
@@ -58,6 +58,63 @@ class SizeTest {
             at(32) { rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp) }
             at(48) { rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp) }
             after { rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp) }
+        }
+    }
+
+    @Test
+    fun skipToLookahead_snaps_parent_but_animates_child_node() {
+        val parentTag = "parent"
+        val childTag = "child"
+        val elementTag = "element"
+
+        rule.testTransition(
+            fromSceneContent = { Box(Modifier.element(TestElements.Foo).size(100.dp)) },
+            toSceneContent = {
+                // Parent: Apply skipToLookaheadSize().
+                // This forces the parent container to layout at its final target size (200.dp)
+                // immediately, skipping the parent's size animation.
+                Box(
+                    Modifier.testTag(parentTag).skipToLookaheadSize(),
+                    propagateMinConstraints = true,
+                ) {
+                    // Child:
+                    // Because the modifier provides loose constraints (allows minWidth/Height = 0),
+                    // this child is NOT forced to fill the 200dp parent immediately.
+                    // It animates its size normally from 100dp to 200dp.
+                    Box(Modifier.testTag(childTag), propagateMinConstraints = true) {
+                        Box(Modifier.testTag(elementTag).element(TestElements.Foo).size(200.dp))
+                    }
+                }
+            },
+            // 4 frames at 16ms each = 64ms total duration.
+            transition = { spec = tween(durationMillis = 4 * 16, easing = LinearEasing) },
+        ) {
+            // Interpolation: 100dp -> 200dp over 64ms.
+            // Growth rate: 25dp per 16ms frame.
+
+            at(16) {
+                // Parent is snapped to 200dp.
+                rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp)
+                // Child interpolates: 100 + 25 = 125dp.
+                rule.onNodeWithTag(childTag).assertSizeIsEqualTo(125.dp, 125.dp)
+                // Element interpolates: 100 + 25 = 125dp.
+                rule.onNodeWithTag(elementTag).assertSizeIsEqualTo(125.dp, 125.dp)
+            }
+            at(32) {
+                rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp)
+                rule.onNodeWithTag(childTag).assertSizeIsEqualTo(150.dp, 150.dp)
+                rule.onNodeWithTag(elementTag).assertSizeIsEqualTo(150.dp, 150.dp)
+            }
+            at(48) {
+                rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp)
+                rule.onNodeWithTag(childTag).assertSizeIsEqualTo(175.dp, 175.dp)
+                rule.onNodeWithTag(elementTag).assertSizeIsEqualTo(175.dp, 175.dp)
+            }
+            after {
+                rule.onNodeWithTag(parentTag).assertSizeIsEqualTo(200.dp, 200.dp)
+                rule.onNodeWithTag(childTag).assertSizeIsEqualTo(200.dp, 200.dp)
+                rule.onNodeWithTag(elementTag).assertSizeIsEqualTo(200.dp, 200.dp)
+            }
         }
     }
 }

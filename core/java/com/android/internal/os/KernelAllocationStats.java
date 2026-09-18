@@ -37,7 +37,7 @@ public final class KernelAllocationStats {
         /** Count of buffers shared with Surface Flinger. */
         public final int surfaceFlingerCount;
 
-        ProcessDmabuf(int uid, String processName, int oomScore, int retainedSizeKb,
+        public ProcessDmabuf(int uid, String processName, int oomScore, int retainedSizeKb,
                 int retainedBuffersCount, int surfaceFlingerSizeKb,
                 int surfaceFlingerCount) {
             this.uid = uid;
@@ -51,6 +51,12 @@ public final class KernelAllocationStats {
     }
 
     /**
+     * Return total size in KB for DMA-BUFs retained by a specific process pid or -1 if the
+     * DMA-BUF stats could not be read.
+     */
+    public static native int getDmabufSizeForProcessKb(int pid);
+
+    /**
      * Return stats for DMA-BUFs retained by process pid or null if the DMA-BUF
      * stats could not be read.
      */
@@ -62,7 +68,7 @@ public final class KernelAllocationStats {
         public final int pid;
         public final int gpuMemoryKb;
 
-        ProcessGpuMem(int pid, int gpuMemoryKb) {
+        public ProcessGpuMem(int pid, int gpuMemoryKb) {
             this.pid = pid;
             this.gpuMemoryKb = gpuMemoryKb;
         }
@@ -70,4 +76,19 @@ public final class KernelAllocationStats {
 
     /** Return list of pid to gpu memory size. */
     public static native ProcessGpuMem[] getGpuAllocations();
+
+    /** Slab cache statistics */
+    public static final class SlabCacheStats {
+        public final String name;
+        public final int totalMemUsageKb;
+
+        public SlabCacheStats(String name, int totalMemUsageKb) {
+            this.name = name;
+            this.totalMemUsageKb = totalMemUsageKb;
+        }
+    }
+
+    /** Return list of statistics per slab cache. */
+    @Nullable
+    public static native SlabCacheStats[] getSlabInfoStats();
 }

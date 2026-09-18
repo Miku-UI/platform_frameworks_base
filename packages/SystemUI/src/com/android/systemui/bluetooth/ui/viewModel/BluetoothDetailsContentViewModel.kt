@@ -30,9 +30,11 @@ import androidx.compose.runtime.setValue
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.settingslib.volume.domain.interactor.AudioModeInteractor
+import com.android.systemui.Flags
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.bluetooth.qsdialog.AudioSharingInteractor
 import com.android.systemui.bluetooth.qsdialog.BluetoothAutoOnInteractor
 import com.android.systemui.bluetooth.qsdialog.BluetoothDetailsContentManager
@@ -104,8 +106,9 @@ constructor(
      * Binds the bluetooth details view with BluetoothDetailsContentManager.
      *
      * @param view The view from which the bluetooth details content is shown.
+     * @param listener The listener to be notified when the content is updated.
      */
-    fun bindDetailsView(view: View) {
+    fun bindDetailsView(view: View, listener: BluetoothDetailsContentManager.Listener? = null) {
         // If `QsDetailedView` is not enabled, it should show the dialog.
         if (QsDetailedView.isUnexpectedlyInLegacyMode()) return
 
@@ -115,6 +118,7 @@ constructor(
             coroutineScope.launch(context = mainDispatcher) {
                 val detailsUIState = createInitialDetailsUIState()
                 contentManager = createContentManager()
+                listener?.let { contentManager.addListener(it) }
                 contentManager.bind(
                     contentView = view,
                     dialog = null,
@@ -147,25 +151,49 @@ constructor(
                             INTERACTION_JANK_TAG,
                         )
                     )
+
+                var showDialog = true
                 controller?.let {
-                    dialogTransitionAnimator.show(dialog, it, animateBackgroundBoundsChange = true)
+                    showDialog =
+                        if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                            dialogTransitionAnimator.show(
+                                dialog,
+                                expandable::dialogTransitionController,
+                                it.cuj,
+                                animateBackgroundBoundsChange = true,
+                            )
+                        } else {
+                            dialogTransitionAnimator.show(
+                                dialog,
+                                it,
+                                animateBackgroundBoundsChange = true,
+                            )
+                        }
                 } ?: dialog.show()
-                // contentManager is created after dialog.show
-                contentManager = dialogDelegate.contentManager
-                contentManager.bind(
-                    contentView = dialog.requireViewById(R.id.root),
-                    dialog = dialog,
-                    coroutineScope = this,
-                    detailsUIState = detailsUIState,
-                )
-                updateDetailsUIState(dialog.context, detailsUIState, dialog)
+
+                // contentManager is created after dialog.show and dialog is shown
+                if (showDialog || !Flags.fixDialogAnimCollapseFlicker()) {
+                    contentManager = dialogDelegate.contentManager
+                    contentManager.bind(
+                        contentView = dialog.requireViewById(R.id.root),
+                        dialog = dialog,
+                        coroutineScope = this,
+                        detailsUIState = detailsUIState,
+                    )
+                    updateDetailsUIState(dialog.context, detailsUIState, dialog)
+                }
             }
     }
 
     /** Unbinds the details view when it goes away. */
     fun unbindDetailsView() {
         cancelJob()
-        contentManager.releaseView()
+
+        // contentManager is initialized asynchronously in bindDetailsView.
+        // It might not be initialized if the view is quickly detached.
+        if (::contentManager.isInitialized) {
+            contentManager.releaseView()
+        }
     }
 
     private fun createInitialDetailsUIState(): DetailsUIState =

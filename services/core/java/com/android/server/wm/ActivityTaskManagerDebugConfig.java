@@ -53,6 +53,7 @@ public class ActivityTaskManagerDebugConfig {
     static final boolean DEBUG_IDLE = DEBUG_ALL_ACTIVITIES || false;
     static final boolean DEBUG_RELEASE = DEBUG_ALL_ACTIVITIES || false;
     static final boolean DEBUG_USER_LEAVING = DEBUG_ALL || false;
+    static final boolean DEBUG_USER_VISIBILITY = DEBUG_ALL || false;
     static final boolean DEBUG_PERMISSIONS_REVIEW = DEBUG_ALL || false;
     static final boolean DEBUG_RESULTS = DEBUG_ALL || false;
     static final boolean DEBUG_ACTIVITY_STARTS = DEBUG_ALL || false;

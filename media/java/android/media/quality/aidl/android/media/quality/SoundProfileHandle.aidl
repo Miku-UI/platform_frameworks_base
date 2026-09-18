@@ -16,7 +16,4 @@
 
 package android.media.quality;
 
-// TODO: add SoundProfileHandle.java
-parcelable SoundProfileHandle {
-    long id;
-}
+parcelable SoundProfileHandle cpp_header "quality/MediaQualityManager.h";

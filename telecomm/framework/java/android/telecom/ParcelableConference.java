@@ -71,14 +71,14 @@ public final class ParcelableConference implements Parcelable {
         }
 
         public Builder setCallerDisplayName(String callerDisplayName,
-                @TelecomManager.Presentation int callerDisplayNamePresentation) {
+                @Annotation.Presentation int callerDisplayNamePresentation) {
             mCallerDisplayName = callerDisplayName;
             mCallerDisplayNamePresentation = callerDisplayNamePresentation;
             return this;
         }
 
         public Builder setAddress(Uri address,
-                @TelecomManager.Presentation int addressPresentation) {
+                @Annotation.Presentation int addressPresentation) {
             mAddress = address;
             mAddressPresentation = addressPresentation;
             return this;

@@ -48,7 +48,7 @@ class FakeBiometricSettingsRepository @Inject constructor() : BiometricSettingsR
         get() = _isFaceAuthEnrolledAndEnabled
 
     private val _isFaceAuthCurrentlyAllowed = MutableStateFlow(false)
-    override val isFaceAuthCurrentlyAllowed: Flow<Boolean>
+    override val isFaceAuthCurrentlyAllowed: StateFlow<Boolean>
         get() = _isFaceAuthCurrentlyAllowed
 
     private val _isFaceAuthSupportedInCurrentPosture = MutableStateFlow(false)
@@ -78,7 +78,7 @@ class FakeBiometricSettingsRepository @Inject constructor() : BiometricSettingsR
             }
 
     private val _authFlags = MutableStateFlow(AuthenticationFlags(0, 0))
-    override val authenticationFlags: Flow<AuthenticationFlags>
+    override val authenticationFlags: StateFlow<AuthenticationFlags>
         get() = _authFlags
 
     fun setAuthenticationFlags(value: AuthenticationFlags) {

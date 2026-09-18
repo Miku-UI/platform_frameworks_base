@@ -15,13 +15,13 @@
  */
 package com.android.wm.shell.bubbles.animation;
 
-import static com.android.wm.shell.Flags.FLAG_FIX_BUBBLES_CANCEL_ANIMATION;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assume.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -29,6 +29,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.animation.AnimatorSet;
+import android.animation.AnimatorTestRule;
+import android.graphics.Rect;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.AndroidTestingRunner;
@@ -39,11 +41,11 @@ import android.view.WindowManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.wm.shell.Flags;
 import com.android.wm.shell.R;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.bubbles.BubbleExpandedView;
 import com.android.wm.shell.bubbles.BubbleExpandedViewManager;
-import com.android.wm.shell.bubbles.BubblePositioner;
 import com.android.wm.shell.bubbles.BubbleStackView;
 import com.android.wm.shell.bubbles.BubbleTaskView;
 import com.android.wm.shell.bubbles.TestableBubblePositioner;
@@ -64,28 +66,40 @@ public class ExpandedViewAnimationControllerTest extends ShellTestCase {
     @Rule
     public final SetFlagsRule setFlagsRule = new SetFlagsRule();
 
+    @Rule
+    public final AnimatorTestRule mAnimatorTestRule = new AnimatorTestRule(this);
+
     private ExpandedViewAnimationControllerImpl mController;
 
     @Mock
     private BubbleExpandedView mMockExpandedView;
 
     private BubbleExpandedView mExpandedView;
+    private TestableBubblePositioner mPositioner;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
 
-        TestableBubblePositioner positioner = new TestableBubblePositioner(getContext(),
+        mPositioner = new TestableBubblePositioner(getContext(),
                 getContext().getSystemService(WindowManager.class));
-        mController = new ExpandedViewAnimationControllerImpl(getContext(), positioner);
+        mController = new ExpandedViewAnimationControllerImpl(getContext(), mPositioner);
 
         mExpandedView = (BubbleExpandedView) LayoutInflater.from(getContext()).inflate(
                 R.layout.bubble_expanded_view, null, false /* attachToRoot */);
 
+        TaskView taskView = mock(TaskView.class);
+        when(taskView.getHeight()).thenReturn(1000);
+        doAnswer(invocation -> {
+            Rect rect = invocation.getArgument(0);
+            rect.set(0, 0, 500, 1000);
+            return null;
+        }).when(taskView).getBoundsOnScreen(any(Rect.class));
+
         BubbleTaskView bubbleTaskView = mock(BubbleTaskView.class);
-        when(bubbleTaskView.getTaskView()).thenReturn(mock(TaskView.class));
+        when(bubbleTaskView.getTaskView()).thenReturn(taskView);
         mExpandedView.initialize(mock(BubbleExpandedViewManager.class), mock(BubbleStackView.class),
-                mock(BubblePositioner.class), false, bubbleTaskView);
+                mPositioner, false, bubbleTaskView);
 
         mController.setExpandedView(mMockExpandedView);
         when(mMockExpandedView.getContentHeight()).thenReturn(1000);
@@ -173,7 +187,6 @@ public class ExpandedViewAnimationControllerTest extends ShellTestCase {
         assertThat(mController.shouldCollapse()).isTrue();
     }
 
-    @EnableFlags(FLAG_FIX_BUBBLES_CANCEL_ANIMATION)
     @Test
     public void testCollapseAnimation_canceledNotNotified() {
         Runnable stackCollapseRunnable = mock(Runnable.class);
@@ -247,6 +260,32 @@ public class ExpandedViewAnimationControllerTest extends ShellTestCase {
         verify(mMockExpandedView).setBottomClip(0);
         verify(mMockExpandedView).movePointerBy(0, 0);
         assertThat(mController.shouldCollapse()).isFalse();
+    }
+
+    @Test
+    public void testAnimateForIme_updatesBounds() {
+        mController.setExpandedView(mExpandedView);
+        int height = mExpandedView.getContentHeight();
+        assertThat(height).isEqualTo(1000);
+
+        mPositioner.setImeVisible(true, 500);
+        mController.animateForImeVisibilityChange(true);
+        mAnimatorTestRule.advanceTimeBy(300);
+        assertThat(mExpandedView.getContentHeight()).isEqualTo(500);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_BUBBLE_IME_CLIPPING)
+    public void testAnimateForIme_skipsUpdatesBounds() {
+        mController.setExpandedView(mExpandedView);
+        int height = mExpandedView.getContentHeight();
+        assertThat(height).isEqualTo(1000);
+
+        mPositioner.setImeVisible(false, 0);
+        mController.animateForImeVisibilityChange(true);
+
+        mAnimatorTestRule.advanceTimeBy(300);
+        assertThat(mExpandedView.getContentHeight()).isEqualTo(1000);
     }
 
     private int getVelocityBelowMinFling() {

@@ -347,6 +347,8 @@ final class ConversionUtils {
         ProgramIdentifier hwId = new ProgramIdentifier();
         if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_DAB_DMB_SID_EXT) {
             hwId.type = IdentifierType.DAB_SID_EXT;
+        } else if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_HD_STATION_NAME) {
+            hwId.type = IdentifierType.HD_STATION_NAME;
         } else if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION) {
             hwId.type = IdentifierType.HD_STATION_LOCATION;
         } else {

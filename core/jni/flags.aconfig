@@ -1,0 +1,19 @@
+package: "com.android.base.core.jni.flags"
+container: "system"
+
+flag {
+  name: "zygote_set_no_swap_system_server"
+  namespace: "watch_software_performance"
+  description: "Whether system server after fork is applied a no swap profile"
+  bug: "454054088"
+}
+
+flag {
+  name: "force_gc_after_many_frozen_state_callbacks"
+  namespace: "system_performance"
+  description: "Whether to include frozen state callbacks in the calculation for forcing GC."
+  bug: "450450537"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

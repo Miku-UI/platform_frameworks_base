@@ -78,6 +78,7 @@ public final class RoFeatures {
      */
     @Nullable
     public static Boolean maybeHasFeature(String featureName, int version) {
+        if (featureName == null) return null;
         switch (featureName) {
             case PackageManager.FEATURE_VULKAN: return false;
             case PackageManager.FEATURE_WATCH: return 1 >= version;

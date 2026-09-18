@@ -26,7 +26,6 @@ import android.util.ExceptionUtils;
 import android.util.Log;
 import android.util.Slog;
 
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BinderCallHeavyHitterWatcher;
 import com.android.internal.os.BinderCallHeavyHitterWatcher.BinderCallHeavyHitterListener;
 import com.android.internal.os.BinderInternal;
@@ -46,8 +45,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Modifier;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * Base class for a remotable object, the core part of a lightweight
@@ -306,18 +303,6 @@ public class Binder implements IBinder {
     private IInterface mOwner;
     @Nullable
     private String mDescriptor;
-
-    /** A holder so we don't eagerly allocate the transaction trace names cache. */
-    private static class TransactionTraceNamesCacheHolder {
-        /** A map of the transaction names keyed by simple descriptors. */
-        static final ConcurrentHashMap<String, AtomicReferenceArray<String>> sNamesCache =
-                new ConcurrentHashMap<>();
-    }
-
-    /** Cached value to the above map. */
-    private volatile AtomicReferenceArray<String> mTransactionTraceNames = null;
-    private volatile String mSimpleDescriptor = null;
-    private static final int TRANSACTION_TRACE_NAME_ID_LIMIT = 1024;
 
     /**
      * Return the ID of the process that sent you the current transaction
@@ -996,86 +981,6 @@ public class Binder implements IBinder {
     }
 
     /**
-     * @hide
-     */
-    @VisibleForTesting
-    public final @Nullable String getTransactionTraceName(int transactionCode) {
-        final boolean isInterfaceUserDefined = getMaxTransactionId() == -1;
-        if (mTransactionTraceNames == null) {
-            mSimpleDescriptor = getSimpleDescriptor();
-            if (Flags.binderCacheTransactionTraceNames()) {
-                // Prefer the full descriptor to avoid mixing up the method names for different
-                // interfaces with the same simple descriptor.
-                String key = mDescriptor != null ? mDescriptor : getClass().getName();
-                // Check if we have it in the static cache already.
-                var transactionTraceNames = TransactionTraceNamesCacheHolder.sNamesCache.get(key);
-                if (transactionTraceNames == null) {
-                    // Not in the static cache. Create a new array.
-                    final int highestId = isInterfaceUserDefined ? TRANSACTION_TRACE_NAME_ID_LIMIT
-                            : Math.min(getMaxTransactionId(), TRANSACTION_TRACE_NAME_ID_LIMIT);
-                    transactionTraceNames = new AtomicReferenceArray(highestId + 1);
-                    // Try to put it in the static cache.
-                    var oldTransactionTraceNames =
-                            TransactionTraceNamesCacheHolder.sNamesCache.putIfAbsent(
-                                    key, transactionTraceNames);
-                    if (oldTransactionTraceNames != null) {
-                        // Another thread must have added an entry to the static cache in the mean
-                        // time. Use the one already in the cache.
-                        transactionTraceNames = oldTransactionTraceNames;
-                    }
-                }
-                mTransactionTraceNames = transactionTraceNames;
-            } else {
-                final int highestId = isInterfaceUserDefined ? TRANSACTION_TRACE_NAME_ID_LIMIT
-                        : Math.min(getMaxTransactionId(), TRANSACTION_TRACE_NAME_ID_LIMIT);
-                mTransactionTraceNames = new AtomicReferenceArray(highestId + 1);
-            }
-        }
-
-        final int index = isInterfaceUserDefined
-                ? transactionCode : transactionCode - FIRST_CALL_TRANSACTION;
-        if (index >= mTransactionTraceNames.length() || index < 0) {
-            return null;
-        }
-
-        String transactionTraceName = mTransactionTraceNames.getAcquire(index);
-        if (transactionTraceName == null) {
-            final String transactionName = getTransactionName(transactionCode);
-            final StringBuffer buf = new StringBuffer();
-
-            // Keep trace name consistent with cpp trace name in:
-            // system/tools/aidl/generate_cpp.cpp
-            buf.append("AIDL::java::");
-            if (transactionName != null) {
-                buf.append(mSimpleDescriptor).append("::").append(transactionName);
-            } else {
-                buf.append(mSimpleDescriptor).append("::#").append(transactionCode);
-            }
-            buf.append("::server");
-
-            transactionTraceName = buf.toString();
-            mTransactionTraceNames.setRelease(index, transactionTraceName);
-        }
-
-        return transactionTraceName;
-    }
-
-    private @NonNull String getSimpleDescriptor() {
-        String descriptor = mDescriptor;
-        if (descriptor == null) {
-            // Just "Binder" to avoid null checks in transaction name tracing.
-            return "Binder";
-        }
-
-        final int dot = descriptor.lastIndexOf(".");
-        if (dot > 0) {
-            // Strip the package name
-            return descriptor.substring(dot + 1);
-        }
-        return descriptor;
-    }
-
-    /**
      * @return The highest user-defined transaction id of all transactions.
      * @hide
      */
@@ -1441,17 +1346,6 @@ public class Binder implements IBinder {
         // Log any exceptions as warnings, don't silently suppress them.
         // If the call was {@link IBinder#FLAG_ONEWAY} then these exceptions
         // disappear into the ether.
-        final boolean tagEnabled = Trace.isTagEnabled(Trace.TRACE_TAG_AIDL);
-        final String transactionTraceName;
-
-        if (tagEnabled) {
-            // If tracing enabled and we have a fully qualified name, fetch the name
-            transactionTraceName = getTransactionTraceName(code);
-        } else {
-            transactionTraceName = null;
-        }
-
-        final boolean tracingEnabled = tagEnabled && transactionTraceName != null;
         try {
             // TODO(b/299356201) - this logic should not be in Java - it should be in native
             // code in libbinder so that it works for all binder users.
@@ -1459,9 +1353,6 @@ public class Binder implements IBinder {
             if (heavyHitterWatcher != null && callingUid != -1) {
                 // Notify the heavy hitter watcher, if it's enabled.
                 heavyHitterWatcher.onTransaction(callingUid, getClass(), code);
-            }
-            if (tracingEnabled) {
-                Trace.traceBegin(Trace.TRACE_TAG_AIDL, transactionTraceName);
             }
 
             // TODO(b/299353919) - this logic should not be in Java - it should be
@@ -1503,9 +1394,6 @@ public class Binder implements IBinder {
             }
             res = true;
         } finally {
-            if (tracingEnabled) {
-                Trace.traceEnd(Trace.TRACE_TAG_AIDL);
-            }
             if (observer != null) {
                 // The parcel RPC headers have been called during onTransact so we can now access
                 // the worksource UID from the parcel.

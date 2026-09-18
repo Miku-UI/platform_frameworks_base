@@ -19,10 +19,12 @@ package com.android.systemui.util
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.ravenwood.SysUiRavenwoodPresubmit
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@SysUiRavenwoodPresubmit
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ConvenienceExtensionsKtTest : SysuiTestCase() {

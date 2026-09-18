@@ -35,17 +35,13 @@
     512,
     528,
     544,
-    560,
-    576
+    560
   ],
   "features": [
     {
       "name": "RevealElement_position",
       "type": "dpOffset",
       "data_points": [
-        {
-          "type": "not_found"
-        },
         {
           "type": "not_found"
         },
@@ -211,7 +207,8 @@
           "type": "not_found"
         },
         {
-          "type": "not_found"
+          "width": 150,
+          "height": 0.4
         },
         {
           "width": 150,
@@ -239,10 +236,6 @@
         },
         {
           "width": 150,
-          "height": 16.8
-        },
-        {
-          "width": 150,
           "height": 21.6
         },
         {
@@ -251,51 +244,51 @@
         },
         {
           "width": 150,
-          "height": 34.8
+          "height": 36
         },
         {
           "width": 150,
-          "height": 69.6
+          "height": 70.4
         },
         {
           "width": 150,
-          "height": 105.2
+          "height": 106.4
         },
         {
           "width": 150,
-          "height": 139.6
+          "height": 140.4
         },
         {
           "width": 150,
-          "height": 170.4
+          "height": 171.2
         },
         {
           "width": 150,
-          "height": 197.2
+          "height": 198
         },
         {
           "width": 150,
-          "height": 219.6
+          "height": 220.4
         },
         {
           "width": 150,
-          "height": 238.4
+          "height": 239.2
         },
         {
           "width": 150,
-          "height": 253.6
+          "height": 254
         },
         {
           "width": 150,
-          "height": 265.6
+          "height": 266
         },
         {
           "width": 150,
-          "height": 274.8
+          "height": 275.2
         },
         {
           "width": 150,
-          "height": 282
+          "height": 282.4
         },
         {
           "width": 150,
@@ -327,7 +320,7 @@
         },
         {
           "width": 150,
-          "height": 299.6
+          "height": 300
         }
       ]
     },
@@ -356,13 +349,10 @@
         {
           "type": "not_found"
         },
-        {
-          "type": "not_found"
-        },
         0,
         0,
-        0.008216977,
-        0.0747174,
+        0,
+        0.024841428,
         0.19032806,
         0.39281356,
         0.57081985,

@@ -19,12 +19,10 @@ package com.android.server.wm;
 import static android.content.pm.ActivityInfo.OVERRIDE_AUTO_RESTART_ON_DISPLAY_MOVE;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
-import static com.android.window.flags.Flags.FLAG_ENABLE_AUTO_RESTART_ON_DISPLAY_MOVE;
 
 import static org.junit.Assert.assertEquals;
 
 import android.compat.testing.PlatformCompatChangeRule;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.annotation.NonNull;
@@ -53,7 +51,6 @@ public class AppCompatDisplayOverridesTest extends WindowTestsBase {
     public TestRule compatChangeRule = new PlatformCompatChangeRule();
 
     @Test
-    @EnableFlags(FLAG_ENABLE_AUTO_RESTART_ON_DISPLAY_MOVE)
     @EnableCompatChanges({OVERRIDE_AUTO_RESTART_ON_DISPLAY_MOVE})
     public void testShouldRestartOnDisplayMove_overrideEnabled_returnsTrue() {
         runTestScenario((robot) -> {
@@ -63,7 +60,6 @@ public class AppCompatDisplayOverridesTest extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_AUTO_RESTART_ON_DISPLAY_MOVE)
     @DisableCompatChanges({OVERRIDE_AUTO_RESTART_ON_DISPLAY_MOVE})
     public void testShouldRestartOnDisplayMove_overrideDisabled_returnsFalse() {
         runTestScenario((robot) -> {

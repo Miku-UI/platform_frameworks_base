@@ -39,7 +39,7 @@ typealias SurfaceControlViewHostFactory =
  * its properties and binding may be changed, children views may be added, removed or changed and
  * its [WindowManager.LayoutParams] may be changed.
  */
-class SurfaceControlViewHostAdapter(
+open class SurfaceControlViewHostAdapter(
     private val context: Context,
     private val display: Display,
     private val surfaceControlViewHostFactory: SurfaceControlViewHostFactory = { c, d, wwm, s ->
@@ -83,7 +83,7 @@ class SurfaceControlViewHostAdapter(
     }
 
     /** Update the view hierarchy of the view host. */
-    fun updateView(view: View, attrs: WindowManager.LayoutParams) {
+    open fun updateView(view: View, attrs: WindowManager.LayoutParams) {
         if (requireViewHost().view == null) {
             Trace.beginSection("SurfaceControlViewHostAdapter#updateView-setView")
             requireViewHost().setView(view, attrs)

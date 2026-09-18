@@ -56,4 +56,6 @@ enum class ActionType {
     NOTIFICATIONS,
     QUICK_SETTINGS,
     LOCKSCREEN,
+    NOTE,
+    TOGGLE_DESKTOP_HOME_SCREEN_PEEK,
 }

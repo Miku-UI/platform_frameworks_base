@@ -15,6 +15,7 @@
  */
 package android.hardware.camera2.params;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
@@ -25,8 +26,6 @@ import android.hardware.camera2.params.MultiResolutionStreamInfo;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.hardware.camera2.utils.HashCodeHelpers;
 
-import android.util.Size;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,7 +34,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+
+import com.android.internal.camera.flags.Flags;
 
 import static com.android.internal.util.Preconditions.*;
 
@@ -68,11 +70,14 @@ public final class MultiResolutionStreamConfigurationMap {
      * Create a new {@link MultiResolutionStreamConfigurationMap}.
      *
      * @param configurations a non-{@code null} array of multi-resolution stream
-     *        configurations supported by this camera device
+     *                       configurations supported by this camera device
+     * @param concurrentReaderFormats an optional array of formats that support
+     *                                concurrent streaming of internal readers
      * @hide
      */
     public MultiResolutionStreamConfigurationMap(
-            @NonNull Map<String, StreamConfiguration[]> configurations) {
+            @NonNull Map<String, StreamConfiguration[]> configurations,
+            @Nullable int[] concurrentReaderFormats) {
         checkNotNull(configurations, "multi-resolution configurations must not be null");
         if (configurations.size() == 0) {
             throw new IllegalArgumentException("multi-resolution configurations must not be empty");
@@ -106,6 +111,15 @@ public final class MultiResolutionStreamConfigurationMap {
                     destMap.put(format, multiResolutionStreamInfoList);
                 }
                 destMap.get(format).add(multiResolutionStreamInfo);
+            }
+        }
+
+        mConcurrentReaderFormats = (concurrentReaderFormats != null) ?
+                Arrays.copyOf(concurrentReaderFormats, concurrentReaderFormats.length) : new int[0];
+        for (int format : mConcurrentReaderFormats) {
+            if (!mMultiResolutionOutputConfigs.containsKey(format)) {
+                throw new IllegalArgumentException(
+                        "Invalid concurrent reader format " + format);
             }
         }
     }
@@ -209,6 +223,25 @@ public final class MultiResolutionStreamConfigurationMap {
     }
 
     /**
+     * Check whether concurrent readers are supported for a particular format.
+     *
+     * <p>This function returns true if the camera device supports outputting on multiple readers
+     * within the {@link android.hardware.camera2.MultiResolutionImageReader} with the specified
+     * {@code format}.</p>
+     *
+     * @param format an image format from {@link ImageFormat} or {@link PixelFormat}
+     *
+     * @return whether concurrent readers are supported.
+     */
+    @FlaggedApi(Flags.FLAG_MULTI_RESOLUTION_CONCURRENT_READERS)
+    public boolean isConcurrentReadersSupported(@Format int format) {
+        if (Arrays.stream(mConcurrentReaderFormats).anyMatch(x -> x == format)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Get a group of {@code MultiResolutionStreamInfo} with the requested input image {@code format}
      *
      * <p>The {@code format} should be a supported format (one of the formats returned by
@@ -252,9 +285,12 @@ public final class MultiResolutionStreamConfigurationMap {
                             streamInfo.getWidth(), streamInfo.getHeight(),
                             streamInfo.getPhysicalCameraId()));
                 }
-                // Remove the pending ", "
-                if (sb.charAt(sb.length() - 1) == ' ') {
-                    sb.delete(sb.length() - 2, sb.length());
+                boolean concurrencySupported =
+                        Arrays.stream(mConcurrentReaderFormats).anyMatch(e -> e == format);
+                if (concurrencySupported) {
+                    sb.append("Concurrency supported");
+                } else {
+                    sb.append("Concurrency not supported");
                 }
                 sb.append("]");
             }
@@ -289,6 +325,10 @@ public final class MultiResolutionStreamConfigurationMap {
                 }
             }
 
+            if (!Arrays.equals(mConcurrentReaderFormats, other.mConcurrentReaderFormats)) {
+                return false;
+            }
+
             return true;
         }
         return false;
@@ -300,7 +340,8 @@ public final class MultiResolutionStreamConfigurationMap {
     @Override
     public int hashCode() {
         return HashCodeHelpers.hashCodeGeneric(
-                mConfigurations, mMultiResolutionOutputConfigs, mMultiResolutionInputConfigs);
+                mConfigurations, mMultiResolutionOutputConfigs, mMultiResolutionInputConfigs,
+                HashCodeHelpers.hashCode(mConcurrentReaderFormats));
     }
 
     /**
@@ -308,7 +349,7 @@ public final class MultiResolutionStreamConfigurationMap {
      *
      * <p>{@code "MultiResolutionStreamConfigurationMap(Outputs([format1: [w:%d, h:%d, id:%s], ...
      * ... [w:%d, h:%d, id:%s]), [format2: [w:%d, h:%d, id:%s], ... [w:%d, h:%d, id:%s]], ...),
-     * Inputs([format1: [w:%d, h:%d, id:%s], ... [w:%d, h:%d, id:%s], ...).</p>
+     * Inputs([format1: [w:%d, h:%d, id:%s], ... [w:%d, h:%d, id:%s], ...)))"}.</p>
      *
      * @return string representation of {@link MultiResolutionStreamConfigurationMap}
      */
@@ -332,4 +373,6 @@ public final class MultiResolutionStreamConfigurationMap {
     /** Format -> list of MultiResolutionStreamInfo used for multi-resolution reprocessing */
     private final Map<Integer, List<MultiResolutionStreamInfo>> mMultiResolutionInputConfigs
             = new HashMap<Integer, List<MultiResolutionStreamInfo>>();
+    /** The supported formats for concurrent readers */
+    private final int[] mConcurrentReaderFormats;
 }

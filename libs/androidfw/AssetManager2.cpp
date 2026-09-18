@@ -634,7 +634,8 @@ std::unique_ptr<AssetDir> AssetManager2::OpenDir(const std::string& dirname) con
 // is inconsistent for split APKs.
 std::unique_ptr<Asset> AssetManager2::OpenNonAsset(const std::string& filename,
                                                    Asset::AccessMode mode,
-                                                   ApkAssetsCookie* out_cookie) const {
+                                                   ApkAssetsCookie* out_cookie,
+                                                   int64_t max_size) const {
   auto op = StartOperation();
   for (size_t i = apk_assets_.size(); i > 0; i--) {
     const auto& assets = GetApkAssets(i - 1);
@@ -645,7 +646,8 @@ std::unique_ptr<Asset> AssetManager2::OpenNonAsset(const std::string& filename,
       continue;
     }
 
-    std::unique_ptr<Asset> asset = assets->GetAssetsProvider()->Open(filename, mode);
+    std::unique_ptr<Asset> asset =
+        assets->GetAssetsProvider()->Open(filename, mode, nullptr, max_size);
     if (asset) {
       if (out_cookie != nullptr) {
         *out_cookie = i - 1;
@@ -661,14 +663,14 @@ std::unique_ptr<Asset> AssetManager2::OpenNonAsset(const std::string& filename,
 }
 
 std::unique_ptr<Asset> AssetManager2::OpenNonAsset(const std::string& filename,
-                                                   ApkAssetsCookie cookie,
-                                                   Asset::AccessMode mode) const {
+                                                   ApkAssetsCookie cookie, Asset::AccessMode mode,
+                                                   int64_t max_size) const {
   if (cookie < 0 || static_cast<size_t>(cookie) >= apk_assets_.size()) {
     return {};
   }
   auto op = StartOperation();
   const auto& assets = GetApkAssets(cookie);
-  return assets ? assets->GetAssetsProvider()->Open(filename, mode) : nullptr;
+  return assets ? assets->GetAssetsProvider()->Open(filename, mode, nullptr, max_size) : nullptr;
 }
 
 base::expected<FindEntryResult, NullOrIOError> AssetManager2::FindEntry(

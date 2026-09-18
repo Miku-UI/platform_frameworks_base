@@ -19,7 +19,6 @@ import static com.android.internal.annotations.VisibleForTesting.Visibility.PRIV
 import static com.android.wm.shell.bubbles.BubbleDebugConfig.TAG_BUBBLES;
 import static com.android.wm.shell.bubbles.BubbleDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.wm.shell.bubbles.Bubbles.dismissReasonToString;
-import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_BUBBLES;
 
 import android.annotation.NonNull;
 import android.app.PendingIntent;
@@ -27,7 +26,9 @@ import android.app.TaskInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.LocusId;
+import android.content.pm.PackageManager;
 import android.content.pm.ShortcutInfo;
+import android.graphics.drawable.Icon;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -38,15 +39,18 @@ import android.view.View;
 import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.FrameworkStatsLog;
+import com.android.wm.shell.Flags;
 import com.android.wm.shell.R;
 import com.android.wm.shell.bubbles.Bubbles.DismissReason;
+import com.android.wm.shell.bubbles.appinfo.BubbleAppInfoProvider;
+import com.android.wm.shell.bubbles.logging.BubbleLogger;
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread;
 import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation;
 import com.android.wm.shell.shared.bubbles.BubbleBarUpdate;
 import com.android.wm.shell.shared.bubbles.RemovedBubble;
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog;
 import com.android.wm.shell.taskview.TaskViewTaskController;
 
 import java.io.PrintWriter;
@@ -245,6 +249,7 @@ public class BubbleData {
 
     private BubbleViewProvider mSelectedBubble;
     private final BubbleOverflow mOverflow;
+    private BubbleAppInfoProvider mAppInfoProvider;
     private boolean mShowingOverflow;
     private boolean mExpanded;
     private int mMaxBubbles;
@@ -264,6 +269,11 @@ public class BubbleData {
     private Bubbles.PendingIntentCanceledListener mCancelledListener;
 
     /**
+     * When sensitive notification protection is active we shouldn't show the flyout for bubbles.
+     */
+    private boolean mSensitiveNotificationProtectionActive = false;
+
+    /**
      * We track groups with summaries that aren't visibly displayed but still kept around because
      * the bubble(s) associated with the summary still exist.
      *
@@ -277,14 +287,15 @@ public class BubbleData {
     private HashMap<String, String> mSuppressedGroupKeys = new HashMap<>();
 
     public BubbleData(Context context, BubbleLogger bubbleLogger, BubblePositioner positioner,
-            BubbleEducationController educationController, @ShellMainThread Executor mainExecutor,
-            @ShellBackgroundThread Executor bgExecutor) {
+            BubbleEducationController educationController, BubbleAppInfoProvider appInfoProvider,
+            @ShellMainThread Executor mainExecutor, @ShellBackgroundThread Executor bgExecutor) {
         mContext = context;
         mLogger = bubbleLogger;
         mPositioner = positioner;
         mEducationController = educationController;
         mMainExecutor = mainExecutor;
         mBgExecutor = bgExecutor;
+        mAppInfoProvider = appInfoProvider;
         mOverflow = new BubbleOverflow(context, positioner);
         mBubbles = new ArrayList<>();
         mOverflowBubbles = new ArrayList<>();
@@ -314,6 +325,15 @@ public class BubbleData {
     public void setPendingIntentCancelledListener(
             Bubbles.PendingIntentCanceledListener listener) {
         mCancelledListener = listener;
+    }
+
+    /**
+     * Sets whether the sensitive notification protection state is active (e.g. user is screen
+     * recording so we hide bubble flyouts)
+     */
+    public void setSensitiveNotificationProtectionActive(
+            boolean sensitiveNotificationProtectionActive) {
+        mSensitiveNotificationProtectionActive = sensitiveNotificationProtectionActive;
     }
 
     public void onMaxBubblesChanged() {
@@ -394,6 +414,7 @@ public class BubbleData {
 
     /** Sets the expanded state to false without dispatching changes. */
     public void collapseNoUpdate() {
+        BubbleLog.d("BubbleData.collapseNoUpdate()");
         mExpanded = false;
     }
 
@@ -404,7 +425,7 @@ public class BubbleData {
      * updated to have the correct state.
      */
     public void expandAndSelectBubbleFromLauncher(BubbleViewProvider bubble) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "setSelectedBubbleFromLauncher=%s",
+        BubbleLog.d("BubbleData.expandAndSelectBubbleFromLauncher() bubble key=%s",
                 (bubble != null ? bubble.getKey() : "null"));
         mExpanded = true;
         boolean isOverflow = bubble != null && BubbleOverflow.KEY.equals(bubble.getKey());
@@ -485,9 +506,7 @@ public class BubbleData {
                     // Not in the overflow, have an entry, so it's a new bubble
                     bubbleToReturn = new Bubble(entry,
                             mBubbleMetadataFlagListener,
-                            mCancelledListener,
-                            mMainExecutor,
-                            mBgExecutor);
+                            mCancelledListener, mMainExecutor);
                 } else {
                     // If there's no entry it must be a persisted bubble
                     bubbleToReturn = persistedBubble;
@@ -498,6 +517,7 @@ public class BubbleData {
         if (entry != null) {
             bubbleToReturn.setEntry(entry);
         }
+        BubbleLog.d("BubbleData.getOrCreateBubble() key=%s", key);
         mPendingBubbles.put(key, bubbleToReturn);
         return bubbleToReturn;
     }
@@ -506,7 +526,7 @@ public class BubbleData {
         String bubbleKey = Bubble.getBubbleKeyForShortcut(info);
         Bubble bubbleToReturn = findAndRemoveBubbleFromOverflow(bubbleKey);
         if (bubbleToReturn == null) {
-            bubbleToReturn = Bubble.createShortcutBubble(info, mMainExecutor, mBgExecutor);
+            bubbleToReturn = Bubble.createShortcutBubble(info);
         }
         return bubbleToReturn;
     }
@@ -515,7 +535,13 @@ public class BubbleData {
         String bubbleKey = Bubble.getAppBubbleKeyForApp(intent.getPackage(), user);
         Bubble bubbleToReturn = findAndRemoveBubbleFromOverflow(bubbleKey);
         if (bubbleToReturn == null) {
-            bubbleToReturn = Bubble.createAppBubble(intent, user, null, mMainExecutor, mBgExecutor);
+            Icon icon = null;
+            if (Flags.useBubbleIconFromActivityInfo()) {
+                final PackageManager pm =
+                        BubbleController.getPackageManagerForUser(mContext, user.getIdentifier());
+                icon = mAppInfoProvider.getActivityInfoIcon(pm, intent);
+            }
+            bubbleToReturn = Bubble.createAppBubble(intent, user, icon);
         }
         return bubbleToReturn;
     }
@@ -524,19 +550,23 @@ public class BubbleData {
         String bubbleKey = Bubble.getAppBubbleKeyForApp(pendingIntent.getCreatorPackage(), user);
         Bubble bubbleToReturn = findAndRemoveBubbleFromOverflow(bubbleKey);
         if (bubbleToReturn == null) {
-            bubbleToReturn = Bubble.createAppBubble(pendingIntent, user, mMainExecutor,
-                    mBgExecutor);
+            bubbleToReturn = Bubble.createAppBubble(pendingIntent, user);
         }
         return bubbleToReturn;
     }
 
     Bubble getOrCreateBubble(TaskInfo taskInfo) {
-        UserHandle user = UserHandle.of(mCurrentUserId);
+        UserHandle user = UserHandle.of(taskInfo.userId);
         String bubbleKey = Bubble.getAppBubbleKeyForTask(taskInfo);
         Bubble bubbleToReturn = findAndRemoveBubbleFromOverflow(bubbleKey);
         if (bubbleToReturn == null) {
-            bubbleToReturn = Bubble.createTaskBubble(taskInfo, user, null, mMainExecutor,
-                    mBgExecutor);
+            Icon icon = null;
+            if (Flags.useBubbleIconFromActivityInfo()) {
+                final PackageManager pm =
+                        BubbleController.getPackageManagerForUser(mContext, user.getIdentifier());
+                icon = mAppInfoProvider.getActivityInfoIcon(pm, taskInfo.baseIntent);
+            }
+            bubbleToReturn = Bubble.createTaskBubble(taskInfo, user, icon);
         }
         return bubbleToReturn;
     }
@@ -580,13 +610,13 @@ public class BubbleData {
      * com.android.wm.shell.bubbles.bar.BubbleBarLayerView,
      * com.android.launcher3.icons.BubbleIconFactory, boolean)
      */
-    void notificationEntryUpdated(Bubble bubble, boolean suppressFlyout, boolean showInShade,
+    public void notificationEntryUpdated(Bubble bubble, boolean suppressFlyout, boolean showInShade,
             @Nullable BubbleBarLocation bubbleBarLocation) {
         mPendingBubbles.remove(bubble.getKey()); // No longer pending once we're here
         Bubble prevBubble = getBubbleInStackWithKey(bubble.getKey());
-        suppressFlyout |= !bubble.isTextChanged();
-        ProtoLog.d(WM_SHELL_BUBBLES,
-                "notifEntryUpdated=%s prevBubble=%b suppressFlyout=%b showInShade=%b autoExpand=%b",
+        suppressFlyout |= !bubble.isTextChanged() || mSensitiveNotificationProtectionActive;
+        BubbleLog.d("BubbleData.notificationEntryUpdated() notifEntryUpdated=%s prevBubble=%b"
+                        + " suppressFlyout=%b showInShade=%b autoExpand=%b",
                 bubble.getKey(), (prevBubble != null), suppressFlyout, showInShade,
                 bubble.shouldAutoExpand());
 
@@ -638,7 +668,7 @@ public class BubbleData {
      *  - All info in the opening Bubble has completed loading.
      *  - The BubbleBar Icon of the closing Bubble can be removed.
      */
-    void jumpcutBubbleSwitch(Bubble openingBubble, Bubble closingBubble) {
+    public void jumpcutBubbleSwitch(Bubble openingBubble, Bubble closingBubble) {
         // Notify launcher about the closing Bubble, but don't actually remove its TaskView yet
         // because we still need it to be visible until the opening Bubble is fully visible.
         // The cleanup will be done onTaskVanished.
@@ -671,6 +701,7 @@ public class BubbleData {
                 shouldRemove = false;
             }
         }
+        BubbleLog.d("BubbleData.dismissBubbleWithKey() key=%s shouldRemove=%b", key, shouldRemove);
         if (shouldRemove) {
             doRemove(key, reason);
             dispatchPendingChanges();
@@ -684,6 +715,7 @@ public class BubbleData {
      * @param notifKey the notification entry key of that summary.
      */
     void addSummaryToSuppress(String groupKey, String notifKey) {
+        BubbleLog.d("BubbleData.addSummaryToSuppress() groupKey=%s", groupKey);
         mSuppressedGroupKeys.put(groupKey, notifKey);
         mStateChange.suppressedSummaryChanged = true;
         mStateChange.suppressedSummaryGroup = groupKey;
@@ -704,6 +736,7 @@ public class BubbleData {
      * Removes a group key indicating that summary for this group should no longer be suppressed.
      */
     void removeSuppressedSummary(String groupKey) {
+        BubbleLog.d("BubbleData.removeSuppressedSummary() groupKey=%s", groupKey);
         mSuppressedGroupKeys.remove(groupKey);
         mStateChange.suppressedSummaryChanged = true;
         mStateChange.suppressedSummaryGroup = groupKey;
@@ -724,7 +757,6 @@ public class BubbleData {
      */
     public void removeBubblesWithInvalidShortcuts(
             String packageName, List<ShortcutInfo> validShortcuts, int reason) {
-
         final Set<String> validShortcutIds = new HashSet<String>();
         for (ShortcutInfo info : validShortcuts) {
             validShortcutIds.add(info.getId());
@@ -741,7 +773,12 @@ public class BubbleData {
                             && bubble.getShortcutInfo() != null
                             && bubble.getShortcutInfo().isEnabled()
                             && validShortcutIds.contains(bubble.getShortcutInfo().getId());
-            return bubbleIsFromPackage && !hasShortcutIdAndValidShortcut;
+            boolean isInvalidBubble = bubbleIsFromPackage && !hasShortcutIdAndValidShortcut;
+            if (isInvalidBubble) {
+                BubbleLog.d("BubbleData.removeBubblesWithInvalidShortcuts() bubble=%s",
+                        bubble.getKey());
+            }
+            return isInvalidBubble;
         };
 
         final Consumer<Bubble> removeBubble = bubble ->
@@ -754,6 +791,7 @@ public class BubbleData {
 
     /** Removes all bubbles from the given package. */
     public void removeBubblesWithPackageName(String packageName, int reason) {
+        BubbleLog.d("BubbleData.removeBubblesWithPackageName() package=%s", packageName);
         final Predicate<Bubble> bubbleMatchesPackage = bubble ->
                 bubble.getPackageName().equals(packageName);
 
@@ -766,6 +804,7 @@ public class BubbleData {
 
     /** Removes all bubbles for the given user. */
     public void removeBubblesForUser(int userId) {
+        BubbleLog.d("BubbleData.removeBubblesForUser() userId=%d", userId);
         final List<Bubble> removedBubbles = filterAllBubbles(bubble ->
                 userId == bubble.getUser().getIdentifier());
         for (Bubble b : removedBubbles) {
@@ -777,7 +816,7 @@ public class BubbleData {
     }
 
     private void doAdd(Bubble bubble) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "doAdd=%s", bubble.getKey());
+        BubbleLog.d("BubbleData.doAdd() bubble key=%s", bubble.getKey());
         mBubbles.add(0, bubble);
         mStateChange.addedBubble = bubble;
         // Adding the first bubble doesn't change the order
@@ -806,7 +845,7 @@ public class BubbleData {
     }
 
     private void doUpdate(Bubble bubble, boolean reorder) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "BubbleData - doUpdate=%s", bubble.getKey());
+        BubbleLog.d("BubbleData.doUpdate() bubble key=%s", bubble.getKey());
         mStateChange.updatedBubble = bubble;
         if (!isExpanded() && reorder) {
             int prevPos = mBubbles.indexOf(bubble);
@@ -852,7 +891,7 @@ public class BubbleData {
             if (hasOverflowBubbleWithKey(key)
                     && shouldRemoveHiddenBubble) {
                 Bubble b = getOverflowBubbleWithKey(key);
-                ProtoLog.d(WM_SHELL_BUBBLES, "doRemove - cancel overflow bubble=%s reason=%s",
+                BubbleLog.d("BubbleData.doRemove() cancel overflow bubble=%s reason=%s",
                         key, dismissReasonToString(reason));
                 if (b != null) {
                     b.stopInflation();
@@ -867,7 +906,7 @@ public class BubbleData {
             }
             if (hasSuppressedBubbleWithKey(key) && shouldRemoveHiddenBubble) {
                 Bubble b = getSuppressedBubbleWithKey(key);
-                ProtoLog.d(WM_SHELL_BUBBLES, "doRemove - cancel suppressed bubble=%s reason=%s",
+                BubbleLog.d("BubbleData.doRemove() cancel suppressed bubble=%s reason=%s",
                         key, dismissReasonToString(reason));
                 if (b != null) {
                     mSuppressedBubbles.remove(b.getLocusId());
@@ -878,7 +917,7 @@ public class BubbleData {
             return;
         }
         Bubble bubbleToRemove = mBubbles.get(indexToRemove);
-        ProtoLog.d(WM_SHELL_BUBBLES, "doRemove=%s reason=%s", bubbleToRemove.getKey(),
+        BubbleLog.d("BubbleData.doRemove() bubble key=%s reason=%s", bubbleToRemove.getKey(),
                 dismissReasonToString(reason));
         bubbleToRemove.stopInflation();
         doOverflow(reason, bubbleToRemove);
@@ -940,7 +979,7 @@ public class BubbleData {
     }
 
     private void doSuppress(Bubble bubble) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "doSuppress=%s", bubble.getKey());
+        BubbleLog.d("BubbleData.doSuppress() bubble key=%s", bubble.getKey());
         mStateChange.suppressedBubble = bubble;
         bubble.setSuppressBubble(true);
 
@@ -963,7 +1002,7 @@ public class BubbleData {
     }
 
     private void doUnsuppress(Bubble bubble) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "doUnsuppress=%s", bubble.getKey());
+        BubbleLog.d("BubbleData.doUnsuppress() bubble key=%s", bubble.getKey());
         bubble.setSuppressBubble(false);
         mStateChange.unsuppressedBubble = bubble;
         mBubbles.add(bubble);
@@ -986,20 +1025,19 @@ public class BubbleData {
         if (bubble.getPendingIntentCanceled() || !isOverflowReason) {
             return;
         }
-        ProtoLog.d(WM_SHELL_BUBBLES, "overflowBubble=%s reason=%s", bubble.getKey(),
+
+        BubbleLog.d("BubbleData.doOverflow() overflowBubble=%s reason=%s", bubble.getKey(),
                 dismissReasonToString(reason));
         mLogger.logOverflowAdd(bubble, mPositioner.isShowingInBubbleBar(), reason);
         if (mOverflowBubbles.isEmpty()) {
             mStateChange.showOverflowChanged = true;
         }
-        mOverflowBubbles.remove(bubble);
-        mOverflowBubbles.add(0, bubble);
-        mStateChange.addedOverflowBubble = bubble;
+        reallyDoOverflow(bubble);
         bubble.stopInflation();
         if (mOverflowBubbles.size() == mMaxOverflowBubbles + 1) {
             // Remove oldest bubble.
             Bubble oldest = mOverflowBubbles.get(mOverflowBubbles.size() - 1);
-            ProtoLog.d(WM_SHELL_BUBBLES, "overflow full, remove=%s", oldest.getKey());
+            BubbleLog.d("BubbleData.doOverflow() overflow full, remove=%s", oldest.getKey());
             mStateChange.bubbleRemoved(oldest, Bubbles.DISMISS_OVERFLOW_MAX_REACHED);
             if (!mPositioner.isShowingInBubbleBar()) {
                 // Only logged for bubbles in stack view
@@ -1010,8 +1048,62 @@ public class BubbleData {
         }
     }
 
+    private void reallyDoOverflow(Bubble overflowedBubble) {
+        Bubble bubbleToRemove = null;
+        Bubble bubbleToAdd = null;
+        Bubble bubbleToReorder = null;
+        // Overflowed app bubbles only show the app icon, if there are multiple bubbles for an app,
+        // a user can't distinguish between them. Per UX we only show 1 app bubble in
+        // the overflow and it will use the launch intent for the app so remove others.
+        if (overflowedBubble.isApp()) {
+            for (Bubble bubble : mOverflowBubbles) {
+                if (!bubble.isApp()) continue;
+                if (bubble.getPackageName().equals(overflowedBubble.getPackageName())
+                        && bubble.getUser().getIdentifier()
+                        == overflowedBubble.getUser().getIdentifier()) {
+                    // We already have an app bubble in the overflow for this user, lets figure
+                    // out which bubble stays in the overflow.
+                    if (bubble.isHasLauncherCategory()
+                            && !overflowedBubble.isHasLauncherCategory()) {
+                        // Reorder launcher category to front, we won't use the new one
+                        bubbleToReorder = bubble;
+                    } else if (overflowedBubble.isHasLauncherCategory()
+                            && !bubble.isHasLauncherCategory()) {
+                        // New one is launcher category, keep it and remove older one
+                        bubbleToRemove = bubble;
+                        bubbleToAdd = overflowedBubble;
+                    } else if (overflowedBubble.isHasLauncherCategory()
+                            && bubble.isHasLauncherCategory()) {
+                        // Both launcher category, remove the older one
+                        bubbleToRemove = bubble;
+                        bubbleToAdd = overflowedBubble;
+                    } else if (!overflowedBubble.isHasLauncherCategory()
+                            && !bubble.isHasLauncherCategory()) {
+                        // Neither are launcher category, remove the older one
+                        bubbleToRemove = bubble;
+                        bubbleToAdd = overflowedBubble;
+                    }
+                }
+            }
+        }
+        if (bubbleToRemove != null && bubbleToAdd != null) {
+            mOverflowBubbles.remove(bubbleToRemove);
+            mOverflowBubbles.add(0, bubbleToAdd);
+            mStateChange.addedOverflowBubble = bubbleToAdd;
+            mStateChange.removedOverflowBubble = bubbleToRemove;
+        } else if (bubbleToReorder != null) {
+            mOverflowBubbles.remove(bubbleToReorder);
+            mOverflowBubbles.add(0, bubbleToReorder);
+        } else  {
+            // normal case
+            mOverflowBubbles.remove(overflowedBubble);
+            mOverflowBubbles.add(0, overflowedBubble);
+            mStateChange.addedOverflowBubble = overflowedBubble;
+        }
+    }
+
     public void dismissAll(@DismissReason int reason) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "dismissAll reason=%s", dismissReasonToString(reason));
+        BubbleLog.d("BubbleData.dismissAll() reason=%s", dismissReasonToString(reason));
         if (mBubbles.isEmpty() && mSuppressedBubbles.isEmpty()) {
             return;
         }
@@ -1039,9 +1131,6 @@ public class BubbleData {
     public void onLocusVisibilityChanged(int taskId, LocusId locusId, boolean visible) {
         if (locusId == null) return;
 
-        ProtoLog.d(WM_SHELL_BUBBLES, "onLocusVisibilityChanged=%s visible=%b taskId=%d",
-                locusId.getId(), visible, taskId);
-
         Bubble matchingBubble = getBubbleInStackWithLocusId(locusId);
         // Don't add the locus if it's from a bubble'd activity, we only suppress for non-bubbled.
         if (visible && (matchingBubble == null || matchingBubble.getTaskId() != taskId)) {
@@ -1059,12 +1148,18 @@ public class BubbleData {
         boolean isAlreadySuppressed = mSuppressedBubbles.get(locusId) != null;
         if (visible && !isAlreadySuppressed && matchingBubble.isSuppressable()
                 && taskId != matchingBubble.getTaskId()) {
+            BubbleLog.d("BubbleData.onLocusVisibilityChanged() locusId=%s visible=%b taskId=%d "
+                            + "suppressingBubble=%s",
+                    locusId.getId(), visible, taskId, matchingBubble);
             mSuppressedBubbles.put(locusId, matchingBubble);
             doSuppress(matchingBubble);
             dispatchPendingChanges();
         } else if (!visible) {
             Bubble unsuppressedBubble = mSuppressedBubbles.remove(locusId);
             if (unsuppressedBubble != null) {
+                BubbleLog.d("BubbleData.onLocusVisibilityChanged() locusId=%s visible=%b taskId=%d "
+                                + "unsuppressingBubble=%s",
+                        locusId.getId(), visible, taskId, unsuppressedBubble);
                 doUnsuppress(unsuppressedBubble);
             }
             dispatchPendingChanges();
@@ -1105,7 +1200,7 @@ public class BubbleData {
      * @param bubble the new selected bubble
      */
     private void setSelectedBubbleInternal(@Nullable BubbleViewProvider bubble) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "setSelectedBubbleInternal=%s",
+        BubbleLog.d("BubbleData.setSelectedBubbleInternal() bubble key=%s",
                 (bubble != null ? bubble.getKey() : "null"));
         if (Objects.equals(bubble, mSelectedBubble)) {
             return;
@@ -1166,10 +1261,11 @@ public class BubbleData {
      * @param shouldExpand the new requested state
      */
     private void setExpandedInternal(boolean shouldExpand) {
+        BubbleLog.d("BubbleData.setExpandedInternal() shouldExpand=%b, mExpanded=%b", shouldExpand,
+                mExpanded);
         if (mExpanded == shouldExpand) {
             return;
         }
-        ProtoLog.d(WM_SHELL_BUBBLES, "setExpandedInternal=%b", shouldExpand);
         if (shouldExpand) {
             if (mBubbles.isEmpty() && !mShowingOverflow) {
                 Log.e(TAG, "Attempt to expand stack when empty!");
@@ -1286,9 +1382,21 @@ public class BubbleData {
         return b;
     }
 
+    /** Whether there is a bubble with the given task id. */
+    public boolean hasAnyBubbleWithTaskId(int taskId) {
+        Predicate<Bubble> taskIdPredicate = b -> b.getTaskId() == taskId;
+        if (getBubbleWithPredicate(mBubbles, taskIdPredicate) != null) {
+            return true;
+        }
+        if (getBubbleWithPredicate(mOverflowBubbles, taskIdPredicate) != null) {
+            return true;
+        }
+        return getBubbleWithPredicate(mSuppressedBubbles.values(), taskIdPredicate) != null;
+    }
+
     /** @return the bubble in the stack that matches the provided taskId. */
     @Nullable
-    Bubble getBubbleInStackWithTaskId(int taskId) {
+    public Bubble getBubbleInStackWithTaskId(int taskId) {
         return getBubbleWithPredicate(mBubbles, b -> b.getTaskId() == taskId);
     }
 

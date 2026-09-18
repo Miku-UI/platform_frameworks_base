@@ -41,7 +41,7 @@ public class SelinuxAuditLogsBuilderTest {
 
     @Before
     public void setUp() {
-        mAuditLogBuilder = new SelinuxAuditLogBuilder(TEST_DOMAIN);
+        mAuditLogBuilder = new SelinuxAuditLogBuilder();
         mScontextMatcher = mAuditLogBuilder.mScontextMatcher;
         mTcontextMatcher = mAuditLogBuilder.mTcontextMatcher;
         mPathMatcher = mAuditLogBuilder.mPathMatcher;
@@ -59,7 +59,6 @@ public class SelinuxAuditLogsBuilderTest {
         assertThat(toCategories(mScontextMatcher.group("scategories")))
                 .isEqualTo(new int[] {123, 456});
 
-        assertThat(mScontextMatcher.reset("u:r:wrong_domain:s0").matches()).isFalse();
         assertThat(mScontextMatcher.reset("u:object_r:" + TEST_DOMAIN + ":s0").matches()).isFalse();
         assertThat(mScontextMatcher.reset("u:r:" + TEST_DOMAIN + ":s0:p123").matches()).isFalse();
     }
@@ -89,18 +88,6 @@ public class SelinuxAuditLogsBuilderTest {
 
         assertThat(mPathMatcher.reset("\"/data/local").matches()).isFalse();
         assertThat(mPathMatcher.reset("\"_data_local\"").matches()).isFalse();
-    }
-
-    @Test
-    public void testMatcher_scontextDefaultConfig() {
-        Matcher scontexMatcher =
-                new SelinuxAuditLogBuilder(SelinuxAuditLogsCollector.DEFAULT_SELINUX_AUDIT_DOMAIN)
-                        .mScontextMatcher;
-
-        assertThat(scontexMatcher.reset("u:r:" + TEST_DOMAIN + ":s0").matches()).isFalse();
-        assertThat(scontexMatcher.reset("u:r:" + TEST_DOMAIN + ":s0:c123,c456").matches())
-                .isFalse();
-        assertThat(scontexMatcher.reset("u:r:wrong_domain:s0").matches()).isFalse();
     }
 
     @Test
@@ -196,34 +183,6 @@ public class SelinuxAuditLogsBuilderTest {
                 "c",
                 null,
                 true);
-    }
-
-    @Test
-    public void testSelinuxAuditLogsBuilder_wrongConfig() {
-        String notARegexDomain = "not]a[regex";
-        SelinuxAuditLogBuilder noOpBuilder = new SelinuxAuditLogBuilder(notARegexDomain);
-
-        noOpBuilder.reset(
-                "granted { p } scontext=u:r:"
-                        + TEST_DOMAIN
-                        + ":s0 tcontext=u:object_r:t:s0 tclass=c");
-        assertThat(noOpBuilder.build()).isNull();
-        noOpBuilder.reset(
-                "granted { p } scontext=u:r:"
-                        + TEST_DOMAIN
-                        + ":s0:c123 tcontext=u:object_r:t:s0:c456,c666 tclass=c");
-        assertThat(noOpBuilder.build()).isNull();
-        noOpBuilder.reset(
-                "granted { p } scontext=u:r:"
-                        + TEST_DOMAIN
-                        + ":s0 path=\"/very/long/path\""
-                        + " tcontext=u:object_r:t:s0 tclass=c");
-        assertThat(noOpBuilder.build()).isNull();
-        noOpBuilder.reset(
-                "granted { p } scontext=u:r:"
-                        + TEST_DOMAIN
-                        + ":s0 permissive=0 tcontext=u:object_r:t:s0 tclass=c");
-        assertThat(noOpBuilder.build()).isNull();
     }
 
     private void assertAuditLog(

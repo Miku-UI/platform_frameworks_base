@@ -56,8 +56,10 @@ public class Cuj {
     public static final int CUJ_LOCKSCREEN_PASSWORD_DISAPPEAR = 20;
     public static final int CUJ_LOCKSCREEN_PATTERN_DISAPPEAR = 21;
     public static final int CUJ_LOCKSCREEN_PIN_DISAPPEAR = 22;
-    public static final int CUJ_LOCKSCREEN_TRANSITION_FROM_AOD = 23;
-    public static final int CUJ_LOCKSCREEN_TRANSITION_TO_AOD = 24;
+    // Previously CUJ_LOCKSCREEN_TRANSITION_FROM_AOD
+    public static final int CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN = 23;
+    // Previously CUJ_LOCKSCREEN_TRANSITION_TO_AOD
+    public static final int CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD = 24;
     public static final int CUJ_LAUNCHER_OPEN_ALL_APPS = 25;
     public static final int CUJ_LAUNCHER_ALL_APPS_SCROLL = 26;
     public static final int CUJ_LAUNCHER_APP_LAUNCH_FROM_WIDGET = 27;
@@ -73,8 +75,10 @@ public class Cuj {
     public static final int CUJ_USER_SWITCH = 37;
     public static final int CUJ_SPLASHSCREEN_AVD = 38;
     public static final int CUJ_SPLASHSCREEN_EXIT_ANIM = 39;
-    public static final int CUJ_SCREEN_OFF = 40;
-    public static final int CUJ_SCREEN_OFF_SHOW_AOD = 41;
+    // Previously CUJ_SCREEN_OFF
+    public static final int CUJ_KEYGUARD_AOD_ENTER_ANIMATION = 40;
+    // Previously CUJ_SCREEN_OFF_SHOW_AOD
+    public static final int CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD = 41;
     public static final int CUJ_ONE_HANDED_ENTER_TRANSITION = 42;
     public static final int CUJ_ONE_HANDED_EXIT_TRANSITION = 43;
     public static final int CUJ_UNFOLD_ANIM = 44;
@@ -528,9 +532,116 @@ public class Cuj {
      */
     public static final int CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR = 150;
 
+    /**
+     * Track the animation of an app back into its status bar ongoing notification chip when
+     * returning Home.
+     *
+     * <p>Tracking starts when the RemoteTransition registered to handle the transition from the app
+     * to Home is sent the startAnimation()/takeOverAnimation() signal and starts the animation.
+     * Tracking ends when the animation is fully settled and the transition is complete.</p>
+     */
+    public static final int CUJ_STATUS_BAR_APP_RETURN_TO_ONGOING_CHIP = 151;
+
+    /**
+     * Tracking transition from HUN to dual shade notifications overlay. Tracking starts on swipe
+     * down from the HUN and ends when the dual shade notifications overlay is fully expanded.
+     */
+    public static final int CUJ_HUN_TO_DUAL_SHADE_NOTIF_OVERLAY = 152;
+
+    /**
+     * Tracks the Desktop Mode Desk Switch animation which covers the move from one desk to another.
+     *
+     * <p>This CUJ can be triggered using a keyboard shortcut (“ACTION + CTRL + ]“ or
+     * “ACTION + CTRL + [“), or by tapping the taskbar app icon of an app that lives in a desk that
+     * is currently not visible.
+     */
+    public static final int CUJ_DESKTOP_MODE_DESK_SWITCH = 153;
+
+    /**
+     * Tracks the Wear Bouncer exit animation.
+     *
+     * <p>Tracking starts when the bouncer starts to exit and ends when the bouncer is fully
+     * dismissed.
+     */
+    public static final int CUJ_WEAR_BOUNCER_EXIT_ANIMATION = 154;
+
+    /**
+     * Tracks the Wear Bouncer pin pad entry animation.
+     * This accounts for only the view with pin entry buttons + back and enter buttons.
+     *
+     * <p>Tracking starts per digit entry when the user taps the digit, and ands after the animation
+     * completes.
+     */
+    public static final int CUJ_WEAR_BOUNCER_PIN_PAD_ENTRY = 155;
+
+    /**
+     * Tracks the Wear Bouncer pin dot added animation. This accounts for only the pin dots at the top of bouncer.
+     *
+     * <p>Tracking starts per digit entry when the user taps the digit, and ands after the animation
+     * completes.
+     */
+    public static final int CUJ_WEAR_BOUNCER_PIN_DOT_ADDED = 156;
+
+    /**
+     * Tracks the Wear Bouncer pattern entry animation.
+     *
+     * <p>Tracking starts when the pattern entry begins and ends when the whole pattern is fully
+     * entered.
+     */
+    public static final int CUJ_WEAR_BOUNCER_PATTERN_ENTRY = 157;
+
+    /**
+     * Tracks the Wear Alert Notification Dialog open animation.
+     *
+     * <p>Tracking starts when the alert notification dialog starts to open and ends when the dialog
+     * is fully expanded. This CUJ is triggered when receiving a notification on the watch and
+     * glancing at it to display it full screen.
+     */
+    public static final int CUJ_WEAR_ALERT_NOTIFICATION_DIALOG = 158;
+
+    /**
+     * Tracks the transition step from keyguard to sleep/doze when AOD is off
+     */
+    public static final int CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING = 159;
+
+    /**
+     * Tracks the transition step from gone (unlocked) to sleep/doze when AOD is off
+     */
+    public static final int CUJ_KEYGUARD_TRANSITION_GONE_TO_DOZING = 160;
+
+    /**
+     * Tracks the drag-resizing at the client side.
+     */
+    public static final int CUJ_CLIENT_DRAG_RESIZING = 161;
+
+    /**
+     * Tracks the Desktop Mode Taskbar indicator update.
+     */
+    public static final int CUJ_DESKTOP_MODE_TASKBAR_INDICATOR_UPDATE = 162;
+
+    /**
+     * Tracks the Desktop Mode Taskbar multi-instance menu open.
+     */
+    public static final int CUJ_DESKTOP_MODE_TASKBAR_MULTI_INSTANCE_MENU_OPEN = 163;
+
+    /**
+     * Tracks the Taskbar recent apps appearing.
+     */
+    public static final int CUJ_TASKBAR_ICON_APPEAR = 164;
+
+    /**
+     * Tracks the app update animation.
+     */
+    public static final int CUJ_APP_UPDATE = 165;
+
+    /**
+     * Tracks the Launcher transition from Overview to home.
+     */
+    public static final int CUJ_LAUNCHER_RECENTS_TO_HOME = 166;
+
     // When adding a CUJ, update this and make sure to also update CUJ_TO_STATSD_INTERACTION_TYPE.
     @VisibleForTesting static final int LAST_CUJ =
-            CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR;
+            CUJ_LAUNCHER_RECENTS_TO_HOME;
 
     /** @hide */
     @IntDef({
@@ -556,8 +667,8 @@ public class Cuj {
             CUJ_LOCKSCREEN_PASSWORD_DISAPPEAR,
             CUJ_LOCKSCREEN_PATTERN_DISAPPEAR,
             CUJ_LOCKSCREEN_PIN_DISAPPEAR,
-            CUJ_LOCKSCREEN_TRANSITION_FROM_AOD,
-            CUJ_LOCKSCREEN_TRANSITION_TO_AOD,
+            CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN,
+            CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD,
             CUJ_LAUNCHER_OPEN_ALL_APPS,
             CUJ_LAUNCHER_ALL_APPS_SCROLL,
             CUJ_LAUNCHER_APP_LAUNCH_FROM_WIDGET,
@@ -573,8 +684,8 @@ public class Cuj {
             CUJ_USER_SWITCH,
             CUJ_SPLASHSCREEN_AVD,
             CUJ_SPLASHSCREEN_EXIT_ANIM,
-            CUJ_SCREEN_OFF,
-            CUJ_SCREEN_OFF_SHOW_AOD,
+            CUJ_KEYGUARD_AOD_ENTER_ANIMATION,
+            CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD,
             CUJ_ONE_HANDED_ENTER_TRANSITION,
             CUJ_ONE_HANDED_EXIT_TRANSITION,
             CUJ_UNFOLD_ANIM,
@@ -672,7 +783,23 @@ public class Cuj {
             CUJ_AMBIENT_CUE_EXPAND,
             CUJ_AMBIENT_CUE_COLLAPSE,
             CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_APPEAR,
-            CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR
+            CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR,
+            CUJ_STATUS_BAR_APP_RETURN_TO_ONGOING_CHIP,
+            CUJ_HUN_TO_DUAL_SHADE_NOTIF_OVERLAY,
+            CUJ_DESKTOP_MODE_DESK_SWITCH,
+            CUJ_WEAR_BOUNCER_EXIT_ANIMATION,
+            CUJ_WEAR_BOUNCER_PIN_PAD_ENTRY,
+            CUJ_WEAR_BOUNCER_PIN_DOT_ADDED,
+            CUJ_WEAR_BOUNCER_PATTERN_ENTRY,
+            CUJ_WEAR_ALERT_NOTIFICATION_DIALOG,
+            CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING,
+            CUJ_KEYGUARD_TRANSITION_GONE_TO_DOZING,
+            CUJ_CLIENT_DRAG_RESIZING,
+            CUJ_DESKTOP_MODE_TASKBAR_INDICATOR_UPDATE,
+            CUJ_DESKTOP_MODE_TASKBAR_MULTI_INSTANCE_MENU_OPEN,
+            CUJ_TASKBAR_ICON_APPEAR,
+            CUJ_APP_UPDATE,
+            CUJ_LAUNCHER_RECENTS_TO_HOME
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CujType {}
@@ -707,8 +834,8 @@ public class Cuj {
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LOCKSCREEN_PASSWORD_DISAPPEAR] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_PASSWORD_DISAPPEAR;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LOCKSCREEN_PATTERN_DISAPPEAR] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_PATTERN_DISAPPEAR;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LOCKSCREEN_PIN_DISAPPEAR] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_PIN_DISAPPEAR;
-        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LOCKSCREEN_TRANSITION_FROM_AOD] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_TRANSITION_FROM_AOD;
-        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LOCKSCREEN_TRANSITION_TO_AOD] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_TRANSITION_TO_AOD;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_TRANSITION_FROM_AOD;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LOCKSCREEN_TRANSITION_TO_AOD;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LAUNCHER_OPEN_ALL_APPS] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LAUNCHER_OPEN_ALL_APPS;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LAUNCHER_ALL_APPS_SCROLL] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LAUNCHER_ALL_APPS_SCROLL;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LAUNCHER_APP_LAUNCH_FROM_WIDGET] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LAUNCHER_APP_LAUNCH_FROM_WIDGET;
@@ -724,8 +851,8 @@ public class Cuj {
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_USER_SWITCH] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__USER_SWITCH;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_SPLASHSCREEN_AVD] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__SPLASHSCREEN_AVD;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_SPLASHSCREEN_EXIT_ANIM] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__SPLASHSCREEN_EXIT_ANIM;
-        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_SCREEN_OFF] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__SCREEN_OFF;
-        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_SCREEN_OFF_SHOW_AOD] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__SCREEN_OFF_SHOW_AOD;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_KEYGUARD_AOD_ENTER_ANIMATION] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__SCREEN_OFF;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__SCREEN_OFF_SHOW_AOD;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_ONE_HANDED_ENTER_TRANSITION] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__ONE_HANDED_ENTER_TRANSITION;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_ONE_HANDED_EXIT_TRANSITION] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__ONE_HANDED_EXIT_TRANSITION;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_UNFOLD_ANIM] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__UNFOLD_ANIM;
@@ -825,6 +952,22 @@ public class Cuj {
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_AMBIENT_CUE_COLLAPSE] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__AMBIENT_CUE_COLLAPSE;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_APPEAR] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_APPEAR;
         CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_STATUS_BAR_APP_RETURN_TO_ONGOING_CHIP] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__STATUS_BAR_APP_RETURN_TO_ONGOING_CHIP;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_HUN_TO_DUAL_SHADE_NOTIF_OVERLAY] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__HUN_TO_DUAL_SHADE_NOTIF_OVERLAY;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_DESKTOP_MODE_DESK_SWITCH] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__DESKTOP_MODE_DESK_SWITCH;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_WEAR_BOUNCER_EXIT_ANIMATION] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__WEAR_BOUNCER_EXIT_ANIMATION;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_WEAR_BOUNCER_PIN_PAD_ENTRY] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__WEAR_BOUNCER_PIN_PAD_ENTRY;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_WEAR_BOUNCER_PIN_DOT_ADDED] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__WEAR_BOUNCER_PIN_DOT_ADDED;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_WEAR_BOUNCER_PATTERN_ENTRY] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__WEAR_BOUNCER_PATTERN_ENTRY;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_WEAR_ALERT_NOTIFICATION_DIALOG] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__WEAR_ALERT_NOTIFICATION_DIALOG;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_KEYGUARD_TRANSITION_GONE_TO_DOZING] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__KEYGUARD_TRANSITION_GONE_TO_DOZING;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_CLIENT_DRAG_RESIZING] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__CLIENT_DRAG_RESIZING;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_DESKTOP_MODE_TASKBAR_INDICATOR_UPDATE] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__DESKTOP_MODE_TASKBAR_INDICATOR_UPDATE;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_DESKTOP_MODE_TASKBAR_MULTI_INSTANCE_MENU_OPEN] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__DESKTOP_MODE_TASKBAR_MULTI_INSTANCE_MENU_OPEN;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_TASKBAR_ICON_APPEAR] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__TASKBAR_ICON_APPEAR;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_APP_UPDATE] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__APP_UPDATE;
+        CUJ_TO_STATSD_INTERACTION_TYPE[CUJ_LAUNCHER_RECENTS_TO_HOME] = FrameworkStatsLog.UIINTERACTION_FRAME_INFO_REPORTED__INTERACTION_TYPE__LAUNCHER_RECENTS_TO_HOME;
     }
 
     private Cuj() {
@@ -885,10 +1028,10 @@ public class Cuj {
                 return "LOCKSCREEN_PATTERN_DISAPPEAR";
             case CUJ_LOCKSCREEN_PIN_DISAPPEAR:
                 return "LOCKSCREEN_PIN_DISAPPEAR";
-            case CUJ_LOCKSCREEN_TRANSITION_FROM_AOD:
-                return "LOCKSCREEN_TRANSITION_FROM_AOD";
-            case CUJ_LOCKSCREEN_TRANSITION_TO_AOD:
-                return "LOCKSCREEN_TRANSITION_TO_AOD";
+            case CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN:
+                return "KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN";
+            case CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD:
+                return "KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD";
             case CUJ_LAUNCHER_OPEN_ALL_APPS :
                 return "LAUNCHER_OPEN_ALL_APPS";
             case CUJ_LAUNCHER_ALL_APPS_SCROLL:
@@ -919,10 +1062,10 @@ public class Cuj {
                 return "SPLASHSCREEN_AVD";
             case CUJ_SPLASHSCREEN_EXIT_ANIM:
                 return "SPLASHSCREEN_EXIT_ANIM";
-            case CUJ_SCREEN_OFF:
-                return "SCREEN_OFF";
-            case CUJ_SCREEN_OFF_SHOW_AOD:
-                return "SCREEN_OFF_SHOW_AOD";
+            case CUJ_KEYGUARD_AOD_ENTER_ANIMATION:
+                return "KEYGUARD_AOD_ENTER_ANIMATION";
+            case CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD:
+                return "KEYGUARD_TRANSITION_GONE_TO_AOD";
             case CUJ_ONE_HANDED_ENTER_TRANSITION:
                 return "ONE_HANDED_ENTER_TRANSITION";
             case CUJ_ONE_HANDED_EXIT_TRANSITION:
@@ -1121,6 +1264,38 @@ public class Cuj {
                 return "BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_APPEAR";
             case CUJ_BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR:
                 return "BOUNCER_SECURE_LOCK_DEVICE_BIOMETRIC_AUTH_DISAPPEAR";
+            case CUJ_STATUS_BAR_APP_RETURN_TO_ONGOING_CHIP:
+                return "STATUS_BAR_APP_RETURN_TO_ONGOING_CHIP";
+            case CUJ_HUN_TO_DUAL_SHADE_NOTIF_OVERLAY:
+                return "HUN_TO_DUAL_SHADE_NOTIF_OVERLAY";
+            case CUJ_DESKTOP_MODE_DESK_SWITCH:
+                return "DESKTOP_MODE_DESK_SWITCH";
+            case CUJ_WEAR_BOUNCER_EXIT_ANIMATION:
+                return "WEAR_BOUNCER_EXIT_ANIMATION";
+            case CUJ_WEAR_BOUNCER_PIN_PAD_ENTRY:
+                return "WEAR_BOUNCER_PIN_PAD_ENTRY";
+            case CUJ_WEAR_BOUNCER_PIN_DOT_ADDED:
+                return "WEAR_BOUNCER_PIN_DOT_ADDED";
+            case CUJ_WEAR_BOUNCER_PATTERN_ENTRY:
+                return "WEAR_BOUNCER_PATTERN_ENTRY";
+           case CUJ_WEAR_ALERT_NOTIFICATION_DIALOG:
+                return "WEAR_ALERT_NOTIFICATION_DIALOG";
+            case CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING:
+                return "KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING";
+            case CUJ_KEYGUARD_TRANSITION_GONE_TO_DOZING:
+                return "KEYGUARD_TRANSITION_GONE_TO_DOZING";
+            case CUJ_CLIENT_DRAG_RESIZING:
+                return "CLIENT_DRAG_RESIZING";
+            case CUJ_DESKTOP_MODE_TASKBAR_INDICATOR_UPDATE:
+                return "DESKTOP_MODE_TASKBAR_INDICATOR_UPDATE";
+            case CUJ_DESKTOP_MODE_TASKBAR_MULTI_INSTANCE_MENU_OPEN:
+                return "DESKTOP_MODE_TASKBAR_MULTI_INSTANCE_MENU_OPEN";
+            case CUJ_TASKBAR_ICON_APPEAR:
+                return "TASKBAR_ICON_APPEAR";
+            case CUJ_APP_UPDATE:
+                return "APP_UPDATE";
+            case CUJ_LAUNCHER_RECENTS_TO_HOME:
+                return "LAUNCHER_RECENTS_TO_HOME";
         }
         return "UNKNOWN";
     }

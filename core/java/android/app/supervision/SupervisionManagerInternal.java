@@ -65,4 +65,12 @@ public abstract class SupervisionManagerInternal {
      */
     public abstract void setSupervisionLockscreenEnabledForUser(
             @UserIdInt int userId, boolean enabled, @Nullable PersistableBundle options);
+
+    /**
+     * Returns whether the escrow token is required for the specified user.
+     *
+     * @param userId The user to check the escrow token requirement for.
+     * @return Whether the escrow token is required.
+     */
+    public abstract boolean isEscrowTokenRequired(@UserIdInt int userId);
 }

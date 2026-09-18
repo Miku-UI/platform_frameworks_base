@@ -28,11 +28,28 @@ import java.util.ArrayList;
  * {@link android.view.SurfaceControl}. Luts provides ways to control tonemapping
  * for specific content.
  *
- * The general flow is as follows:
+ * The general flow for how DisplayLuts fits into a display pipeline is as follows:
  * <p>
  *      <img src="{@docRoot}reference/android/images/graphics/DisplayLuts.png" />
  *      <figcaption style="text-align: center;">DisplayLuts flow</figcaption>
  * </p>
+ *
+ * Or in list form:
+ *
+ * <ol>
+ * <li> A {@link android.view.SurfaceControl}'s content is converted to RGB colors, if the source
+ * is YUV.
+ * <li> The RGB colors are de-gammed into linear values, normalized to the range of [0, 1].
+ * <li> The linear values are passed through a 1D LUT (if set). The 1D LUT looks up and applies
+ * gain multipliers.
+ * <li> The linear values are passed through a 3D LUT (if set). The 3D LUT maps input colors to a
+ * final linear color.
+ * <li> The output values are transformed to the panel color gamut, and then gammed to arrive at
+ * the final color.
+ * </ol>
+ *
+ * <p>Importantly: the LUT is applied on colors in linear space, in the source content's color
+ * gamut.
  *
  * @see LutProperties
  */

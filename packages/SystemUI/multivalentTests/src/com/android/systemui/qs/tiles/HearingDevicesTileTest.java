@@ -22,6 +22,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -72,21 +73,11 @@ public class HearingDevicesTileTest extends SysuiTestCase {
     @Mock
     private QSHost mHost;
     @Mock
-    private QsEventLogger mUiEventLogger;
-    @Mock
-    private MetricsLogger mMetricsLogger;
-    @Mock
-    private StatusBarStateController mStatusBarStateController;
-    @Mock
     private ActivityStarter mActivityStarter;
-    @Mock
-    private QSLogger mQSLogger;
     @Mock
     private HearingDevicesChecker mDevicesChecker;
     @Mock
     HearingDevicesDialogManager mHearingDevicesDialogManager;
-    @Mock
-    BluetoothController mBluetoothController;
 
     private TestableLooper mTestableLooper;
     private HearingDevicesTile mTile;
@@ -98,17 +89,17 @@ public class HearingDevicesTileTest extends SysuiTestCase {
 
         mTile = new HearingDevicesTile(
                 mHost,
-                mUiEventLogger,
+                mock(QsEventLogger.class),
                 mTestableLooper.getLooper(),
                 new Handler(mTestableLooper.getLooper()),
                 new FalsingManagerFake(),
-                mMetricsLogger,
-                mStatusBarStateController,
+                mock(MetricsLogger.class),
+                mock(StatusBarStateController.class),
                 mActivityStarter,
-                mQSLogger,
+                mock(QSLogger.class),
                 mHearingDevicesDialogManager,
                 mDevicesChecker,
-                mBluetoothController);
+                mock(BluetoothController.class));
 
         mTile.initialize();
         mTestableLooper.processAllMessages();
@@ -139,6 +130,20 @@ public class HearingDevicesTileTest extends SysuiTestCase {
         mTestableLooper.processAllMessages();
 
         verify(mHearingDevicesDialogManager).showDialog(expandable, LAUNCH_SOURCE_QS_TILE);
+    }
+
+    @Test
+    public void isAvailable_notSupportHearingDevices_returnFalse() {
+        when(mDevicesChecker.isHearingDeviceSupported()).thenReturn(false);
+
+        assertThat(mTile.isAvailable()).isFalse();
+    }
+
+    @Test
+    public void isAvailable_supportHearingDevices_returnTrue() {
+        when(mDevicesChecker.isHearingDeviceSupported()).thenReturn(true);
+
+        assertThat(mTile.isAvailable()).isTrue();
     }
 
     @Test

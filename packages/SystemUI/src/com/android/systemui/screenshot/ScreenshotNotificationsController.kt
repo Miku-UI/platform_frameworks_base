@@ -20,6 +20,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.os.Environment
 import android.os.UserHandle
 import android.view.Display
 import com.android.internal.R
@@ -44,24 +45,50 @@ internal constructor(
     /**
      * Sends a notification that the screenshot capture has failed.
      *
-     * Errors for the non-default display are shown in a unique separate notification.
+     * @param msgResId The resource ID of the error message string to display.
      */
     fun notifyScreenshotError(msgResId: Int) {
+        val errorMsg = res.getString(msgResId)
+        showErrorNotification(
+            errorMsg,
+            res.getString(com.android.systemui.res.R.string.screenshot_failed_title),
+        )
+    }
+
+    /**
+     * Sends a notification that the screenshot capture has failed for custom save location.
+     *
+     * @param message The exact error message string to display.
+     */
+    fun notifyCustomUriSaveError(message: String) {
+        val titleMessage =
+            context.getString(
+                com.android.systemui.res.R.string.screenshot_custom_uri_save_fail_title,
+                Environment.DIRECTORY_SCREENSHOTS,
+            )
+        showErrorNotification(message, titleMessage)
+    }
+
+    /**
+     * Builds and displays the actual error notification. Errors for the non-default display are
+     * shown in a unique separate notification.
+     *
+     * @param baseMessage The main text of the error to show.
+     */
+    private fun showErrorNotification(baseMessage: String, titleMessage: String) {
         val displayErrorString =
             if (displayId != Display.DEFAULT_DISPLAY) {
                 " ($externalDisplayString)"
             } else {
                 ""
             }
-        val errorMsg = res.getString(msgResId) + displayErrorString
+        val errorMsg = baseMessage + displayErrorString
 
         // Repurpose the existing notification or create a new one
         val builder =
             Notification.Builder(context, NotificationChannels.ALERTS)
-                .setTicker(res.getString(com.android.systemui.res.R.string.screenshot_failed_title))
-                .setContentTitle(
-                    res.getString(com.android.systemui.res.R.string.screenshot_failed_title)
-                )
+                .setTicker(titleMessage)
+                .setContentTitle(titleMessage)
                 .setContentText(errorMsg)
                 .setSmallIcon(com.android.systemui.res.R.drawable.stat_notify_image_error)
                 .setWhen(System.currentTimeMillis())

@@ -16,18 +16,26 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 /**
  * Thrown if message with the request doesn't satisfy the requirements documented in
  * {@link IdentityCredential#getEntries(byte[], Map, byte[], byte[])}.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class InvalidRequestMessageException extends IdentityCredentialException {
     /**
      * Constructs a new {@link InvalidRequestMessageException} exception.
      *
      * @param message the detail message.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public InvalidRequestMessageException(@NonNull String message) {
         super(message);
     }
@@ -38,7 +46,11 @@ public class InvalidRequestMessageException extends IdentityCredentialException 
      *
      * @param message the detail message.
      * @param cause   the cause.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public InvalidRequestMessageException(@NonNull String message,
             @NonNull Throwable cause) {
         super(message, cause);

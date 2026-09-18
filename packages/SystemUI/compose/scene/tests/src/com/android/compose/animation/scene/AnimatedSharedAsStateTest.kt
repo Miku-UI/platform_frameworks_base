@@ -475,7 +475,7 @@ class AnimatedSharedAsStateTest {
                 SceneTransitionLayout(outerState) {
                     scene(SceneA) { AnimatedFloat(targetValue = 10f) { sceneAValue = it } }
                     scene(SceneB) {
-                        NestedSceneTransitionLayout(nestedState, Modifier) {
+                        NestedSceneTransitionLayout(nestedState, "NestedStl") {
                             scene(SceneC) { AnimatedFloat(targetValue = 20f) { sceneCValue = it } }
                             scene(SceneD) { AnimatedFloat(targetValue = 30f) { sceneDValue = it } }
                         }
@@ -537,15 +537,18 @@ class AnimatedSharedAsStateTest {
                     scene(SceneA) {
                         // no animateContentFloatAsState here, should inherit from
                         // nested STL.
-                        NestedSceneTransitionLayout(state2, Modifier) {
+                        NestedSceneTransitionLayout(state2, "NestedStl") {
                             scene(SceneB) {
                                 animateContentFloatAsState(0f, valueKey)
 
-                                NestedSceneTransitionLayout(state3, Modifier) {
+                                NestedSceneTransitionLayout(state3, "NestedNestedStl") {
                                     scene(SceneC) {
                                         // no animateContentFloatAsState here, should inherit from
                                         // nested STL.
-                                        NestedSceneTransitionLayout(state4, Modifier) {
+                                        NestedSceneTransitionLayout(
+                                            state4,
+                                            "NestedNestedNestedStl",
+                                        ) {
                                             scene(SceneD) {
                                                 animateContentFloatAsState(10f, valueKey)
                                             }

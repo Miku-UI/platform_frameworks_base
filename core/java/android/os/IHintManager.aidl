@@ -49,6 +49,7 @@ interface IHintManager {
         IHintSession session;
         // True if the graphics pipeline thread limit is being exceeded
         boolean pipelineThreadLimitExceeded = false;
+        SessionTag tag = SessionTag.APP;
     }
 
     /**

@@ -17,6 +17,7 @@
 package com.android.server.appfunctions;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.content.Intent;
 import android.os.UserHandle;
 
@@ -34,4 +35,17 @@ public interface ServiceHelper {
      */
     Intent resolveAppFunctionService(
             @NonNull String targetPackageName, @NonNull UserHandle targetUser);
+
+    /**
+     * Resolves the AppFunctionService for the target package and specific service class.
+     *
+     * @param targetPackageName The package name of the target.
+     * @param serviceClassName The class name of the service to resolve.
+     * @param targetUser The user which the caller is requesting to execute as.
+     * @return The intent to bind to the target service.
+     */
+    Intent resolveAppFunctionService(
+            @NonNull String targetPackageName,
+            @Nullable String serviceClassName,
+            @NonNull UserHandle targetUser);
 }

@@ -56,35 +56,38 @@ public final class ServerFlags {
      * An annotation used to indicate when a {@link DeviceConfig#NAMESPACE_SYSTEM_TIME} key is
      * required.
      */
-    @StringDef(prefix = "KEY_", value = {
-            KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
-            KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED,
-            KEY_PRIMARY_LTZP_MODE_OVERRIDE,
-            KEY_SECONDARY_LTZP_MODE_OVERRIDE,
-            KEY_LTZP_INITIALIZATION_TIMEOUT_FUZZ_MILLIS,
-            KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS,
-            KEY_LTZP_EVENT_FILTERING_AGE_THRESHOLD_MILLIS,
-            KEY_LOCATION_TIME_ZONE_DETECTION_UNCERTAINTY_DELAY_MILLIS,
-            KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE,
-            KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT,
-            KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE,
-            KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE,
-            KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT,
-            KEY_TIME_ZONE_DETECTOR_TELEPHONY_FALLBACK_SUPPORTED,
-            KEY_ENHANCED_METRICS_COLLECTION_ENABLED,
-            KEY_TIME_ZONE_NOTIFICATIONS_SUPPORTED,
-            KEY_TIME_ZONE_NOTIFICATIONS_ENABLED_DEFAULT,
-            KEY_TIME_ZONE_NOTIFICATIONS_TRACKING_SUPPORTED,
-            KEY_TIME_ZONE_MANUAL_CHANGE_TRACKING_SUPPORTED
-    })
+    @StringDef(
+            prefix = "KEY_",
+            value = {
+                KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
+                KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED,
+                KEY_PRIMARY_LTZP_MODE_OVERRIDE,
+                KEY_SECONDARY_LTZP_MODE_OVERRIDE,
+                KEY_LTZP_INITIALIZATION_TIMEOUT_FUZZ_MILLIS,
+                KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS,
+                KEY_LTZP_EVENT_FILTERING_AGE_THRESHOLD_MILLIS,
+                KEY_LOCATION_TIME_ZONE_DETECTION_UNCERTAINTY_DELAY_MILLIS,
+                KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE,
+                KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT,
+                KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE,
+                KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE,
+                KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT,
+                KEY_TIME_ZONE_DETECTOR_TELEPHONY_FALLBACK_SUPPORTED,
+                KEY_ENHANCED_METRICS_COLLECTION_ENABLED,
+                KEY_TIME_ZONE_NOTIFICATIONS_SUPPORTED,
+                KEY_TIME_ZONE_NOTIFICATIONS_ENABLED_DEFAULT,
+                KEY_TIME_ZONE_NOTIFICATIONS_TRACKING_SUPPORTED,
+                KEY_TIME_ZONE_MANUAL_CHANGE_TRACKING_SUPPORTED,
+                KEY_TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS_SUPPORTED,
+            })
     @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     @Retention(RetentionPolicy.SOURCE)
     @interface DeviceConfigKey {}
 
     /**
-     * Controls whether the location time zone manager service will be started. Only observed if
-     * the device build is configured to support location-based time zone detection. See
-     * {@link ServiceConfigAccessor#isGeoTimeZoneDetectionFeatureSupportedInConfig()} and {@link
+     * Controls whether the location time zone manager service will be started. Only observed if the
+     * device build is configured to support location-based time zone detection. See {@link
+     * ServiceConfigAccessor#isGeoTimeZoneDetectionFeatureSupportedInConfig()} and {@link
      * ServiceConfigAccessor#isGeoTimeZoneDetectionFeatureSupported()}.
      */
     public static final @DeviceConfigKey String KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED =
@@ -97,7 +100,7 @@ public final class ServerFlags {
      */
     public static final @DeviceConfigKey String
             KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED =
-            "location_time_zone_detection_run_in_background_enabled";
+                    "location_time_zone_detection_run_in_background_enabled";
 
     /**
      * The key for the server flag that can override the device config for whether the primary
@@ -119,7 +122,7 @@ public final class ServerFlags {
      */
     public static final @DeviceConfigKey String
             KEY_LOCATION_TIME_ZONE_DETECTION_UNCERTAINTY_DELAY_MILLIS =
-            "location_time_zone_detection_uncertainty_delay_millis";
+                    "location_time_zone_detection_uncertainty_delay_millis";
 
     /**
      * The key for the timeout passed to a location time zone provider that tells it how long it has
@@ -129,9 +132,9 @@ public final class ServerFlags {
             "ltzp_init_timeout_millis";
 
     /**
-     * The key for the extra time added to {@link
-     * #KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS} by the location time zone
-     * manager before the location time zone provider will actually be declared uncertain.
+     * The key for the extra time added to {@link #KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS} by the
+     * location time zone manager before the location time zone provider will actually be declared
+     * uncertain.
      */
     public static final @DeviceConfigKey String KEY_LTZP_INITIALIZATION_TIMEOUT_FUZZ_MILLIS =
             "ltzp_init_timeout_fuzz_millis";
@@ -148,7 +151,7 @@ public final class ServerFlags {
      */
     public static final @DeviceConfigKey String
             KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE =
-            "location_time_zone_detection_setting_enabled_override";
+                    "location_time_zone_detection_setting_enabled_override";
 
     /**
      * The key for the default value used to determine whether location time zone detection is
@@ -156,7 +159,7 @@ public final class ServerFlags {
      */
     public static final @DeviceConfigKey String
             KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT =
-            "location_time_zone_detection_setting_enabled_default";
+                    "location_time_zone_detection_setting_enabled_default";
 
     /**
      * The key to alter a device's "automatic time zone detection enabled" setting default value.
@@ -164,7 +167,7 @@ public final class ServerFlags {
      */
     public static final @DeviceConfigKey String
             KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT =
-            "time_zone_detector_auto_detection_enabled_default";
+                    "time_zone_detector_auto_detection_enabled_default";
 
     /**
      * The key to control support for time zone detection falling back to telephony detection under
@@ -172,12 +175,12 @@ public final class ServerFlags {
      */
     public static final @DeviceConfigKey String
             KEY_TIME_ZONE_DETECTOR_TELEPHONY_FALLBACK_SUPPORTED =
-            "time_zone_detector_telephony_fallback_supported";
+                    "time_zone_detector_telephony_fallback_supported";
 
     /**
      * The key to override the time detector origin priorities configuration. A comma-separated list
-     * of strings that will be passed to {@link TimeDetectorStrategy#stringToOrigin(String)}.
-     * All values must be recognized or the override value will be ignored.
+     * of strings that will be passed to {@link TimeDetectorStrategy#stringToOrigin(String)}. All
+     * values must be recognized or the override value will be ignored.
      */
     public static final @DeviceConfigKey String KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE =
             "time_detector_origin_priorities_override";
@@ -195,9 +198,7 @@ public final class ServerFlags {
     public static final @DeviceConfigKey String KEY_ENHANCED_METRICS_COLLECTION_ENABLED =
             "enhanced_metrics_collection_enabled";
 
-    /**
-     * The key to control support for time zone notifications under certain circumstances.
-     */
+    /** The key to control support for time zone notifications under certain circumstances. */
     public static final @DeviceConfigKey String KEY_TIME_ZONE_NOTIFICATIONS_SUPPORTED =
             "time_zone_notifications_supported";
 
@@ -221,6 +222,22 @@ public final class ServerFlags {
             "time_zone_manual_change_tracking_supported";
 
     /**
+     * The key to control support for time zone offset change notifications under certain
+     * circumstances.
+     */
+    public static final @DeviceConfigKey String
+            KEY_TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS_SUPPORTED =
+                    "time_zone_offset_change_notifications_supported";
+
+    /**
+     * The key for the default value used to determine whether time zone offset change notifications
+     * is enabled when the user hasn't explicitly set it yet.
+     */
+    public static final @DeviceConfigKey String
+            KEY_TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS_ENABLED_DEFAULT =
+                    "time_zone_offset_change_notifications_enabled_default";
+
+    /**
      * The registered listeners and the keys to trigger on. The value is explicitly a HashSet to
      * ensure O(1) lookup performance when working out whether a listener should trigger.
      */
@@ -235,9 +252,7 @@ public final class ServerFlags {
 
     private ServerFlags(Context context) {
         DeviceConfig.addOnPropertiesChangedListener(
-                NAMESPACE_SYSTEM_TIME,
-                context.getMainExecutor(),
-                this::handlePropertiesChanged);
+                NAMESPACE_SYSTEM_TIME, context.getMainExecutor(), this::handlePropertiesChanged);
     }
 
     /** Returns the singleton instance. */
@@ -256,8 +271,8 @@ public final class ServerFlags {
         List<StateChangeListener> listenersToNotify;
         synchronized (mListeners) {
             listenersToNotify = new ArrayList<>(mListeners.size());
-            for (Map.Entry<StateChangeListener, HashSet<String>> listenerEntry
-                    : mListeners.entrySet()) {
+            for (Map.Entry<StateChangeListener, HashSet<String>> listenerEntry :
+                    mListeners.entrySet()) {
                 // It's unclear which set of the following two Sets is going to be larger in the
                 // average case: monitoredKeys will be a subset of the set of possible keys, but
                 // only changed keys are reported. Because we guarantee the type / lookup behavior
@@ -296,8 +311,7 @@ public final class ServerFlags {
      * <p>Note: Only for use by long-lived objects like other singletons. There is deliberately no
      * associated remove method.
      */
-    public void addListener(@NonNull StateChangeListener listener,
-            @NonNull Set<String> keys) {
+    public void addListener(@NonNull StateChangeListener listener, @NonNull Set<String> keys) {
         Objects.requireNonNull(listener);
         Objects.requireNonNull(keys);
 
@@ -310,8 +324,8 @@ public final class ServerFlags {
     }
 
     /**
-     * Returns an optional string value from {@link DeviceConfig} from the system_time
-     * namespace, returns {@link Optional#empty()} if there is no explicit value set.
+     * Returns an optional string value from {@link DeviceConfig} from the system_time namespace,
+     * returns {@link Optional#empty()} if there is no explicit value set.
      */
     @NonNull
     public Optional<String> getOptionalString(@DeviceConfigKey String key) {
@@ -341,8 +355,8 @@ public final class ServerFlags {
     }
 
     /**
-     * Returns an {@link Instant} from {@link DeviceConfig} from the system_time
-     * namespace, returns {@link Optional#empty()} if there is no explicit value set.
+     * Returns an {@link Instant} from {@link DeviceConfig} from the system_time namespace, returns
+     * {@link Optional#empty()} if there is no explicit value set.
      */
     @NonNull
     public Optional<Instant> getOptionalInstant(@DeviceConfigKey String key) {
@@ -360,8 +374,8 @@ public final class ServerFlags {
     }
 
     /**
-     * Returns an optional boolean value from {@link DeviceConfig} from the system_time
-     * namespace, returns {@link Optional#empty()} if there is no explicit value set.
+     * Returns an optional boolean value from {@link DeviceConfig} from the system_time namespace,
+     * returns {@link Optional#empty()} if there is no explicit value set.
      */
     @NonNull
     public Optional<Boolean> getOptionalBoolean(@DeviceConfigKey String key) {
@@ -379,17 +393,17 @@ public final class ServerFlags {
     }
 
     /**
-     * Returns a boolean value from {@link DeviceConfig} from the system_time namespace, or
-     * {@code defaultValue} if there is no explicit value set.
+     * Returns a boolean value from {@link DeviceConfig} from the system_time namespace, or {@code
+     * defaultValue} if there is no explicit value set.
      */
     public boolean getBoolean(@DeviceConfigKey String key, boolean defaultValue) {
         return DeviceConfig.getBoolean(NAMESPACE_SYSTEM_TIME, key, defaultValue);
     }
 
     /**
-     * Returns a positive duration from {@link DeviceConfig} from the system_time namespace,
-     * or {@code defaultValue} if there is no explicit value set or if the value is not a number or
-     * is negative.
+     * Returns a positive duration from {@link DeviceConfig} from the system_time namespace, or
+     * {@code defaultValue} if there is no explicit value set or if the value is not a number or is
+     * negative.
      */
     @Nullable
     public Duration getDurationFromMillis(

@@ -135,6 +135,11 @@ public class SettingsValidators {
         }
 
         private boolean isStringPackageName(@NonNull String value) {
+            if (value.isEmpty()) {
+                // Accepting the empty string as a valid input
+                return true;
+            }
+
             // The name may contain uppercase or lowercase letters ('A' through 'Z'), numbers,
             // and underscores ('_'). However, individual package name parts may only
             // start with letters.

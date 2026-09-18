@@ -31,6 +31,7 @@ import android.os.Binder;
 import android.os.PerformanceHintManager;
 import android.os.Trace;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.Display;
 import android.view.SurfaceControl;
 
@@ -164,6 +165,9 @@ public class SystemPerformanceHinter {
 
     // The active sessions
     private final ArrayList<HighPerfSession> mActiveSessions = new ArrayList<>();
+    // The owned SurfaceControls of the display roots for which we are boosting frame rate
+    private final SparseArray<SurfaceControl> mHighFrameRateDisplaySurfaceControls =
+            new SparseArray<>();
     private final SurfaceControl.Transaction mTransaction;
     private @Nullable PerformanceHintManager.Session mAdpfSession;
     private @Nullable DisplayRootProvider mDisplayRootProvider;
@@ -255,18 +259,27 @@ public class SystemPerformanceHinter {
         boolean transactionChanged = false;
         // Per-display flags
         if (nowEnabled(oldPerDisplayFlags, newPerDisplayFlags, HINT_SF_FRAME_RATE)) {
-            SurfaceControl displaySurfaceControl = mDisplayRootProvider.getRootForDisplay(
-                    session.displayId);
-            mTransaction.setFrameRateSelectionStrategy(displaySurfaceControl,
-                    FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN);
-            // smoothSwitchOnly is false to request a higher framerate, even if it means switching
-            // the display mode will cause would jank on non-VRR devices because keeping a lower
-            // refresh rate would mean a poorer user experience.
-            mTransaction.setFrameRateCategory(
-                    displaySurfaceControl, FRAME_RATE_CATEGORY_HIGH, /* smoothSwitchOnly= */ false);
-            transactionChanged = true;
-            if (isTraceEnabled) {
-                asyncTraceBegin(HINT_SF_FRAME_RATE, session.displayId);
+            SurfaceControl displayRoot = mDisplayRootProvider.getRootForDisplay(session.displayId);
+            if (displayRoot != null) {
+                SurfaceControl boostedSurfaceControl =
+                        new SurfaceControl(displayRoot, "SystemPerformanceHinter");
+                mHighFrameRateDisplaySurfaceControls.put(session.displayId, boostedSurfaceControl);
+                mTransaction.setFrameRateSelectionStrategy(boostedSurfaceControl,
+                        FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN);
+                // smoothSwitchOnly is false to request a higher framerate, even if it means
+                // switching the display mode will cause would jank on non-VRR devices because
+                // keeping a lower refresh rate would mean a poorer user experience.
+                mTransaction.setFrameRateCategory(
+                        boostedSurfaceControl, FRAME_RATE_CATEGORY_HIGH,
+                        /* smoothSwitchOnly= */ false);
+                transactionChanged = true;
+                if (isTraceEnabled) {
+                    asyncTraceBegin(HINT_SF_FRAME_RATE, session.displayId);
+                }
+            } else {
+                Log.i(TAG,
+                        "High frame rate session not applied for displayId=" + session.displayId
+                        + " because the display root is null");
             }
         }
 
@@ -305,18 +318,24 @@ public class SystemPerformanceHinter {
         boolean transactionChanged = false;
         // Per-display flags
         if (nowDisabled(oldPerDisplayFlags, newPerDisplayFlags, HINT_SF_FRAME_RATE)) {
-            SurfaceControl displaySurfaceControl = mDisplayRootProvider.getRootForDisplay(
-                    session.displayId);
-            mTransaction.setFrameRateSelectionStrategy(displaySurfaceControl,
-                    FRAME_RATE_SELECTION_STRATEGY_PROPAGATE);
-            // smoothSwitchOnly is false to request a higher framerate, even if it means switching
-            // the display mode will cause would jank on non-VRR devices because keeping a lower
-            // refresh rate would mean a poorer user experience.
-            mTransaction.setFrameRateCategory(displaySurfaceControl, FRAME_RATE_CATEGORY_DEFAULT,
-                    /* smoothSwitchOnly= */ false);
-            transactionChanged = true;
-            if (isTraceEnabled) {
-                asyncTraceEnd(HINT_SF_FRAME_RATE);
+            SurfaceControl boostedSurfaceControl =
+                    mHighFrameRateDisplaySurfaceControls.get(session.displayId);
+            mHighFrameRateDisplaySurfaceControls.remove(session.displayId);
+
+            if (boostedSurfaceControl != null) {
+                mTransaction.setFrameRateSelectionStrategy(boostedSurfaceControl,
+                        FRAME_RATE_SELECTION_STRATEGY_PROPAGATE);
+                // smoothSwitchOnly is false to request a higher framerate, even if it means
+                // switching the display mode will cause would jank on non-VRR devices because
+                // keeping a lower refresh rate would mean a poorer user experience.
+                mTransaction.setFrameRateCategory(boostedSurfaceControl,
+                        FRAME_RATE_CATEGORY_DEFAULT,
+                        /* smoothSwitchOnly= */ false);
+                boostedSurfaceControl.release();
+                transactionChanged = true;
+                if (isTraceEnabled) {
+                    asyncTraceEnd(HINT_SF_FRAME_RATE);
+                }
             }
         }
 
@@ -356,7 +375,7 @@ public class SystemPerformanceHinter {
     }
 
     /**
-     * @return the combined hint flags for all active sessions, filtered by {@param filterFlags}.
+     * @return the combined hint flags for all active sessions, filtered by {@code filterFlags}.
      */
     private @HintFlags int calculateActiveHintFlags(@HintFlags int filterFlags) {
         int flags = 0;
@@ -368,7 +387,7 @@ public class SystemPerformanceHinter {
 
     /**
      * @return the combined hint flags for all active sessions for a given display, filtered by
-     *         {@param filterFlags}.
+     *         {@code filterFlags}.
      */
     private @HintFlags int calculateActiveHintFlagsForDisplay(@HintFlags int filterFlags,
             int displayId) {

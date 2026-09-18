@@ -90,8 +90,7 @@ public class FrameRateSelectionPriorityTests extends WindowTestsBase {
         Mode lowMode = new Mode(LOW_MODE_ID,
                 defaultMode.getPhysicalWidth(), defaultMode.getPhysicalHeight(), LOW_REFRESH_RATE);
 
-        di.supportedModes = new Mode[] { hiMode, midMode };
-        di.appsSupportedModes = new Mode[] { hiMode, midMode, lowMode };
+        di.supportedModes = new Mode[] { hiMode, midMode, lowMode };
         di.supportedRefreshRates = new float[] {HI_REFRESH_RATE, MID_REFRESH_RATE,
                 LOW_REFRESH_RATE};
         di.defaultModeId = 1;

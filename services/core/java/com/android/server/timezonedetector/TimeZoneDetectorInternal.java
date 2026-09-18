@@ -44,8 +44,8 @@ public interface TimeZoneDetectorInternal {
      * [For device policy manager only] Updates the configuration properties that control a device's
      * time zone behavior for the current user.
      *
-     * <p>This method returns {@code true} if the configuration was changed,
-     * {@code false} otherwise.
+     * <p>This method returns {@code true} if the configuration was changed, {@code false}
+     * otherwise.
      */
     boolean updateConfigurationForDpm(@NonNull TimeZoneConfiguration configuration);
 

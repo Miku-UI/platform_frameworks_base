@@ -21,13 +21,19 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET
+import android.net.NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED
+import android.net.NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED
 import android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED
 import android.net.NetworkCapabilities.TRANSPORT_CELLULAR
 import android.net.NetworkCapabilities.TRANSPORT_ETHERNET
+import android.net.NetworkCapabilities.TRANSPORT_SATELLITE
 import android.net.NetworkCapabilities.TRANSPORT_WIFI
+import android.net.NetworkRequest
 import android.net.vcn.VcnTransportInfo
 import android.net.vcn.VcnUtils
 import android.net.wifi.WifiInfo
+import android.os.Handler
 import android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
 import androidx.annotation.ArrayRes
 import androidx.annotation.VisibleForTesting
@@ -35,6 +41,7 @@ import com.android.systemui.Dumpable
 import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
@@ -56,10 +63,10 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -72,6 +79,15 @@ interface ConnectivityRepository {
 
     /** Observable for which connection(s) are currently default. */
     val defaultConnections: StateFlow<DefaultConnectionModel>
+
+    /**
+     * Observable for connection(s) that are currently default, including constrained networks (e.g.
+     * Satellite) which may not satisfy the full criteria of the system's default network.
+     *
+     * Unlike [defaultConnections], this model includes networks that may be restricted or
+     * bandwidth-constrained but are still serving as the user's primary connectivity.
+     */
+    val resolvedConnections: StateFlow<DefaultConnectionModel>
 
     /**
      * Subscription ID of the [VcnTransportInfo] for the default connection.
@@ -91,6 +107,7 @@ class ConnectivityRepositoryImpl
 constructor(
     private val connectivityManager: ConnectivityManager,
     private val connectivitySlots: ConnectivitySlots,
+    @Background private val bgHandler: Handler,
     context: Context,
     dumpManager: DumpManager,
     logger: ConnectivityInputLogger,
@@ -131,7 +148,7 @@ constructor(
             .stateIn(
                 scope,
                 started = SharingStarted.WhileSubscribed(),
-                initialValue = defaultHiddenIcons
+                initialValue = defaultHiddenIcons,
             )
 
     private val defaultNetworkCapabilities: SharedFlow<NetworkCapabilities?> =
@@ -156,7 +173,47 @@ constructor(
 
                 awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
             }
-            .shareIn(scope, SharingStarted.WhileSubscribed())
+            .stateIn(scope, started = SharingStarted.WhileSubscribed(), initialValue = null)
+
+    // A separate flow to monitor "constrained" networks (like Satellite).
+    // The standard default network callback (registerDefaultNetworkCallback) ignores networks
+    // that are restricted or bandwidth constrained. Since Satellite is often both, we need
+    // this specific request to ensure we can show the icon when the user is in Satellite mode
+    // but has no other default network.
+    private val constrainedNetworkCapabilities: SharedFlow<NetworkCapabilities?> =
+        conflatedCallbackFlow {
+                val request =
+                    NetworkRequest.Builder()
+                        .addCapability(NET_CAPABILITY_INTERNET)
+                        .removeCapability(NET_CAPABILITY_NOT_RESTRICTED)
+                        .removeCapability(NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED)
+                        .build()
+
+                val callback =
+                    object : ConnectivityManager.NetworkCallback() {
+                        override fun onLost(network: Network) {
+                            logger.logOnLost(network)
+                            trySend(null)
+                        }
+
+                        override fun onCapabilitiesChanged(
+                            network: Network,
+                            networkCapabilities: NetworkCapabilities,
+                        ) {
+                            logger.logOnCapabilitiesChanged(network, networkCapabilities)
+                            trySend(networkCapabilities)
+                        }
+                    }
+
+                connectivityManager.registerBestMatchingNetworkCallback(
+                    request,
+                    callback,
+                    bgHandler,
+                )
+
+                awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
+            }
+            .stateIn(scope, started = SharingStarted.WhileSubscribed(), initialValue = null)
 
     override val vcnSubId: StateFlow<Int?> =
         defaultNetworkCapabilities
@@ -182,40 +239,103 @@ constructor(
     override val defaultConnections: StateFlow<DefaultConnectionModel> =
         defaultNetworkCapabilities
             .map { networkCapabilities ->
-                if (networkCapabilities == null) {
-                    // The system no longer has a default network, so everything is
-                    // non-default.
-                    DefaultConnectionModel(
-                        Wifi(isDefault = false),
-                        Mobile(isDefault = false),
-                        CarrierMerged(isDefault = false),
-                        Ethernet(isDefault = false),
-                        isValidated = false,
-                    )
-                } else {
-                    val wifiInfo =
-                        networkCapabilities.getMainOrUnderlyingWifiInfo(connectivityManager)
-
-                    val isWifiDefault =
-                        networkCapabilities.hasTransport(TRANSPORT_WIFI) || wifiInfo != null
-                    val isMobileDefault = networkCapabilities.hasTransport(TRANSPORT_CELLULAR)
-                    val isCarrierMergedDefault = wifiInfo?.isCarrierMerged == true
-                    val isEthernetDefault = networkCapabilities.hasTransport(TRANSPORT_ETHERNET)
-
-                    val isValidated = networkCapabilities.hasCapability(NET_CAPABILITY_VALIDATED)
-
-                    DefaultConnectionModel(
-                        Wifi(isWifiDefault),
-                        Mobile(isMobileDefault),
-                        CarrierMerged(isCarrierMergedDefault),
-                        Ethernet(isEthernetDefault),
-                        isValidated,
-                    )
-                }
+                getConnectionModel(defaultNetworkCapabilities = networkCapabilities)
             }
             .distinctUntilChanged()
             .onEach { logger.logDefaultConnectionsChanged(it) }
             .stateIn(scope, SharingStarted.Eagerly, DefaultConnectionModel())
+
+    @SuppressLint("MissingPermission")
+    override val resolvedConnections: StateFlow<DefaultConnectionModel> =
+        combine(defaultNetworkCapabilities, constrainedNetworkCapabilities) {
+                defaultCapabilities,
+                constrainedCapabilities ->
+                getConnectionModel(
+                    defaultNetworkCapabilities = defaultCapabilities,
+                    constrainedNetworkCapabilities = constrainedCapabilities,
+                )
+            }
+            .distinctUntilChanged()
+            .onEach { logger.logConnectionsChanged(it) }
+            .stateIn(scope, SharingStarted.Eagerly, DefaultConnectionModel())
+
+    /**
+     * Converts the provided network capabilities into a [DefaultConnectionModel].
+     *
+     * This method determines the active transport type by strictly prioritizing the system's
+     * default network.
+     *
+     * NOTE: We expect effectively only one of these sources to be the "active" connection for the
+     * UI at any given time:
+     * - [defaultNetworkCapabilities] is the primary source of truth. It captures all standard
+     *   connectivity states (WiFi, Cellular, Ethernet). If this is non-null, it is ALWAYS used,
+     *   regardless of the constrained network state.
+     * - [constrainedNetworkCapabilities] is ONLY used as a fallback when the system has lost its
+     *   default network (i.e., [defaultNetworkCapabilities] is null). In practice, this only
+     *   happens when the device is connected to a constrained or restricted network (e.g.,
+     *   Satellite), which the system does not consider a valid "default" network.
+     *
+     * @param defaultNetworkCapabilities The capabilities of the current default network.
+     * @param constrainedNetworkCapabilities The capabilities of the current constrained network,
+     *   used primarily for satellite mode detection.
+     */
+    private fun getConnectionModel(
+        defaultNetworkCapabilities: NetworkCapabilities?,
+        constrainedNetworkCapabilities: NetworkCapabilities? = null,
+    ): DefaultConnectionModel {
+        // TODO: (b/475596803) need to make few additional improvements
+        if (defaultNetworkCapabilities != null) {
+            val wifiInfo =
+                defaultNetworkCapabilities.getMainOrUnderlyingWifiInfo(connectivityManager)
+            val isWifiDefault =
+                defaultNetworkCapabilities.hasTransport(TRANSPORT_WIFI) || wifiInfo != null
+            val isMobileDefault = defaultNetworkCapabilities.hasTransport(TRANSPORT_CELLULAR)
+            val isSatelliteDefault = isSatelliteMode(defaultNetworkCapabilities)
+            val isCarrierMergedDefault = wifiInfo?.isCarrierMerged == true
+            val isEthernetDefault = defaultNetworkCapabilities.hasTransport(TRANSPORT_ETHERNET)
+            val isValidated = defaultNetworkCapabilities.hasCapability(NET_CAPABILITY_VALIDATED)
+            return DefaultConnectionModel(
+                Wifi(isWifiDefault),
+                Mobile(isMobileDefault || isSatelliteDefault),
+                CarrierMerged(isCarrierMergedDefault),
+                Ethernet(isEthernetDefault),
+                isValidated,
+            )
+        }
+        if (constrainedNetworkCapabilities != null) {
+            val isSatelliteDefault = isSatelliteMode(constrainedNetworkCapabilities)
+            val isValidated = constrainedNetworkCapabilities.hasCapability(NET_CAPABILITY_VALIDATED)
+            return DefaultConnectionModel(
+                Wifi(false),
+                Mobile(isSatelliteDefault),
+                CarrierMerged(false),
+                Ethernet(false),
+                isValidated,
+            )
+        }
+        // The system no longer has a default network, so everything is
+        // non-default.
+        return DefaultConnectionModel(
+            Wifi(isDefault = false),
+            Mobile(isDefault = false),
+            CarrierMerged(isDefault = false),
+            Ethernet(isDefault = false),
+            isValidated = false,
+        )
+    }
+
+    /**
+     * Checks if the provided [NetworkCapabilities] indicate a satellite connection.
+     *
+     * A network is considered to be in satellite mode if it includes the [TRANSPORT_SATELLITE]
+     * transport.
+     *
+     * @param networkCapabilities The capabilities to check.
+     * @return `true` if the network capabilities include the satellite transport, `false`
+     *   otherwise.
+     */
+    private fun isSatelliteMode(networkCapabilities: NetworkCapabilities?): Boolean =
+        networkCapabilities?.hasTransport(TRANSPORT_SATELLITE) == true
 
     override fun dump(pw: PrintWriter, args: Array<out String>) {
         pw.apply { println("defaultHiddenIcons=$defaultHiddenIcons") }

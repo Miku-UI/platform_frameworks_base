@@ -238,6 +238,7 @@ private:
     void onCaptured(int deviceId, int streamId, uint32_t seq, bool succeeded);
     void onTvMessage(int deviceId, int streamId, AidlTvMessageEventType type,
                      AidlTvMessage& message, signed char data[], int dataLength);
+    int removeStreamInternal(int deviceId, int streamId) REQUIRES(mStreamLock);
 
     Mutex mStreamLock;
     jweak mThiz;

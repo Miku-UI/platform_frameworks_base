@@ -24,7 +24,6 @@ import android.platform.test.ravenwood.RavenwoodRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -32,8 +31,6 @@ import org.junit.runner.RunWith;
 @SmallTest
 @DisabledOnRavenwood(reason = "JNI")
 public class WorkSourceParcelTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     /**
      * END_OF_PARCEL_MARKER is added at the end of Parcel on native or java side on write and

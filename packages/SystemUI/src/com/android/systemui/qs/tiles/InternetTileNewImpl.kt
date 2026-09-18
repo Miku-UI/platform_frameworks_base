@@ -32,6 +32,7 @@ import com.android.systemui.plugins.qs.TileDetailsViewModel
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.QsEventLogger
+import com.android.systemui.qs.flags.QsSplitInternetTile
 import com.android.systemui.qs.logging.QSLogger
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.dialog.InternetDetailsViewModel
@@ -78,6 +79,10 @@ constructor(
             model = newModel
             refreshState()
         }
+    }
+
+    override fun isAvailable(): Boolean {
+        return !QsSplitInternetTile.isEnabled
     }
 
     override fun getTileLabel(): CharSequence =

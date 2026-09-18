@@ -16,16 +16,16 @@
 
 package com.android.wm.shell.flicker.pip
 
-import androidx.test.filters.FlakyTest
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.WindowUtils
 import android.tools.traces.parsers.toFlickerComponent
+import androidx.test.filters.FlakyTest
+import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import com.android.server.wm.flicker.testapp.ActivityOptions
 import com.android.wm.shell.flicker.utils.SplitScreenUtils
@@ -70,7 +70,7 @@ open class FromSplitScreenAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
         SimpleAppHelper(
             instrumentation,
             ActivityOptions.SplitScreen.Primary.LABEL,
-            ActivityOptions.SplitScreen.Primary.COMPONENT.toFlickerComponent()
+            ActivityOptions.SplitScreen.Primary.COMPONENT.toFlickerComponent(),
         )
 
     /** Defines the transition used to run the test */
@@ -79,14 +79,14 @@ open class FromSplitScreenAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
             setup {
                 secondAppForSplitScreen.launchViaIntent(wmHelper)
                 pipApp.launchViaIntent(wmHelper)
-                tapl.goHome()
+                device.pressHome()
                 SplitScreenUtils.enterSplit(
                     wmHelper,
                     tapl,
                     device,
                     pipApp,
                     secondAppForSplitScreen,
-                    flicker.scenario.startRotation
+                    flicker.scenario.startRotation,
                 )
                 pipApp.enableAutoEnterForPipActivity()
             }
@@ -94,7 +94,7 @@ open class FromSplitScreenAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
                 pipApp.exit(wmHelper)
                 secondAppForSplitScreen.exit(wmHelper)
             }
-            transitions { tapl.goHome() }
+            transitions { device.pressHome() }
         }
 
     @Presubmit
@@ -152,8 +152,6 @@ open class FromSplitScreenAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

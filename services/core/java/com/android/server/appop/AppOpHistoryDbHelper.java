@@ -190,8 +190,11 @@ class AppOpHistoryDbHelper extends SQLiteOpenHelper {
                         attributionTagFilter, opCodeFilter, opFlagsFilter);
         String sql = AppOpHistoryQueryHelper.buildSqlQuery(
                 AppOpHistoryTable.SELECT_TABLE_DATA, conditions, orderByColumn, ascending, limit);
+        Slog.d(LOG_TAG, "getAppOpHistory sql: " + sql);
 
         long startTime = SystemClock.uptimeMillis();
+        Trace.traceBegin(Trace.TRACE_TAG_SYSTEM_SERVER,
+                "AppOpHistoryDbHelper_" + mAggregationTimeWindow + "_Read");
         try {
             SQLiteDatabase db = getReadableDatabase();
             db.beginTransactionReadOnly();
@@ -208,6 +211,8 @@ class AppOpHistoryDbHelper extends SQLiteOpenHelper {
         } catch (Exception ex) {
             Slog.e(LOG_TAG, "Couldn't read app op records from " + mDatabaseFile.getName(), ex);
         } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
+            Trace.instant(Trace.TRACE_TAG_SYSTEM_SERVER, "getAppOpHistory: " + results.size());
             long readTimeMillis = SystemClock.uptimeMillis() - startTime;
             FrameworkStatsLog.write(FrameworkStatsLog.SQLITE_APP_OP_EVENT_REPORTED,
                     readTimeMillis, /* write_time= */ -1,

@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.4.0-alpha01" type="baseline" client="" dependencies="true" name="" variant="all" version="8.4.0-alpha01">
-
+<issues
+    format="6"
+    by="lint 8.4.0-alpha01"
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant="all"
+    version="8.4.0-alpha01">
     <issue
         id="NewApi"
         message="Call requires API level 24 (current min is 23): `android.os.UserManager#isManagedProfile`"
@@ -103,6 +110,17 @@
     <issue
         id="NewApi"
         message="Call requires API level 24 (current min is 21): `android.os.UserManager#isManagedProfile`"
+        errorLine1="            if (mUserManager.isManagedProfile(id)) {"
+        errorLine2="                             ~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Utils/src/com/android/settingslib/utils/WorkPolicyUtils.java"
+            line="173"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 24 (current min is 23): `android.os.UserManager#isManagedProfile`"
         errorLine1="            if (mUserManager.isManagedProfile(id)) {"
         errorLine2="                             ~~~~~~~~~~~~~~~~">
         <location

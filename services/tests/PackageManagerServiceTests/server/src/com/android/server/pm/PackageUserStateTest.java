@@ -30,7 +30,11 @@ import android.content.pm.SuspendDialogInfo;
 import android.content.pm.UserPackage;
 import android.content.pm.overlay.OverlayPaths;
 import android.os.PersistableBundle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.security.Flags;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
@@ -43,6 +47,7 @@ import com.android.server.pm.pkg.PackageUserStateImpl;
 import com.android.server.pm.pkg.SuspendParams;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -55,8 +60,12 @@ import java.util.List;
 @SmallTest
 public class PackageUserStateTest {
 
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     @Test
-    public void testPackageUserState01() {
+    @DisableFlags(Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageUserState01_appLockFlagDisabled() {
         final PackageUserStateImpl testUserState = new PackageUserStateImpl();
         PackageUserStateImpl oldUserState;
 
@@ -96,6 +105,55 @@ public class PackageUserStateTest {
 
         oldUserState = new PackageUserStateImpl();
         oldUserState.setUninstallReason(PackageManager.UNINSTALL_REASON_USER_TYPE);
+        assertThat(testUserState.equals(oldUserState), is(false));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageUserState01_appLockFlagEnabled() {
+        final PackageUserStateImpl testUserState = new PackageUserStateImpl();
+        PackageUserStateImpl oldUserState;
+
+        oldUserState = new PackageUserStateImpl();
+        assertThat(testUserState.equals(null), is(false));
+        assertThat(testUserState.equals(testUserState), is(true));
+        assertThat(testUserState.equals(oldUserState), is(true));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setCeDataInode(4000L);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setEnabledState(COMPONENT_ENABLED_STATE_ENABLED);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setHidden(true);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setInstalled(false);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setNotLaunched(true);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setStopped(true);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.putSuspendParams(UserPackage.of(0, "suspendingPackage"),
+                new SuspendParams(null, new PersistableBundle(), null));
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setUninstallReason(PackageManager.UNINSTALL_REASON_USER_TYPE);
+        assertThat(testUserState.equals(oldUserState), is(false));
+
+        oldUserState = new PackageUserStateImpl();
+        oldUserState.setAppLockEnabled(true);
         assertThat(testUserState.equals(oldUserState), is(false));
     }
 
@@ -313,6 +371,16 @@ public class PackageUserStateTest {
         params2 = createSuspendParams(dialogInfo2, appExtras2, launcherExtras2);
         // Everything is different
         assertThat(params1.equals(params2), is(false));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_APP_LOCK_APIS)
+    public void isAppLockEnabled_setAppLockEnabled_returnsTrue() {
+        final PackageUserStateImpl testUserState01 = new PackageUserStateImpl();
+
+        testUserState01.setAppLockEnabled(true);
+
+        assertThat(testUserState01.isAppLockEnabled(), is(true));
     }
 
     /**

@@ -76,6 +76,7 @@ import com.android.compose.test.setContentAndCreateMainScope
 import com.android.compose.test.subjects.DpOffsetSubject
 import com.android.compose.test.subjects.assertThat
 import com.android.compose.test.transition
+import com.android.mechanics.spec.InputDirection
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -728,5 +729,96 @@ class SceneTransitionLayoutTest {
 
         rule.onNode(isElement(TestElements.Foo)).performClick()
         assertThat(fooClicked).isTrue()
+    }
+
+    @Test
+    fun intrinsicDirection_usedByGestureContext_sameDirection() {
+        val state =
+            rule.runOnUiThread {
+                MutableSceneTransitionLayoutStateForTests(
+                    initialScene = SceneA,
+                    transitions =
+                        transitions {
+                            from(SceneA, to = SceneB) { intrinsicDirection = SwipeDirection.Up }
+                        },
+                )
+            }
+
+        lateinit var coroutineScope: CoroutineScope
+        val scope =
+            rule.setContentAndCreateMainScope {
+                coroutineScope = rememberCoroutineScope()
+                SceneTransitionLayout(state) {
+                    scene(SceneA) { Box(Modifier.fillMaxSize()) }
+                    scene(SceneB) { Box(Modifier.fillMaxSize()) }
+                }
+            }
+
+        // Start a transition that never finishes.
+        scope.launch { state.startTransition(transition(SceneA, SceneB)) }
+        rule.waitForIdle()
+
+        // Check that the gesture context direction is Up.
+        val transition = assertThat(state.transitionState).isSceneTransition()
+        assertThat(transition.gestureContext).isNotNull()
+        assertThat(transition.gestureContext!!.direction).isEqualTo(InputDirection.Min)
+    }
+
+    @Test
+    fun intrinsicDirection_usedByGestureContext_reverseDirection() {
+        val state =
+            rule.runOnUiThread {
+                MutableSceneTransitionLayoutStateForTests(
+                    initialScene = SceneB,
+                    transitions =
+                        transitions {
+                            from(SceneA, to = SceneB) { intrinsicDirection = SwipeDirection.Up }
+                        },
+                )
+            }
+
+        val scope =
+            rule.setContentAndCreateMainScope {
+                SceneTransitionLayout(state) {
+                    scene(SceneA) { Box(Modifier.fillMaxSize()) }
+                    scene(SceneB) { Box(Modifier.fillMaxSize()) }
+                }
+            }
+
+        // Start a transition that never finishes.
+        scope.launch { state.startTransition(transition(SceneB, SceneA)) }
+        rule.waitForIdle()
+
+        // Check that the gesture context direction is Down.
+        val transition = assertThat(state.transitionState).isSceneTransition()
+        assertThat(transition.gestureContext).isNotNull()
+        assertThat(transition.gestureContext!!.direction).isEqualTo(InputDirection.Max)
+    }
+
+    @Test
+    fun intrinsicDirection_isNotDefined_noGestureContext() {
+        val state =
+            rule.runOnUiThread {
+                MutableSceneTransitionLayoutStateForTests(
+                    initialScene = SceneA,
+                    transitions = transitions { from(SceneA, to = SceneB) {} },
+                )
+            }
+
+        val scope =
+            rule.setContentAndCreateMainScope {
+                SceneTransitionLayout(state) {
+                    scene(SceneA) { Box(Modifier.fillMaxSize()) }
+                    scene(SceneB) { Box(Modifier.fillMaxSize()) }
+                }
+            }
+
+        // Start a transition that never finishes.
+        scope.launch { state.startTransition(transition(SceneB, SceneA)) }
+        rule.waitForIdle()
+
+        // Check that the gesture context is null.
+        val transition = assertThat(state.transitionState).isSceneTransition()
+        assertThat(transition.gestureContext).isNull()
     }
 }

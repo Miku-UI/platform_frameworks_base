@@ -17,7 +17,6 @@
 package com.android.wm.shell.functional.maximize
 
 import android.platform.test.annotations.Presubmit
-import android.platform.test.annotations.RequiresDesktopDevice
 import android.platform.test.rule.ScreenRecordRule
 import com.android.wm.shell.scenarios.MaximizeAppWindow
 import org.junit.runner.RunWith
@@ -25,7 +24,6 @@ import org.junit.runners.BlockJUnit4ClassRunner
 
 /* Functional test for [MaximizeAppWindow]. */
 @RunWith(BlockJUnit4ClassRunner::class)
-@RequiresDesktopDevice
 @Presubmit
 @ScreenRecordRule.ScreenRecord
 class MaximizeAppWindowTest : MaximizeAppWindow()

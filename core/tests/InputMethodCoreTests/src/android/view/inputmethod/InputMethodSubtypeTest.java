@@ -129,6 +129,28 @@ public class InputMethodSubtypeTest {
     }
 
     @Test
+    public void testCloneViaParcelWithNonAsciiStrings() {
+        final InputMethodSubtype subtype = new InputMethodSubtypeBuilder()
+                .setSubtypeNameOverride("漢") // 3 bytes in UTF-8 and 2 bytes in UTF-16.
+                .setSubtypeShortLabel("日")
+                .setLayoutLabelNonLocalized("レイアウト")
+                .setSubtypeLocale("ja_JP_日本語") // locale can be arbitrary string.
+                .setSubtypeMode("キーボード")
+                .setSubtypeExtraValue("キー=値")
+                .setLanguageTag("ja-JP")
+                .build();
+        final InputMethodSubtype clonedSubtype = cloneViaParcel(subtype);
+        assertEquals(subtype, clonedSubtype);
+        assertEquals("漢", clonedSubtype.getNameOverride().toString());
+        assertEquals("日", clonedSubtype.getSubtypeShortLabel().toString());
+        assertEquals("レイアウト", clonedSubtype.getLayoutLabelNonLocalized().toString());
+        assertEquals("ja_JP_日本語", clonedSubtype.getLocale());
+        assertEquals("キーボード", clonedSubtype.getMode());
+        assertEquals("キー=値", clonedSubtype.getExtraValue());
+        assertEquals("ja-JP", clonedSubtype.getLanguageTag());
+    }
+
+    @Test
     public void testCanonicalizedLanguageTagObjectCache() {
         final InputMethodSubtype subtype = createSubtypeUsingLanguageTag("en-US");
         // Verify that the returned object is cached and any subsequent call should return the same

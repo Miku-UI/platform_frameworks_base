@@ -22,6 +22,7 @@ import android.window.TransitionFilter;
 
 import com.android.wm.shell.shared.IFocusTransitionListener;
 import com.android.wm.shell.shared.IHomeTransitionListener;
+import com.android.wm.shell.shared.IOverviewOverlayLeashInvalidationCallback;
 
 /**
  * Interface that is exposed to remote callers to manipulate the transitions feature.
@@ -32,8 +33,7 @@ interface IShellTransitions {
      * Registers a remote transition handler for all operations excluding takeovers (see
      * registerRemoteForTakeover()).
      */
-    oneway void registerRemote(in TransitionFilter filter,
-            in RemoteTransition remoteTransition) = 1;
+    oneway void registerRemote(in RemoteTransition remoteTransition) = 1;
 
     /**
      * Unregisters a remote transition handler for all operations.
@@ -58,8 +58,7 @@ interface IShellTransitions {
     /**
      * Registers a remote transition for takeover operations only.
      */
-    oneway void registerRemoteForTakeover(in TransitionFilter filter,
-            in RemoteTransition remoteTransition) = 6;
+    oneway void registerRemoteForTakeover(in RemoteTransition remoteTransition) = 6;
 
     /**
      * Set listener that will receive callbacks about transitions involving focus switch.
@@ -71,4 +70,20 @@ interface IShellTransitions {
      */
     @nullable
     SurfaceControl getOverviewOverlayContainer(int displayId) = 8;
+
+    /**
+     * Registers a callback for when the overview overlay leash for the given {@code displayId} is
+     * invalidated.
+     */
+     oneway void registerOverviewOverlayLeashInvalidationCallback(
+            int displayId, in IOverviewOverlayLeashInvalidationCallback callback) = 9;
+
+    /**
+     * Requests to unregister the given {@code callback} for the given {@code displayId}.
+     * <p>
+     * No-op if the given {@code callback} is not currently registered for the given
+     * {@code displayId}.
+     */
+     oneway void unregisterOverviewOverlayLeashInvalidationCallback(
+            int displayId, in IOverviewOverlayLeashInvalidationCallback callback) = 10;
 }

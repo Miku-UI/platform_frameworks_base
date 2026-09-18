@@ -46,7 +46,6 @@ import com.android.systemui.statusbar.notification.ConversationNotificationProce
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.promoted.FakePromotedNotificationContentExtractor
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentBuilder
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.BindParams
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.FLAG_CONTENT_VIEW_ALL
@@ -477,19 +476,7 @@ class NotificationRowContentBinderImplTest(flags: FlagsParameterization) : Sysui
     }
 
     @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testExtractsPromotedContent_notWhenBothFlagsDisabled() {
-        val content = PromotedNotificationContentBuilder("key").build()
-        promotedNotificationContentExtractor.resetForEntry(entry, content)
-
-        inflateAndWait(notificationInflater, FLAG_CONTENT_VIEW_ALL, row, entry)
-
-        promotedNotificationContentExtractor.verifyZeroExtractCalls()
-    }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testExtractsPromotedContent_whenBothFlagsEnabled() {
+    fun testExtractsPromotedContent() {
         val content = PromotedNotificationContentBuilder("key").build()
         promotedNotificationContentExtractor.resetForEntry(entry, content)
 
@@ -500,7 +487,6 @@ class NotificationRowContentBinderImplTest(flags: FlagsParameterization) : Sysui
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun testExtractsPromotedContent_null() {
         promotedNotificationContentExtractor.resetForEntry(entry, null)
 
@@ -594,7 +580,7 @@ class NotificationRowContentBinderImplTest(flags: FlagsParameterization) : Sysui
 
     @Test
     @Throws(java.lang.Exception::class)
-    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION)
+    @DisableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
     fun testAllMessagingStyleProcessedAsConversations() {
         val displayName = "Display Name"
         val messageText = "Message Text"

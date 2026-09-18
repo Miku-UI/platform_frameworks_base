@@ -56,7 +56,6 @@ import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.logging.NotificationPanelLogger;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import javax.inject.Inject;
 
@@ -103,15 +102,11 @@ public class ExpandableNotificationRowDragController {
             enr = (ExpandableNotificationRow) view;
         }
 
-        if (NotificationBundleUi.isEnabled()) {
-            if (!enr.getEntryAdapter().canDragAndDrop()) {
-                return;
-            }
+        if (!enr.getEntryAdapter().canDragAndDrop()) {
+            return;
         }
 
-        StatusBarNotification sn = NotificationBundleUi.isEnabled()
-                ? enr.getEntryAdapter().getSbn()
-                : enr.getEntryLegacy().getSbn();
+        StatusBarNotification sn = enr.getEntryAdapter().getSbn();
         Notification notification = sn.getNotification();
         final PendingIntent contentIntent = notification.contentIntent != null
                 ? notification.contentIntent
@@ -149,14 +144,10 @@ public class ExpandableNotificationRowDragController {
         if (result) {
             Log.d(TAG, "Starting drag from notification view=" + view);
             // Log notification drag only if it succeeds
-            if (NotificationBundleUi.isEnabled()) {
-                mNotificationPanelLogger.logNotificationDrag(enr.getEntryAdapter());
-            } else {
-                mNotificationPanelLogger.logNotificationDrag(enr.getEntryLegacy());
-            }
+            mNotificationPanelLogger.logNotificationDrag(enr.getEntryAdapter());
             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             if (enr.isPinned()) {
-                mHeadsUpManager.releaseAllImmediately();
+                mHeadsUpManager.releaseAllImmediately("ExpandableNotificationRowDragController");
             } else {
                 dismissShade();
             }

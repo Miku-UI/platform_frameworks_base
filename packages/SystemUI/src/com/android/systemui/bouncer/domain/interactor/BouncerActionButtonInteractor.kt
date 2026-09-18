@@ -38,7 +38,7 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.doze.DozeLogger
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.scene.shared.model.SceneFamilies
 import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepository
 import com.android.systemui.telephony.domain.interactor.TelephonyInteractor
@@ -52,7 +52,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.withContext
 
 /**
  * Encapsulates business logic and application state for the bouncer action button. The action
@@ -105,6 +104,22 @@ constructor(
                 }
                 .distinctUntilChanged()
         }
+
+    /** The bouncer action button in this instant. If `null`, the button should not be shown. */
+    val currentActionButton: BouncerActionButtonModel?
+        get() =
+            when {
+                telecomManager == null || !telephonyInteractor.hasTelephonyRadio -> null
+                isReturnToCallButton() ->
+                    BouncerActionButtonModel.ReturnToCallButtonModel(
+                        labelResourceId = R.string.lockscreen_return_to_call
+                    )
+                isEmergencyCallButton() ->
+                    BouncerActionButtonModel.EmergencyButtonModel(
+                        labelResourceId = R.string.lockscreen_emergency_call
+                    )
+                else -> null // Do not show the button.
+            }
 
     /**
      * The secure lock device biometric auth bouncer action button. If `null`, the button should not
@@ -181,15 +196,13 @@ constructor(
 
     private fun isReturnToCallButton() = telephonyInteractor.isInCall.value
 
-    private suspend fun isEmergencyCallButton(): Boolean {
+    private fun isEmergencyCallButton(): Boolean {
         return if (mobileConnectionsRepository.getIsAnySimSecure()) {
             // Some countries can't handle emergency calls while SIM is locked.
             repository.enableEmergencyCallWhileSimLocked.value
         } else {
             // Only show if there is a secure screen (password/pin/pattern/SIM pin/SIM puk).
-            withContext(backgroundDispatcher) {
-                authenticationInteractor.getAuthenticationMethod().isSecure
-            }
+            authenticationInteractor.authenticationMethod.value.isSecure
         }
     }
 
@@ -203,7 +216,7 @@ constructor(
 
     private fun prepareToPerformAction() {
         if (SceneContainerFlag.isEnabled) {
-            sceneInteractor.get().changeScene(Scenes.Lockscreen, "Bouncer action button clicked")
+            sceneInteractor.get().changeScene(SceneFamilies.Home, "Bouncer action button clicked")
         }
 
         metricsLogger.action(MetricsEvent.ACTION_EMERGENCY_CALL)

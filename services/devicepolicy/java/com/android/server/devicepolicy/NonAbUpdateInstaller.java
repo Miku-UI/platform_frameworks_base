@@ -32,7 +32,7 @@ import java.io.IOException;
 class NonAbUpdateInstaller extends UpdateInstaller {
     NonAbUpdateInstaller(Context context,
             ParcelFileDescriptor updateFileDescriptor,
-            StartInstallingUpdateCallback callback, DevicePolicyManagerService.Injector injector,
+            StartInstallingUpdateCallback callback, Injector injector,
             DevicePolicyConstants constants) {
         super(context, updateFileDescriptor, callback, injector, constants);
     }

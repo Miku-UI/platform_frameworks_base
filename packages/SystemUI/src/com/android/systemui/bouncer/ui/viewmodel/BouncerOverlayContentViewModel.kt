@@ -20,10 +20,14 @@ import android.app.admin.DevicePolicyManager
 import android.app.admin.DevicePolicyResources
 import android.content.Context
 import android.graphics.Bitmap
+import android.security.Flags.enableWeaverWarmup
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.core.graphics.drawable.toBitmap
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.app.tracing.coroutines.traceCoroutine
@@ -31,25 +35,31 @@ import com.android.systemui.Flags
 import com.android.systemui.authentication.domain.interactor.AuthenticationInteractor
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.authentication.shared.model.AuthenticationWipeModel
-import com.android.systemui.authentication.shared.model.BouncerInputSide
 import com.android.systemui.bouncer.domain.interactor.BouncerActionButtonInteractor
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor
 import com.android.systemui.bouncer.shared.model.BouncerActionButtonModel
+import com.android.systemui.bouncer.shared.model.BouncerInputSide
 import com.android.systemui.bouncer.ui.BouncerColors.surfaceColor
 import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.shared.model.Text
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardDismissActionInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardMediaKeyInteractor
 import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.user.domain.interactor.UserLockedInteractor
+import com.android.systemui.user.domain.interactor.UserLogoutInteractor
 import com.android.systemui.user.ui.viewmodel.UserSwitcherViewModel
 import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,10 +67,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 /** Models UI state for the content of the bouncer overlay. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class BouncerOverlayContentViewModel
 @AssistedInject
 constructor(
@@ -70,7 +86,6 @@ constructor(
     private val devicePolicyManager: DevicePolicyManager,
     private val bouncerMessageViewModelFactory: BouncerMessageViewModel.Factory,
     private val userSwitcher: UserSwitcherViewModel,
-    private val actionButtonInteractor: BouncerActionButtonInteractor,
     private val pinViewModelFactory: PinBouncerViewModel.Factory,
     private val patternViewModelFactory: PatternBouncerViewModel.Factory,
     private val passwordViewModelFactory: PasswordBouncerViewModel.Factory,
@@ -80,7 +95,11 @@ constructor(
     private val keyguardDismissActionInteractor: KeyguardDismissActionInteractor,
     private val sceneInteractor: SceneInteractor,
     private val windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
-) : HydratedActivatable() {
+    private val faceAuthInteractor: DeviceEntryFaceAuthInteractor,
+    private val userLockedInteractor: UserLockedInteractor,
+    private val userLogoutInteractor: UserLogoutInteractor,
+    @Background private val backgroundDispatcher: CoroutineDispatcher,
+) : HydratedActivatable(enableEnqueuedActivations = enableWeaverWarmup()) {
     private val _selectedUserImage = MutableStateFlow<Bitmap?>(null)
     val selectedUserImage: StateFlow<Bitmap?> = _selectedUserImage.asStateFlow()
 
@@ -96,11 +115,6 @@ constructor(
 
     private val _isUserSwitcherVisible = MutableStateFlow(false)
     val isUserSwitcherVisible: StateFlow<Boolean> = _isUserSwitcherVisible.asStateFlow()
-
-    /** View-model for the current UI, based on the current authentication method. */
-    private val _authMethodViewModel = MutableStateFlow<AuthMethodBouncerViewModel?>(null)
-    val authMethodViewModel: StateFlow<AuthMethodBouncerViewModel?> =
-        _authMethodViewModel.asStateFlow()
 
     /**
      * A message for a dialog to show when the user has attempted the wrong credential too many
@@ -128,12 +142,14 @@ constructor(
      */
     val dialogViewModel: StateFlow<DialogViewModel?> = _dialogViewModel.asStateFlow()
 
-    private val _actionButton = MutableStateFlow<BouncerActionButtonModel?>(null)
     /**
      * The bouncer action button (Return to Call / Emergency Call). If `null`, the button should not
      * be shown.
      */
-    val actionButton: StateFlow<BouncerActionButtonModel?> = _actionButton.asStateFlow()
+    val actionButton: BouncerActionButtonModel? by
+        bouncerActionButtonInteractor.actionButton.hydratedStateOf(
+            initialValue = bouncerActionButtonInteractor.currentActionButton
+        )
 
     private val _isOneHandedModeSupported = MutableStateFlow(false)
     /**
@@ -151,18 +167,28 @@ constructor(
      * these typically don't rely on touch gestures to go back.
      */
     val showBackButton =
-        Flags.backButtonOnBouncer() && bouncerInteractor.isImproveLargeScreenInteractionEnabled
+        (Flags.backButtonOnBouncerFix() || Flags.backButtonOnBouncerFix2()) &&
+            bouncerInteractor.isImproveLargeScreenInteractionEnabled
+
+    /** Whether to show the accessibility button on the bouncer. */
+    val showAccessibilityButton =
+        Flags.bouncerAccessibilityButtonForDesktop() &&
+            bouncerInteractor.isShowAccessibilityButtonOnBouncerEnabled
+
+    val accessibilityActions: List<CustomAccessibilityAction>
+        get() = buildList {
+            if (faceAuthInteractor.canFaceAuthRun()) {
+                add(
+                    CustomAccessibilityAction(applicationContext.getString(R.string.retry_face)) {
+                        faceAuthInteractor.onAccessibilityAction()
+                        true
+                    }
+                )
+            }
+        }
 
     private val _isInputPreferredOnLeftSide = MutableStateFlow(false)
     val isInputPreferredOnLeftSide = _isInputPreferredOnLeftSide.asStateFlow()
-
-    private val _isFoldSplitRequired =
-        MutableStateFlow(isFoldSplitRequired(authMethodViewModel.value))
-    /**
-     * Whether the splitting the UI around the fold seam (where the hinge is on a foldable device)
-     * is required.
-     */
-    val isFoldSplitRequired: StateFlow<Boolean> = _isFoldSplitRequired.asStateFlow()
 
     /** How much the bouncer UI should be scaled. */
     val scale: StateFlow<Float> = bouncerInteractor.scale
@@ -180,22 +206,50 @@ constructor(
                 ),
             )
 
-    private val _isInputEnabled =
-        MutableStateFlow(authenticationInteractor.lockoutEndTimestamp == null)
+    private val _isInputEnabled = MutableStateFlow(authenticationInteractor.lockoutEndTime == null)
     private val isInputEnabled: StateFlow<Boolean> = _isInputEnabled.asStateFlow()
+
+    private val authenticationMethod: AuthenticationMethodModel? by
+        authenticationInteractor.authenticationMethod
+            .filter { it !is AuthenticationMethodModel.Biometric }
+            .distinctUntilChanged()
+            .hydratedStateOf(
+                initialValue =
+                    authenticationInteractor.authenticationMethod.value.takeIf {
+                        it !is AuthenticationMethodModel.Biometric
+                    }
+            )
+
+    /** View-model for the current UI, based on the current authentication method. */
+    val authMethodViewModel: AuthMethodBouncerViewModel? by derivedStateOf {
+        authenticationMethod?.let { getChildViewModel(it) }
+    }
+
+    val showSignInButton: Boolean
+        get() = showSignInButton(authMethodViewModel)
+
+    val isSignInButtonEnabled: Boolean by
+        snapshotFlow { authMethodViewModel }
+            .filterNotNull()
+            .flatMapLatest { it.readyToTryAuthenticate }
+            .hydratedStateOf(
+                initialValue = authMethodViewModel?.readyToTryAuthenticate?.value ?: false
+            )
+
+    /**
+     * Whether the splitting the UI around the fold seam (where the hinge is on a foldable device)
+     * is required.
+     */
+    val isFoldSplitRequired: Boolean
+        get() = isFoldSplitRequired(authMethodViewModel)
 
     override suspend fun onActivated(): Nothing {
         bouncerInteractor.resetScale()
         coroutineScope {
             launch { message.activate() }
             launch {
-                authenticationInteractor.authenticationMethod
-                    .filter { it !is AuthenticationMethodModel.Biometric }
-                    .map(::getChildViewModel)
-                    .collectLatest { childViewModelOrNull ->
-                        _authMethodViewModel.value = childViewModelOrNull
-                        childViewModelOrNull?.let { traceCoroutine(it.traceName) { it.activate() } }
-                    }
+                snapshotFlow { authMethodViewModel }
+                    .collectLatest { it?.let { traceCoroutine(it.traceName) { it.activate() } } }
             }
 
             launch {
@@ -206,13 +260,8 @@ constructor(
 
             launch {
                 userSwitcher.selectedUser
-                    .map {
-                        val iconSize =
-                            applicationContext.resources.getDimensionPixelSize(
-                                R.dimen.bouncer_user_switcher_icon_size
-                            )
-                        it.image.toBitmap(iconSize, iconSize)
-                    }
+                    .map { it.image.toBitmap() }
+                    .flowOn(backgroundDispatcher)
                     .collect { _selectedUserImage.value = it }
             }
 
@@ -232,12 +281,14 @@ constructor(
                             actions.map { action ->
                                 UserSwitcherDropdownItemViewModel(
                                     icon =
-                                        Icon.Loaded(
-                                            applicationContext.resources.getDrawable(
-                                                action.iconResourceId
-                                            ),
-                                            contentDescription = null,
-                                        ),
+                                        withContext(backgroundDispatcher) {
+                                            Icon.Loaded(
+                                                applicationContext.resources.getDrawable(
+                                                    action.iconResourceId
+                                                ),
+                                                contentDescription = null,
+                                            )
+                                        },
                                     text = Text.Resource(action.textResourceId),
                                     onClick = action.onClicked,
                                 )
@@ -250,8 +301,6 @@ constructor(
                 combine(wipeDialogMessage, lockoutDialogMessage) { _, _ -> createDialogViewModel() }
                     .collect { _dialogViewModel.value = it }
             }
-
-            launch { actionButtonInteractor.actionButton.collect { _actionButton.value = it } }
 
             launch {
                 combine(
@@ -292,12 +341,6 @@ constructor(
             }
 
             launch {
-                authMethodViewModel
-                    .map { authMethod -> isFoldSplitRequired(authMethod) }
-                    .collect { _isFoldSplitRequired.value = it }
-            }
-
-            launch {
                 message.isLockoutMessagePresent
                     .map { lockoutMessagePresent -> !lockoutMessagePresent }
                     .collect { _isInputEnabled.value = it }
@@ -311,16 +354,13 @@ constructor(
         return authMethod !is PasswordBouncerViewModel
     }
 
+    private fun showSignInButton(authMethod: AuthMethodBouncerViewModel?): Boolean {
+        return authMethod?.showSignInButton ?: false
+    }
+
     private fun getChildViewModel(
         authenticationMethod: AuthenticationMethodModel
     ): AuthMethodBouncerViewModel? {
-        // If the current child view-model matches the authentication method, reuse it instead of
-        // creating a new instance.
-        val childViewModel = authMethodViewModel.value
-        if (authenticationMethod == childViewModel?.authenticationMethod) {
-            return childViewModel
-        }
-
         return when (authenticationMethod) {
             is AuthenticationMethodModel.Pin ->
                 pinViewModelFactory.create(
@@ -340,6 +380,7 @@ constructor(
                 passwordViewModelFactory.create(
                     onIntentionalUserInput = ::onIntentionalUserInput,
                     isInputEnabled = isInputEnabled,
+                    bouncerHapticPlayer = bouncerHapticPlayer,
                 )
             is AuthenticationMethodModel.Pattern ->
                 patternViewModelFactory.create(
@@ -353,6 +394,9 @@ constructor(
 
     private fun onIntentionalUserInput() {
         message.showDefaultMessage()
+        if (enableWeaverWarmup()) {
+            enqueueOnActivatedScope { authenticationInteractor.triggerAuthWarmUp() }
+        }
         bouncerInteractor.onIntentionalUserInput()
     }
 
@@ -425,7 +469,7 @@ constructor(
         // Swap of layout columns on double click should be disabled to improve interaction on
         // large-screen form factor, e.g. desktop, kiosk
         val disableDoubleClickSwap =
-            Flags.disableDoubleClickSwapOnBouncer() &&
+            (Flags.disableDoubleClickSwapOnBouncer() || Flags.disableDoubleClickSwapOnBouncer2()) &&
                 bouncerInteractor.isImproveLargeScreenInteractionEnabled
         if (disableDoubleClickSwap) return
         if (!wasEventOnNonInputHalfOfScreen) return
@@ -445,6 +489,19 @@ constructor(
         bouncerInteractor.onDown()
     }
 
+    fun backgroundTap() {
+        if (!bouncerInteractor.isFalseBackgroundTap()) {
+            bouncerInteractor.onIntentionalUserInput()
+        }
+    }
+
+    /*
+     * Notifies that the user switcher dropdown was clicked or dismissed.
+     */
+    fun onUserSwitcherDropdown() {
+        bouncerInteractor.onIntentionalUserInput()
+    }
+
     /**
      * Notifies that a key event has occurred.
      *
@@ -452,11 +509,12 @@ constructor(
      */
     fun onKeyEvent(keyEvent: KeyEvent): Boolean {
         if (keyguardMediaKeyInteractor.processMediaKeyEvent(keyEvent.nativeKeyEvent)) return true
-        return authMethodViewModel.value?.onKeyEvent(keyEvent.type, keyEvent.nativeKeyEvent.keyCode)
+        return authMethodViewModel?.onKeyEvent(keyEvent.type, keyEvent.nativeKeyEvent.keyCode)
             ?: false
     }
 
     fun onActionButtonClicked(actionButtonModel: BouncerActionButtonModel) {
+        onIntentionalUserInput()
         when (actionButtonModel) {
             is BouncerActionButtonModel.EmergencyButtonModel -> {
                 bouncerHapticPlayer.playEmergencyButtonClickFeedback()
@@ -475,30 +533,48 @@ constructor(
     }
 
     /**
-     * Call this method to determine if Bouncer contents should delay showing on initial transition
-     * to the bouncer. We have this delay to give an opportunity for passive authentication methods
-     * (such as face auth and watch unlock) to succeed first before showing the bouncer contents UI
-     * to avoid a flicker of the UI. However, we do not want to delay the entire Bouncer scene (with
-     * the bouncer background) because we still want to give the user a visual indication that their
-     * request for the bouncer is being processed.
-     *
-     * Returns `true` if a passive authentication method (such as face authentication or watch
-     * unlock) may authenticate the device before the user has the opportunity to enter their
-     * pin/pattern/password. Else, `false`.
-     */
-    suspend fun shouldDelayBouncerContent(): Boolean {
-        return bouncerInteractor.passiveAuthMaySucceedBeforeFullyShowingBouncer()
-    }
-
-    /**
      * Notifies that the bouncer UI has been destroyed (e.g. the composable left the composition).
      */
     fun onUiDestroyed() {
         keyguardDismissActionInteractor.clearDismissAction()
     }
 
-    fun navigateBack() {
+    /**
+     * Handles back button clicks. Signs out the user or navigates back based on
+     * `shouldSignOutOnGoBack()`.
+     */
+    fun onGoBack() {
+        enqueueOnActivatedScope {
+            if (shouldSignOutOnGoBack()) {
+                userLogoutInteractor.logOutToSystemUser()
+            } else {
+                navigateBack()
+            }
+        }
+    }
+
+    /**
+     * Checks if the user should be signed out when going back.
+     *
+     * True if the user logged in, but not yet unlocked.
+     *
+     * @return True to sign out, false otherwise.
+     */
+    suspend private fun shouldSignOutOnGoBack(): Boolean {
+        return userLogoutInteractor.isLogoutToSystemUserEnabled.value &&
+            userLockedInteractor.isCurrentUserStorageLocked()
+    }
+
+    private fun navigateBack() {
         sceneInteractor.hideOverlay(Overlays.Bouncer, "back button clicked")
+    }
+
+    fun onSignIn() {
+        authMethodViewModel?.tryAuthenticate()
+    }
+
+    fun showAccessibilityDialog() {
+        // TODO: b/449824070 - Show dialog once implemented.
     }
 
     data class DialogViewModel(

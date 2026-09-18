@@ -25,7 +25,7 @@ import com.android.systemui.Flags.communalWidgetResizing
 import com.android.systemui.communal.domain.model.CommunalContentModel
 import com.android.systemui.communal.shared.model.CommunalContentSize
 import com.android.systemui.communal.ui.viewmodel.BaseCommunalViewModel
-import com.android.systemui.communal.ui.viewmodel.DragHandle
+import com.android.systemui.communal.ui.viewmodel.ResizeHandle
 import com.android.systemui.communal.ui.viewmodel.ResizeInfo
 import com.android.systemui.communal.widgets.WidgetConfigurator
 
@@ -115,7 +115,7 @@ internal constructor(
         val widgetIdToRankMap: Map<Int, Int> =
             if (
                 resizeInfo.isExpanding &&
-                    resizeInfo.fromHandle == DragHandle.TOP &&
+                    resizeInfo.fromHandle == ResizeHandle.TOP &&
                     prevItem is CommunalContentModel.WidgetContent.Widget
             ) {
                 onMove(index - 1, index)

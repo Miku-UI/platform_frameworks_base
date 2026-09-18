@@ -26,6 +26,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
+        android:clipChildren="true"
         style="@style/Banner.Preference.SettingsLib.Expressive">
 
         <FrameLayout
@@ -53,7 +54,8 @@
 
                         <LinearLayout
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content">
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/settingslib_expressive_space_extrasmall4">
 
                             <ImageView
                                 android:id="@+id/banner_icon"
@@ -112,7 +114,7 @@
                     <Space
                         android:id="@+id/banner_button_space"
                         android:layout_width="@dimen/settingslib_expressive_space_extrasmall4"
-                        android:layout_height="@dimen/settingslib_expressive_space_small1"/>
+                        android:layout_height="@dimen/settingslib_expressive_space_extrasmall4"/>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/banner_positive_btn"
                         android:layout_weight="1"

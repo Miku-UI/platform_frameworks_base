@@ -9,18 +9,36 @@ package {
 }
 
 java_library_host {
+    name: "DevicePolicyAnnotationProcessorProto",
+    srcs: ["proto/**/*.proto"],
+    static_libs: [
+        "libprotobuf-java-full",
+    ],
+    proto: {
+        type: "full",
+        include_dirs: [
+            "external/protobuf/src",
+        ],
+    },
+}
+
+java_library_host {
     name: "DevicePolicyAnnotationProcessorHostLibrary",
     srcs: [
         "src/**/*.kt",
         "annotations/**/*.java",
     ],
     use_tools_jar: true,
-    static_libs: ["jsonlib"],
+    static_libs: [
+        "libprotobuf-java-full",
+        "DevicePolicyAnnotationProcessorProto",
+        "framework-annotations-lib",
+    ],
 }
 
 java_plugin {
     name: "DevicePolicyAnnotationProcessor",
-    processor_class: "android.processor.devicepolicy.PolicyProcessor",
+    processor_class: "android.processor.devicepolicy.DevicePolicyAnnotationProcessor",
     static_libs: ["DevicePolicyAnnotationProcessorHostLibrary"],
 }
 
@@ -34,14 +52,19 @@ java_library {
 java_test_host {
     name: "DevicePolicyAnnotationProcessorTests",
 
-    srcs: ["test/src/**/*.kt"],
+    srcs: [
+        "test/src/**/*.kt",
+        "test/src/**/*.java",
+    ],
 
     static_libs: [
+        "DevicePolicyAnnotationProcessorHostLibrary",
         "compile-testing-prebuilt",
         "junit",
-        "truth",
         "kotlin-reflect",
-        "DevicePolicyAnnotationProcessorHostLibrary",
+        "truth",
+        "truth-liteproto-extension",
+        "truth-proto-extension",
     ],
 
     java_resources: [":DevicePolicyAnnotationProcessorTestSource"],
@@ -53,8 +76,9 @@ filegroup {
     srcs: [
         // We need the java sources for compiler tests.
         ":framework-metalava-annotations",
+        ":framework-device-policy-metadata-sources",
         "test/resources/**/*.java",
-        "test/resources/**/*.json",
+        "test/resources/**/*.textproto",
     ],
     visibility: ["//visibility:private"],
 }

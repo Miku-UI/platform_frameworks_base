@@ -19,7 +19,9 @@ package com.android.server.wm;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.view.Display.INVALID_DISPLAY;
 
+import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_TASKS_LAUNCH_PARAMS;
 import static com.android.server.wm.ActivityStarter.Request;
+import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_ATM;
 import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.PHASE_BOUNDS;
 import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.RESULT_CONTINUE;
 import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.RESULT_DONE;
@@ -33,8 +35,10 @@ import android.app.WindowConfiguration.WindowingMode;
 import android.content.Context;
 import android.content.pm.ActivityInfo.WindowLayout;
 import android.graphics.Rect;
+import android.util.Slog;
 
 import com.android.internal.policy.DesktopModeCompatPolicy;
+import com.android.internal.protolog.ProtoLog;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -91,8 +95,13 @@ class LaunchParamsController {
             @LaunchParamsModifier.Phase int phase, LaunchParams result) {
         result.reset();
 
-        if (task != null || activity != null) {
-            mPersister.getLaunchParams(task, activity, result);
+        if (task != null) {
+            if (task.supportsPersistedLaunchState()) {
+                // If task exists, check if it supports loading persisted state.
+                mPersister.getLaunchParams(task, activity, result);
+            }
+        } else if (activity != null) {
+            mPersister.getLaunchParams(null, activity, result);
         }
 
         // We start at the last registered {@link LaunchParamsModifier} as this represents
@@ -157,7 +166,7 @@ class LaunchParamsController {
                     task.getRequestedOverrideConfiguration().windowConfiguration.setAppBounds(
                             mTmpParams.mAppBounds);
                 }
-                task.setBounds(mTmpParams.mBounds);
+                task.setBoundsWithSource(mTmpParams.mBounds, mTmpParams.mBoundsSetFromOptions);
                 return true;
             }
 
@@ -182,6 +191,12 @@ class LaunchParamsController {
         mModifiers.add(modifier);
     }
 
+    void flushLog() {
+        for (int i = mModifiers.size() - 1; i >= 0; --i) {
+            mModifiers.get(i).flushLog();
+        }
+    }
+
     /**
      * A container for holding launch related fields.
      */
@@ -191,6 +206,10 @@ class LaunchParamsController {
         final Rect mBounds = new Rect();
         /** Whether the bounds have been set. */
         boolean mBoundsSet = false;
+        /**
+         * Whether the current bounds are set from the activity options.
+         */
+        boolean mBoundsSetFromOptions;
         /** The bounds within the parent container respecting insets. Usually empty. */
         @NonNull
         final Rect mAppBounds = new Rect();
@@ -207,6 +226,24 @@ class LaunchParamsController {
         @WindowingMode
         int mWindowingMode;
 
+        /**
+         * Indicates whether the {@link Task} is explicitly prevented from being moved via the
+         * {@link AppTask#moveTaskTo} API.
+         * <p>
+         * If {@code false}, the movability is determined from the TDA params.
+         */
+        boolean mIsTaskMoveDisallowed;
+
+        /**
+         * Whether the Activity was originally launched from home and needs to reparent the leaf
+         * task to TDA.
+         */
+        // TODO(b/265345023): Control this via mPreferredRootTask to support other root tasks.
+        // For example, in desktop mode, a bubble leaf task may need to reparent to a
+        // desktop-root-task rather than the TDA. WM Core should somehow reparent the leaf task
+        // to the TDA (or applicable root) if the preferred root task is the leaf task itself.
+        boolean mIsRelaunchFromHomeToReparent;
+
         /** Whether the Activity needs the safe region bounds. A {@code null} value means unset. */
         @Nullable
         Boolean mNeedsSafeRegionBounds = null;
@@ -215,37 +252,46 @@ class LaunchParamsController {
         void reset() {
             mBounds.setEmpty();
             mBoundsSet = false;
+            mBoundsSetFromOptions = false;
             mAppBounds.setEmpty();
             mPreferredTaskDisplayArea = null;
             mPreferredRootTask = null;
             mWindowingMode = WINDOWING_MODE_UNDEFINED;
+            mIsRelaunchFromHomeToReparent = false;
             mNeedsSafeRegionBounds = null;
+            mIsTaskMoveDisallowed = false;
         }
 
         /** Copies the values set on the passed in {@link LaunchParams}. */
         void set(LaunchParams params) {
             mBounds.set(params.mBounds);
             mBoundsSet = params.mBoundsSet;
+            mBoundsSetFromOptions = params.mBoundsSetFromOptions;
             mAppBounds.set(params.mAppBounds);
             mPreferredTaskDisplayArea = params.mPreferredTaskDisplayArea;
             mPreferredRootTask = params.mPreferredRootTask;
             mWindowingMode = params.mWindowingMode;
+            mIsRelaunchFromHomeToReparent = params.mIsRelaunchFromHomeToReparent;
             mNeedsSafeRegionBounds = params.mNeedsSafeRegionBounds;
+            mIsTaskMoveDisallowed = params.mIsTaskMoveDisallowed;
         }
 
         /** Merges the values set on the passed in {@link LaunchParams}. */
         void merge(LaunchParams params) {
             mBounds.set(params.mBounds);
             mBoundsSet = params.mBoundsSet;
+            mBoundsSetFromOptions = params.mBoundsSetFromOptions;
             mAppBounds.set(params.mAppBounds);
             mPreferredTaskDisplayArea = params.mPreferredTaskDisplayArea;
             mPreferredRootTask = params.mPreferredRootTask;
             mWindowingMode = params.mWindowingMode;
+            mIsRelaunchFromHomeToReparent = params.mIsRelaunchFromHomeToReparent;
             // Only update mNeedsSafeRegionBounds if a modifier updates it by setting a non null
             // value. Otherwise, carry over from previous modifiers
             if (params.mNeedsSafeRegionBounds != null) {
                 mNeedsSafeRegionBounds = params.mNeedsSafeRegionBounds;
             }
+            mIsTaskMoveDisallowed = params.mIsTaskMoveDisallowed;
         }
 
         /** Returns {@code true} if no values have been explicitly set. */
@@ -253,7 +299,9 @@ class LaunchParamsController {
             return (mBounds.isEmpty() && !mBoundsSet) && mAppBounds.isEmpty()
                     && mPreferredTaskDisplayArea == null
                     && mPreferredRootTask == null
-                    && mWindowingMode == WINDOWING_MODE_UNDEFINED && mNeedsSafeRegionBounds == null;
+                    && mWindowingMode == WINDOWING_MODE_UNDEFINED
+                    && !mIsRelaunchFromHomeToReparent
+                    && mNeedsSafeRegionBounds == null;
         }
 
         boolean hasWindowingMode() {
@@ -274,9 +322,12 @@ class LaunchParamsController {
             if (mPreferredTaskDisplayArea != that.mPreferredTaskDisplayArea) return false;
             if (mPreferredRootTask != that.mPreferredRootTask) return false;
             if (mWindowingMode != that.mWindowingMode) return false;
+            if (mIsRelaunchFromHomeToReparent != that.mIsRelaunchFromHomeToReparent) return false;
             if (!mAppBounds.equals(that.mAppBounds)) return false;
             if (!Objects.equals(mNeedsSafeRegionBounds, that.mNeedsSafeRegionBounds)) return false;
+            if (mBoundsSetFromOptions != that.mBoundsSetFromOptions) return false;
             if (mBoundsSet != that.mBoundsSet) return false;
+            if (mIsTaskMoveDisallowed != that.mIsTaskMoveDisallowed) return false;
             return !mBounds.isEmpty() ? mBounds.equals(that.mBounds) : that.mBounds.isEmpty();
         }
 
@@ -284,14 +335,17 @@ class LaunchParamsController {
         public int hashCode() {
             int result = !mBounds.isEmpty() ? mBounds.hashCode() : 0;
             result = 31 * result + Boolean.hashCode(mBoundsSet);
+            result = 31 * result + Boolean.hashCode(mBoundsSetFromOptions);
             result = 31 * result + mAppBounds.hashCode();
             result = 31 * result + (mPreferredTaskDisplayArea != null
                     ? mPreferredTaskDisplayArea.hashCode() : 0);
             result = 31 * result + (mPreferredRootTask != null
                     ? mPreferredRootTask.hashCode() : 0);
             result = 31 * result + mWindowingMode;
+            result = 31 * result + Boolean.hashCode(mIsRelaunchFromHomeToReparent);
             result = 31 * result + (mNeedsSafeRegionBounds != null
                     ? Boolean.hashCode(mNeedsSafeRegionBounds) : 0);
+            result = 31 * result + Boolean.hashCode(mIsTaskMoveDisallowed);
             return result;
         }
     }
@@ -372,5 +426,40 @@ class LaunchParamsController {
                 @Nullable ActivityRecord activity, @Nullable ActivityRecord source,
                 @Nullable ActivityOptions options, @Nullable Request request,
                 @Phase int phase, LaunchParams currentParams, LaunchParams outParams);
+
+        default void flushLog() {}
+    }
+
+    abstract static class DefaultLaunchParamsModifier implements LaunchParamsModifier {
+        private StringBuilder mLogBuilder;
+
+        @Result
+        int mResult = RESULT_SKIP;
+
+        void initLogBuilder(String modifierName, int phase, Task task, ActivityRecord activity) {
+            mLogBuilder = new StringBuilder(512)
+                    .append(modifierName).append(": phase=").append(phase)
+                    .append(" task=").append(task).append(" activity=").append(activity);
+        }
+
+        void appendLog(String log) {
+            mLogBuilder.append(" ").append(log);
+        }
+
+        /** This is called from {@link #onCalculate}. */
+        void outputLog() {
+            ProtoLog.v(WM_DEBUG_TASKS_LAUNCH_PARAMS, "%s", mLogBuilder.toString());
+        }
+
+        /** This is only called at the end of launch request. */
+        @Override
+        public void flushLog() {
+            if (mLogBuilder != null && mResult != RESULT_SKIP
+                    // Skip because outputLog() already prints each phase.
+                    && !WM_DEBUG_TASKS_LAUNCH_PARAMS.isLogToLogcat()) {
+                Slog.v(TAG_ATM, mLogBuilder.toString());
+            }
+            mLogBuilder = null;
+        }
     }
 }

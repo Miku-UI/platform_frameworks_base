@@ -18,7 +18,11 @@ package com.android.server.pm;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.assertWith;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.list;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -29,12 +33,23 @@ import android.content.pm.LauncherApps;
 import android.content.pm.LauncherApps.ShortcutChangeCallback;
 import android.content.pm.LauncherApps.ShortcutQuery;
 import android.content.pm.ShortcutInfo;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
+
+import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.pm.ShortcutService.ConfigConstants;
 
 import org.mockito.ArgumentCaptor;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.runner.RunWith;
+import org.junit.Test;
 
 import java.util.List;
 
@@ -44,7 +59,12 @@ import java.util.List;
  atest -c com.android.server.pm.ShortcutManagerTest11
  */
 @Presubmit
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
+
+    @ClassRule
+    public static final SetFlagsRule.ClassRule mSetFlagsClassRule = new SetFlagsRule.ClassRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = mSetFlagsClassRule.createSetFlagsRule();
 
     private static final ShortcutQuery QUERY_MATCH_ALL = createShortcutQuery(
             ShortcutQuery.FLAG_MATCH_ALL_KINDS_WITH_ALL_PINNED);
@@ -54,6 +74,7 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
     private final TestLooper mTestLooper = new TestLooper();
 
+    @Test
     public void testShortcutChangeCallback_setDynamicShortcuts() {
         ShortcutChangeCallback callback = mock(ShortcutChangeCallback.class);
         runWithCaller(LAUNCHER_1, USER_10, () -> {
@@ -67,16 +88,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_setDynamicShortcuts_replaceSameId() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s1", "s2")));
@@ -94,23 +118,26 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2", "s3");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2", "s3");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_setDynamicShortcuts_pinnedAndCached() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(
@@ -136,14 +163,16 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2", "s3", "s4");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2", "s3", "s4");
+        });
     }
 
     public void disabled_testShortcutChangeCallback_pinShortcuts() {
@@ -159,17 +188,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
         });
 
         mTestLooper.dispatchAll();
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
-
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_pinShortcuts_unpinOthers() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s1", "s2", "s3")));
@@ -192,23 +223,26 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2", "s3");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2", "s3");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_cacheShortcuts() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeLongLivedShortcut("s1"),
@@ -228,16 +262,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(2)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(2)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s3");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s3");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_cacheShortcuts_alreadyCached() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeLongLivedShortcut("s1"),
@@ -261,16 +298,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s3");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s3");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_uncacheShortcuts() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeLongLivedShortcut("s1"),
@@ -290,16 +330,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_uncacheShortcuts_causeDeletion() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeLongLivedShortcut("s1"),
@@ -329,24 +372,27 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        // s1 is still cached for owner1, s2 is pinned.
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2");
+            // s1 is still cached for owner1, s2 is pinned.
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s3");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s3");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_updateShortcuts() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeShortcut("s1"),
@@ -366,17 +412,20 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2");
-        assertEquals(updatedCn, ((ShortcutInfo) shortcuts.getValue().get(0)).getActivity());
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2");
+            assertEquals(updatedCn, ((ShortcutInfo) shortcuts.getValue().get(0)).getActivity());
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_addDynamicShortcuts() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s1")));
@@ -394,16 +443,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_pushDynamicShortcut() {
         ShortcutChangeCallback callback = mock(ShortcutChangeCallback.class);
         runWithCaller(LAUNCHER_1, USER_10, () -> {
@@ -417,16 +469,30 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    private void verifyWithRetry(Runnable verification) {
+        try {
+            verification.run();
+            return;
+        } catch (Throwable t) {
+            // This schedules a task to be run in the future.
+            new Handler(Looper.getMainLooper()).postDelayed(
+                () -> verifyWithRetry(verification), 500);
+        }
+    }
+
+    @Test
     public void testShortcutChangeCallback_pushDynamicShortcut_existingId() {
         // Change the max number of shortcuts.
         mService.updateConfigurationLocked(ConfigConstants.KEY_MAX_SHORTCUTS + "=3");
@@ -447,16 +513,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_pushDynamicShortcut_causeDeletion() {
         // Change the max number of shortcuts.
         mService.updateConfigurationLocked(ConfigConstants.KEY_MAX_SHORTCUTS + "=3");
@@ -477,23 +546,26 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s4");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s4");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s3");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s3");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_pushDynamicShortcut_causeDeletionButCached() {
         // Change the max number of shortcuts.
         mService.updateConfigurationLocked(ConfigConstants.KEY_MAX_SHORTCUTS + "=3");
@@ -520,16 +592,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s3", "s4");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s3", "s4");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_disableShortcuts() {
         updatePackageVersion(CALLING_PACKAGE_1, 1);
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
@@ -548,17 +623,20 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
+        verifyWithRetry(() -> {
+            verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_disableShortcuts_pinnedAndCached() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(
@@ -581,23 +659,26 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2", "s3");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2", "s3");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_enableShortcuts() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(
@@ -627,16 +708,19 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
-        verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            verify(callback, times(0)).onShortcutsRemoved(any(), any(), any());
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2", "s3");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2", "s3");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_removeDynamicShortcuts() {
         updatePackageVersion(CALLING_PACKAGE_1, 1);
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
@@ -655,17 +739,20 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
+        verifyWithRetry(() -> {
+            verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_removeDynamicShortcuts_pinnedAndCached() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeShortcut("s1"),
@@ -688,23 +775,26 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2", "s3");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2", "s3");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_removeAllDynamicShortcuts() {
         updatePackageVersion(CALLING_PACKAGE_1, 1);
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
@@ -723,17 +813,20 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
+        verifyWithRetry(() -> {
+            verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_removeAllDynamicShortcuts_pinnedAndCached() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(
@@ -756,23 +849,26 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s2", "s3");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s2", "s3");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_removeLongLivedShortcuts_notCached() {
         updatePackageVersion(CALLING_PACKAGE_1, 1);
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
@@ -792,17 +888,20 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
+        verifyWithRetry(() -> {
+            verify(callback, times(0)).onShortcutsAddedOrUpdated(any(), any(), any());
 
-        ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> shortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), shortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(shortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2");
+            assertWith(shortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2");
+        });
     }
 
+    @Test
     public void testShortcutChangeCallback_removeLongLivedShortcuts_pinnedAndCached() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeShortcut("s1"),
@@ -825,21 +924,75 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
 
         mTestLooper.dispatchAll();
 
-        ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsAddedOrUpdated(
-                eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
+        verifyWithRetry(() -> {
+            ArgumentCaptor<List> changedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsAddedOrUpdated(
+                    eq(CALLING_PACKAGE_1), changedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
-        verify(callback, times(1)).onShortcutsRemoved(
-                eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
+            ArgumentCaptor<List> removedShortcuts = ArgumentCaptor.forClass(List.class);
+            verify(callback, times(1)).onShortcutsRemoved(
+                    eq(CALLING_PACKAGE_1), removedShortcuts.capture(), eq(HANDLE_USER_10));
 
-        assertWith(changedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s3");
+            assertWith(changedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s3");
 
-        assertWith(removedShortcuts.getValue())
-                .areAllWithKeyFieldsOnly()
-                .haveIds("s1", "s2");
+            assertWith(removedShortcuts.getValue())
+                    .areAllWithKeyFieldsOnly()
+                    .haveIds("s1", "s2");
+        });
+    }
+
+    @Test
+    @EnableFlags(android.content.pm.Flags.FLAG_APP_LOCK_SHORTCUT_REMOVAL)
+    public void testsetDynamicShortcuts_flagEnabled_appLockEnabled_assertFalse() {
+        doAnswer(invocation -> {
+                return true;
+            }).when(mMockPackageManagerInternal).isPackageAppLockEnabled(
+                eq(CALLING_PACKAGE_1), eq(USER_10));
+
+        runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
+            assertFalse(mManager.setDynamicShortcuts(makeShortcuts("s3", "s4")));
+        });
+    }
+
+    @Test
+    @EnableFlags(android.content.pm.Flags.FLAG_APP_LOCK_SHORTCUT_REMOVAL)
+    public void testsetDynamicShortcuts_flagEnabled_appLockDisabled_assertTrue() {
+        doAnswer(invocation -> {
+                return false;
+            }).when(mMockPackageManagerInternal).isPackageAppLockEnabled(
+                eq(CALLING_PACKAGE_1), eq(USER_10));
+
+        runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
+            assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s3", "s4")));
+        });
+    }
+
+    @Test
+    @DisableFlags(android.content.pm.Flags.FLAG_APP_LOCK_SHORTCUT_REMOVAL)
+    public void testSetDynamicShortcuts_flagDisabled_appLockEnabled_assertTrue() {
+        doAnswer(invocation -> {
+                return true;
+            }).when(mMockPackageManagerInternal).isPackageAppLockEnabled(
+                eq(CALLING_PACKAGE_1), eq(USER_10));
+
+        runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
+            assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s1", "s2")));
+        });
+    }
+
+    @Test
+    @DisableFlags(android.content.pm.Flags.FLAG_APP_LOCK_SHORTCUT_REMOVAL)
+    public void testSetDynamicShortcuts_flagDisabled_appLockDisabled_assertTrue() {
+        doAnswer(invocation -> {
+                return false;
+            }).when(mMockPackageManagerInternal).isPackageAppLockEnabled(
+                eq(CALLING_PACKAGE_1), eq(USER_10));
+
+        runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
+            assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s1", "s2")));
+        });
     }
 
     private static ShortcutQuery createShortcutQuery(int queryFlags) {

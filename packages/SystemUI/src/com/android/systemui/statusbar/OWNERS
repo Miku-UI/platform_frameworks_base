@@ -2,7 +2,7 @@ set noparent
 
 # Bug component: 78010
 
-caitlinshk@google.com
+amehfooz@google.com
 evanlaird@google.com
 justinweir@google.com
 pixel@google.com
@@ -11,6 +11,8 @@ per-file *ActivityStarter* = set noparent
 per-file *ActivityStarter* = acul@google.com, agvard@google.com, cinek@google.com, jdemeulenaere@google.com, mpietal@google.com
 per-file *Biometric* = set noparent
 per-file *Biometric* = file:../keyguard/OWNERS
+# Not setting noparent here, since *Dialog* also matches classes owned by other teams, like "ModesDialogDelegate".
+per-file *Dialog* = acul@google.com, jdemeulenaere@google.com, mankoff@google.com
 per-file *Doze* = set noparent
 per-file *Doze* = file:../keyguard/OWNERS
 per-file *Keyboard* = set noparent
@@ -23,8 +25,8 @@ per-file *Notification* = file:notification/OWNERS
 per-file *NotificationShadeDepth* = set noparent
 per-file *NotificationShadeDepth* = shanh@google.com, rahulbanerjee@google.com, tracyzhou@google.com
 per-file *NotificationShadeDepth* = file:../keyguard/OWNERS
-per-file *Blur* = set noparent
-per-file *Blur* = shanh@google.com, rahulbanerjee@google.com, tracyzhou@google.com
+per-file BlurUtils.kt = set noparent
+per-file BlurUtils.kt = shanh@google.com, rahulbanerjee@google.com, tracyzhou@google.com
 # Not setting noparent here, since *Mode* matches many other classes (e.g., *ViewModel*)
 per-file *Mode* = file:notification/OWNERS
 per-file *SmartRep* = set noparent

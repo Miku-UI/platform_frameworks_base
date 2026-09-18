@@ -20,13 +20,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
-import android.view.LayoutInflater
 import androidx.core.net.toUri
 import com.android.internal.messages.nano.SystemMessageProto
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.core.Logger
 import com.android.systemui.plugins.Plugin
@@ -36,6 +36,9 @@ import com.android.systemui.shared.plugins.PluginEnabler.DisableReason
 import com.android.systemui.shared.plugins.PluginManagerImpl.Companion.DEFAULT_LOGBUFFER
 import com.android.systemui.shared.plugins.VersionInfo.InvalidVersionException
 import java.util.concurrent.Executor
+import javax.inject.Inject
+import javax.inject.Named
+import javax.inject.Singleton
 
 /**
  * Coordinates all the available plugins for a given action.
@@ -54,11 +57,12 @@ private constructor(
     private val allowMultiple: Boolean,
     private val mainExecutor: Executor,
     private val bgExecutor: Executor,
-    private val buildInfo: BuildInfo,
+    private val env: PluginEnvironment,
     private val notificationManager: NotificationManager,
     private val pluginEnabler: PluginEnabler,
-    private val config: PluginManager.Config,
+    private val packages: PackageConfig,
     private val pluginInstanceFactory: PluginInstance.Factory,
+    private val pluginPrefs: PluginPrefs,
 ) {
     private val pluginInstances = mutableListOf<PluginInstance<T>>()
     private val logger = Logger(listener.logBuffer ?: DEFAULT_LOGBUFFER, "$TAG[$action]")
@@ -118,7 +122,7 @@ private constructor(
     private fun disable(pluginInstance: PluginInstance<T>, reason: DisableReason): Boolean {
         val pluginComponent = pluginInstance.componentName
 
-        if (config.isPrivileged(pluginComponent)) {
+        if (packages.isPrivileged(pluginComponent)) {
             logger.i({ "Ignoring request to disable privileged plugin: $str1" }) {
                 str1 = pluginComponent.flattenToShortString()
             }
@@ -130,7 +134,7 @@ private constructor(
         return true
     }
 
-    fun <C> dependsOn(p: Plugin, cls: Class<C>?): Boolean {
+    fun <C> dependsOn(p: Plugin, cls: Class<C>): Boolean {
         val instances = ArrayList(pluginInstances)
         for (instance in instances) {
             if (instance.containsPluginClass(p.javaClass)) {
@@ -144,7 +148,7 @@ private constructor(
 
     private fun onPluginConnected(pluginInstance: PluginInstance<T>) {
         logger.d("onPluginConnected")
-        PluginPrefs.setHasPlugins(hostContext)
+        pluginPrefs.hasPlugins = true
         pluginInstance.onCreate()
     }
 
@@ -190,7 +194,7 @@ private constructor(
             intent.setPackage(pkgName)
         }
         val result = packageManager.queryIntentServices(intent, 0)
-        var logLevel = LogLevel.INFO
+        var logLevel = if (result.size <= 0) LogLevel.DEBUG else LogLevel.INFO
         val logMessage = buildString {
             append("Found ")
             append(result.size)
@@ -198,18 +202,22 @@ private constructor(
 
             if (result.size > 1 && !allowMultiple) {
                 append(", but multiple plugins are disallowed.")
-                logLevel = LogLevel.WARNING
-                return@buildString
+                logLevel = LogLevel.ERROR
             }
+
+            append(" ($env)")
 
             for (info in result) {
                 val name = ComponentName(info.serviceInfo.packageName, info.serviceInfo.name)
-                append("\n  $name")
-                val pluginInstance = loadPluginComponent(name)
-                if (pluginInstance != null) {
-                    // add plugin before sending PLUGIN_CONNECTED message
-                    pluginInstances.add(pluginInstance)
-                    mainExecutor.execute { onPluginConnected(pluginInstance) }
+                append("\n $name")
+
+                if (logLevel != LogLevel.ERROR) {
+                    val pluginInstance = loadPluginComponent(name)
+                    if (pluginInstance != null) {
+                        // add plugin before sending PLUGIN_CONNECTED message
+                        pluginInstances.add(pluginInstance)
+                        mainExecutor.execute { onPluginConnected(pluginInstance) }
+                    }
                 }
             }
         }
@@ -219,7 +227,7 @@ private constructor(
 
     private fun loadPluginComponent(component: ComponentName): PluginInstance<T>? {
         // Do not load non-privileged plugins in production builds.
-        if (!buildInfo.isDebuggable && !config.isPrivileged(component)) {
+        if (!env.isDebuggable && !packages.isPrivileged(component)) {
             logger.e({ "Plugin cannot be loaded in production: $str1" }) { str1 = "$component" }
             return null
         }
@@ -304,19 +312,26 @@ private constructor(
         logger.e("Error loading plugin", ex)
     }
 
-    /** Construct a [PluginActionManager] */
+    /**
+     * Construct a [PluginActionManager]
+     *
+     * Note: This doesn't use @AssistedFactory because dagger doesn't support generic return types
+     * from factory methods. See https://github.com/google/dagger/issues/2279 for more information.
+     */
+    @Singleton
     class Factory
-    @JvmOverloads
+    @Inject
     constructor(
-        private val context: Context,
+        @Application private val hostContext: Context,
         private val packageManager: PackageManager,
-        private val mainExecutor: Executor,
-        private val bgExecutor: Executor,
+        @Main private val mainExecutor: Executor,
+        @Named(PluginManagerImpl.PLUGIN_THREAD) private val bgExecutor: Executor,
         private val notificationManager: NotificationManager,
         private val pluginEnabler: PluginEnabler,
-        private val config: PluginManager.Config,
+        private val packages: PackageConfig,
         private val pluginInstanceFactory: PluginInstance.Factory,
-        private val buildInfo: BuildInfo = BuildInfo.CURRENT,
+        private val pluginPrefs: PluginPrefs,
+        private val env: PluginEnvironment,
     ) {
         fun <T : Plugin> create(
             action: String,
@@ -325,7 +340,7 @@ private constructor(
             allowMultiple: Boolean,
         ): PluginActionManager<T> {
             return PluginActionManager(
-                context,
+                hostContext,
                 packageManager,
                 action,
                 listener,
@@ -333,31 +348,13 @@ private constructor(
                 allowMultiple,
                 mainExecutor,
                 bgExecutor,
-                buildInfo,
+                env,
                 notificationManager,
                 pluginEnabler,
-                config,
+                packages,
                 pluginInstanceFactory,
+                pluginPrefs,
             )
-        }
-    }
-
-    /** Wrapper for PluginInstance contexts */
-    class PluginContextWrapper(base: Context?, private val classLoader: ClassLoader) :
-        ContextWrapper(base) {
-        private val inflater: LayoutInflater by lazy {
-            LayoutInflater.from(baseContext).cloneInContext(this)
-        }
-
-        override fun getClassLoader(): ClassLoader {
-            return classLoader
-        }
-
-        override fun getSystemService(name: String): Any? {
-            if (LAYOUT_INFLATER_SERVICE == name) {
-                return inflater
-            }
-            return baseContext.getSystemService(name)
         }
     }
 

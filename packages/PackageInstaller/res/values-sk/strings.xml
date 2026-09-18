@@ -53,7 +53,7 @@
     <string name="out_of_space_dlg_text" msgid="8727714096031856231">"Aplikáciu <xliff:g id="APP_NAME">%1$s</xliff:g> sa nepodarilo nainštalovať. Uvoľnite miesto v pamäti a skúste to znova."</string>
     <string name="app_not_found_dlg_title" msgid="5107924008597470285">"Aplikácia sa nenašla"</string>
     <string name="app_not_found_dlg_text" msgid="5219983779377811611">"Aplikáciu sa nepodarilo nájsť v zozname nainštalovaných aplikácií."</string>
-    <string name="user_is_not_allowed_dlg_title" msgid="6915293433252210232">"Nepovolený"</string>
+    <string name="user_is_not_allowed_dlg_title" msgid="6915293433252210232">"Nepovolené"</string>
     <string name="user_is_not_allowed_dlg_text" msgid="3468447791330611681">"Aktuálny používateľ nemá na odinštalovanie povolenie."</string>
     <string name="generic_error_dlg_title" msgid="5863195085927067752">"Chyba"</string>
     <string name="generic_error_dlg_text" msgid="5287861443265795232">"Aplikáciu nie je možné odinštalovať."</string>

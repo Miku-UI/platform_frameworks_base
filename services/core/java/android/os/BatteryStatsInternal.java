@@ -31,15 +31,21 @@ import java.util.List;
  */
 public abstract class BatteryStatsInternal {
 
-    public static final int CPU_WAKEUP_SUBSYSTEM_UNKNOWN = -1;
-    public static final int CPU_WAKEUP_SUBSYSTEM_ALARM = 1;
-    public static final int CPU_WAKEUP_SUBSYSTEM_WIFI = 2;
-    public static final int CPU_WAKEUP_SUBSYSTEM_SOUND_TRIGGER = 3;
-    public static final int CPU_WAKEUP_SUBSYSTEM_SENSOR = 4;
-    public static final int CPU_WAKEUP_SUBSYSTEM_CELLULAR_DATA = 5;
-    public static final int CPU_WAKEUP_SUBSYSTEM_BLUETOOTH = 6;
+    public static final int CPU_WAKEUP_SUBSYSTEM_UNKNOWN = 0x1;
+    public static final int CPU_WAKEUP_SUBSYSTEM_ALARM = 0x2;
+    public static final int CPU_WAKEUP_SUBSYSTEM_WIFI = 0x4;
+    public static final int CPU_WAKEUP_SUBSYSTEM_SOUND_TRIGGER = 0x8;
+    public static final int CPU_WAKEUP_SUBSYSTEM_SENSOR = 0x10;
+    public static final int CPU_WAKEUP_SUBSYSTEM_CELLULAR_DATA = 0x20;
+    public static final int CPU_WAKEUP_SUBSYSTEM_BLUETOOTH = 0x40;
 
-    /** @hide */
+    /**
+     * Logical subsystems that can cause cpu wakeups. Even though the constant values are coded as
+     * bits to facilitate compact storage wherever convenient, this type is explicitly used to
+     * denote a single subsystem and not a bitmask. Hence, the {@code flag} specification is
+     * deliberately left out.
+     * @hide
+     */
     @IntDef(prefix = {"CPU_WAKEUP_SUBSYSTEM_"}, value = {
             CPU_WAKEUP_SUBSYSTEM_UNKNOWN,
             CPU_WAKEUP_SUBSYSTEM_ALARM,

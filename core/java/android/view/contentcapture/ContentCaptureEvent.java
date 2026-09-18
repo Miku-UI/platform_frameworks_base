@@ -19,6 +19,7 @@ import static android.view.contentcapture.ContentCaptureHelper.getSanitizedStrin
 import static android.view.contentcapture.ContentCaptureManager.DEBUG;
 import static android.view.contentcapture.ContentCaptureManager.NO_SESSION_ID;
 import static android.view.contentcapture.flags.Flags.FLAG_CCAPI_BAKLAVA_ENABLED;
+import static android.view.contentcapture.flags.Flags.FLAG_CONTENT_INTERACTION_API_ENABLED;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
@@ -145,6 +146,14 @@ public final class ContentCaptureEvent implements Parcelable {
     @FlaggedApi(FLAG_CCAPI_BAKLAVA_ENABLED)
     public static final int TYPE_SESSION_FLUSH = 11;
 
+    /**
+     * Called when a node has been interacted in a semantically meaningful way. It is applicable
+     * when the view node has a registered callback and can react to this interaction,
+     * such as button click.
+     */
+    @FlaggedApi(FLAG_CONTENT_INTERACTION_API_ENABLED)
+    public static final int TYPE_CONTENT_INTERACTION = 12;
+
     /** @hide */
     @IntDef(prefix = { "TYPE_" }, value = {
             TYPE_VIEW_APPEARED,
@@ -158,6 +167,7 @@ public final class ContentCaptureEvent implements Parcelable {
             TYPE_VIEW_INSETS_CHANGED,
             TYPE_WINDOW_BOUNDS_CHANGED,
             TYPE_SESSION_FLUSH,
+            TYPE_CONTENT_INTERACTION,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface EventType{}
@@ -708,6 +718,8 @@ public final class ContentCaptureEvent implements Parcelable {
                 return "TYPE_WINDOW_BOUNDS_CHANGED";
             case TYPE_SESSION_FLUSH:
                 return "TYPE_SESSION_FLUSH";
+            case TYPE_CONTENT_INTERACTION:
+                return "TYPE_CONTENT_INTERACTION";
             default:
                 return "UKNOWN_TYPE: " + type;
         }

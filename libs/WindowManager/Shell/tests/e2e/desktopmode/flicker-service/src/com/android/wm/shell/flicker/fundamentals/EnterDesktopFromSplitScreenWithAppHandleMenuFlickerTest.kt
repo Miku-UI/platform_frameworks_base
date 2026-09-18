@@ -19,36 +19,36 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher.Companion.DESKTOP_WALLPAPER_ACTIVITY
-import com.android.wm.shell.flicker.DesktopModeBaseTest
-import com.android.wm.shell.scenarios.EnterDesktopFromSplitScreenWithAppHandleMenu
 import com.android.wm.shell.Utils
+import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appWindowBecomesVisible
 import com.android.wm.shell.flicker.utils.appWindowInsideDisplayBoundsAtEnd
 import com.android.wm.shell.flicker.utils.appWindowIsInvisibleAtEnd
 import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.flicker.utils.layerIsVisibleAtEnd
 import com.android.wm.shell.flicker.utils.splitScreenDividerBecomesInvisible
+import com.android.wm.shell.scenarios.EnterDesktopFromSplitScreenWithAppHandleMenu
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Enter the app to desktop mode from split screen via app handle menu.
- */
+/** Enter the app to desktop mode from split screen via app handle menu. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class EnterDesktopFromSplitScreenWithAppHandleMenuFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+class EnterDesktopFromSplitScreenWithAppHandleMenuFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
 
-    inner class EnterDesktopFromSplitScreenWithAppHandleMenuScenario : EnterDesktopFromSplitScreenWithAppHandleMenu(flicker.scenario.startRotation)
+    inner class EnterDesktopFromSplitScreenWithAppHandleMenuScenario :
+        EnterDesktopFromSplitScreenWithAppHandleMenu(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -59,31 +59,21 @@ class EnterDesktopFromSplitScreenWithAppHandleMenuFlickerTest(flicker: FlickerTe
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.enterDesktopFromSplitScreen()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.enterDesktopFromSplitScreen() }
+            teardown { scenario.teardown() }
         }
 
     @Test
     fun appWindowInsideDisplayBoundsAtEnd() = flicker.appWindowInsideDisplayBoundsAtEnd(testApp)
 
-    @Test
-    fun appWindowIsInvisibleAtEnd() = flicker.appWindowIsInvisibleAtEnd(secondApp)
+    @Test fun appWindowIsInvisibleAtEnd() = flicker.appWindowIsInvisibleAtEnd(secondApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
 
-    @Test
-    fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(testApp)
+    @Test fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(testApp)
 
-    @Test
-    fun splitScreenDividerBecomesInvisible() = flicker.splitScreenDividerBecomesInvisible()
+    @Test fun splitScreenDividerBecomesInvisible() = flicker.splitScreenDividerBecomesInvisible()
 
     @Test
     fun wallpaperActivityBecomesVisible() =
@@ -94,7 +84,7 @@ class EnterDesktopFromSplitScreenWithAppHandleMenuFlickerTest(flicker: FlickerTe
         @JvmStatic
         fun getParams(): Collection<FlickerChecker> {
             return FlickerTestFactory.nonRotationTests(
-                    supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
+                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
             )
         }
     }

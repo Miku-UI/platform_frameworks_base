@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -32,9 +33,10 @@ import java.util.Map;
 /**
  * Class used to read data from a previously provisioned credential.
  *
- * Use {@link IdentityCredentialStore#getCredentialByName(String, int)} to get a
- * {@link IdentityCredential} instance.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public abstract class IdentityCredential {
     /**
      * @hide
@@ -50,8 +52,10 @@ public abstract class IdentityCredential {
      * encryption".
      *
      * @return ephemeral key pair to use to establish a secure channel with a reader.
-     * @deprecated Use {@link PresentationSession} instead.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public @NonNull abstract KeyPair createEphemeralKeyPair();
 
@@ -62,8 +66,10 @@ public abstract class IdentityCredential {
      * @param readerEphemeralPublicKey The ephemeral public key provided by the reader to
      *                                 establish a secure session.
      * @throws InvalidKeyException if the given key is invalid.
-     * @deprecated Use {@link PresentationSession} instead.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public abstract void setReaderEphemeralPublicKey(@NonNull PublicKey readerEphemeralPublicKey)
             throws InvalidKeyException;
@@ -78,9 +84,10 @@ public abstract class IdentityCredential {
      *
      * @param messagePlaintext unencrypted message to encrypt.
      * @return encrypted message.
-     * @deprecated Applications should use {@link PresentationSession} and
-     *             implement encryption/decryption themselves.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public @NonNull abstract byte[] encryptMessageToReader(@NonNull byte[] messagePlaintext);
 
@@ -95,9 +102,10 @@ public abstract class IdentityCredential {
      * @param messageCiphertext encrypted message to decrypt.
      * @return decrypted message.
      * @throws MessageDecryptionException if the ciphertext couldn't be decrypted.
-     * @deprecated Applications should use {@link PresentationSession} and
-     *             implement encryption/decryption themselves.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public @NonNull abstract byte[] decryptMessageFromReader(@NonNull byte[] messageCiphertext)
             throws MessageDecryptionException;
@@ -111,7 +119,11 @@ public abstract class IdentityCredential {
      * for that method for important information about this certificate chain.
      *
      * @return the certificate chain for this credential's CredentialKey.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull abstract Collection<X509Certificate> getCredentialKeyCertificateChain();
 
     /**
@@ -123,8 +135,10 @@ public abstract class IdentityCredential {
      *
      * @param allowUsingExhaustedKeys whether to allow using an authentication key which use count
      *                                has been exceeded if no other key is available.
-     * @deprecated Use {@link PresentationSession} instead.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public abstract void setAllowUsingExhaustedKeys(boolean allowUsingExhaustedKeys);
 
@@ -142,8 +156,10 @@ public abstract class IdentityCredential {
      *
      * @param allowUsingExpiredKeys whether to allow using an authentication key which use count
      *                              has been exceeded if no other key is available.
-     * @deprecated Use {@link PresentationSession} instead.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public void setAllowUsingExpiredKeys(boolean allowUsingExpiredKeys) {
         throw new UnsupportedOperationException();
@@ -155,7 +171,8 @@ public abstract class IdentityCredential {
      * Sets whether the usage count of an authentication key should be increased. This must be
      * called prior to calling
      * {@link #getEntries(byte[], Map, byte[], byte[])} or using a
-     * {@link android.hardware.biometrics.BiometricPrompt.CryptoObject} which references this object.
+     * {@link android.hardware.biometrics.BiometricPrompt.CryptoObject} which references this
+     * object.
      *
      * <p>By default this is set to true.
      *
@@ -165,7 +182,8 @@ public abstract class IdentityCredential {
      * feature versions.
      *
      * @param incrementKeyUsageCount whether the usage count of the key should be increased.
-     * @deprecated Use {@link PresentationSession} instead.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
     public void setIncrementKeyUsageCount(boolean incrementKeyUsageCount) {
         throw new UnsupportedOperationException();
@@ -176,7 +194,11 @@ public abstract class IdentityCredential {
      * operation handle.
      *
      * @hide
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract long getCredstoreOperationHandle();
 
     /**
@@ -312,8 +334,10 @@ public abstract class IdentityCredential {
      * @throws InvalidRequestMessageException         if the requestMessage is malformed.
      * @throws EphemeralPublicKeyNotFoundException    if the ephemeral public key was not found in
      *                                                the session transcript.
-     * @deprecated Use {@link PresentationSession} instead.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public abstract @NonNull ResultData getEntries(
             @Nullable byte[] requestMessage,
@@ -343,6 +367,7 @@ public abstract class IdentityCredential {
      *                      eligible for replacement. This value must be greater than zero.
      * @deprecated Use {@link #setAvailableAuthenticationKeys(int, int, long)} instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public abstract void setAvailableAuthenticationKeys(int keyCount, int maxUsesPerKey);
 
@@ -378,7 +403,11 @@ public abstract class IdentityCredential {
      *
      * @return A collection of X.509 certificates for dynamic authentication keys that need issuer
      * certification.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull abstract Collection<X509Certificate> getAuthKeysNeedingCertification();
 
     /**
@@ -397,6 +426,7 @@ public abstract class IdentityCredential {
      * @deprecated Use {@link #storeStaticAuthenticationData(X509Certificate, Instant, byte[])}
      *     instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public abstract void storeStaticAuthenticationData(
             @NonNull X509Certificate authenticationKey,
@@ -417,7 +447,11 @@ public abstract class IdentityCredential {
      *                          the authenticity
      *                          and integrity of the credential data fields.
      * @throws UnknownAuthenticationKeyException If the given authentication key is not recognized.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public void storeStaticAuthenticationData(
             @NonNull X509Certificate authenticationKey,
             @NonNull Instant expirationDate,
@@ -432,6 +466,7 @@ public abstract class IdentityCredential {
      * @return int array of dynamic authentication key usage counts.
      * @deprecated Use {@link #getAuthenticationKeyMetadata()} instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public @NonNull abstract int[] getAuthenticationDataUsageCount();
 
@@ -463,7 +498,11 @@ public abstract class IdentityCredential {
      *                  returned proof is fresh. Implementations are required to support
      *                  challenges at least 32 bytes of length.
      * @return the COSE_Sign1 data structure above
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull byte[] proveOwnership(@NonNull byte[] challenge)  {
         throw new UnsupportedOperationException();
     }
@@ -495,7 +534,11 @@ public abstract class IdentityCredential {
      *                  returned proof is fresh. Implementations are required to support
      *                  challenges at least 32 bytes of length.
      * @return the COSE_Sign1 data structure above
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull byte[] delete(@NonNull byte[] challenge)  {
         throw new UnsupportedOperationException();
     }
@@ -521,7 +564,11 @@ public abstract class IdentityCredential {
      * @param personalizationData   The data to update, including access control profiles
      *                              and data elements and their values, grouped into namespaces.
      * @return A COSE_Sign1 data structure, see above.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull byte[] update(@NonNull PersonalizationData personalizationData) {
         throw new UnsupportedOperationException();
     }
@@ -547,7 +594,11 @@ public abstract class IdentityCredential {
      *                      eligible for replacement. This value must be greater than zero.
      * @param minValidTimeMillis If a key has less time left than this value it will be eliglible
      *                           for replacement. This value must be non-negative.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public void setAvailableAuthenticationKeys(
             @IntRange(from = 0) int keyCount,
             @IntRange(from = 1) int maxUsesPerKey,
@@ -564,7 +615,11 @@ public abstract class IdentityCredential {
      * <p>The list is always <code>keyCount</code> elements long.
      *
      * @return list of authentication key metadata objects.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull List<AuthenticationKeyMetadata> getAuthenticationKeyMetadata() {
         throw new UnsupportedOperationException();
     }

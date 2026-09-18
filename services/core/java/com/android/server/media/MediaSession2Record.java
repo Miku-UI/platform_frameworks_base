@@ -82,6 +82,11 @@ public class MediaSession2Record extends MediaSessionRecordImpl {
         return mSessionToken.getPackageName();
     }
 
+    @Override
+    public String getOwnerPackageName() {
+        return mSessionToken.getPackageName();
+    }
+
     public Session2Token getSession2Token() {
         return mSessionToken;
     }

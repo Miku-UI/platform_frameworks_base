@@ -33,6 +33,7 @@ import com.android.internal.annotations.VisibleForTesting;
  * @hide
  */
 @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class SystemConfigFileCommitEventLogger {
     private final String mName;
     private long mStartTime;
@@ -79,6 +80,7 @@ public class SystemConfigFileCommitEventLogger {
      * @hide
      */
     @VisibleForTesting
+    @android.ravenwood.annotation.RavenwoodIgnore
     public void writeLogRecord(long durationMs) {
         com.android.internal.logging.EventLogTags.writeCommitSysConfigFile(mName, durationMs);
     }

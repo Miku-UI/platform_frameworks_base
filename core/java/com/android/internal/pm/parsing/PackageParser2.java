@@ -87,7 +87,7 @@ public class PackageParser2 implements AutoCloseable {
             final PermissionManager permissionManager =
                     application.getSystemService(PermissionManager.class);
             if (permissionManager != null) {
-                splitPermissions = permissionManager.getSplitPermissions();
+                splitPermissions = permissionManager.getSplitPermissions(true);
             }
         }
         if (splitPermissions == null) {

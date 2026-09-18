@@ -1,0 +1,346 @@
+{
+  "frame_ids": [
+    0,
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192,
+    208,
+    224,
+    240,
+    256,
+    272,
+    288,
+    304,
+    320,
+    336
+  ],
+  "features": [
+    {
+      "name": "offset",
+      "type": "offset",
+      "data_points": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 14.447521,
+          "y": 0
+        },
+        {
+          "x": 39.549126,
+          "y": 0
+        },
+        {
+          "x": 62.38079,
+          "y": 0
+        },
+        {
+          "x": 79.68436,
+          "y": 0
+        },
+        {
+          "x": 91.695694,
+          "y": 0
+        },
+        {
+          "x": 99.612114,
+          "y": 0
+        },
+        {
+          "x": 104.653915,
+          "y": 0
+        },
+        {
+          "x": 107.78772,
+          "y": 0
+        },
+        {
+          "x": 109.70047,
+          "y": 0
+        },
+        {
+          "x": 112.5,
+          "y": 0
+        },
+        {
+          "x": 112.5,
+          "y": 0
+        },
+        {
+          "x": 98.05248,
+          "y": 0
+        },
+        {
+          "x": 72.950874,
+          "y": 0
+        },
+        {
+          "x": 50.11921,
+          "y": 0
+        },
+        {
+          "x": 32.81564,
+          "y": 0
+        },
+        {
+          "x": 20.804304,
+          "y": 0
+        },
+        {
+          "x": 12.887885,
+          "y": 0
+        },
+        {
+          "x": 7.846083,
+          "y": 0
+        },
+        {
+          "x": 4.71228,
+          "y": 0
+        },
+        {
+          "x": 2.7995272,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "name": "currentScene",
+      "type": "string",
+      "data_points": [
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA",
+        "SceneA"
+      ]
+    },
+    {
+      "name": "isIdle",
+      "type": "boolean",
+      "data_points": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "data_points": [
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB",
+        "SceneA->SceneB"
+      ]
+    },
+    {
+      "name": "isInitiatedByUserInput",
+      "type": "boolean",
+      "data_points": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "name": "isUserInputOngoing",
+      "type": "boolean",
+      "data_points": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "name": "isProgressStable",
+      "type": "boolean",
+      "data_points": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "name": "progress",
+      "type": "float",
+      "data_points": [
+        0,
+        0,
+        0.064211205,
+        0.17577389,
+        0.27724797,
+        0.3541527,
+        0.40753642,
+        0.4427205,
+        0.4651285,
+        0.47905654,
+        0.48755765,
+        0.5,
+        0.5,
+        0.4357888,
+        0.3242261,
+        0.22275203,
+        0.14584729,
+        0.092463575,
+        0.05727949,
+        0.03487148,
+        0.020943467,
+        0.012442343
+      ]
+    },
+    {
+      "name": "progressVelocity",
+      "type": "float",
+      "data_points": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

@@ -1721,6 +1721,28 @@ public class PhoneStateListener {
                 CellularIdentifierDisclosure disclosure) {
             // not supported on the deprecated interface - Use TelephonyCallback instead
         }
+
+        public final void onDomainSelectionEmergencyModeEntered(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId) {
+            // not supported on the deprecated interface - Use TelephonyCallback instead
+        }
+
+        public final void onDomainSelectionEmergencyModeExited(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId) {
+            // not supported on the deprecated interface - Use TelephonyCallback instead
+        }
+
+        public final void onNetworkSecurityEvents(
+                List<NetworkSecurityEvent> events) {
+            // not supported on the deprecated interface - Use TelephonyCallback instead
+        }
+
+        public final void onSatellitePurchaseModeChanged(int subId, boolean isEnabled,
+                @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+            // not supported on the deprecated interface - Use TelephonyCallback instead
+        }
     }
 
     private void log(String s) {

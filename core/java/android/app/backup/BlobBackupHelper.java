@@ -16,6 +16,7 @@
 
 package android.app.backup;
 
+import android.annotation.Nullable;
 import android.os.ParcelFileDescriptor;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -74,6 +75,23 @@ public abstract class BlobBackupHelper extends BackupHelperWithLogger {
      *     on the ancestral device.
      */
     abstract protected void applyRestoredPayload(String key, byte[] payload);
+
+    /**
+     * Given a byte array that was restored from backup for delayed restore, do whatever is
+     * appropriate to apply that described state in the live system. This method is called once per
+     * key/value payload that was delivered for restore. Typically data is delivered for restore in
+     * lexical order by key, <i>not</i> in the order in which the keys were supplied in the
+     * constructor.
+     *
+     * @param payload The byte array that was passed to {@link #getBackupPayload()} on the ancestral
+     *     device.
+     * @param request The {@link DelayedRestoreRequest} request requested by this application, whose
+     *     condition has been met.
+     */
+    protected void applyDelayedRestoredPayload(
+            DelayedRestoreRequest request, String key, byte[] payload) {
+        applyRestoredPayload(key, payload);
+    }
 
 
     // Internal implementation
@@ -283,7 +301,18 @@ public abstract class BlobBackupHelper extends BackupHelperWithLogger {
     }
 
     @Override
+    public void delayedRestoreEntity(
+            DelayedRestoreRequest request, BackupDataInputStream data) {
+        restoreEntity(data, request);
+    }
+
+    @Override
     public void restoreEntity(BackupDataInputStream data) {
+        restoreEntity(data, /* request= */ null);
+    }
+
+    private void restoreEntity(
+            BackupDataInputStream data, @Nullable DelayedRestoreRequest request) {
         final String key = data.getKey();
         try {
             // known key?
@@ -301,7 +330,11 @@ public abstract class BlobBackupHelper extends BackupHelperWithLogger {
             byte[] compressed = new byte[data.size()];
             data.read(compressed);
             byte[] payload = inflate(compressed);
-            applyRestoredPayload(key, payload);
+            if (request != null) {
+                applyDelayedRestoredPayload(request, key, payload);
+            } else {
+                applyRestoredPayload(key, payload);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Exception restoring entity " + key + " : " + e.getMessage());
         }

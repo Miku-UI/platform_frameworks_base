@@ -38,27 +38,32 @@ import com.android.server.servicewatcher.ServiceWatcher.ServiceListener;
 import java.util.Objects;
 
 /**
- * System server-side proxy for ITimeZoneProvider implementations, i.e. this provides the
- * system server object used to communicate with a remote {@link
+ * System server-side proxy for ITimeZoneProvider implementations, i.e. this provides the system
+ * server object used to communicate with a remote {@link
  * android.service.timezone.TimeZoneProviderService} over Binder, which could be running in a
  * different process. As "remote" providers are bound / unbound this proxy will rebind to the "best"
  * available remote process.
  */
-class RealLocationTimeZoneProviderProxy extends LocationTimeZoneProviderProxy implements
-        ServiceListener<BoundServiceInfo> {
+class RealLocationTimeZoneProviderProxy extends LocationTimeZoneProviderProxy
+        implements ServiceListener<BoundServiceInfo> {
 
     @NonNull private final ServiceWatcher mServiceWatcher;
 
     @GuardedBy("mSharedLock")
-    @Nullable private ManagerProxy mManagerProxy;
+    @Nullable
+    private ManagerProxy mManagerProxy;
 
     @GuardedBy("mSharedLock")
-    @NonNull private TimeZoneProviderRequest mRequest;
+    @NonNull
+    private TimeZoneProviderRequest mRequest;
 
     RealLocationTimeZoneProviderProxy(
-            @NonNull Context context, @NonNull Handler handler,
-            @NonNull ThreadingDomain threadingDomain, @NonNull String action,
-            @NonNull String providerPackageName, boolean isTestProvider) {
+            @NonNull Context context,
+            @NonNull Handler handler,
+            @NonNull ThreadingDomain threadingDomain,
+            @NonNull String action,
+            @NonNull String providerPackageName,
+            boolean isTestProvider) {
         super(context, threadingDomain);
         mManagerProxy = null;
         mRequest = TimeZoneProviderRequest.createStopUpdatesRequest();
@@ -69,16 +74,29 @@ class RealLocationTimeZoneProviderProxy extends LocationTimeZoneProviderProxy im
         if (isTestProvider) {
             // For tests it is possible to bypass the provider service permission checks, since
             // the tests are expected to install fake providers.
-            serviceSupplier = CurrentUserServiceSupplier.createUnsafeForTestsOnly(
-                    context, action, providerPackageName, BIND_TIME_ZONE_PROVIDER_SERVICE,
-                    /*servicePermission=*/null);
+            serviceSupplier =
+                    CurrentUserServiceSupplier.createUnsafeForTestsOnly(
+                            context,
+                            action,
+                            providerPackageName,
+                            BIND_TIME_ZONE_PROVIDER_SERVICE,
+                            /* servicePermission= */ null);
         } else {
-            serviceSupplier = CurrentUserServiceSupplier.create(context, action,
-                    providerPackageName, BIND_TIME_ZONE_PROVIDER_SERVICE,
-                    INSTALL_LOCATION_TIME_ZONE_PROVIDER_SERVICE);
+            serviceSupplier =
+                    CurrentUserServiceSupplier.create(
+                            context,
+                            action,
+                            providerPackageName,
+                            BIND_TIME_ZONE_PROVIDER_SERVICE,
+                            INSTALL_LOCATION_TIME_ZONE_PROVIDER_SERVICE);
         }
-        mServiceWatcher = ServiceWatcher.create(
-                context, handler, "RealLocationTimeZoneProviderProxy", serviceSupplier, this);
+        mServiceWatcher =
+                ServiceWatcher.create(
+                        context,
+                        handler,
+                        "RealLocationTimeZoneProviderProxy",
+                        serviceSupplier,
+                        this);
     }
 
     @Override
@@ -149,16 +167,18 @@ class RealLocationTimeZoneProviderProxy extends LocationTimeZoneProviderProxy im
     private void trySendCurrentRequest() {
         ManagerProxy managerProxy = mManagerProxy;
         TimeZoneProviderRequest request = mRequest;
-        mServiceWatcher.runOnBinder(binder -> {
-            ITimeZoneProvider service = ITimeZoneProvider.Stub.asInterface(binder);
-            if (request.sendUpdates()) {
-                service.startUpdates(managerProxy,
-                        request.getInitializationTimeout().toMillis(),
-                        request.getEventFilteringAgeThreshold().toMillis());
-            } else {
-                service.stopUpdates();
-            }
-        });
+        mServiceWatcher.runOnBinder(
+                binder -> {
+                    ITimeZoneProvider service = ITimeZoneProvider.Stub.asInterface(binder);
+                    if (request.sendUpdates()) {
+                        service.startUpdates(
+                                managerProxy,
+                                request.getInitializationTimeout().toMillis(),
+                                request.getEventFilteringAgeThreshold().toMillis());
+                    } else {
+                        service.stopUpdates();
+                    }
+                });
     }
 
     @Override

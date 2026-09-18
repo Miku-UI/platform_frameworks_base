@@ -36,7 +36,6 @@ import android.provider.Settings.Secure;
 import com.android.internal.R;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
-import com.android.server.display.feature.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -539,8 +538,8 @@ public final class ColorDisplayManager {
      */
     public static boolean isReduceBrightColorsAvailable(Context context) {
         return context.getResources().getBoolean(R.bool.config_reduceBrightColorsAvailable)
-                && !(Flags.evenDimmer() && context.getResources().getBoolean(
-                com.android.internal.R.bool.config_evenDimmerEnabled));
+                && !context.getResources().getBoolean(
+                com.android.internal.R.bool.config_evenDimmerEnabled);
     }
 
     /**

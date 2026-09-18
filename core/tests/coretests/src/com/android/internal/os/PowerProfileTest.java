@@ -41,7 +41,6 @@ import com.android.internal.util.XmlUtils;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.xmlpull.v1.XmlPullParser;
@@ -60,8 +59,6 @@ import java.io.StringReader;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PowerProfileTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     static final String TAG_TEST_MODEM = "test-modem";
     static final String ATTR_NAME = "name";

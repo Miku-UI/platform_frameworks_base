@@ -43,7 +43,7 @@
         android:background="@drawable/qs_media_outline_album_bg"
         />
 
-    <com.android.systemui.surfaceeffects.ripple.MultiRippleView
+    <com.android.systemui.surfaceeffects.view.ripple.MultiRippleView
         android:id="@+id/touch_ripple_view"
         android:layout_width="match_parent"
         android:layout_height="@dimen/qs_media_session_height_expanded"
@@ -55,7 +55,7 @@
         android:background="@drawable/qs_media_outline_layout_bg"
         />
 
-    <com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseView
+    <com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView
         android:id="@+id/turbulence_noise_view"
         android:layout_width="match_parent"
         android:layout_height="@dimen/qs_media_session_height_expanded"
@@ -67,7 +67,7 @@
         android:background="@drawable/qs_media_outline_layout_bg"
         />
 
-    <com.android.systemui.surfaceeffects.loadingeffect.LoadingEffectView
+    <com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffectView
         android:id="@+id/loading_effect_view"
         android:layout_width="match_parent"
         android:layout_height="@dimen/qs_media_session_height_expanded"
@@ -166,7 +166,7 @@
                 android:layout_width="@dimen/qs_seamless_icon_size"
                 android:layout_height="@dimen/qs_seamless_icon_size"
                 android:layout_gravity="center"
-                android:tint="?android:attr/textColorPrimary"
+                android:tint="@color/materialColorOnSurface"
                 android:src="@*android:drawable/ic_media_seamless" />
             <TextView
                 android:id="@+id/media_seamless_text"

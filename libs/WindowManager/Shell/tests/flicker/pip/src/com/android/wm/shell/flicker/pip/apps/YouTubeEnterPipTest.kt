@@ -19,9 +19,9 @@ package com.android.wm.shell.flicker.pip.apps
 import android.Manifest
 import android.platform.test.annotations.Postsubmit
 import android.tools.device.apphelpers.YouTubeAppHelper
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
 import org.junit.Assume
@@ -66,15 +66,13 @@ open class YouTubeEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(fl
             pipApp.launchViaIntent(
                 wmHelper,
                 YouTubeAppHelper.getYoutubeVideoIntent("3KtWfp0UopM"),
-                ComponentNameMatcher(YouTubeAppHelper.PACKAGE_NAME, "")
+                ComponentNameMatcher(YouTubeAppHelper.PACKAGE_NAME, ""),
             )
             pipApp.waitForVideoPlaying()
         }
     }
 
-    override val defaultTeardown: FlickerBuilder.() -> Unit = {
-        teardown { pipApp.exit(wmHelper) }
-    }
+    override val defaultTeardown: FlickerBuilder.() -> Unit = { teardown { pipApp.exit(wmHelper) } }
 
     override val thisTransition: FlickerBuilder.() -> Unit = { transitions { tapl.goHome() } }
 

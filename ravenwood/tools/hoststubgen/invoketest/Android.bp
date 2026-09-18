@@ -17,4 +17,8 @@ sh_test_host {
         "hoststubgen",
         "hoststubgen-test-tiny-framework",
     ],
+
+    test_options: {
+        unit_test: true,
+    },
 }

@@ -18,34 +18,36 @@ package com.android.systemui.statusbar.notification.collection
 
 import android.app.NotificationChannel
 import android.service.notification.Adjustment
+import android.service.notification.DynamicBundle
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.android.internal.R
+import com.android.systemui.statusbar.notification.stack.BUCKET_DYNAMIC_BUNDLE
 import com.android.systemui.statusbar.notification.stack.BUCKET_NEWS
 import com.android.systemui.statusbar.notification.stack.BUCKET_PROMO
 import com.android.systemui.statusbar.notification.stack.BUCKET_RECS
 import com.android.systemui.statusbar.notification.stack.BUCKET_SOCIAL
-import com.android.systemui.statusbar.notification.stack.PriorityBucket
 
 data class BundleSpec(
     val key: String,
     @StringRes val titleText: Int,
-    @StringRes val summaryText: Int,
+    @StringRes val summaryTextRes: Int = 0,
+    val summaryText: String? = null,
     @DrawableRes val icon: Int,
-    @PriorityBucket val bucket: Int,
+    val bucket: Int,
 
     /**
      * This is the id / [type] that identifies the bundle when calling APIs of
      * [android.app.INotificationManager]
      */
-    @Adjustment.Types val bundleType: Int,
+    val bundleType: Int,
 ) {
     companion object {
         val PROMOTIONS =
             BundleSpec(
                 key = NotificationChannel.PROMOTIONS_ID,
                 titleText = R.string.promotional_notification_channel_label,
-                summaryText =
+                summaryTextRes =
                     com.android.systemui.res.R.string.notification_guts_promotions_summary,
                 icon = com.android.settingslib.R.drawable.ic_promotions,
                 bucket = BUCKET_PROMO,
@@ -55,7 +57,7 @@ data class BundleSpec(
             BundleSpec(
                 key = NotificationChannel.SOCIAL_MEDIA_ID,
                 titleText = R.string.social_notification_channel_label,
-                summaryText = com.android.systemui.res.R.string.notification_guts_social_summary,
+                summaryTextRes = com.android.systemui.res.R.string.notification_guts_social_summary,
                 icon = com.android.settingslib.R.drawable.ic_social,
                 bucket = BUCKET_SOCIAL,
                 bundleType = Adjustment.TYPE_SOCIAL_MEDIA,
@@ -64,7 +66,7 @@ data class BundleSpec(
             BundleSpec(
                 key = NotificationChannel.NEWS_ID,
                 titleText = R.string.news_notification_channel_label,
-                summaryText = com.android.systemui.res.R.string.notification_guts_news_summary,
+                summaryTextRes = com.android.systemui.res.R.string.notification_guts_news_summary,
                 icon = com.android.settingslib.R.drawable.ic_news,
                 bucket = BUCKET_NEWS,
                 bundleType = Adjustment.TYPE_NEWS,
@@ -73,10 +75,24 @@ data class BundleSpec(
             BundleSpec(
                 key = NotificationChannel.RECS_ID,
                 titleText = R.string.recs_notification_channel_label,
-                summaryText = com.android.systemui.res.R.string.notification_guts_recs_summary,
+                summaryTextRes = com.android.systemui.res.R.string.notification_guts_recs_summary,
                 icon = com.android.settingslib.R.drawable.ic_recs,
                 bucket = BUCKET_RECS,
                 bundleType = Adjustment.TYPE_CONTENT_RECOMMENDATION,
             )
+
+        fun fromDynamicBundle(dynamicBundle: DynamicBundle): BundleSpec {
+            return BundleSpec(
+                key =
+                    NotificationChannel.getChannelIdForBundleType(
+                        dynamicBundle.dynamicBundleType
+                    )!!,
+                titleText = R.string.promotional_notification_channel_label,
+                summaryText = dynamicBundle.bundleName,
+                icon = com.android.settingslib.R.drawable.ic_dynamic_bundle,
+                bucket = BUCKET_DYNAMIC_BUNDLE,
+                bundleType = dynamicBundle.dynamicBundleType,
+            )
+        }
     }
 }

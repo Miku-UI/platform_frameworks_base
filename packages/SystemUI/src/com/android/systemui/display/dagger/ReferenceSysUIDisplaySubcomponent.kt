@@ -19,14 +19,14 @@ package com.android.systemui.display.dagger
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayId
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
-import com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment
+import com.android.systemui.statusbar.gesture.StatusBarLongPressGestureDetector
 import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarComponent
 import com.android.systemui.statusbar.pipeline.shared.ui.binder.HomeStatusBarViewBinder
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StatusBarRootFactory
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.HomeStatusBarViewModel.HomeStatusBarViewModelFactory
+import com.android.systemui.statusbar.window.data.repository.StatusBarWindowStatePerDisplayRepository
 import dagger.BindsInstance
 import dagger.Subcomponent
-import javax.inject.Provider
 
 /**
  * AOSP subcomponent for SysUI classes that should be instantiated once per display.
@@ -47,20 +47,15 @@ interface ReferenceSysUIDisplaySubcomponent : SystemUIDisplaySubcomponent {
      */
     @get:DisplayAware val homeStatusBarComponentFactory: HomeStatusBarComponent.Factory
 
-    @Deprecated(
-        """
-        Provided just for backwards compatibility with the [CollapsedStatusBarFragment] 
-        infrastructure, which is going to be deleted once the [StatusBarRootModernization] flag us 
-        fully rolled out."""
-    )
-    @get:DisplayAware
-    val statusBarFragmentProvider: Provider<CollapsedStatusBarFragment>
-
     @get:DisplayAware val homeStatusBarViewModelFactory: HomeStatusBarViewModelFactory
 
     @get:DisplayAware val homeStatusBarViewBinder: HomeStatusBarViewBinder
 
+    @get:DisplayAware val statusBarLongPressGestureDetector: StatusBarLongPressGestureDetector
+
     @get:DisplayAware val statusBarRootFactory: StatusBarRootFactory
+
+    @get:DisplayAware val statusBarWindowStateRepository: StatusBarWindowStatePerDisplayRepository
 
     @Subcomponent.Factory
     interface Factory : SystemUIDisplaySubcomponent.Factory {

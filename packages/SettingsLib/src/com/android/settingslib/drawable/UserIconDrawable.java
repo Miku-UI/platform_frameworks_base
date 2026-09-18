@@ -105,6 +105,17 @@ public class UserIconDrawable extends Drawable implements Drawable.Callback {
                         context, com.android.internal.R.drawable.ic_corp_user_badge));
     }
 
+    /**
+     * Gets the Headless System User badge as a drawable. This drawable is tint-able.
+     *
+     * @param context the context
+     * @return drawable containing just the badge
+     */
+    public static Drawable getHeadlessSystemUserDrawable(Context context) {
+        return getDrawableForDisplayDensity(
+                context, com.android.internal.R.drawable.ic_hsu_badge);
+    }
+
     private static Drawable getDrawableForDisplayDensity(
             Context context, @DrawableRes int drawable) {
         int density = context.getResources().getDisplayMetrics().densityDpi;
@@ -383,6 +394,10 @@ public class UserIconDrawable extends Drawable implements Drawable.Callback {
         } else if (mUserIcon != null) {
             mUserIcon.recycle();
             mUserIcon = null;
+            // Although we recycled the bitmap, the BitmapShader can still have a native shared
+            // pointer to the bitmap data. Unforunately there is no recycle method, so we just
+            // have to clear the reference and wait for GC.
+            mIconPaint.setShader(null);
         }
         return this;
     }

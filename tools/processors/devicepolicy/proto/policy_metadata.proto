@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package android.processor.devicepolicy;
+
+option java_package = "android.processor.devicepolicy.protos";
+option java_multiple_files = true;
+option java_outer_classname = "PolicyMetadataProto";
+
+// Fully qualified name for a class with package and class name split out.
+// The split is critical when inner classes are involved, for example
+// `className` can be 'Outer.Inner'. We don't want to rely on heuristics for the
+// split since we have all the information available.
+message FullyQualifiedClassName {
+  string class_name = 1;
+  string package_name = 2;
+}
+
+// Fully qualified name for a field in a class. Like `FullyQualifiedClassName`,
+// each component is listed individually.
+message FullyQualifiedFieldName {
+  string field_name = 1;
+  string class_name = 2;
+  string package_name = 3;
+}
+
+message PolicyMetadata {
+  // `identifier` is the field that contains the PolicyIdentifier for the
+  // policy.
+  FullyQualifiedFieldName identifier = 1;
+  // The type parameter of PolicyIdentifier. For example for
+  // PolicyIdentifier<String> this would be {class_name: "String", package_name:
+  // "java.lang"}.
+  FullyQualifiedClassName type = 2;
+  // The documentation for the policy, extracted from JavaDoc.
+  string documentation = 3;
+  // Additional type-specific policy metadata.
+  TypeSpecificPolicyMetadata type_specific_metadata = 4;
+
+  // LINT.IfChange(policy_scope)
+  enum PolicyScope {
+    // UNSPECIFIED should not be used.
+    POLICY_SCOPE_UNSPECIFIED = 0;
+    POLICY_SCOPE_USER = 1;
+    POLICY_SCOPE_DEVICE = 2;
+    POLICY_SCOPE_PARENT_USER = 3;
+  }
+  // LINT.ThenChange(/core/java/android/app/admin/DevicePolicyManager.java:policy_scope)
+  repeated PolicyScope allowed_scopes = 5;
+
+  // LINT.IfChange(resource_type)
+  enum ResourceType {
+    // Unspecified should not be used.
+    RESOURCE_TYPE_UNSPECIFIED = 0;
+    RESOURCE_DEVICE_WIDE = 1;
+    RESOURCE_PER_USER = 2;
+  }
+  // LINT.ThenChange(/core/java/android/app/admin/DevicePolicyManager.java:resource_type)
+  ResourceType affected_resource = 6;
+
+  optional string required_permission = 7;
+  optional string required_cross_user_permission = 8;
+
+  // LINT.IfChange(dpc_type)
+  enum DpcType {
+    // UNSPECIFIED should not be used.
+    DPC_TYPE_UNSPECIFIED = 0;
+    // NOT_A_DPC is deliberately not part of this enum, since it is not
+    // supported.
+    DPC_TYPE_DEVICE_OWNER = 1;
+    DPC_TYPE_FINANCED_DEVICE_OWNER = 2;
+    DPC_TYPE_MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE = 3;
+    DPC_TYPE_PROFILE_OWNER_ON_USER0 = 4;
+    DPC_TYPE_MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE = 5;
+    DPC_TYPE_UNAFFILIATED_FULL_USER_PROFILE_OWNER = 6;
+    DPC_TYPE_AFFILIATED_FULL_USER_PROFILE_OWNER = 7;
+  }
+  // LINT.ThenChange(/core/java/android/app/admin/DevicePolicyManager.java:dpc_type)
+  repeated DpcType allowed_dpc_types = 9;
+
+  optional string flag = 10;
+}
+
+message TypeSpecificPolicyMetadata {
+  message BooleanPolicyMetadata {}
+
+  message IntegerPolicyMetadata {
+    message ResolutionMechanism {
+      oneof mechanism {
+        bool custom = 1;
+        bool not_coexistable = 2;
+      }
+    }
+
+    optional int32 min_value = 1;
+    optional int32 max_value = 2;
+    ResolutionMechanism resolution_mechanism = 3;
+  }
+
+  message LongPolicyMetadata {
+    message ResolutionMechanism {
+      oneof mechanism {
+        bool custom = 1;
+        bool not_coexistable = 2;
+      }
+    }
+
+    optional int64 min_value = 1;
+    optional int64 max_value = 2;
+    ResolutionMechanism resolution_mechanism = 3;
+  }
+
+  message EnumPolicyMetadata {
+    message EnumValue {
+      FullyQualifiedFieldName field_name = 1;
+      int32 int_value = 2;
+      string documentation = 3;
+    }
+
+    message ResolutionMechanism {
+      message MostRestrictive {
+        repeated int32 most_to_least_restrictive = 1;
+      }
+      oneof mechanism {
+        bool custom = 1;
+        MostRestrictive most_restrictive = 2;
+        bool not_coexistable = 3;
+      }
+    }
+
+    int32 default_value = 1;
+    string int_def_name = 2;
+    string documentation = 3;
+    repeated EnumValue values = 4;
+    ResolutionMechanism resolution_mechanism = 5;
+  }
+
+  message StringPolicyMetadata {
+    bool empty_string_allowed = 1;
+    bool unprintable_characters_allowed = 2;
+    optional int32 max_length = 3;
+  }
+
+  message ListPolicyMetadata {
+    message ResolutionMechanism {
+      oneof mechanism {
+        bool custom = 1;
+        bool union = 2;
+      }
+    }
+
+    oneof list_element_metadata {
+      IntegerPolicyMetadata integer_metadata = 1;
+      EnumPolicyMetadata enum_metadata = 2;
+      StringPolicyMetadata string_metadata = 3;
+      PackagePolicyMetadata package_metadata = 6;
+    }
+
+    bool empty_list_allowed = 4;
+    ResolutionMechanism resolution_mechanism = 5;
+  }
+
+  message PackagePolicyMetadata {}
+
+  oneof type_metadata {
+    BooleanPolicyMetadata boolean_metadata = 1;
+    IntegerPolicyMetadata integer_metadata = 2;
+    EnumPolicyMetadata enum_metadata = 3;
+    StringPolicyMetadata string_metadata = 4;
+    ListPolicyMetadata list_metadata = 6;
+    LongPolicyMetadata long_metadata = 7;
+    PackagePolicyMetadata package_metadata = 8;
+  }
+
+  reserved 5;
+  reserved "list_of_string_metadata";
+}
+
+message PolicyMetadataList {
+  repeated PolicyMetadata policy_metadata = 1;
+}

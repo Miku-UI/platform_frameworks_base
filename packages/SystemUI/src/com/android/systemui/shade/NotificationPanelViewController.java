@@ -101,6 +101,8 @@ import com.android.systemui.Dumpable;
 import com.android.systemui.Flags;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor;
+import com.android.systemui.brightness.data.repository.BrightnessMirrorShowingRepository;
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractor;
 import com.android.systemui.classifier.Classifier;
 import com.android.systemui.classifier.FalsingCollector;
 import com.android.systemui.common.domain.interactor.SysUIStateDisplaysInteractor;
@@ -141,16 +143,12 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.plugins.statusbar.StatusBarStateController.StateListener;
 import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.power.shared.model.WakefulnessModel;
-import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
-import com.android.systemui.settings.brightness.data.repository.BrightnessMirrorShowingRepository;
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractor;
 import com.android.systemui.shade.data.repository.FlingInfo;
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository;
 import com.android.systemui.shade.data.repository.ShadeRepository;
 import com.android.systemui.shade.domain.interactor.ShadeAnimationInteractor;
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround;
 import com.android.systemui.shared.system.QuickStepContract;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.GestureRecorder;
@@ -226,6 +224,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javax.inject.Inject;
@@ -429,7 +428,7 @@ public final class NotificationPanelViewController implements
     /** Non-null if a heads-up notification's position is being tracked. */
     @Nullable
     private ExpandableNotificationRow mTrackedHeadsUpNotification;
-    private final ArrayList<Consumer<ExpandableNotificationRow>>
+    private final ArrayList<BiConsumer<ExpandableNotificationRow, String>>
             mTrackingHeadsUpListeners = new ArrayList<>();
     private HeadsUpAppearanceController mHeadsUpAppearanceController;
 
@@ -702,7 +701,7 @@ public final class NotificationPanelViewController implements
 
         mView.addOnLayoutChangeListener(new ShadeLayoutChangeListener());
         mView.setOnTouchListener(getTouchHandler());
-        mView.setOnConfigurationChangedListener(config -> loadDimens());
+
 
         mResources = mView.getResources();
         mKeyguardStateController = keyguardStateController;
@@ -915,12 +914,6 @@ public final class NotificationPanelViewController implements
         mShadeHeadsUpTracker.addTrackingHeadsUpListener(
                 mNotificationStackScrollLayoutController::setTrackingHeadsUp);
         mWakeUpCoordinator.setStackScroller(mNotificationStackScrollLayoutController);
-        mWakeUpCoordinator.addListener(new NotificationWakeUpCoordinator.WakeUpListener() {
-            @Override
-            public void onFullyHiddenChanged(boolean isFullyHidden) {
-                mKeyguardStatusBarViewController.updateForHeadsUp();
-            }
-        });
 
         mView.setRtlChangeListener(layoutDirection -> {
             if (layoutDirection != mOldLayoutDirection) {
@@ -965,12 +958,10 @@ public final class NotificationPanelViewController implements
                     }
                 },
                 mMainDispatcher);
-        if (QSComposeFragment.isEnabled()) {
-            collectFlow(mView,
-                    mBrightnessMirrorShowingRepository.isShowing(),
-                    this::onBrightnessMirrorShowingChanged
-            );
-        }
+        collectFlow(mView,
+                mBrightnessMirrorShowingRepository.isShowing(),
+                this::onBrightnessMirrorShowingChanged
+        );
     }
 
     private void onBrightnessMirrorShowingChanged(boolean isShowing) {
@@ -1614,11 +1605,7 @@ public final class NotificationPanelViewController implements
     }
 
     float getDisplayDensity() {
-        if (ShadeWindowGoesAround.isEnabled()) {
-            return mView.getContext().getResources().getConfiguration().densityDpi;
-        } else {
-            return mCentralSurfaces.getDisplayDensity();
-        }
+        return mView.getContext().getResources().getConfiguration().densityDpi;
     }
 
     /** Return whether a touch is near the gesture handle at the bottom of screen */
@@ -2037,7 +2024,7 @@ public final class NotificationPanelViewController implements
         }
         setShowShelfOnly(false);
         mQsController.setTwoFingerExpandPossible(false);
-        mShadeHeadsUpTracker.updateTrackingHeadsUp(null);
+        mShadeHeadsUpTracker.updateTrackingHeadsUp(null, "NPVC.onExpandingFinished");
         mExpandingFromHeadsUp = false;
         setPanelScrimMinFraction(0.0f);
         // Reset status bar alpha so alpha can be calculated upon updating view state.
@@ -2045,7 +2032,6 @@ public final class NotificationPanelViewController implements
     }
 
     private void setListening(boolean listening) {
-        mKeyguardStatusBarViewController.setBatteryListening(listening);
         mQsController.setListening(listening);
     }
 
@@ -2352,7 +2338,6 @@ public final class NotificationPanelViewController implements
             Log.i(TAG, "Ignoring status Bar long press on virtualized test device.");
             return;
         }
-        ShadeExpandsOnStatusBarLongPress.unsafeAssertInNewMode();
         mStatusBarLongPressDowntime = event.getDownTime();
         if (isTracking()) {
             onTrackingStopped(true);
@@ -2422,10 +2407,6 @@ public final class NotificationPanelViewController implements
         if (isLaunchingActivity()) {
             return false;
         }
-        if (mHeadsUpAppearanceController != null
-                && mHeadsUpAppearanceController.shouldHeadsUpStatusBarBeVisible()) {
-            return false;
-        }
         return !mShowIconsWhenExpanded;
     }
 
@@ -2439,7 +2420,6 @@ public final class NotificationPanelViewController implements
             }
             notifyExpandingFinished();
         }
-        // TODO(b/332732878): replace this call when scene container is enabled
         mNotificationStackScrollLayoutController.setAnimationsEnabled(!disabled);
     }
 
@@ -2502,12 +2482,14 @@ public final class NotificationPanelViewController implements
 
     private class ShadeHeadsUpTrackerImpl implements ShadeHeadsUpTracker {
         @Override
-        public void addTrackingHeadsUpListener(Consumer<ExpandableNotificationRow> listener) {
+        public void addTrackingHeadsUpListener(
+                BiConsumer<ExpandableNotificationRow, String> listener) {
             mTrackingHeadsUpListeners.add(listener);
         }
 
         @Override
-        public void removeTrackingHeadsUpListener(Consumer<ExpandableNotificationRow> listener) {
+        public void removeTrackingHeadsUpListener(
+                BiConsumer<ExpandableNotificationRow, String> listener) {
             mTrackingHeadsUpListeners.remove(listener);
         }
 
@@ -2522,11 +2504,13 @@ public final class NotificationPanelViewController implements
             return mTrackedHeadsUpNotification;
         }
 
-        private void updateTrackingHeadsUp(@Nullable ExpandableNotificationRow pickedChild) {
+        private void updateTrackingHeadsUp(@Nullable ExpandableNotificationRow pickedChild,
+                String reason) {
             mTrackedHeadsUpNotification = pickedChild;
             for (int i = 0; i < mTrackingHeadsUpListeners.size(); i++) {
-                Consumer<ExpandableNotificationRow> listener = mTrackingHeadsUpListeners.get(i);
-                listener.accept(pickedChild);
+                BiConsumer<ExpandableNotificationRow, String> listener =
+                        mTrackingHeadsUpListeners.get(i);
+                listener.accept(pickedChild, reason + " => updateTrackingHeadsUp");
             }
         }
     }
@@ -2785,25 +2769,17 @@ public final class NotificationPanelViewController implements
             Log.d(TAG, "Updating panel sysui state flags: fullyExpanded="
                     + isFullyExpanded() + " inQs=" + mQsController.getExpanded());
         }
-        if (ShadeWindowGoesAround.isEnabled()) {
-            setPerDisplaySysUIStateFlags();
-        } else {
-            setDefaultDisplayFlags();
-        }
+        setPerDisplaySysUIStateFlags();
     }
 
     private int getShadeDisplayId() {
-        if (ShadeWindowGoesAround.isEnabled()) {
-            var pendingDisplayId =
-                    mShadeDisplaysRepository.get().getPendingDisplayId().getValue();
-            // Use the pendingDisplayId from the repository, *not* the Shade's context.
-            // This ensures correct UI state updates also if this method is called just *before*
-            // the Shade window moves to another display.
-            // The pendingDisplayId is guaranteed to be updated before this method is called.
-            return pendingDisplayId;
-        } else {
-            return Display.DEFAULT_DISPLAY;
-        }
+        var pendingDisplayId =
+                mShadeDisplaysRepository.get().getPendingDisplayId().getValue();
+        // Use the pendingDisplayId from the repository, *not* the Shade's context.
+        // This ensures correct UI state updates also if this method is called just *before*
+        // the Shade window moves to another display.
+        // The pendingDisplayId is guaranteed to be updated before this method is called.
+        return pendingDisplayId;
     }
 
     private void setPerDisplaySysUIStateFlags() {
@@ -3485,7 +3461,7 @@ public final class NotificationPanelViewController implements
     private final class NsslHeightChangedListener implements
             ExpandableView.OnHeightChangedListener {
         @Override
-        public void onHeightChanged(ExpandableView view, boolean needsAnimation) {
+        public void onHeightChanged(ExpandableView view, boolean needsAnimation, String caller) {
             // Block update if we are in QS and just the top padding changed (i.e. view == null).
             if (view == null && mQsController.getExpanded()) {
                 return;
@@ -3532,7 +3508,6 @@ public final class NotificationPanelViewController implements
             updateGestureExclusionRect();
             mHeadsUpPinnedMode = inPinnedMode;
             updateVisibility();
-            mKeyguardStatusBarViewController.updateForHeadsUp();
         }
 
         @Override
@@ -3559,9 +3534,7 @@ public final class NotificationPanelViewController implements
             ConfigurationController.ConfigurationListener {
         @Override
         public void onConfigChanged(Configuration newConfig) {
-            if (ShadeWindowGoesAround.isEnabled()) {
-                updateResources();
-            }
+            updateResources();
         }
 
         @Override
@@ -3573,6 +3546,7 @@ public final class NotificationPanelViewController implements
         @Override
         public void onDensityOrFontScaleChanged() {
             debugLog("onDensityOrFontScaleChanged");
+            loadDimens();
             reInflateViews();
         }
     }
@@ -3647,7 +3621,6 @@ public final class NotificationPanelViewController implements
                     mQsController.hideQsImmediately();
                 }
             }
-            mKeyguardStatusBarViewController.updateForHeadsUp();
             if (keyguardShowing) {
                 updateDozingVisibilities(false /* animate */);
             }
@@ -3670,12 +3643,6 @@ public final class NotificationPanelViewController implements
                 @Override
                 public float getPanelViewExpandedHeight() {
                     return getExpandedHeight();
-                }
-
-                @Override
-                public boolean shouldHeadsUpBeVisible() {
-                    return mHeadsUpAppearanceController != null &&
-                            mHeadsUpAppearanceController.shouldHeadsUpStatusBarBeVisible();
                 }
 
                 @Override
@@ -3860,7 +3827,10 @@ public final class NotificationPanelViewController implements
                 return false;
             }
 
-            mShadeLog.logMotionEvent(event, "NPVC onInterceptTouchEvent");
+            // Logging every motion event is very costly, even when tracing/logcat
+            // endpoints are disabled. Uncomment the following line if full touch
+            // event history is needed.
+            // mShadeLog.logMotionEvent(event, "NPVC onInterceptTouchEvent");
             if (mQsController.disallowTouches()) {
                 mShadeLog.logMotionEvent(event,
                         "NPVC not intercepting touch, panel touches disallowed");
@@ -3883,7 +3853,7 @@ public final class NotificationPanelViewController implements
                         + "HeadsUpTouchHelper");
                 return true;
             }
-            if (!mQsController.shouldQuickSettingsIntercept(mDownX, mDownY, 0)
+            if (!mQsController.shouldQuickSettingsIntercept(mDownX, mDownY, 0, event)
                     && mPulseExpansionHandler.onInterceptTouchEvent(event)) {
                 mShadeLog.v("NotificationPanelViewController MotionEvent intercepted: "
                         + "PulseExpansionHandler");
@@ -4083,7 +4053,7 @@ public final class NotificationPanelViewController implements
             // If pulse is expanding already, let's give it the touch. There are situations
             // where the panel starts expanding even though we're also pulsing
             boolean pulseShouldGetTouch = (!mIsExpandingOrCollapsing
-                    && !mQsController.shouldQuickSettingsIntercept(mDownX, mDownY, 0))
+                    && !mQsController.shouldQuickSettingsIntercept(mDownX, mDownY, 0, event))
                     || mPulseExpansionHandler.isExpanding();
             if (pulseShouldGetTouch && mPulseExpansionHandler.onTouchEvent(event)) {
                 // We're expanding all the other ones shouldn't get this anymore
@@ -4102,8 +4072,7 @@ public final class NotificationPanelViewController implements
             boolean handled = mHeadsUpTouchHelper.onTouchEvent(event);
 
             // This touch session has already resulted in shade expansion. Ignore everything else.
-            if (ShadeExpandsOnStatusBarLongPress.isEnabled()
-                    && event.getActionMasked() != MotionEvent.ACTION_DOWN
+            if (event.getActionMasked() != MotionEvent.ACTION_DOWN
                     && event.getDownTime() == mStatusBarLongPressDowntime) {
                 mShadeLog.d("Touch has same down time as Status Bar long press. Ignoring.");
                 return false;
@@ -4340,9 +4309,10 @@ public final class NotificationPanelViewController implements
         }
 
         @Override
-        public void setTrackedHeadsUp(ExpandableNotificationRow pickedChild) {
+        public void setTrackedHeadsUp(ExpandableNotificationRow pickedChild, String reason) {
             if (pickedChild != null) {
-                mShadeHeadsUpTracker.updateTrackingHeadsUp(pickedChild);
+                mShadeHeadsUpTracker.updateTrackingHeadsUp(pickedChild,
+                        reason + " => NPVC.HUNVCI.setTrackedHeadsUp");
                 mExpandingFromHeadsUp = true;
             }
             // otherwise we update the state when the expansion is finished

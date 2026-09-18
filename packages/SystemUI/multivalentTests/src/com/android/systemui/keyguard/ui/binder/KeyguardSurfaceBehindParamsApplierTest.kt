@@ -17,7 +17,6 @@
 package com.android.systemui.keyguard.ui.binder
 
 import android.testing.TestableLooper.RunWithLooper
-import android.view.RemoteAnimationTarget
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.keyguard.KeyguardViewController
@@ -28,6 +27,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardSurfaceBehindModel
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
+import com.android.wm.shell.shared.compat.AnimatedSurface
 import junit.framework.Assert.assertFalse
 import junit.framework.Assert.assertNull
 import junit.framework.Assert.assertTrue
@@ -54,7 +54,7 @@ class KeyguardSurfaceBehindParamsApplierTest : SysuiTestCase() {
 
     @Mock private lateinit var interactor: KeyguardSurfaceBehindInteractor
 
-    @Mock private lateinit var remoteAnimationTarget: RemoteAnimationTarget
+    @Mock private lateinit var animatedSurface: AnimatedSurface
 
     private var isAnimatingSurface: Boolean? = null
 
@@ -90,7 +90,7 @@ class KeyguardSurfaceBehindParamsApplierTest : SysuiTestCase() {
         // just yet.
         assertNull(isAnimatingSurface)
 
-        underTest.applyParamsToSurface(remoteAnimationTarget)
+        underTest.applyParamsToSurface(animatedSurface)
 
         // We should now explicitly not be animating the surface.
         assertFalse(checkNotNull(isAnimatingSurface))
@@ -110,7 +110,7 @@ class KeyguardSurfaceBehindParamsApplierTest : SysuiTestCase() {
         // just yet.
         assertNull(isAnimatingSurface)
 
-        underTest.applyParamsToSurface(remoteAnimationTarget)
+        underTest.applyParamsToSurface(animatedSurface)
 
         // We should now be animating the surface.
         assertTrue(checkNotNull(isAnimatingSurface))
@@ -118,7 +118,7 @@ class KeyguardSurfaceBehindParamsApplierTest : SysuiTestCase() {
 
     @Test
     fun testAnimating_surfaceThenParamsProvided() {
-        underTest.applyParamsToSurface(remoteAnimationTarget)
+        underTest.applyParamsToSurface(animatedSurface)
 
         // The default params (which do not animate) should have been applied, so we're explicitly
         // NOT animating yet.
@@ -145,7 +145,7 @@ class KeyguardSurfaceBehindParamsApplierTest : SysuiTestCase() {
                 animateFromTranslationY = 0f,
                 translationY = 300f,
             )
-        underTest.applyParamsToSurface(remoteAnimationTarget)
+        underTest.applyParamsToSurface(animatedSurface)
 
         assertTrue(checkNotNull(isAnimatingSurface))
 

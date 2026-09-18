@@ -27,7 +27,7 @@ import java.util.List;
 
 /**
  * A class describing the nanoapp state information resulting from a query to a Context Hub
- * through {@link ContextHubManager.queryNanoApps(ContextHubInfo)}. It contains metadata about
+ * through {@link ContextHubManager#queryNanoApps(ContextHubInfo)}. It contains metadata about
  * the nanoapp running on a Context Hub.
  *
  * See "struct chreNanoappInfo" in the CHRE API (system/chre/chre_api) for additional details.

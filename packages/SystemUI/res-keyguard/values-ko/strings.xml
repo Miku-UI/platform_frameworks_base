@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"기기 비밀번호"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"SIM PIN 영역"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"SIM PUK 영역"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"길게 눌러 모두 삭제"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"삭제"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"eSIM 사용 중지"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIM을 사용 중지할 수 없음"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"지문으로 잠금 해제할 수 없습니다. 시도 횟수가 너무 많습니다."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"Trust Agent를 사용할 수 없습니다."</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"잘못된 PIN을 사용한 시도 횟수가 너무 많습니다."</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"이미 시도한 PIN입니다. 다른 PIN을 시도해 보세요."</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"이미 시도한 패턴입니다. 다른 패턴을 시도해 보세요."</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"이미 시도한 비밀번호입니다. 다른 비밀번호를 시도해 보세요."</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"잘못된 패턴을 사용한 시도 횟수가 너무 많습니다."</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"잘못된 비밀번호를 사용한 시도 횟수가 너무 많습니다."</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"잘못된 PIN을 너무 많이 시도했습니다.\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g>에서 자세히 알아보세요."</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"잘못된 패턴을 너무 많이 시도했습니다.\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g>에서 자세히 알아보세요."</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"잘못된 비밀번호를 너무 많이 시도했습니다.\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g>에서 자세히 알아보세요."</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{#초 후에 다시 시도하세요}other{#초 후에 다시 시도하세요}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{#초 후에 다시 시도하세요}other{#초 후에 다시 시도하세요}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{#분 후에 다시 시도하세요}other{#분 후에 다시 시도하세요}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{#시간 후에 다시 시도해 보세요.}other{#시간 후에 다시 시도해 보세요.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{#일 후에 다시 시도해 보세요.}other{#일 후에 다시 시도해 보세요.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{#년 후에 다시 시도해 보세요.}other{#년 후에 다시 시도해 보세요.}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"SIM PIN을 입력하세요."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"\'<xliff:g id="CARRIER">%1$s</xliff:g>\'의 SIM PIN을 입력하세요."</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> 모바일 서비스 없이 기기를 사용하려면 eSIM을 사용 중지하세요."</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"기기가 다시 시작되어 패턴을 입력해야 합니다."</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"기기가 다시 시작되어 PIN을 입력해야 합니다."</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"기기가 다시 시작되어 비밀번호를 입력해야 합니다."</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"로그인하려면 패턴이 필요합니다"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"로그인하려면 PIN이 필요합니다"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"로그인하려면 비밀번호가 필요합니다"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"보안 강화를 위해 패턴 사용"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"보안 강화를 위해 대신 PIN 사용"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"보안 강화를 위해 대신 비밀번호 사용"</string>

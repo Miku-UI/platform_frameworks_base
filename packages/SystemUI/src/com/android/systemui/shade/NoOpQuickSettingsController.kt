@@ -16,6 +16,8 @@
 
 package com.android.systemui.shade
 
+import android.view.MotionEvent
+
 /**
  * No-op implementation of [QuickSettingsController], for SysUI variants that don't use it but
  * inject code that depends on it.s
@@ -28,7 +30,12 @@ class NoOpQuickSettingsController : QuickSettingsController {
         get() = false
 
     @Deprecated("specific to legacy touch handling")
-    override fun shouldQuickSettingsIntercept(x: Float, y: Float, yDiff: Float): Boolean {
+    override fun shouldQuickSettingsIntercept(
+        x: Float,
+        y: Float,
+        yDiff: Float,
+        event: MotionEvent?,
+    ): Boolean {
         return false
     }
 

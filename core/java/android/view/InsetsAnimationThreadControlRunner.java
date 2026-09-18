@@ -205,6 +205,11 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
         return mControl.getAnimationType();
     }
 
+    @Override
+    public boolean hasAnimationCallback() {
+        return false;
+    }
+
     @NonNull
     @Override
     public SurfaceParamsApplier getSurfaceParamsApplier() {

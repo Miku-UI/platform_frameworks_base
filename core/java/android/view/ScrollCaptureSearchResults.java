@@ -16,8 +16,6 @@
 
 package android.view;
 
-import static android.view.flags.Flags.scrollCaptureTargetZOrderFix;
-
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
@@ -119,9 +117,6 @@ public final class ScrollCaptureSearchResults {
 
     private void signalComplete() {
         mComplete = true;
-        if (!scrollCaptureTargetZOrderFix()) {
-            mTargets.sort(PRIORITY_ORDER);
-        }
         if (mOnCompleteListener != null) {
             mOnCompleteListener.run();
             mOnCompleteListener = null;
@@ -150,10 +145,6 @@ public final class ScrollCaptureSearchResults {
      */
     @Nullable
     public ScrollCaptureTarget getTopResult() {
-        if (!scrollCaptureTargetZOrderFix()) {
-            ScrollCaptureTarget target = mTargets.isEmpty() ? null : mTargets.get(0);
-            return target != null && target.getScrollBounds() != null ? target : null;
-        }
         List<ScrollCaptureTarget> filtered = new ArrayList<>();
 
         mTargets.removeIf(a -> nullOrEmpty(a.getScrollBounds()));

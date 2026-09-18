@@ -60,7 +60,8 @@ class AlternateBouncerToGoneTransitionViewModelTest : SysuiTestCase() {
     @Before
     fun setup() {
         kosmos.setSceneTransition(
-            Transition(from = Scenes.Lockscreen, to = Scenes.Gone, progress = flowOf(.5f))
+            Transition(from = Scenes.Lockscreen, to = Scenes.Gone, progress = flowOf(.5f)),
+            skipChangeScene = true,
         )
     }
 

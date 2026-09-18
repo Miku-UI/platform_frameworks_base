@@ -29,10 +29,10 @@ import static android.media.AudioSystem.isBluetoothLeOutDevice;
 import static android.media.AudioSystem.isBluetoothLeOutUnicastDevice;
 import static android.media.AudioSystem.isBluetoothOutDevice;
 import static android.media.AudioSystem.isBluetoothScoOutDevice;
+import static android.media.audio.Flags.blePeripheralDevices;
 
 import static com.android.internal.annotations.VisibleForTesting.Visibility.PACKAGE;
-import static com.android.media.audio.Flags.asDeviceConnectionFailure;
-import static com.android.media.audio.Flags.updatePreferredDevicesForStrategy;
+import static com.android.media.audio.Flags.stereoSpatializationBinauralTransaural;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -107,6 +107,9 @@ public class AudioDeviceInventory {
 
     private static final String SETTING_DEVICE_SEPARATOR_CHAR = "|";
     private static final String SETTING_DEVICE_SEPARATOR = "\\|";
+
+    private static final String SETTING_STEREO_BINAURAL_ENABLED = "stereo_binaural_enabled";
+    private static final String SETTING_STEREO_TRANSAURAL_ENABLED = "stereo_transaural_enabled";
 
     /** Max String length that can be persisted within the Settings. */
     // LINT.IfChange(settings_max_length_per_string)
@@ -655,27 +658,24 @@ public class AudioDeviceInventory {
 
     final List<AudioProductStrategy> mStrategies;
 
-    /*package*/ AudioDeviceInventory(@NonNull AudioDeviceBroker broker,
-            List<AudioProductStrategy> strategies) {
-        this(broker, AudioSystemAdapter.getDefaultAdapter(), strategies);
-    }
-
-    //-----------------------------------------------------------
-    /** for mocking only, allows to inject AudioSystem adapter */
-    /*package*/ AudioDeviceInventory(@NonNull AudioSystemAdapter audioSystem,
-            List<AudioProductStrategy> strategies) {
-        this(null, audioSystem, strategies);
-    }
-
-    private AudioDeviceInventory(@Nullable AudioDeviceBroker broker,
+    AudioDeviceInventory(
             @Nullable AudioSystemAdapter audioSystem,
             List<AudioProductStrategy> strategies) {
-        mDeviceBroker = broker;
         mAudioSystem = audioSystem;
         mStrategies = Objects.requireNonNull(strategies,
                 "Audio product strategies must not be null");
         mBluetoothDualModeEnabled = SystemProperties.getBoolean(
                 "persist.bluetooth.enable_dual_mode_audio", false);
+
+        if (stereoSpatializationBinauralTransaural()) {
+            mStereoBinauralEnabled = SystemProperties.getBoolean(
+                    "ro.audio.stereo_spatialization_binaural_enabled", false);
+            mStereoTransauralEnabled = SystemProperties.getBoolean(
+                    "ro.audio.stereo_spatialization_transaural_enabled", false);
+        } else {
+            mStereoBinauralEnabled = false;
+            mStereoTransauralEnabled = false;
+        }
     }
     /*package*/ void setDeviceBroker(@NonNull AudioDeviceBroker broker) {
         mDeviceBroker = broker;
@@ -947,6 +947,9 @@ public class AudioDeviceInventory {
 
             // device restore done, notify AudioDeviceBroker
             mDeviceBroker.setWaitingForDeviceRestore(false);
+            if (!failedReconnectionDeviceList.isEmpty()) {
+                mDeviceBroker.postOnConnectedDevicesChanged();
+            }
         }
 
         reapplyExternalDevicesRoles();
@@ -1071,6 +1074,18 @@ public class AudioDeviceInventory {
                         }
                     }
                     break;
+                case BluetoothProfile.LE_AUDIO_PERIPHERAL:
+                    if (blePeripheralDevices()) {
+                        if (switchToUnavailable) {
+                            makeLeAudioCentralDeviceUnavailable(address,
+                                    btInfo.mAudioSystemDevice, di.mDeviceCodecFormat,
+                                    btInfo.mIsDeviceSwitch);
+                        } else if (switchToAvailable) {
+                            makeLeAudioCentralDeviceAvailable(btInfo, codec);
+                        }
+                        break;
+                    }
+                   // intended fallthrough
                 default: throw new IllegalArgumentException("Invalid profile "
                                  + BluetoothProfile.getProfileName(btInfo.mProfile));
             }
@@ -1122,9 +1137,6 @@ public class AudioDeviceInventory {
                 "onBluetoothDeviceConfigChange addr=" + address
                     + " event=" + BtHelper.deviceEventToString(event)));
 
-        int deviceType = BtHelper.getTypeFromProfile(
-                btInfo.mProfile, btInfo.mIsLeOutput, btDevice);
-
         boolean disconnectDevice = false;
         synchronized (mDevicesLock) {
             if (mDeviceBroker.hasScheduledA2dpConnection(btDevice, btInfo.mProfile)) {
@@ -1135,7 +1147,7 @@ public class AudioDeviceInventory {
                         .record();
                 return delayMs;
             }
-            final String key = DeviceInfo.makeDeviceListKey(deviceType, address);
+            final String key = DeviceInfo.makeDeviceListKey(btInfo.mAudioSystemDevice, address);
             final DeviceInfo di = mConnectedDevices.get(key);
             if (di == null) {
                 Log.e(TAG, "invalid null DeviceInfo in onBluetoothDeviceConfigChange");
@@ -1527,27 +1539,19 @@ public class AudioDeviceInventory {
                     strategy, AudioSystem.DEVICE_ROLE_PREFERRED, true /*internal */);
     }
 
+    /*package*/ List<AudioDeviceAttributes> getExternalPreferredDevicesForStrategy(int strategy) {
+        synchronized (mDevicesLock) {
+            return mPreferredDevices.getOrDefault(strategy, new ArrayList<>());
+        }
+    }
+
     /*package*/ List<AudioDeviceAttributes> getPreferredDevicesForStrategy(int strategy) {
         synchronized (mDevicesLock) {
             try (SafeCloseable ignored = ClearCallingIdentityContext.create()) {
-                List<AudioDeviceAttributes> devices = new ArrayList<>();
-                if (updatePreferredDevicesForStrategy()) {
-                    Pair<Integer, Integer> key =
-                            new Pair<>(strategy, AudioSystem.DEVICE_ROLE_PREFERRED);
-                    devices = mAppliedStrategyRoles.get(key);
-                    if (devices == null) {
-                        return new ArrayList<AudioDeviceAttributes>();
-                    }
-                } else {
-                    int status = AudioSystem.getDevicesForRoleAndStrategy(
-                            strategy, AudioSystem.DEVICE_ROLE_PREFERRED, devices);
-                    if (status != AudioSystem.SUCCESS) {
-                        Log.e(TAG, String.format("Error %d in getPreferredDeviceForStrategy(%d)",
-                                status, strategy));
-                        return new ArrayList<AudioDeviceAttributes>();
-                    }
-                }
-                return devices;
+                Pair<Integer, Integer> key =
+                        new Pair<>(strategy, AudioSystem.DEVICE_ROLE_PREFERRED);
+                List<AudioDeviceAttributes> devices = mAppliedStrategyRoles.get(key);
+                return devices != null ? devices : new ArrayList<AudioDeviceAttributes>();
             }
         }
     }
@@ -1988,6 +1992,7 @@ public class AudioDeviceInventory {
         int device = ada.getInternalType();
         String address = ada.getAddress();
         String deviceName = ada.getName();
+        boolean hdmiArcSadUpdate = false;
         if (AudioService.DEBUG_DEVICES) {
             Slog.i(TAG, "handleDeviceConnection(" + connect + " dev:"
                     + Integer.toHexString(device) + " address:" + address
@@ -2009,19 +2014,26 @@ public class AudioDeviceInventory {
             }
             DeviceInfo di = mConnectedDevices.get(deviceKey);
             boolean isConnected = di != null;
+            if (isConnected &&
+                connect &&
+                (di.mDeviceType == AudioSystem.DEVICE_OUT_HDMI_ARC ||
+                 di.mDeviceType == AudioSystem.DEVICE_OUT_HDMI_EARC)) {
+                hdmiArcSadUpdate = true;
+            }
             if (AudioService.DEBUG_DEVICES) {
-                Slog.i(TAG, "deviceInfo:" + di + " is(already)Connected:" + isConnected);
+                Slog.i(TAG, "deviceInfo:" + di + " is(already)Connected:" + isConnected +
+                        ", hdmiArcSadUpdate:" + hdmiArcSadUpdate);
             }
             // Do not report an error in case of redundant connect or disconnect request
             // as this can cause a state mismatch between BtHelper and AudioDeviceInventory
-            if (connect == isConnected) {
+            if (!hdmiArcSadUpdate && (connect == isConnected)) {
                 Log.i(TAG, "handleDeviceConnection() deviceInfo=" + di + " is already "
                         + (connect ? "" : "dis") + "connected");
                 mmi.set(MediaMetrics.Property.STATE, connect
                         ? MediaMetrics.Value.CONNECT : MediaMetrics.Value.DISCONNECT).record();
                 return true;
             }
-            if (connect && !isConnected) {
+            if (connect && (!isConnected || hdmiArcSadUpdate)) {
                 final int res;
                 if (isForTesting) {
                     res = AudioSystem.AUDIO_STATUS_OK;
@@ -2177,6 +2189,12 @@ public class AudioDeviceInventory {
             case BluetoothProfile.LE_AUDIO_BROADCAST:
                 disconnectLeAudioBroadcast();
                 break;
+            case BluetoothProfile.LE_AUDIO_PERIPHERAL:
+                if (blePeripheralDevices()) {
+                    disconnectLeAudioCentral();
+                    break;
+                }
+                // intended fallthrough
             default:
                 // Not a valid profile to disconnect
                 Log.e(TAG, "onBtProfileDisconnected: Not a valid profile to disconnect "
@@ -2186,12 +2204,17 @@ public class AudioDeviceInventory {
     }
 
      /*package*/ void disconnectLeAudio(int device) {
-        if (device != AudioSystem.DEVICE_OUT_BLE_HEADSET
-                && device != AudioSystem.DEVICE_OUT_BLE_BROADCAST) {
-            Log.e(TAG, "disconnectLeAudio: Can't disconnect not LE Audio device " + device);
-            return;
+        switch(device) {
+            case AudioSystem.DEVICE_OUT_BLE_BROADCAST,
+                 AudioSystem.DEVICE_OUT_BLE_HEADSET,
+                 AudioSystem.DEVICE_OUT_BLE_HEARING_AID,
+                 AudioSystem.DEVICE_IN_BLE_HEADSET,
+                 AudioSystem.DEVICE_IN_BLE_HEARING_AID -> {}
+            default -> {
+                Log.e(TAG, "disconnectLeAudio: Can't disconnect not LE Audio device " + device);
+                return;
+            }
         }
-
         synchronized (mDevicesLock) {
             final ArraySet<Pair<String, Integer>> toRemove = new ArraySet<>();
             // Disconnect ALL DEVICE_OUT_BLE_HEADSET or DEVICE_OUT_BLE_BROADCAST devices
@@ -2217,6 +2240,9 @@ public class AudioDeviceInventory {
 
     /*package*/ void disconnectLeAudioUnicast() {
         disconnectLeAudio(AudioSystem.DEVICE_OUT_BLE_HEADSET);
+        disconnectLeAudio(AudioSystem.DEVICE_IN_BLE_HEADSET);
+        disconnectLeAudio(AudioSystem.DEVICE_OUT_BLE_HEARING_AID);
+        disconnectLeAudio(AudioSystem.DEVICE_IN_BLE_HEARING_AID);
     }
 
     /*package*/ void disconnectLeAudioBroadcast() {
@@ -2238,6 +2264,25 @@ public class AudioDeviceInventory {
         }
         if (disconnect) {
             mDeviceBroker.onSetBtScoActiveDevice(null, false /*deviceSwitch*/);
+        }
+    }
+
+    /*package*/ void disconnectLeAudioCentral() {
+        synchronized (mDevicesLock) {
+            final List<DeviceInfo> toRemove = new ArrayList<>();
+            mConnectedDevices.values().forEach(deviceInfo -> {
+                if (AudioSystem.isBluetoothLeCentralDevice(deviceInfo.mDeviceType)) {
+                    toRemove.add(deviceInfo);
+                }
+            });
+            new MediaMetrics.Item(mMetricsId + "disconnectLeAudioCentral")
+                    .set(MediaMetrics.Property.EVENT, "disconnectLeAudioCentral")
+                    .record();
+            if (toRemove.size() > 0) {
+                toRemove.stream().forEach(deviceInfo ->
+                        makeLeAudioCentralDeviceUnavailable(deviceInfo.mDeviceAddress,
+                                deviceInfo.mDeviceType, deviceInfo.mDeviceCodecFormat, false));
+            }
         }
     }
 
@@ -2337,9 +2382,7 @@ public class AudioDeviceInventory {
                     "APM failed to make available A2DP device addr="
                             + Utils.anonymizeBluetoothAddress(address)
                             + " error=" + res).printSlog(EventLogger.Event.ALOGE, TAG));
-            if (asDeviceConnectionFailure()) {
-                return;
-            }
+            return;
         } else {
             final DeviceInfo di = new DeviceInfo(AudioSystem.DEVICE_OUT_BLUETOOTH_A2DP, name,
                     address, btInfo.mDevice.getIdentityAddress(), codec);
@@ -2629,9 +2672,7 @@ public class AudioDeviceInventory {
                     "APM failed to make available A2DP source device addr="
                             + Utils.anonymizeBluetoothAddress(address)
                             + " error=" + res).printSlog(EventLogger.Event.ALOGE, TAG));
-            if (asDeviceConnectionFailure()) {
-                return;
-            }
+            return;
         } else {
             final DeviceInfo di = new DeviceInfo(AudioSystem.DEVICE_IN_BLUETOOTH_A2DP, "", address);
             String message = "A2DP source device addr=" + Utils.anonymizeBluetoothAddress(address);
@@ -2668,11 +2709,8 @@ public class AudioDeviceInventory {
         if (res == AudioSystem.AUDIO_STATUS_ERROR) {
             AudioService.sDeviceLogger.enqueueAndSlog(
                     "APM failed to make available HearingAid addr=" + address
-                            + " error=" + res,
-                    EventLogger.Event.ALOGE, TAG);
-            if (asDeviceConnectionFailure()) {
-                return;
-            }
+                            + " error=" + res, EventLogger.Event.ALOGE, TAG);
+            return;
         } else {
             final DeviceInfo di = new DeviceInfo(DEVICE_OUT_HEARING_AID, name, address);
             final String mssgPrefix = "HearingAid addr=" + address;
@@ -2817,9 +2855,7 @@ public class AudioDeviceInventory {
                 AudioService.sDeviceLogger.enqueueAndSlog(
                         "APM failed to make available LE Audio device addr=" + address
                                 + " error=" + res, EventLogger.Event.ALOGE, TAG);
-                if (asDeviceConnectionFailure()) {
-                    return;
-                }
+                return;
             } else {
                 final DeviceInfo di = new DeviceInfo(
                         device, name, address,
@@ -2905,6 +2941,65 @@ public class AudioDeviceInventory {
         mDeviceBroker.setLeAudioTimeout(address, device, codec, delayMs);
     }
 
+
+    @GuardedBy("mDevicesLock")
+    private void makeLeAudioCentralDeviceAvailable(
+            AudioDeviceBroker.BtDeviceInfo btInfo,
+            @AudioSystem.AudioFormatNativeEnumForBtCodec int codec) {
+        if (btInfo.mAudioSystemDevice == AudioSystem.DEVICE_NONE) {
+            return;
+        }
+
+        final int device = btInfo.mAudioSystemDevice;
+        final String address = btInfo.mDevice.getAddress();
+        String name = BtHelper.getName(btInfo.mDevice);
+
+        AudioDeviceAttributes ada = new AudioDeviceAttributes(device, address, name);
+        final int res = setApmDeviceConnectionAvailable(ada, codec, false /*deviceSwitch*/);
+        if (res == AudioSystem.AUDIO_STATUS_ERROR) {
+            AudioService.sDeviceLogger.enqueueAndSlog(
+                    "APM failed to make available LE Audio central device addr=" + address
+                            + " error=" + res, EventLogger.Event.ALOGE, TAG);
+            return;
+        } else {
+            final DeviceInfo di = new DeviceInfo(device, name, address);
+            final String mssgPrefix =
+                    "LE Audio Central" + (AudioSystem.isInputDevice(device) ? "source" : "sink")
+                            + " device addr=" + Utils.anonymizeBluetoothAddress(address);
+            trackDeviceApmAvailable(res, di, mssgPrefix);
+        }
+    }
+
+    @GuardedBy("mDevicesLock")
+    private void makeLeAudioCentralDeviceUnavailable(String address, int device,
+            @AudioSystem.AudioFormatNativeEnumForBtCodec int codec,  boolean deviceSwitch) {
+        if (device == AudioSystem.DEVICE_NONE) {
+            return;
+        }
+        AudioDeviceAttributes ada = new AudioDeviceAttributes(device, address);
+        final int res = mAudioSystem.setDeviceConnectionState(ada,
+                AudioSystem.DEVICE_STATE_UNAVAILABLE,
+                codec, deviceSwitch);
+        // always remove even if disconnection failed
+        removeTrackedConnectedDevice(DeviceInfo.makeDeviceListKey(device, address),
+                /*disconnectedFromApm*/ true);
+
+        if (res != AudioSystem.AUDIO_STATUS_OK) {
+            AudioService.sDeviceLogger.enqueue(new EventLogger.StringEvent(
+                    "APM failed to make unavailable LE Audio central "
+                            + (AudioSystem.isInputDevice(device) ? "source" : "sink")
+                            + " device addr=" + address
+                            + " error=" + res).printSlog(EventLogger.Event.ALOGE, TAG));
+            // not taking further action: proceeding as if disconnection from APM worked
+        } else {
+            AudioService.sDeviceLogger.enqueue(new EventLogger.StringEvent(
+                    "LE Audio central " + (AudioSystem.isInputDevice(device) ? "source" : "sink")
+                            + "device addr=" + Utils.anonymizeBluetoothAddress(address)
+                            + " made unavailable, deviceSwitch: " + deviceSwitch)
+                    .printSlog(EventLogger.Event.ALOGI, TAG));
+        }
+    }
+
     @GuardedBy("mDevicesLock")
     private void setCurrentAudioRouteNameIfPossible(String name, boolean fromA2dp) {
         synchronized (mCurAudioRoutes) {
@@ -2938,8 +3033,6 @@ public class AudioDeviceInventory {
         BECOMING_NOISY_INTENT_DEVICES_SET.add(AudioSystem.DEVICE_OUT_ANLG_DOCK_HEADSET);
         BECOMING_NOISY_INTENT_DEVICES_SET.add(AudioSystem.DEVICE_OUT_LINE);
         BECOMING_NOISY_INTENT_DEVICES_SET.add(DEVICE_OUT_HEARING_AID);
-        BECOMING_NOISY_INTENT_DEVICES_SET.add(AudioSystem.DEVICE_OUT_BLE_HEADSET);
-        BECOMING_NOISY_INTENT_DEVICES_SET.add(AudioSystem.DEVICE_OUT_BLE_BROADCAST);
         BECOMING_NOISY_INTENT_DEVICES_SET.addAll(DEVICE_OUT_ALL_A2DP_SET);
         BECOMING_NOISY_INTENT_DEVICES_SET.addAll(AudioSystem.DEVICE_OUT_ALL_USB_SET);
         BECOMING_NOISY_INTENT_DEVICES_SET.addAll(DEVICE_OUT_ALL_BLE_SET);
@@ -3241,13 +3334,47 @@ public class AudioDeviceInventory {
         return addresses;
     }
 
+    /* *
+     * Indicates that system property ro.audio.stereo_spatialization_binaural_enabled is true
+     * and that the persisted spatial audio state for each device must be reset to
+     * ro.audio.spatializer_binaural_enabled_default when loaded for the first time.
+     */
+    final boolean mStereoBinauralEnabled;
+    /* *
+     * Indicates that system property ro.audio.stereo_spatialization_transaural_enabled is true
+     * and that the persisted spatial audio state for each device must be reset to
+     * ro.audio.spatializer_transaural_enabled_default when loaded for the first time.
+     */
+    final boolean mStereoTransauralEnabled;
+
     /*package*/ String getDeviceSettings() {
         int deviceCatalogSize = 0;
         synchronized (mDeviceInventoryLock) {
             deviceCatalogSize = mDeviceInventory.size();
 
-            final StringBuilder settingsBuilder = new StringBuilder(
-                    deviceCatalogSize * AdiDeviceState.getPeristedMaxSize());
+            StringBuilder settingsBuilder;
+            if (stereoSpatializationBinauralTransaural()) {
+                settingsBuilder = new StringBuilder(
+                        deviceCatalogSize * AdiDeviceState.getPeristedMaxSize()
+                        + SETTING_STEREO_BINAURAL_ENABLED.length() + 1
+                        + SETTING_STEREO_TRANSAURAL_ENABLED.length() + 1);
+
+                // The check must have happened already when setDeviceSettings() was initially
+                // called by onInitAdiDeviceStates(), so mark the setting strings as checked.
+                // If the property is disabled, the settings are not marked as checked so that the
+                // verification can happen next time the property is found true.
+                if (mStereoBinauralEnabled) {
+                    settingsBuilder.append(
+                            SETTING_STEREO_BINAURAL_ENABLED + SETTING_DEVICE_SEPARATOR_CHAR);
+                }
+                if (mStereoTransauralEnabled) {
+                    settingsBuilder.append(
+                            SETTING_STEREO_TRANSAURAL_ENABLED + SETTING_DEVICE_SEPARATOR_CHAR);
+                }
+            } else {
+                settingsBuilder = new StringBuilder(
+                        deviceCatalogSize * AdiDeviceState.getPeristedMaxSize());
+            }
 
             Iterator<AdiDeviceState> iterator = mDeviceInventory.values().iterator();
             if (iterator.hasNext()) {
@@ -3261,21 +3388,55 @@ public class AudioDeviceInventory {
         }
     }
 
-    /*package*/ void setDeviceSettings(String settings) {
+
+    /*package*/ boolean setDeviceSettings(String settings,
+            boolean binauralEnabledDefault, boolean transauralEnabledDefault) {
         clearDeviceInventory();
         String[] devSettings = TextUtils.split(Objects.requireNonNull(settings),
                 SETTING_DEVICE_SEPARATOR);
         // small list, not worth overhead of Arrays.stream(devSettings)
+
+        boolean binauralEnabledPersisted = false;
+        boolean transauralEnabledPersisted = false;
+
         for (String setting : devSettings) {
+            // This works because SETTING_STEREO_BINAURAL_ENABLED and
+            // SETTING_STEREO_TRANSAURAL_ENABLED are always at the beginning of the persisted string
+
+            if (SETTING_STEREO_BINAURAL_ENABLED.equals(setting)) {
+                if (stereoSpatializationBinauralTransaural()) {
+                    binauralEnabledPersisted = true;
+                }
+                continue;
+            }
+            if (SETTING_STEREO_TRANSAURAL_ENABLED.equals(setting)) {
+                if (stereoSpatializationBinauralTransaural()) {
+                    transauralEnabledPersisted = true;
+                }
+                continue;
+            }
+
             AdiDeviceState devState = AdiDeviceState.fromPersistedString(setting);
             // Note if the device is not compatible with spatialization mode or the device
             // type is not canonical, it will be ignored in {@link SpatializerHelper}.
             if (devState != null
                     && devState.getInternalDeviceType() != AudioSystem.DEVICE_OUT_BLE_BROADCAST) {
+                if (stereoSpatializationBinauralTransaural()) {
+                    if (!binauralEnabledPersisted && mStereoBinauralEnabled) {
+                        devState.setSAEnabled(binauralEnabledDefault);
+                    } else if (!transauralEnabledPersisted && mStereoTransauralEnabled) {
+                        devState.setSAEnabled(transauralEnabledDefault);
+                    }
+                }
+
                 addOrUpdateDeviceSAStateInInventory(devState, false /*syncInventory*/);
                 addOrUpdateAudioDeviceCategoryInInventory(devState, false /*syncInventory*/);
             }
         }
+        // we must persist the new settings if a change was detected between the persisted state
+        // and current state of binaural or transaural stereo spatialization
+        return mStereoBinauralEnabled != binauralEnabledPersisted
+                || mStereoTransauralEnabled != transauralEnabledPersisted;
     }
 
     //----------------------------------------------------------
@@ -3355,6 +3516,7 @@ public class AudioDeviceInventory {
             }
         }
         updateAlwaysRingDeviceConnected();
+        mDeviceBroker.postOnConnectedDevicesChanged();
     }
 
     @GuardedBy("mDevicesLock")
@@ -3398,6 +3560,7 @@ public class AudioDeviceInventory {
             }
         }
         updateAlwaysRingDeviceConnected();
+        mDeviceBroker.postOnConnectedDevicesChanged();
     }
 
     //----------------------------------------------------------

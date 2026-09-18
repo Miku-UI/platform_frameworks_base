@@ -19,6 +19,7 @@ package com.android.systemui.scene.shared.model
 import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
+import com.android.compose.animation.scene.content.state.TransitionState
 import kotlinx.coroutines.flow.StateFlow
 
 /** Defines interface for classes that provide access to scene state. */
@@ -32,6 +33,8 @@ interface SceneDataSource {
      * [currentScene] will have the value of the target/new scene.
      */
     val currentScene: StateFlow<SceneKey>
+
+    val transitionState: TransitionState
 
     /**
      * The current set of overlays to be shown (may be empty).
@@ -89,4 +92,12 @@ interface SceneDataSource {
      * transition layout state is used.
      */
     fun instantlyTransitionTo(scene: SceneKey? = null, overlays: Set<OverlayKey>? = null)
+
+    /**
+     * Immediately start running the given [transition]. This is meant for logic that needs to
+     * programmatically take control of a transition and drive it exactly (as opposed to other APIs
+     * that tell STL to transition to a specific scene or show/hide an overlay which are fire and
+     * forget).
+     */
+    fun startTransitionImmediately(transition: TransitionState.Transition)
 }

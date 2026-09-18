@@ -1538,52 +1538,19 @@ public final class FileUtils {
 
     /** @hide */
     public static int translateModeStringToPosix(String mode) {
-        if (Flags.enforceStrictFileModeCheck()) {
-            // Note: since the list of supported modes have been documented already in
-            // ParcelFileDescriptor#parseMode(), this change is not protected by a compat change.
-            // Also, we're explicitly checking the permutations of the supported modes here to avoid
-            // throwing an exception for malformed mode strings (see b/414387646 for context).
-            return switch (mode) {
-                case "r" -> O_RDONLY;
-                case "w" -> O_WRONLY | O_CREAT;
-                case "wt", "tw" -> O_WRONLY | O_CREAT | O_TRUNC;
-                case "wa", "aw" -> O_WRONLY | O_CREAT | O_APPEND;
-                case "rw", "wr" -> O_RDWR | O_CREAT;
-                case "rwt", "rtw", "wrt", "wtr", "trw", "twr" -> O_RDWR | O_CREAT | O_TRUNC;
-                default -> throw new IllegalArgumentException("Bad mode: " + mode);
-            };
-        }
-
-        // Quick check for invalid chars
-        for (int i = 0; i < mode.length(); i++) {
-            switch (mode.charAt(i)) {
-                case 'r':
-                case 'w':
-                case 't':
-                case 'a':
-                    break;
-                default:
-                    throw new IllegalArgumentException("Bad mode: " + mode);
-            }
-        }
-
-        int res = 0;
-        if (mode.startsWith("rw")) {
-            res = O_RDWR | O_CREAT;
-        } else if (mode.startsWith("w")) {
-            res = O_WRONLY | O_CREAT;
-        } else if (mode.startsWith("r")) {
-            res = O_RDONLY;
-        } else {
-            throw new IllegalArgumentException("Bad mode: " + mode);
-        }
-        if (mode.indexOf('t') != -1) {
-            res |= O_TRUNC;
-        }
-        if (mode.indexOf('a') != -1) {
-            res |= O_APPEND;
-        }
-        return res;
+        // Note: since the list of supported modes have been documented already in
+        // ParcelFileDescriptor#parseMode(), this change is not protected by a compat change.
+        // Also, we're explicitly checking the permutations of the supported modes here to avoid
+        // throwing an exception for malformed mode strings (see b/414387646 for context).
+        return switch (mode) {
+            case "r" -> O_RDONLY;
+            case "w" -> O_WRONLY | O_CREAT;
+            case "wt", "tw" -> O_WRONLY | O_CREAT | O_TRUNC;
+            case "wa", "aw" -> O_WRONLY | O_CREAT | O_APPEND;
+            case "rw", "wr" -> O_RDWR | O_CREAT;
+            case "rwt", "rtw", "wrt", "wtr", "trw", "twr" -> O_RDWR | O_CREAT | O_TRUNC;
+            default -> throw new IllegalArgumentException("Bad mode: " + mode);
+        };
     }
 
     /** @hide */
@@ -1706,7 +1673,7 @@ public final class FileUtils {
             return -1;
         }
 
-        sMediaProviderAppId = UserHandle.getAppId(provider.applicationInfo.uid);
+        sMediaProviderAppId = UserHandle.getAppId(provider.getUid());
         return sMediaProviderAppId;
     }
 

@@ -168,6 +168,7 @@ public class DisplayTransformManager {
                 applyColorMatrix(computeColorMatrixLocked());
             }
         }
+        Slog.i(TAG, "SetColorMatrix level: " + level);
     }
 
     /**
@@ -186,6 +187,7 @@ public class DisplayTransformManager {
                 applyDaltonizerMode(mode, level);
             }
         }
+        Slog.i(TAG, "SetDaltonizerMode: " + mode + ", level: " + level);
     }
 
     /**

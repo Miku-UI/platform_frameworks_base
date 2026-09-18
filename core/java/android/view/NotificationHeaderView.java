@@ -16,7 +16,6 @@
 
 package android.view;
 
-import static android.app.Flags.notificationsRedesignTemplates;
 import static android.util.MathUtils.abs;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -192,16 +191,14 @@ public class NotificationHeaderView extends RelativeLayout {
      */
     @RemotableViewMethod
     public void centerTopLine(boolean center) {
-        if (notificationsRedesignTemplates()) {
-            // The content of the top line view is already center-aligned, but since the height
-            // matches the content by default, it looks top-aligned. If the height matches the
-            // parent instead, the text ends up correctly centered in the parent.
-            ViewGroup.LayoutParams lp = mTopLineView.getLayoutParams();
-            lp.height = center ? MATCH_PARENT : WRAP_CONTENT;
-            mTopLineView.setLayoutParams(lp);
+        // The content of the top line view is already center-aligned, but since the height matches
+        // the content by default, it looks top-aligned. If the height matches the parent instead,
+        // the text ends up correctly centered in the parent.
+        ViewGroup.LayoutParams lp = mTopLineView.getLayoutParams();
+        lp.height = center ? MATCH_PARENT : WRAP_CONTENT;
+        mTopLineView.setLayoutParams(lp);
 
-            centerExpandButton(center);
-        }
+        centerExpandButton(center);
     }
 
     /** Center expand button vertically. */
@@ -228,15 +225,13 @@ public class NotificationHeaderView extends RelativeLayout {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        if (notificationsRedesignTemplates()) {
-            // TODO: b/378660052 - These should never be null in practice, consider using
-            //  requireViewById() in the onFinishInflate.
-            if (mTopLineView != null) {
-                mTopLineTranslation = measureCenterTranslation(mTopLineView);
-            }
-            if (mExpandButton != null) {
-                mExpandButtonTranslation = measureCenterTranslation(mExpandButton);
-            }
+        // TODO: b/378660052 - These should never be null in practice, consider using
+        //  requireViewById() in the onFinishInflate.
+        if (mTopLineView != null) {
+            mTopLineTranslation = measureCenterTranslation(mTopLineView);
+        }
+        if (mExpandButton != null) {
+            mExpandButtonTranslation = measureCenterTranslation(mExpandButton);
         }
     }
 

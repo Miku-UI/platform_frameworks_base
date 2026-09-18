@@ -23,7 +23,8 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.statusbar.phone.systemUIDialogFactory
 import com.android.systemui.util.mockito.mock
-import com.android.systemui.volume.VolumePanelFactory
+import com.android.systemui.volume.VolumePanelDialogManager
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.panel.domain.interactor.volumePanelGlobalStateInteractor
 import com.android.systemui.volume.panel.ui.viewmodel.volumePanelViewModelFactory
 
@@ -32,11 +33,12 @@ val Kosmos.volumeNavigator by
         VolumeNavigator(
             testScope,
             mainCoroutineContext,
-            mock<VolumePanelFactory> { /* Unsupported and unused */},
+            mock<VolumePanelDialogManager> { /* Unsupported and unused */ },
             activityStarter,
             volumePanelViewModelFactory,
             systemUIDialogFactory,
             uiEventLoggerFake,
             volumePanelGlobalStateInteractor,
+            expandedAudioTileDetailsFeatureInteractor,
         )
     }

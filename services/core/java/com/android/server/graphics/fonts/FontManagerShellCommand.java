@@ -108,6 +108,9 @@ public class FontManagerShellCommand extends ShellCommand {
         w.println("update-family [family definition XML path]");
         w.println("    Update font families with the new definitions.");
         w.println();
+        w.println("update-fallbacks [fallback family definition XML path]");
+        w.println("    Update fallback font families with the new definitions.");
+        w.println();
         w.println("install-debug-cert [cert file path]");
         w.println("    Install debug certificate file. This command can be used only on");
         w.println("    debuggable device with root user.");
@@ -503,6 +506,73 @@ public class FontManagerShellCommand extends ShellCommand {
         }
     }
 
+    private int updateFallbacks(ShellCommand shell) throws SystemFontException {
+        String xmlPath = shell.getNextArg();
+        if (xmlPath == null) {
+            throw new SystemFontException(
+                    FontManager.RESULT_ERROR_INVALID_SHELL_ARGUMENT,
+                    "XML file path argument is required.");
+        }
+
+        List<FontUpdateRequest> requests;
+        try (ParcelFileDescriptor xmlFd = shell.openFileForSystem(xmlPath, "r")) {
+            requests = parseFallbackFontUpdateXml(new FileInputStream(xmlFd.getFileDescriptor()));
+        } catch (IOException e) {
+            throw new SystemFontException(
+                    FontManager.RESULT_ERROR_FAILED_TO_OPEN_XML_FILE,
+                    "Failed to open XML file.", e);
+        }
+        mService.updateFallbacks(requests);
+        shell.getOutPrintWriter().println("Success");
+        return 0;
+    }
+
+    /**
+     * Parses XML representing {@link android.graphics.fonts.FallbackFontUpdateRequest}.
+     *
+     * <p>The format is like:
+     * <pre>{@code
+     *   <fallbackFontUpdateRequest>
+     *       <family lang="und-Zsye" priority="1">
+     *           <font name="postScriptName"/>
+     *       </family>
+     *   </fallbackFontUpdateRequest>
+     * }</pre>
+     */
+    private static List<FontUpdateRequest> parseFallbackFontUpdateXml(InputStream inputStream)
+            throws SystemFontException {
+        try {
+            TypedXmlPullParser parser = Xml.resolvePullParser(inputStream);
+            List<FontUpdateRequest> requests = new ArrayList<>();
+            int type;
+            while ((type = parser.next()) != XmlPullParser.END_DOCUMENT) {
+                if (type != XmlPullParser.START_TAG) {
+                    continue;
+                }
+                final int depth = parser.getDepth();
+                final String tag = parser.getName();
+                if (depth == 1) {
+                    if (!"fallbackFontUpdateRequest".equals(tag)) {
+                        throw new SystemFontException(FontManager.RESULT_ERROR_INVALID_XML,
+                                "Expected <fallbackFontUpdateRequest> but got: " + tag);
+                    }
+                } else if (depth == 2) {
+                    if ("family".equals(tag)) {
+                        requests.add(new FontUpdateRequest(
+                                FontUpdateRequest.Family.readFromXml(parser)));
+                    } else {
+                        throw new SystemFontException(FontManager.RESULT_ERROR_INVALID_XML,
+                                "Expected <family> but got: " + tag);
+                    }
+                }
+            }
+            return requests;
+        } catch (IOException | XmlPullParserException e) {
+            throw new SystemFontException(0, "Failed to parse xml", e);
+        }
+    }
+
+
     private int clear(ShellCommand shell) {
         mService.clearUpdates();
         shell.getOutPrintWriter().println("Success");
@@ -543,6 +613,8 @@ public class FontManagerShellCommand extends ShellCommand {
                     return update(shell);
                 case "update-family":
                     return updateFamily(shell);
+                case "update-fallbacks":
+                    return updateFallbacks(shell);
                 case "clear":
                     return clear(shell);
                 case "restart":

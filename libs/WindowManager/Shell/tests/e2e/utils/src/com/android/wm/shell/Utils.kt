@@ -17,12 +17,11 @@
 package com.android.wm.shell
 
 import android.app.Instrumentation
-import android.content.Intent
+import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.platform.test.rule.EnsureDeviceSettingsRule
 import android.platform.test.rule.NavigationModeRule
 import android.platform.test.rule.PressHomeRule
 import android.platform.test.rule.UnlockScreenRule
-import android.provider.Settings
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.device.apphelpers.MessagingAppHelper
@@ -30,13 +29,13 @@ import android.tools.flicker.rules.ArtifactSaverRule
 import android.tools.flicker.rules.ChangeDisplayOrientationRule
 import android.tools.flicker.rules.LaunchAppRule
 import android.tools.flicker.rules.RemoveAllTasksButHomeRule
+import android.tools.traces.component.ComponentNameMatcher
+import android.tools.traces.parsers.WindowManagerStateHelper
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.uiautomator.By.res
-import androidx.test.uiautomator.By.text
 import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.Until.findObject
-import com.android.compatibility.common.util.UiAutomatorUtils2.waitFindObject
+import com.android.launcher3.tapl.BaseOverview
+import com.android.launcher3.tapl.LauncherInstrumentation
 import java.io.IOException
 import org.junit.rules.RuleChain
 
@@ -44,32 +43,53 @@ object Utils {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val device = UiDevice.getInstance(instrumentation)
 
-    private val settingsResources = instrumentation.context.packageManager
-        .getResourcesForApplication(SETTINGS_PACKAGE_NAME)
-
-    private val externalDisplaySettings = getSettingsString(EXTERNAL_DISPLAY_SETTING)
+    private val settingsResources =
+        instrumentation.context.packageManager.getResourcesForApplication(SETTINGS_PACKAGE_NAME)
 
     /**
      * A helper method to initialize a [RuleChain] to set up [navigationMode] and screen [rotation].
      *
-     * @param navigationMode the navigation mode to set up, either one of [NavBar.MODE_GESTURAL]
-     * or [NavBar.MODE_3BUTTON].
+     * @param navigationMode the navigation mode to set up, either one of [NavBar.MODE_GESTURAL] or
+     *   [NavBar.MODE_3BUTTON].
      * @param rotation the screen rotation to apply, which defaults to [Rotation.ROTATION_0]
      * @return the [RuleChain] to set up the [navigationMode] and [rotation].
      */
-    fun testSetupRule(navigationMode: NavBar, rotation: Rotation = Rotation.ROTATION_0): RuleChain {
+    fun testSetupRuleFunctional(navigationMode: NavBar, rotation: Rotation = Rotation.ROTATION_0) =
+        testSetupRule(navigationMode, rotation, skipRulesForFlickerTest = true)
+
+    /**
+     * A helper method to initialize a [RuleChain] to set up [navigationMode] and screen [rotation].
+     *
+     * @param navigationMode the navigation mode to set up, either one of [NavBar.MODE_GESTURAL] or
+     *   [NavBar.MODE_3BUTTON].
+     * @param rotation the screen rotation to apply, which defaults to [Rotation.ROTATION_0]
+     * @param skipFlickerRules whether to skip rules needed only for flicker tests
+     * @return the [RuleChain] to set up the [navigationMode] and [rotation].
+     */
+    fun testSetupRule(
+        navigationMode: NavBar,
+        rotation: Rotation = Rotation.ROTATION_0,
+        skipRulesForFlickerTest: Boolean = false,
+    ): RuleChain {
         return RuleChain.outerRule(ArtifactSaverRule())
             .around(UnlockScreenRule())
             .around(NavigationModeRule(navigationMode.value, false))
             .around(
-                LaunchAppRule(MessagingAppHelper(instrumentation), clearCacheAfterParsing = false)
+                if (skipRulesForFlickerTest) {
+                    RuleChain.emptyRuleChain()
+                } else {
+                    LaunchAppRule(
+                        MessagingAppHelper(instrumentation),
+                        clearCacheAfterParsing = false,
+                    )
+                }
             )
             .around(RemoveAllTasksButHomeRule())
             .around(
                 ChangeDisplayOrientationRule(
                     rotation,
                     resetOrientationAfterTest = false,
-                    clearCacheAfterParsing = false
+                    clearCacheAfterParsing = false,
                 )
             )
             .around(PressHomeRule())
@@ -88,39 +108,110 @@ object Utils {
         }
     }
 
-    fun toggleMirroringSwitchViaSettingsApp() {
-        // Launch the Settings app and open the "External Display" settings list
-        instrumentation.context
-            .startActivity(
-                Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
-                    .addCategory(Intent.CATEGORY_DEFAULT)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            )
-        waitFindObject(text(externalDisplaySettings)).click()
+    fun isInDesktopFirstMode(wmHelper: WindowManagerStateHelper, displayId: Int): Boolean =
+        wmHelper.currentState.wmState
+            .getDisplay(displayId)
+            ?.getTaskDisplayArea(ComponentNameMatcher.LAUNCHER)
+            ?.windowingMode == WINDOWING_MODE_FREEFORM
 
-        // Maximize Settings app's window to avoid scrolling on the display topology settings panel
-        // when looking for the mirroring switch
-        val maximizeButton = device.wait(findObject(res(SETTINGS_MAXIMIZE_BUTTON_ID)),
-            SETTINGS_UPDATE_TIME_OUT)
-        maximizeButton?.click()
-
-        // Find the mirroring switch and toggle it
-        val switch = checkNotNull(device.wait(findObject(res(MIRROR_BUILT_IN_DISPLAY_SWITCH_ID)),
-            SETTINGS_UPDATE_TIME_OUT))
-        switch.click()
-        device.waitForWindowUpdate(SETTINGS_PACKAGE_NAME, SETTINGS_UPDATE_TIME_OUT)
-        device.waitForIdle()
+    /** Clears remembered bounds for all packages. */
+    fun clearAllRememberedDesktopBounds() {
+        try {
+            device.executeShellCommand("wm shell desktopmode clearAllRememberedBounds")
+        } catch (e: IOException) {
+            Log.e("TestUtils", "Failed to clear all remembered bounds", e)
+        }
     }
 
-    private fun getSettingsString(resName: String): String {
-        val identifier = settingsResources.getIdentifier(resName, "string",
-            SETTINGS_PACKAGE_NAME)
-        return settingsResources.getString(identifier)
+    /** Clears remembered first-run prompt acked packages for the given user and package. */
+    fun clearAppToWebFirstRunPromptAcked(packageName: String) {
+        try {
+            device.executeShellCommand(
+                "wm shell apptoweb clearAppToWebFirstRunPromptAcked $packageName"
+            )
+        } catch (e: IOException) {
+            Log.e("TestUtils", "Failed to clear first-run prompt acked packages", e)
+        }
+    }
+
+    /** Sets the app links user selection for the given user and package. */
+    fun setAppLinksUserSelection(packageName: String) {
+        try {
+            device.executeShellCommand(
+                "pm set-app-links-user-selection --user cur --package $packageName true all"
+            )
+        } catch (e: IOException) {
+            Log.e("TestUtils", "Failed to set app links user selection", e)
+        }
+    }
+
+    /** Sets the app links user selection for the given user and package. */
+    fun setAppLinksAllowed(packageName: String) {
+        try {
+            device.executeShellCommand(
+                "pm set-app-links-allowed --user cur --package $packageName true"
+            )
+        } catch (e: IOException) {
+            Log.e("TestUtils", "Failed to set app links user selection", e)
+        }
+    }
+
+    /**
+     * Convenient function supporting overview switch on both cases where home screen is shown
+     * behind freeform tasks or completely hidden behind a task.
+     *
+     * @see [LauncherInstrumentation.shouldShowHomeBehindDesktop]
+     */
+    fun switchToOverview(tapl: LauncherInstrumentation): BaseOverview {
+        // If home screen is shown behind freeform tasks, overview couldn't be launched by
+        // interacting with launched apps, i.e. swiping up will not work, and 3 nav bars don't
+        // appear on the taskbar. Therefore, it has to be opened through keyboard shortcut
+        return if (tapl.shouldShowHomeBehindDesktop()) {
+            tapl.workspace.openOverviewFromActionPlusTabKeyboardShortcut()
+        } else tapl.launchedAppState.switchToOverview()
+    }
+
+    /**
+     * Returns the boolean value of the given settings resource.
+     *
+     * @param resName the name of the settings resource to retrieve
+     * @return the boolean value of the settings resource, or null if the resource is not found
+     */
+    fun getSettingsBoolean(resName: String): Boolean? {
+        val identifier = settingsResources.getIdentifier(resName, "bool", SETTINGS_PACKAGE_NAME)
+        if (identifier == 0) {
+            Log.w("TestUtils", "Boolean setting resource not found for '$resName'.")
+            return null
+        }
+
+        return try {
+            settingsResources.getBoolean(identifier)
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            Log.w("TestUtils", "Boolean setting not found for '$resName'.", e)
+            null
+        }
+    }
+
+    /**
+     * Returns the boolean value of the given resource name.
+     *
+     * @param resName the name of the resource to retrieve
+     * @return the boolean value of the resource, or null if the resource is not found
+     */
+    fun getBooleanConfig(resName: String): Boolean? {
+        val resources = instrumentation.context.resources
+        val identifier = resources.getIdentifier(resName, "bool", "android")
+        if (identifier == 0) {
+            Log.w("TestUtils", "Boolean resource not found for '$resName'.")
+            return null
+        }
+        return try {
+            return resources.getBoolean(identifier)
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            Log.w("TestUtils", "Boolean resource not found for '$resName'.", e)
+            null
+        }
     }
 
     private const val SETTINGS_PACKAGE_NAME = "com.android.settings"
-    private const val EXTERNAL_DISPLAY_SETTING = "external_display_settings_title"
-    private const val SETTINGS_MAXIMIZE_BUTTON_ID = "com.android.systemui:id/maximize_window"
-    private const val MIRROR_BUILT_IN_DISPLAY_SWITCH_ID = "com.android.settings:id/switchWidget"
-    private const val SETTINGS_UPDATE_TIME_OUT: Long = 2000
 }

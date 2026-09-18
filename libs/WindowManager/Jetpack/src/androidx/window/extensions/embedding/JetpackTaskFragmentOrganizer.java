@@ -112,9 +112,9 @@ class JetpackTaskFragmentOrganizer extends TaskFragmentOrganizer {
     /**
      * Starts a new Activity and puts it into split with an existing Activity side-by-side.
      * @param launchingFragmentToken    token for the launching TaskFragment. If it exists, it will
-     *                                  be resized based on {@param launchingFragmentBounds}.
+     *                                  be resized based on {@code launchingRelBounds}.
      *                                  Otherwise, we will create a new TaskFragment with the given
-     *                                  token for the {@param launchingActivity}.
+     *                                  token for the {@code launchingActivity}.
      * @param launchingRelBounds    the initial relative bounds for the launching TaskFragment.
      * @param launchingActivity the Activity to put on the left hand side of the split as the
      *                          primary.

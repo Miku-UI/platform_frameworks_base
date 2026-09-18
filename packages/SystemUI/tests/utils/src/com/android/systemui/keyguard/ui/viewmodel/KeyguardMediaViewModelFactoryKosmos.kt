@@ -16,10 +16,12 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryBypassInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarouselInteractor
 import com.android.systemui.media.remedia.ui.viewmodel.factory.mediaViewModelFactory
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 
 val Kosmos.keyguardMediaViewModelFactory by
     Kosmos.Fixture {
@@ -29,6 +31,8 @@ val Kosmos.keyguardMediaViewModelFactory by
                     mediaViewModelFactory = mediaViewModelFactory,
                     mediaCarouselInteractor = mediaCarouselInteractor,
                     keyguardInteractor = keyguardInteractor,
+                    shadeModeInteractor = shadeModeInteractor,
+                    deviceEntryBypassInteractor = deviceEntryBypassInteractor,
                 )
             }
         }

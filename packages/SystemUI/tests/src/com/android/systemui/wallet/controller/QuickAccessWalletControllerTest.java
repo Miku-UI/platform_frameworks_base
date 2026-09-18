@@ -38,6 +38,7 @@ import android.app.role.RoleManager;
 import android.content.Intent;
 import android.os.UserHandle;
 import android.platform.test.annotations.EnableFlags;
+import android.provider.Settings;
 import android.service.quickaccesswallet.GetWalletCardsRequest;
 import android.service.quickaccesswallet.QuickAccessWalletClient;
 import android.testing.TestableLooper;
@@ -132,6 +133,44 @@ public class QuickAccessWalletControllerTest extends SysuiTestCase {
         mController.updateWalletPreference();
 
         assertTrue(mController.isWalletEnabled());
+    }
+
+    @Test
+    public void doubleTapPowerButtonToWallet_enabled() {
+        assertTrue(mController.setupDoubleTapPowerButtonToOpenWallet());
+
+        assertEquals(1, Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.DOUBLE_TAP_POWER_BUTTON_GESTURE, 0));
+    }
+
+    @Test
+    public void doubleTapPowerButtonToWallet_serviceUnavailable_NotUpdate() {
+        when(mQuickAccessWalletClient.isWalletServiceAvailable()).thenReturn(false);
+
+        assertFalse(mController.setupDoubleTapPowerButtonToOpenWallet());
+
+        assertEquals(0, Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.DOUBLE_TAP_POWER_BUTTON_GESTURE, 0));
+    }
+
+    @Test
+    public void doubleTapPowerButtonToWallet_walletFeatureUnavailable_NotUpdate() {
+        when(mQuickAccessWalletClient.isWalletFeatureAvailable()).thenReturn(false);
+
+        assertFalse(mController.setupDoubleTapPowerButtonToOpenWallet());
+
+        assertEquals(0, Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.DOUBLE_TAP_POWER_BUTTON_GESTURE, 0));
+    }
+
+    @Test
+    public void doubleTapPowerButtonToWallet_walletFeatureWhenLockedUnavailable_NotUpdate() {
+        when(mQuickAccessWalletClient.isWalletFeatureAvailableWhenDeviceLocked()).thenReturn(false);
+
+        assertFalse(mController.setupDoubleTapPowerButtonToOpenWallet());
+
+        assertEquals(0, Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.DOUBLE_TAP_POWER_BUTTON_GESTURE, 0));
     }
 
     @Test

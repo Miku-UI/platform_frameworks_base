@@ -25,11 +25,14 @@ import static android.security.authenticationpolicy.AuthenticationPolicyManager.
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_ADAPTIVE_AUTH_REQUEST;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -39,6 +42,7 @@ import static org.mockito.Mockito.when;
 
 import android.annotation.SuppressLint;
 import android.app.KeyguardManager;
+import android.companion.DeviceId;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
@@ -67,6 +71,7 @@ import com.android.server.LocalServices;
 import com.android.server.locksettings.LockSettingsInternal;
 import com.android.server.locksettings.LockSettingsStateListener;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.security.authenticationpolicy.agent.AgentAuthServiceInternal;
 import com.android.server.wm.WindowManagerInternal;
 
 import org.junit.After;
@@ -116,6 +121,8 @@ public class AuthenticationPolicyServiceTest {
     private SecureLockDeviceServiceInternal mSecureLockDeviceService;
     @Mock
     private WatchRangingServiceInternal mWatchRangingService;
+    @Mock
+    private AgentAuthServiceInternal mAgentAuthService;
 
     @Captor
     ArgumentCaptor<LockSettingsStateListener> mLockSettingsStateListenerCaptor;
@@ -151,6 +158,8 @@ public class AuthenticationPolicyServiceTest {
         LocalServices.addService(UserManagerInternal.class, mUserManager);
         LocalServices.removeServiceForTest(WatchRangingServiceInternal.class);
         LocalServices.addService(WatchRangingServiceInternal.class, mWatchRangingService);
+        LocalServices.removeServiceForTest(AgentAuthServiceInternal.class);
+        LocalServices.addService(AgentAuthServiceInternal.class, mAgentAuthService);
 
         if (secureLockdown()) {
             LocalServices.removeServiceForTest(SecureLockDeviceServiceInternal.class);
@@ -174,7 +183,7 @@ public class AuthenticationPolicyServiceTest {
             when(mSecureLockDeviceService.enableSecureLockDevice(eq(UserHandle.of(PRIMARY_USER_ID)),
                     any())).thenReturn(SUCCESS);
             when(mSecureLockDeviceService.disableSecureLockDevice(
-                    eq(UserHandle.of(PRIMARY_USER_ID)), any(), anyBoolean())).thenReturn(SUCCESS);
+                    eq(UserHandle.of(PRIMARY_USER_ID)), any())).thenReturn(SUCCESS);
         }
 
         toggleAdaptiveAuthSettingsOverride(PRIMARY_USER_ID, false /* disable */);
@@ -219,7 +228,6 @@ public class AuthenticationPolicyServiceTest {
 
     @Test
     @EnableFlags({android.security.Flags.FLAG_FAILED_AUTH_LOCK_TOGGLE})
-    @DisableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     public void testConfig_failedAuthLockToggle_whenDisabled() throws RemoteException {
         // The feature is enabled, but the toggle is disabled in config
         clearSettingsAndInitService(true /* featureEnabled */, false /* toggleEnabled */);
@@ -244,7 +252,6 @@ public class AuthenticationPolicyServiceTest {
 
     @Test
     @EnableFlags({android.security.Flags.FLAG_FAILED_AUTH_LOCK_TOGGLE})
-    @DisableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     public void testConfig_failedAuthLockToggle_whenEnabled() throws RemoteException {
         // The feature and the toggle are enabled in config
         clearSettingsAndInitService(true /* featureEnabled */, true /* toggleEnabled */);
@@ -420,7 +427,6 @@ public class AuthenticationPolicyServiceTest {
     }
 
     @Test
-    @EnableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     public void testReportAuthAttempt_biometricAuthFailed_multiple_deviceCurrentlyNotLocked_deviceLockEnabled()
             throws RemoteException {
         testReportAuthAttempt_biometricAuthFailed_multiple_deviceCurrentlyNotLocked(
@@ -428,7 +434,6 @@ public class AuthenticationPolicyServiceTest {
     }
 
     @Test
-    @EnableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     public void testReportAuthAttempt_biometricAuthFailed_multiple_deviceCurrentlyNotLocked_deviceLockDisabled()
             throws RemoteException {
         toggleAdaptiveAuthSettingsOverride(PRIMARY_USER_ID, true /* disabled */);
@@ -488,7 +493,6 @@ public class AuthenticationPolicyServiceTest {
     }
 
     @Test
-    @EnableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     public void testReportAuthAttempt_primaryAuthAndBiometricAuthFailed_primaryUser_deviceLockEnabled()
             throws RemoteException {
         testReportAuthAttempt_primaryAuthAndBiometricAuthFailed_primaryUser(
@@ -496,7 +500,6 @@ public class AuthenticationPolicyServiceTest {
     }
 
     @Test
-    @EnableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     public void testReportAuthAttempt_primaryAuthAndBiometricAuthFailed_primaryUser_deviceLockDisabled()
             throws RemoteException {
         toggleAdaptiveAuthSettingsOverride(PRIMARY_USER_ID, true /* disabled */);
@@ -505,7 +508,6 @@ public class AuthenticationPolicyServiceTest {
     }
 
     @Test
-    @DisableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     @EnableFlags({android.security.Flags.FLAG_FAILED_AUTH_LOCK_TOGGLE})
     public void testReportAuthAttempt_primaryAuthAndBiometricAuthFailed_primaryUserAndProfile_deviceLockDisabled()
             throws RemoteException {
@@ -542,7 +544,6 @@ public class AuthenticationPolicyServiceTest {
     }
 
     @Test
-    @DisableFlags({android.security.Flags.FLAG_DISABLE_ADAPTIVE_AUTH_COUNTER_LOCK})
     @EnableFlags({android.security.Flags.FLAG_FAILED_AUTH_LOCK_TOGGLE})
     public void testReportAuthAttempt_primaryAuthAndBiometricAuthFailed_profile_deviceLockEnabled()
             throws RemoteException {
@@ -573,6 +574,60 @@ public class AuthenticationPolicyServiceTest {
         } else {
             verifyNotLockDevice(MAX_ALLOWED_FAILED_AUTH_ATTEMPTS, MANAGED_PROFILE_USER_ID);
         }
+    }
+
+    @Test
+    @EnableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testSetAgentAuthorizedByDeviceId_callsAgentAuthService()
+            throws RemoteException {
+        int deviceId = 456;
+        when(mAgentAuthService.setOverrideForDeviceId(PRIMARY_USER_ID, deviceId, true)).thenReturn(true);
+
+        boolean result = mAuthenticationPolicyService.getBinderService()
+                .setAgentAuthorizedByDeviceId(UserHandle.of(PRIMARY_USER_ID), deviceId, true);
+
+        assertThat(result).isTrue();
+        verify(mAgentAuthService).setOverrideForDeviceId(PRIMARY_USER_ID, deviceId, true);
+    }
+
+    @Test
+    @DisableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testSetAgentAuthorizedByDeviceId_flagDisabled_returnsFalse()
+            throws RemoteException {
+        int deviceId = 456;
+
+        boolean result = mAuthenticationPolicyService.getBinderService()
+                .setAgentAuthorizedByDeviceId(UserHandle.of(PRIMARY_USER_ID), deviceId, true);
+
+        assertThat(result).isFalse();
+        verify(mAgentAuthService, never()).setOverrideForDeviceId(anyInt(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    @EnableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testSetAgentAuthorizedByAssociationId_callsAgentAuthService()
+            throws RemoteException {
+        int associationId = 123;
+        when(mAgentAuthService.setOverrideForAssociationId(PRIMARY_USER_ID, associationId, true)).thenReturn(true);
+
+        boolean result = mAuthenticationPolicyService.getBinderService()
+                .setAgentAuthorizedByAssociationId(UserHandle.of(PRIMARY_USER_ID), associationId, true);
+
+        assertThat(result).isTrue();
+        verify(mAgentAuthService).setOverrideForAssociationId(PRIMARY_USER_ID, associationId, true);
+    }
+
+    @Test
+    @DisableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testSetAgentAuthorizedByAssociationId_flagDisabled_returnsFalse()
+            throws RemoteException {
+        int associationId = 123;
+
+        boolean result = mAuthenticationPolicyService.getBinderService()
+                .setAgentAuthorizedByAssociationId(UserHandle.of(PRIMARY_USER_ID), associationId, true);
+
+        assertThat(result).isFalse();
+        verify(mAgentAuthService, never()).setOverrideForAssociationId(anyInt(), anyInt(), anyBoolean());
     }
 
     private void verifyNotLockDevice(int expectedCntFailedAttempts, int userId) {
@@ -620,5 +675,74 @@ public class AuthenticationPolicyServiceTest {
     private void toggleAdaptiveAuthSettingsOverride(int userId, boolean disable) {
         Settings.Secure.putIntForUser(mContext.getContentResolver(),
                 Settings.Secure.DISABLE_ADAPTIVE_AUTH_LIMIT_LOCK, disable ? 1 : 0, userId);
+    }
+
+    @Test
+    @EnableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testIsAgentAuthorizedByDeviceId_callsAgentAuthService() throws RemoteException {
+        int deviceId = 456;
+        when(mAgentAuthService.isAgentAuthorizedByDeviceId(PRIMARY_USER_ID, deviceId))
+                .thenReturn(true);
+
+        boolean result = mAuthenticationPolicyService.getBinderService().isAgentAuthorizedByDeviceId(
+                UserHandle.of(PRIMARY_USER_ID), deviceId);
+
+        assertThat(result).isTrue();
+        verify(mAgentAuthService).isAgentAuthorizedByDeviceId(PRIMARY_USER_ID, deviceId);
+    }
+
+    @Test
+    @DisableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testIsAgentAuthorizedByDeviceId_flagDisabled_returnsFalse() throws RemoteException {
+        int deviceId = 456;
+
+        boolean result = mAuthenticationPolicyService.getBinderService().isAgentAuthorizedByDeviceId(
+                UserHandle.of(PRIMARY_USER_ID), deviceId);
+
+        assertThat(result).isFalse();
+        verify(mAgentAuthService, never()).isAgentAuthorizedByDeviceId(anyInt(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testIsAgentAuthorized_callsAgentAuthService() throws RemoteException {
+        DeviceId deviceId = new DeviceId.Builder().setCustomId("123").build();
+        int mainDeviceId = Context.DEVICE_ID_DEFAULT;
+        when(mAgentAuthService.isAgentAuthorized(PRIMARY_USER_ID, mainDeviceId, deviceId))
+                .thenReturn(true);
+
+        boolean result = mAuthenticationPolicyService.getBinderService().isAgentAuthorized(
+                UserHandle.of(PRIMARY_USER_ID), mainDeviceId, deviceId);
+
+        assertThat(result).isTrue();
+        verify(mAgentAuthService).isAgentAuthorized(PRIMARY_USER_ID, mainDeviceId, deviceId);
+    }
+
+    @Test
+    @DisableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testIsAgentAuthorized_flagDisabled_returnsFalse() throws RemoteException {
+        DeviceId deviceId = new DeviceId.Builder().setCustomId("123").build();
+        int mainDeviceId = Context.DEVICE_ID_DEFAULT;
+
+        boolean result = mAuthenticationPolicyService.getBinderService().isAgentAuthorized(
+                UserHandle.of(PRIMARY_USER_ID), mainDeviceId, deviceId);
+
+        assertThat(result).isFalse();
+        verify(mAgentAuthService, never()).isAgentAuthorized(anyInt(), anyInt(), any());
+    }
+
+    @Test
+    @EnableFlags(android.companion.Flags.FLAG_SUPPORT_AI_AGENT)
+    public void testIsAgentAuthorizedByAssociationId_callsAgentAuthService()
+            throws RemoteException {
+        int associationId = 123;
+        when(mAgentAuthService.isAgentAuthorizedByAssociationId(PRIMARY_USER_ID, associationId))
+                .thenReturn(true);
+
+        boolean result = mAuthenticationPolicyService.getBinderService()
+                .isAgentAuthorizedByAssociationId(UserHandle.of(PRIMARY_USER_ID), associationId);
+
+        assertThat(result).isTrue();
+        verify(mAgentAuthService).isAgentAuthorizedByAssociationId(PRIMARY_USER_ID, associationId);
     }
 }

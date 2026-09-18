@@ -18,6 +18,9 @@ package com.android.settingslib.users;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -28,6 +31,7 @@ import static org.mockito.Mockito.when;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -72,7 +76,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         final AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, null,
+                mActivityStarter, true, true, null,
                 cancelCallback);
         dialog.show();
         assertThat(dialog.findViewById(R.id.button_ok).isEnabled()).isEqualTo(true);
@@ -89,7 +93,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         final AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, false, null,
+                mActivityStarter, false, true, null,
                 cancelCallback);
         dialog.show();
         assertThat(dialog.findViewById(R.id.grant_admin_view).getVisibility()).isEqualTo(View.GONE);
@@ -105,10 +109,30 @@ public class CreateUserDialogControllerTest {
     }
 
     @Test
+    public void positiveButton_editUserInfoInSuW_shouldSkipEditUserInfoStage() {
+        NewUserData successCallback = mock(NewUserData.class);
+        Runnable cancelCallback = mock(Runnable.class);
+
+        final AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
+                mActivityStarter, true, false, successCallback,
+                cancelCallback);
+        dialog.show();
+        assertThat(dialog.findViewById(R.id.button_ok).isEnabled()).isEqualTo(true);
+        Button next = dialog.findViewById(R.id.button_ok);
+        next.performClick();
+        ((RadioButton) dialog.findViewById(R.id.grant_admin_yes)).setChecked(true);
+        assertThat(next.getText().toString()).isEqualTo("Done");
+        next.performClick();
+        verify(successCallback, times(1))
+                .onSuccess(eq("New user"), any(Drawable.class), isNull(), eq(true));
+        verifyNoInteractions(cancelCallback);
+    }
+
+    @Test
     public void editUserInfoController_shouldOnlyBeVisibleOnLastStage() {
         Runnable cancelCallback = mock(Runnable.class);
         final AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, null,
+                mActivityStarter, true, true, null,
                 cancelCallback);
         dialog.show();
         assertThat(dialog.findViewById(R.id.user_info_editor).getVisibility()).isEqualTo(View.GONE);
@@ -127,7 +151,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         final AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, null,
+                mActivityStarter, true, true, null,
                 cancelCallback);
         dialog.show();
         assertThat(dialog.findViewById(R.id.grant_admin_view).getVisibility()).isEqualTo(View.GONE);
@@ -148,7 +172,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, successCallback,
+                mActivityStarter, true, true, successCallback,
                 cancelCallback);
         dialog.show();
         dialog.cancel();
@@ -163,7 +187,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, successCallback,
+                mActivityStarter, true, true, successCallback,
                 cancelCallback);
         dialog.show();
         Button back = dialog.findViewById(R.id.button_cancel);
@@ -179,7 +203,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, successCallback,
+                mActivityStarter, true, true, successCallback,
                 cancelCallback);
         dialog.show();
         Button next = dialog.findViewById(R.id.button_ok);
@@ -197,7 +221,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, true, successCallback,
+                mActivityStarter, true, true, successCallback,
                 cancelCallback);
         // No photo chosen
         when(mUnderTest.getPhotoController().getNewUserPhotoDrawable()).thenReturn(null);
@@ -221,7 +245,7 @@ public class CreateUserDialogControllerTest {
         Runnable cancelCallback = mock(Runnable.class);
 
         AlertDialog dialog = (AlertDialog) mUnderTest.createDialog(mActivity,
-                mActivityStarter, false, successCallback,
+                mActivityStarter, false, true, successCallback,
                 cancelCallback);
         // No photo chosen
         when(mUnderTest.getPhotoController().getNewUserPhotoDrawable()).thenReturn(null);

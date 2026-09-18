@@ -89,7 +89,7 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
     class Param(
         val emulationSpec: DeviceEmulationSpec,
         val draggedObject: DraggedObject,
-        val splitScreenMode: SplitScreenMode
+        val splitScreenMode: SplitScreenMode,
     ) {
         private val draggedObjectName =
             when (draggedObject) {
@@ -119,7 +119,7 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
     val screenshotRule =
         ViewScreenshotTestRule(
             param.emulationSpec,
-            WMShellGoldenPathManager(getEmulatedDevicePathConfig(param.emulationSpec))
+            WMShellGoldenPathManager(getEmulatedDevicePathConfig(param.emulationSpec)),
         )
 
     private val context = getApplicationContext<Context>()
@@ -142,11 +142,14 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
             DeviceConfig.create(context, context.getSystemService(WindowManager::class.java)!!)
         val splitScreenModeChecker = SplitScreenModeChecker { param.splitScreenMode }
         val desktopWindowModeChecker = DesktopWindowModeChecker { true }
-        val bubbleBarPropertiesProvider = object : BubbleBarPropertiesProvider {
-            override fun getHeight() = 80
-            override fun getWidth() = 100
-            override fun getBottomPadding() = 40
-        }
+        val bubbleBarPropertiesProvider =
+            object : BubbleBarPropertiesProvider {
+                override fun getHeight() = 80
+
+                override fun getWidth() = 100
+
+                override fun getBottomPadding() = 40
+            }
         return DragZoneFactory(
             context,
             deviceConfig,
@@ -168,8 +171,7 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
                 view.y = bounds.rect.top.toFloat()
             }
             is DragZone.Bounds.CircleZone -> {
-                view.layoutParams =
-                    FrameLayout.LayoutParams(bounds.radius * 2, bounds.radius * 2)
+                view.layoutParams = FrameLayout.LayoutParams(bounds.radius * 2, bounds.radius * 2)
                 view.background = createZoneDrawable(zone.color, GradientDrawable.OVAL)
                 view.x = (bounds.x - bounds.radius).toFloat()
                 view.y = (bounds.y - bounds.radius).toFloat()

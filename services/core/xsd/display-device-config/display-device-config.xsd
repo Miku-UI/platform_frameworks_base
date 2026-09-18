@@ -120,6 +120,9 @@
                 <xs:element type="sensorDetails" name="tempSensor">
                     <xs:annotation name="final"/>
                 </xs:element>
+                <xs:element type="sensorDetails" name="colorSensor" minOccurs="0" maxOccurs="1">
+                    <xs:annotation name="final"/>
+                </xs:element>
 
                 <!-- Length of the ambient light horizon used to calculate the long & short term
                 estimates of ambient light in milliseconds.-->
@@ -190,6 +193,21 @@
                 <!-- The default screen brightness in the scale [0, 1] to use while the device is
                 dozing. -->
                 <xs:element type="nonNegativeDecimal" name="defaultDozeBrightness">
+                    <xs:annotation name="final"/>
+                </xs:element>
+                <!-- The frame rate / velocity mapping -->
+                <!-- Format: first = frame rate per second,
+                    second = dp (density-independent pixels) per second. E.g. :
+                    <frameRateVelocityData>
+                        <point>
+                            <first>120</first>   // frame rate per second
+                            <second>300</second> // dp per second
+                        </point>
+                        ....
+                    </frameRateVelocityData>
+                -->
+                <xs:element type="nonNegativeFloatToFloatMap" name="frameRateVelocityMapping" minOccurs="0" maxOccurs="1">
+                    <xs:annotation name="nullable"/>
                     <xs:annotation name="final"/>
                 </xs:element>
             </xs:sequence>
@@ -387,6 +405,9 @@
             <xs:element type="refreshRateThrottlingMap" name="refreshRateThrottlingMap" maxOccurs="unbounded">
                 <xs:annotation name="final"/>
             </xs:element>
+            <xs:element type="workDurationsThrottlingMap" name="workDurationsThrottlingMap" maxOccurs="unbounded">
+                <xs:annotation name="final"/>
+            </xs:element>
         </xs:sequence>
     </xs:complexType>
 
@@ -398,6 +419,28 @@
                 <xs:annotation name="final"/>
             </xs:element>
         </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="workDurationsThrottlingPair">
+        <xs:sequence>
+            <xs:element type="thermalStatus" name="thermalStatus">
+                <xs:annotation name="nonnull"/>
+                <xs:annotation name="final"/>
+            </xs:element>
+            <xs:element type="workDurations" name="thermalThrottlingWorkDurations">
+                <xs:annotation name="nullable"/>
+                <xs:annotation name="final"/>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="workDurationsThrottlingMap">
+        <xs:sequence>
+            <xs:element name="workDurationsThrottlingPair" type="workDurationsThrottlingPair" maxOccurs="unbounded">
+                <xs:annotation name="final"/>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:string"/>
     </xs:complexType>
 
     <xs:complexType name="refreshRateThrottlingPoint">
@@ -718,6 +761,43 @@
                 minOccurs="0" maxOccurs="1">
                 <xs:annotation name="final"/>
             </xs:element>
+            <!-- Values used to compute the brightness ramp animation. -->
+            <xs:element name="brighteningRampGamma" type="nonNegativeDecimal" minOccurs="0" maxOccurs="1">
+                <xs:annotation name="final"/>
+            </xs:element>
+            <xs:element name="darkeningRampGamma" type="nonNegativeDecimal" minOccurs="0" maxOccurs="1">
+                <xs:annotation name="final"/>
+            </xs:element>
+            <!-- Map from lux delta values to the desired ramp animation duration limits. -->
+            <xs:element name="luxDeltaToRampLimits" type="luxDeltaToRampLimits" minOccurs="0">
+                <xs:annotation name="final"/>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="luxDeltaToRampLimits">
+        <xs:sequence>
+            <xs:element name="point" type="luxDeltaRampLimitPoint" maxOccurs="unbounded">
+                <xs:annotation name="nonnull"/>
+                <xs:annotation name="final"/>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="luxDeltaRampLimitPoint">
+        <xs:sequence>
+            <xs:element name="luxDelta" type="xs:nonNegativeInteger">
+                <xs:annotation name="nonnull"/>
+                <xs:annotation name="final"/>
+            </xs:element>
+            <xs:element name="rampIncreaseMaxMillis" type="xs:nonNegativeInteger">
+                <xs:annotation name="nonnull"/>
+                <xs:annotation name="final"/>
+            </xs:element>
+            <xs:element name="rampDecreaseMaxMillis" type="xs:nonNegativeInteger">
+                <xs:annotation name="nonnull"/>
+                <xs:annotation name="final"/>
+            </xs:element>
         </xs:sequence>
     </xs:complexType>
 
@@ -799,6 +879,9 @@
                     minOccurs="0" maxOccurs="1">
             <xs:annotation name="final"/>
         </xs:element>
+        <xs:element name="defaultWorkDurations" type="workDurations" minOccurs="0" maxOccurs="1">
+            <xs:annotation name="final"/>
+        </xs:element>
         <xs:element name="lowerBlockingZoneConfigs" type="blockingZoneConfig"
                     minOccurs="0" maxOccurs="1">
             <xs:annotation name="final"/>
@@ -818,6 +901,10 @@
           </lowPowerSupportedModes>
            -->
         <xs:element type="nonNegativeFloatToFloatMap" name="lowPowerSupportedModes" minOccurs="0">
+            <xs:annotation name="nullable"/>
+            <xs:annotation name="final"/>
+        </xs:element>
+        <xs:element type="workDurations" name="lowPowerWorkDurations">
             <xs:annotation name="nullable"/>
             <xs:annotation name="final"/>
         </xs:element>
@@ -948,6 +1035,20 @@
         </xs:element>
     </xs:complexType>
 
+    <xs:complexType name="workDurations">
+        <xs:sequence>
+            <xs:element name="lateWorkDuration" type="xs:nonNegativeInteger">
+                <xs:annotation><xs:documentation>SurfaceFlinger late phase work duration in milliseconds.</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element name="earlyWorkDuration" type="xs:nonNegativeInteger">
+                <xs:annotation><xs:documentation>SurfaceFlinger early phase work duration in milliseconds.</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element name="appWorkDuration" type="xs:nonNegativeInteger">
+                <xs:annotation><xs:documentation>Application phase work duration in milliseconds.</xs:documentation></xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
     <!-- Predefined type names as defined by
     AutomaticBrightnessController.AutomaticBrightnessMode -->
     <xs:simpleType  name="AutoBrightnessModeName">
@@ -956,6 +1057,7 @@
             <xs:enumeration value="idle"/>
             <xs:enumeration value="doze"/>
             <xs:enumeration value="bedtime_wear"/>
+            <xs:enumeration value="charging"/>
         </xs:restriction>
     </xs:simpleType>
 

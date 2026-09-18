@@ -119,6 +119,7 @@ import java.util.List;
  * @hide
  */
 @SystemApi
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VibrationXmlParser {
 
     /**

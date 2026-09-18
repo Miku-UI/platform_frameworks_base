@@ -40,19 +40,19 @@ import org.junit.runner.RunWith;
 public class BinderCallsStatsPerfTest {
     private static final int DEFAULT_BUCKET_SIZE = 1000;
     private static final int WORKSOURCE_UID = 1;
-    static class FakeCpuTimeBinderCallsStats extends BinderCallsStats {
+
+    private static class FakeCpuTimeBinderCallsStatsInjector extends BinderCallsStats.Injector {
         private int mTimeMs;
 
-        FakeCpuTimeBinderCallsStats() {
-            super(new BinderCallsStats.Injector());
-            setDeviceState(new CachedDeviceState(false, false).getReadonlyClient());
-        }
+        FakeCpuTimeBinderCallsStatsInjector() {}
 
-        protected long getThreadTimeMicro() {
+        @Override
+        public long getThreadTimeMicro() {
             return mTimeMs++;
         }
 
-        protected long getElapsedRealtimeMicro() {
+        @Override
+        public long getElapsedRealtimeMicro() {
             return mTimeMs++;
         }
     }
@@ -93,21 +93,24 @@ public class BinderCallsStatsPerfTest {
 
     @Test
     public void timeCallSession_1000_buckets_cpuNotRecorded() {
-        mBinderCallsStats = new FakeCpuTimeBinderCallsStats();
+        mBinderCallsStats = new BinderCallsStats(new FakeCpuTimeBinderCallsStatsInjector());
+        mBinderCallsStats.setDeviceState(new CachedDeviceState(false, false).getReadonlyClient());
         mBinderCallsStats.setSamplingInterval(1);
         runScenario(/* max bucket size */ 1000);
     }
 
     @Test
     public void timeCallSession_500_buckets_cpuNotRecorded() {
-        mBinderCallsStats = new FakeCpuTimeBinderCallsStats();
+        mBinderCallsStats = new BinderCallsStats(new FakeCpuTimeBinderCallsStatsInjector());
+        mBinderCallsStats.setDeviceState(new CachedDeviceState(false, false).getReadonlyClient());
         mBinderCallsStats.setSamplingInterval(1);
         runScenario(/* max bucket size */ 500);
     }
 
     @Test
     public void timeCallSession_100_buckets_cpuNotRecorded() {
-        mBinderCallsStats = new FakeCpuTimeBinderCallsStats();
+        mBinderCallsStats = new BinderCallsStats(new FakeCpuTimeBinderCallsStatsInjector());
+        mBinderCallsStats.setDeviceState(new CachedDeviceState(false, false).getReadonlyClient());
         mBinderCallsStats.setSamplingInterval(1);
         runScenario(/* max bucket size */ 100);
     }

@@ -43,7 +43,7 @@ class NotesTileDataInteractorTest : SysuiTestCase() {
     private val testUser = UserHandle.of(1)
     private lateinit var underTest: NotesTileDataInteractor
 
-    @EnableFlags(Flags.FLAG_NOTES_ROLE_QS_TILE)
+    @EnableFlags(Flags.FLAG_ENABLE_NOTE_QS_TILE)
     @Test
     fun availability_qsFlagEnabled_notesRoleEnabled_returnTrue() =
         testScope.runTest {
@@ -54,7 +54,7 @@ class NotesTileDataInteractorTest : SysuiTestCase() {
             assertThat(availability).containsExactly(true)
         }
 
-    @DisableFlags(Flags.FLAG_NOTES_ROLE_QS_TILE)
+    @DisableFlags(Flags.FLAG_ENABLE_NOTE_QS_TILE)
     @Test
     fun availability_qsFlagDisabled_notesRoleEnabled_returnFalse() =
         testScope.runTest {
@@ -65,7 +65,7 @@ class NotesTileDataInteractorTest : SysuiTestCase() {
             assertThat(availability).containsExactly(false)
         }
 
-    @EnableFlags(Flags.FLAG_NOTES_ROLE_QS_TILE)
+    @EnableFlags(Flags.FLAG_ENABLE_NOTE_QS_TILE)
     @Test
     fun availability_qsFlagEnabled_notesRoleDisabled_returnFalse() =
         testScope.runTest {
@@ -76,7 +76,7 @@ class NotesTileDataInteractorTest : SysuiTestCase() {
             assertThat(availability).containsExactly(false)
         }
 
-    @DisableFlags(Flags.FLAG_NOTES_ROLE_QS_TILE)
+    @DisableFlags(Flags.FLAG_ENABLE_NOTE_QS_TILE)
     @Test
     fun availability_qsFlagDisabled_notesRoleDisabled_returnFalse() =
         testScope.runTest {

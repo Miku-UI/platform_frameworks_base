@@ -599,7 +599,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
 
         final var item1 =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
 
@@ -609,7 +610,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
         // Test equals and hashCode with an equivalent item.
         final var item2 =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertEquals("Equivalent items should be equal.", item1, item2);
@@ -619,7 +621,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
         // Test equals with different items.
         final var diffImeName =
                 new ImeSubtypeListItem(
-                        "OtherIme", "Subtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "OtherIme", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different IME names should not be equal.",
@@ -627,7 +630,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
 
         final var diffSubtypeName =
                 new ImeSubtypeListItem(
-                        "Ime", "OtherSubtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "OtherSubtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different subtype names should not be equal.",
@@ -635,7 +639,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
 
         final var diffLayoutName =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "OtherLayout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "OtherLayout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different layout names should not be equal.",
@@ -648,14 +653,16 @@ public final class InputMethodSubtypeSwitchingControllerTest {
                 createTestImi(component2, subtypes2, true /* supportsSwitchingToNextInputMethod */);
         final var diffImi =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi2, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi2, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different IMEs should not be equal.", item1, diffImi);
 
         final var diffSubtypeIndex =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi1, 1 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 1 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different subtype indices should not be equal.",
@@ -663,7 +670,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
 
         final var diffShowInMenu =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         false /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different show in menu flags should not be equal.",
@@ -671,7 +679,8 @@ public final class InputMethodSubtypeSwitchingControllerTest {
 
         final var diffAuxiliary =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, true /* isAuxiliary */,
                         true /* suitableForHardware */);
         assertNotEquals("Items with different auxiliary flags should not be equal.",
@@ -679,11 +688,30 @@ public final class InputMethodSubtypeSwitchingControllerTest {
 
         final var diffSuitableForHardware =
                 new ImeSubtypeListItem(
-                        "Ime", "Subtype", "Layout", imi1, 0 /* subtypeIndex */,
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
                         true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
                         false /* suitableForHardware */);
         assertNotEquals("Items with different suitable for hardware flags should not be equal.",
                 item1, diffSuitableForHardware);
+
+        final var diffSubtypeShortLabel =
+                new ImeSubtypeListItem(
+                        "Ime", "Subtype", "FR" /* subtypeShortLabel */,
+                        1 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
+                        true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
+                        true /* suitableForHardware */);
+        assertNotEquals("Items with different subtype short labels should not be equal.",
+                item1, diffSubtypeShortLabel);
+
+        final var diffSubtypeIconResId =
+                new ImeSubtypeListItem(
+                        "Ime", "Subtype", "EN" /* subtypeShortLabel */,
+                        2 /* subtypeIconResId */, "Layout", imi1, 0 /* subtypeIndex */,
+                        true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
+                        true /* suitableForHardware */);
+        assertNotEquals("Items with different subtype icon res ids should not be equal.",
+                item1, diffSubtypeIconResId);
     }
 
     /**
@@ -757,14 +785,17 @@ public final class InputMethodSubtypeSwitchingControllerTest {
         if (subtypes != null) {
             for (int i = 0; i < subtypes.size(); ++i) {
                 final String subtypeLocale = subtypeLocales.get(i);
-                items.add(new ImeSubtypeListItem(imeName, subtypeLocale, null /* layoutName */,
-                        imi, i, true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
-                        suitableForHardware));
+                items.add(new ImeSubtypeListItem(imeName, subtypeLocale,
+                        null /* subtypeShortLabel */, 0 /* subtypeIconResId */,
+                        null /* layoutName */, imi, i, true /* showInImeSwitcherMenu */,
+                        false /* isAuxiliary */, suitableForHardware));
             }
         } else {
-            items.add(new ImeSubtypeListItem(imeName, null /* subtypeName */, null /* layoutName */,
-                    imi, NOT_A_SUBTYPE_INDEX, false /* showInImeSwitcherMenu */,
-                    false /* isAuxiliary */, suitableForHardware));
+            items.add(new ImeSubtypeListItem(imeName, null /* subtypeName */,
+                    null /* subtypeShortLabel */, 0 /* subtypeIconResId */,
+                    null /* layoutName */, imi, NOT_A_SUBTYPE_INDEX,
+                    false /* showInImeSwitcherMenu */, false /* isAuxiliary */,
+                    suitableForHardware));
         }
     }
 
@@ -786,9 +817,10 @@ public final class InputMethodSubtypeSwitchingControllerTest {
         subtypes.add(createTestSubtype(subtypeLocale));
         final var imi = createTestImi(componentName, subtypes,
                 true /* supportsSwitchingToNextInputMethod */);
-        return new ImeSubtypeListItem(imeName, subtypeName, null /* layoutName */,
-                imi, subtypeIndex, true /* showInImeSwitcherMenu */, false /* isAuxiliary */,
-                true /* suitableForHardware */);
+        return new ImeSubtypeListItem(imeName, subtypeName,
+                null /* subtypeShortLabel */, 0 /* subtypeIconResId */,
+                null /* layoutName */, imi, subtypeIndex, true /* showInImeSwitcherMenu */,
+                false /* isAuxiliary */, true /* suitableForHardware */);
     }
 
     private static ImeSubtypeListItem createTestItem(@NonNull String imeName,
@@ -796,9 +828,10 @@ public final class InputMethodSubtypeSwitchingControllerTest {
         final var componentName = new ComponentName(TEST_PACKAGE_NAME, imeName);
         final var imi = createTestImi(componentName, null /* subtypes */,
                 true /* supportsSwitchingToNextInputMethod */);
-        return new ImeSubtypeListItem(imeName, null /* subtypeName */, null /* layoutName */,
-                imi, NOT_A_SUBTYPE_INDEX, showInImeSwitcherMenu, isAuxiliary,
-                false /* suitableForHardware */);
+        return new ImeSubtypeListItem(imeName, null /* subtypeName */,
+                null /* subtypeShortLabel */, 0 /* subtypeIconResId */,
+                null /* layoutName */, imi, NOT_A_SUBTYPE_INDEX, showInImeSwitcherMenu,
+                isAuxiliary, false /* suitableForHardware */);
     }
 
     /**

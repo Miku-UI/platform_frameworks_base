@@ -81,9 +81,15 @@ import java.util.Objects;
  */
 public final class Ikev2VpnProfile extends PlatformVpnProfile {
     private static final String TAG = Ikev2VpnProfile.class.getSimpleName();
-    /** Prefix for when a Private Key is an alias to look for in KeyStore @hide */
+    /**
+     * Prefix for when a Private Key is an alias to look for in KeyStore
+     * @hide
+     */
     public static final String PREFIX_KEYSTORE_ALIAS = "KEYSTORE_ALIAS:";
-    /** Prefix for when a Private Key is stored directly in the profile @hide */
+    /**
+     * Prefix for when a Private Key is stored directly in the profile
+     * @hide
+     */
     public static final String PREFIX_INLINE = "INLINE:";
 
     private static final String ANDROID_KEYSTORE_PROVIDER = "AndroidKeyStore";

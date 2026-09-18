@@ -138,17 +138,6 @@ class VolumeDialogRingerDrawerViewModelTest : SysuiTestCase() {
             assertThat(ringerViewModel).isInstanceOf(RingerViewModelState.Unavailable::class.java)
         }
 
-    @Test
-    fun setUnsupportedRingerMode_ringerIsUnavailable() =
-        testScope.runTest {
-            val ringerViewModel by collectLastValue(underTest.ringerViewModel)
-
-            controller.setHasVibrator(false)
-            setUpRingerMode(RingerMode(RINGER_MODE_VIBRATE))
-
-            assertThat(ringerViewModel).isInstanceOf(RingerViewModelState.Unavailable::class.java)
-        }
-
     private fun TestScope.setUpRingerModeAndOpenDrawer(selectedRingerMode: RingerMode) {
         setUpRingerMode(selectedRingerMode)
         onRingerButtonClicked(selectedRingerMode)

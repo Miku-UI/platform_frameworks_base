@@ -27,7 +27,7 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/autofill_save_outer_margin"
-        android:background="?android:attr/colorSurface"
+        android:background="@color/materialColorSurfaceContainer"
         android:gravity="center_horizontal"
         android:orientation="vertical">
         <ScrollView

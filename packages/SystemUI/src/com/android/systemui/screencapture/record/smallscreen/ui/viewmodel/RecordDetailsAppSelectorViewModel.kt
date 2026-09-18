@@ -20,22 +20,19 @@ import androidx.compose.runtime.getValue
 import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.screencapture.common.domain.model.ScreenCaptureRecentTask
 import com.android.systemui.screencapture.common.ui.viewmodel.RecentTaskViewModel
-import com.android.systemui.screencapture.common.ui.viewmodel.RecentTasksViewModel
+import com.android.systemui.screencapture.record.smallscreen.domain.interactor.RecordDetailsTargetInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 
 class RecordDetailsAppSelectorViewModel
 @AssistedInject
 constructor(
-    recentTasksViewModel: RecentTasksViewModel,
+    interactor: RecordDetailsTargetInteractor,
     private val recentTaskViewModelFactory: RecentTaskViewModel.Factory,
 ) : HydratedActivatable() {
 
     val recentTasks: List<ScreenCaptureRecentTask>? by
-        recentTasksViewModel.recentTasks.hydratedStateOf(
-            "RecordDetailsAppSelectorViewModel#recentTasks",
-            null,
-        )
+        interactor.recentTasks.hydratedStateOf("RecordDetailsAppSelectorViewModel#recentTasks")
 
     fun createTaskViewModel(task: ScreenCaptureRecentTask): RecentTaskViewModel =
         recentTaskViewModelFactory.create(task)

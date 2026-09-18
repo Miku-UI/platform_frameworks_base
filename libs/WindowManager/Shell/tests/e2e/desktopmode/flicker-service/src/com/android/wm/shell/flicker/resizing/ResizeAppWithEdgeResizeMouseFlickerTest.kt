@@ -19,20 +19,20 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.server.wm.flicker.helpers.MotionEventHelper
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
+import com.android.wm.shell.scenarios.ResizeAppWithEdgeResize
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
-import com.android.wm.shell.scenarios.ResizeAppWithEdgeResize
 
 /**
  * Resize an app to increase its size through its right edge using a mouse.
@@ -43,12 +43,12 @@ import com.android.wm.shell.scenarios.ResizeAppWithEdgeResize
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class ResizeAppWithEdgeResizeMouseFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
-    inner class ResizeAppWithEdgeResizeMouseScenario : ResizeAppWithEdgeResize(
-        MotionEventHelper.InputMethod.MOUSE, flicker.scenario.startRotation
-    )
+class ResizeAppWithEdgeResizeMouseFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+    inner class ResizeAppWithEdgeResizeMouseScenario :
+        ResizeAppWithEdgeResize(
+            MotionEventHelper.InputMethod.MOUSE,
+            flicker.scenario.startRotation,
+        )
 
     @Rule
     @JvmField
@@ -59,19 +59,12 @@ class ResizeAppWithEdgeResizeMouseFlickerTest(flicker: FlickerTest) : DesktopMod
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.resizeAppWithEdgeResizeRight()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.resizeAppWithEdgeResizeRight() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
+    @Test fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

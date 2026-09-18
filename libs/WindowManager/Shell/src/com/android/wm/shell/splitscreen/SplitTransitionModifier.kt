@@ -29,9 +29,8 @@ import com.android.wm.shell.shared.TransitionUtil
 import com.android.wm.shell.shared.split.SplitScreenConstants
 
 /**
- * Utils class that modifies the changes for a given TransitionInfo.
- * Avoiding static classes to help keep testability. Let's try to avoid keeping any
- * state at the class level.
+ * Utils class that modifies the changes for a given TransitionInfo. Avoiding static classes to help
+ * keep testability. Let's try to avoid keeping any state at the class level.
  */
 class SplitTransitionModifier {
     private val TAG = "SplitTransitionModifier"
@@ -42,9 +41,11 @@ class SplitTransitionModifier {
      * layer).
      */
     fun addDimLayerToTransition(
-        info: TransitionInfo, show: Boolean,
-        stage: StageTaskListener, bounds: Rect,
-        t: SurfaceControl.Transaction
+        info: TransitionInfo,
+        show: Boolean,
+        stage: StageTaskListener,
+        bounds: Rect,
+        t: SurfaceControl.Transaction,
     ) {
         val stageTaskId = stage.runningTaskInfo.taskId
         val dimLayer = stage.mDimLayer
@@ -75,8 +76,7 @@ class SplitTransitionModifier {
             change.parent = appLayerToken
             change.setStartAbsBounds(bounds)
             change.setEndAbsBounds(bounds)
-            change.mode =
-                if (show) TRANSIT_TO_FRONT else TRANSIT_TO_BACK
+            change.mode = if (show) TRANSIT_TO_FRONT else TRANSIT_TO_BACK
             change.flags = SplitScreenConstants.FLAG_IS_DIM_LAYER
             info.addChange(change)
 
@@ -89,8 +89,8 @@ class SplitTransitionModifier {
     }
 
     /**
-     * Adds [TransitionInfo.Change]s to [info] *IF* they are not already a part of it. This
-     * will not modify top level or stage root tasks already part of [info]
+     * Adds [TransitionInfo.Change]s to [info] *IF* they are not already a part of it. This will not
+     * modify top level or stage root tasks already part of [info]
      */
     fun addStageRootsToTransition(
         info: TransitionInfo,
@@ -100,7 +100,7 @@ class SplitTransitionModifier {
         sideStageBounds: Rect,
         splitRootTask: RunningTaskInfo,
         splitRootLeash: SurfaceControl,
-        splitRootBounds: Rect
+        splitRootBounds: Rect,
     ) {
         if (mainStage == null || sideStage == null) {
             return
@@ -117,20 +117,17 @@ class SplitTransitionModifier {
         val splitRootChange: TransitionInfo.Change
 
         // If any children are opening, set the roots to be opening
-        val mode = if (anySplitChangesToFront(info, mainStage, sideStage))
-            TRANSIT_TO_FRONT else TRANSIT_TO_BACK
+        val mode =
+            if (anySplitChangesToFront(info, mainStage, sideStage)) TRANSIT_TO_FRONT
+            else TRANSIT_TO_BACK
 
         // Add main stage root, set it as the parent for its children
         if (info.getChange(mainStage.mRootTaskInfo.token) != null) {
             mainStageChange = checkNotNull(info.getChange(mainStage.mRootTaskInfo.token))
             mainStageChildren = getChildrenForParent(info, mainStageChange, false /*setParent*/)
         } else {
-            mainStageChange = getChangeForStageRoot(
-                mainStage,
-                mainStageBounds,
-                mode,
-                splitRootTask.token
-            )
+            mainStageChange =
+                getChangeForStageRoot(mainStage, mainStageBounds, mode, splitRootTask.token)
             mainStageChildren = getChildrenForParent(info, mainStageChange, true /*setParent*/)
         }
 
@@ -139,37 +136,33 @@ class SplitTransitionModifier {
             sideStageChange = checkNotNull(info.getChange(sideStage.mRootTaskInfo.token))
             sideStageChildren = getChildrenForParent(info, sideStageChange, false /*setParent*/)
         } else {
-            sideStageChange = getChangeForStageRoot(
-                sideStage,
-                sideStageBounds,
-                mode,
-                splitRootTask.token
-            )
+            sideStageChange =
+                getChangeForStageRoot(sideStage, sideStageBounds, mode, splitRootTask.token)
             sideStageChildren = getChildrenForParent(info, sideStageChange, true /*setParent*/)
         }
 
         // Add top level split root, set it as the parent for main and side stage roots
-        splitRootChange = if (info.getChange(splitRootTask.token) != null) {
-            checkNotNull(info.getChange(splitRootTask.token))
-        } else {
-            getChangeForSplitRoot(
-                mode, splitRootTask,
-                splitRootLeash, splitRootBounds
-            )
-        }
+        splitRootChange =
+            if (info.getChange(splitRootTask.token) != null) {
+                checkNotNull(info.getChange(splitRootTask.token))
+            } else {
+                getChangeForSplitRoot(mode, splitRootTask, splitRootLeash, splitRootBounds)
+            }
         // Explicitly set the parents of the stage roots because if either of the stage roots
         // weren't present or the top level split root wasn't present in the original transition,
         // the parent will be null.
         mainStageChange.parent = splitRootTask.token
         sideStageChange.parent = splitRootTask.token
 
-        remainingChanges = info.changes.stream()
-            .filter { change: TransitionInfo.Change ->
-                // No parent AND not the top level split root (we'll add that separately)
-                (change.taskInfo == null || change.taskInfo?.parentTaskId == -1) &&
+        remainingChanges =
+            info.changes
+                .stream()
+                .filter { change: TransitionInfo.Change ->
+                    // No parent AND not the top level split root (we'll add that separately)
+                    (change.taskInfo == null || change.taskInfo?.parentTaskId == -1) &&
                         (change.taskInfo?.taskId != splitRootChange.taskInfo?.taskId)
-            }
-            .toList()
+                }
+                .toList()
 
         val finalList = mutableListOf<TransitionInfo.Change>()
         finalList.addAll(mainStageChildren)
@@ -185,38 +178,37 @@ class SplitTransitionModifier {
     }
 
     /**
-    * Returns true if any of the changes in [info] are opening and have a parent that is
-    * either the main or side stage root.
-    */
-    private fun anySplitChangesToFront(info: TransitionInfo,
-                                       mainStage: StageTaskListener,
-                                       sideStage: StageTaskListener): Boolean {
-        return info.changes.stream()
-            .anyMatch { change: TransitionInfo.Change ->
-                val isOpening = TransitionUtil.isOpeningMode(change.mode)
-                val taskInfo = change.taskInfo
-                val hasStageRootParent = taskInfo != null &&
-                        (taskInfo.parentTaskId == mainStage.mRootTaskInfo.taskId ||
-                                taskInfo.parentTaskId == sideStage.mRootTaskInfo.taskId)
-                isOpening && hasStageRootParent
-            }
+     * Returns true if any of the changes in [info] are opening and have a parent that is either the
+     * main or side stage root.
+     */
+    private fun anySplitChangesToFront(
+        info: TransitionInfo,
+        mainStage: StageTaskListener,
+        sideStage: StageTaskListener,
+    ): Boolean {
+        return info.changes.stream().anyMatch { change: TransitionInfo.Change ->
+            val isOpening = TransitionUtil.isOpeningMode(change.mode)
+            val taskInfo = change.taskInfo
+            val hasStageRootParent =
+                taskInfo != null &&
+                    (taskInfo.parentTaskId == mainStage.mRootTaskInfo.taskId ||
+                        taskInfo.parentTaskId == sideStage.mRootTaskInfo.taskId)
+            isOpening && hasStageRootParent
+        }
     }
 
     /**
-     * Creates and returns a [TransitionInfo.Change] for the top level split root (indicated
-     * by [rootTaskInfo]) to the transition. Almost entirely similar to [getChangeForStageRoot] except
+     * Creates and returns a [TransitionInfo.Change] for the top level split root (indicated by
+     * [rootTaskInfo]) to the transition. Almost entirely similar to [getChangeForStageRoot] except
      * this does not set a parent for the new Change.
      */
     private fun getChangeForSplitRoot(
         transitMode: Int,
         rootTaskInfo: RunningTaskInfo,
         rootTaskLeash: SurfaceControl,
-        rootBounds: Rect
+        rootBounds: Rect,
     ): TransitionInfo.Change {
-        val change = TransitionInfo.Change(
-            rootTaskInfo.token,
-            rootTaskLeash
-        )
+        val change = TransitionInfo.Change(rootTaskInfo.token, rootTaskLeash)
         change.taskInfo = rootTaskInfo
         change.mode = transitMode
         change.setStartAbsBounds(rootBounds)
@@ -225,18 +217,16 @@ class SplitTransitionModifier {
     }
 
     /**
-     * Creates and returns a [TransitionInfo.Change] for the individual stage roots
-     * (indicated by [stage]). The [parentToken] should be that of the top level split root.
+     * Creates and returns a [TransitionInfo.Change] for the individual stage roots (indicated by
+     * [stage]). The [parentToken] should be that of the top level split root.
      */
     private fun getChangeForStageRoot(
-        stage: StageTaskListener, bounds: Rect,
+        stage: StageTaskListener,
+        bounds: Rect,
         transitMode: Int,
-        parentToken: WindowContainerToken
+        parentToken: WindowContainerToken,
     ): TransitionInfo.Change {
-        val change = TransitionInfo.Change(
-            stage.mRootTaskInfo.token,
-            stage.mRootLeash
-        )
+        val change = TransitionInfo.Change(stage.mRootTaskInfo.token, stage.mRootLeash)
         change.taskInfo = stage.mRootTaskInfo
         change.parent = parentToken
         change.mode = transitMode
@@ -246,22 +236,23 @@ class SplitTransitionModifier {
     }
 
     /**
-     * Given a [parentChange], this iterates over all changes in [info] and gets the children
-     * for all changes where the change's parentTaskId matches [parentChange]s taskId.
-     * If [setParent] is [true] then it will also set the child's parent WCT to that of the
-     * [parentChange]
+     * Given a [parentChange], this iterates over all changes in [info] and gets the children for
+     * all changes where the change's parentTaskId matches [parentChange]s taskId. If [setParent] is
+     * [true] then it will also set the child's parent WCT to that of the [parentChange]
      *
      * @return [List] of all the changes that are children of [parentChange]
      */
     private fun getChildrenForParent(
         info: TransitionInfo,
         parentChange: TransitionInfo.Change,
-        setParent: Boolean): List<TransitionInfo.Change> {
+        setParent: Boolean,
+    ): List<TransitionInfo.Change> {
         val childrenOfChange = mutableListOf<TransitionInfo.Change>()
-        info.changes.stream()
+        info.changes
+            .stream()
             .filter { change: TransitionInfo.Change ->
                 change.taskInfo != null &&
-                        change.taskInfo?.parentTaskId == parentChange.taskInfo?.taskId
+                    change.taskInfo?.parentTaskId == parentChange.taskInfo?.taskId
             }
             .forEach { change: TransitionInfo.Change ->
                 if (setParent) {

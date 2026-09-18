@@ -58,6 +58,7 @@ message RemoteViewsProto {
     optional RemoteCollectionCache remote_collection_cache = 15;
     repeated Action actions = 16;
     optional int32 uid = 17;
+    optional float original_density = 18;
 
     message RemoteCollectionCache {
         message Entry {
@@ -323,6 +324,10 @@ message RemoteViewsProto {
         }
     }
 
+    message CharSequenceList {
+        repeated CharSequence items = 1;
+    }
+
     // Next tag: 23
     message Action {
         oneof action {
@@ -418,6 +423,8 @@ message RemoteViewsProto {
             int32 blend_mode_value = 18;
             Instant instant_value = 19;
             Duration duration_value = 20;
+            CharSequenceList char_sequence_list_value = 21;
+
             // Intent and Bundle values are excluded.
         }
     }
@@ -521,10 +528,18 @@ message RemoteViewsProto {
 
     message ViewPaddingAction {
         optional string view_id = 1;
-        optional int32 left = 2;
-        optional int32 right = 3;
-        optional int32 top = 4;
-        optional int32 bottom = 5;
+        // Deprecated pixel values, kept for backwards compatibility
+        optional int32 left_px = 2;
+        optional int32 right_px = 3;
+        optional int32 top_px = 4;
+        optional int32 bottom_px = 5;
+
+        // Float values and complex unit
+        optional float left = 6;
+        optional float right = 7;
+        optional float top = 8;
+        optional float bottom = 9;
+        optional int32 units = 10;
     }
 
     message SetDrawInstructionAction {

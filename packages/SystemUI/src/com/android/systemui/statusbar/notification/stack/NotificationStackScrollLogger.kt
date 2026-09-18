@@ -9,11 +9,24 @@ import com.android.systemui.log.dagger.NotificationHeadsUpLog
 import com.android.systemui.log.dagger.NotificationRenderLog
 import com.android.systemui.log.dagger.ShadeLog
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_ACTIVATED_CHILD
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_ADD
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_CHANGE_POSITION
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_DIMMED
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_EVERYTHING
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_GO_TO_FULL_SHADE
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_GROUP_EXPANSION_CHANGED
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_APPEAR
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_CYCLING_IN
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_CYCLING_OUT
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_DISAPPEAR
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_DISAPPEAR_CLICK
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_OTHER
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HIDE_SENSITIVE
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_REMOVE
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_REMOVE_SWIPED_OUT
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_TOP_PADDING_CHANGED
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_VIEW_RESIZE
 import com.google.errorprone.annotations.CompileTimeConstant
 import javax.inject.Inject
 
@@ -39,16 +52,42 @@ constructor(
     fun hunAnimationEventAdded(entry: String, type: Int) {
         val reason: String
         reason =
-            if (type == ANIMATION_TYPE_HEADS_UP_DISAPPEAR) {
+            if (type == ANIMATION_TYPE_ADD) {
+                "ADD"
+            } else if (type == ANIMATION_TYPE_REMOVE) {
+                "REMOVE"
+            } else if (type == ANIMATION_TYPE_REMOVE_SWIPED_OUT) {
+                "REMOVE_SWIPED_OUT"
+            } else if (type == ANIMATION_TYPE_TOP_PADDING_CHANGED) {
+                "TOP_PADDING_CHANGED"
+            } else if (type == ANIMATION_TYPE_ACTIVATED_CHILD) {
+                "ACTIVATED_CHILD"
+            } else if (type == ANIMATION_TYPE_DIMMED) {
+                "DIMMED"
+            } else if (type == ANIMATION_TYPE_CHANGE_POSITION) {
+                "CHANGE_POSITION"
+            } else if (type == ANIMATION_TYPE_GO_TO_FULL_SHADE) {
+                "GO_TO_FULL_SHADE"
+            } else if (type == ANIMATION_TYPE_HIDE_SENSITIVE) {
+                "HIDE_SENSITIVE"
+            } else if (type == ANIMATION_TYPE_VIEW_RESIZE) {
+                "VIEW_RESIZE"
+            } else if (type == ANIMATION_TYPE_GROUP_EXPANSION_CHANGED) {
+                "GROUP_EXPANSION_CHANGED"
+            } else if (type == ANIMATION_TYPE_HEADS_UP_APPEAR) {
+                "HEADS_UP_APPEAR"
+            } else if (type == ANIMATION_TYPE_HEADS_UP_DISAPPEAR) {
                 "HEADS_UP_DISAPPEAR"
             } else if (type == ANIMATION_TYPE_HEADS_UP_DISAPPEAR_CLICK) {
                 "HEADS_UP_DISAPPEAR_CLICK"
-            } else if (type == ANIMATION_TYPE_HEADS_UP_APPEAR) {
-                "HEADS_UP_APPEAR"
             } else if (type == ANIMATION_TYPE_HEADS_UP_OTHER) {
                 "HEADS_UP_OTHER"
-            } else if (type == ANIMATION_TYPE_ADD) {
-                "ADD"
+            } else if (type == ANIMATION_TYPE_EVERYTHING) {
+                "EVERYTHING"
+            } else if (type == ANIMATION_TYPE_HEADS_UP_CYCLING_OUT) {
+                "HEADS_UP_CYCLING_OUT"
+            } else if (type == ANIMATION_TYPE_HEADS_UP_CYCLING_IN) {
+                "HEADS_UP_CYCLING_IN"
             } else {
                 type.toString()
             }
@@ -315,6 +354,8 @@ constructor(
             },
         )
     }
-}
 
-private const val TAG = "NotificationStackScroll"
+    companion object {
+        private const val TAG = "NotificationStackScroll"
+    }
+}

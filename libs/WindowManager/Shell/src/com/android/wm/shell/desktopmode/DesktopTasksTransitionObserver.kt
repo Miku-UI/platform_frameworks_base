@@ -17,21 +17,27 @@
 package com.android.wm.shell.desktopmode
 
 import android.app.ActivityManager
+import android.app.TaskInfo
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
+import android.graphics.Rect
+import android.graphics.RectF
 import android.os.IBinder
 import android.view.SurfaceControl
+import android.view.WindowManager.TRANSIT_CHANGE
 import android.view.WindowManager.TRANSIT_CLOSE
 import android.view.WindowManager.TRANSIT_OPEN
 import android.view.WindowManager.TRANSIT_TO_BACK
-import android.window.DesktopExperienceFlags
-import android.window.DesktopModeFlags
 import android.window.DesktopModeFlags.ENABLE_DESKTOP_WALLPAPER_ACTIVITY_FOR_SYSTEM_USER
 import android.window.DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_WALLPAPER_ACTIVITY
 import android.window.TransitionInfo
 import android.window.WindowContainerTransaction
 import com.android.internal.protolog.ProtoLog
+import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
+import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.desktopmode.desktopwallpaperactivity.DesktopWallpaperActivityTokenProvider
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
+import com.android.wm.shell.pinnedlayer.phone.isNotPinned
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
 import com.android.wm.shell.shared.TransitionUtil.isClosingMode
 import com.android.wm.shell.shared.TransitionUtil.isOpeningMode
@@ -50,6 +56,8 @@ class DesktopTasksTransitionObserver(
     private val shellTaskOrganizer: ShellTaskOrganizer,
     private val desktopMixedTransitionHandler: DesktopMixedTransitionHandler,
     private val desktopWallpaperActivityTokenProvider: DesktopWallpaperActivityTokenProvider,
+    private val displayController: DisplayController,
+    private val pinnedLayerController: PinnedLayerController?,
     desktopState: DesktopState,
     shellInit: ShellInit,
 ) : Transitions.TransitionObserver {
@@ -59,6 +67,7 @@ class DesktopTasksTransitionObserver(
     private var transitionToCloseWallpaper: CloseWallpaperTransition? = null
     private var closingTransitionToTransitionInfo = HashMap<IBinder, TransitionInfo>()
     private var currentProfileId: Int
+    private val pendingUserBoundsChangeTransitions = mutableSetOf<IBinder>()
 
     init {
         if (desktopState.canEnterDesktopMode) {
@@ -79,18 +88,10 @@ class DesktopTasksTransitionObserver(
         finishTransaction: SurfaceControl.Transaction,
     ) {
         // TODO: b/332682201 Update repository state
-        if (
-            DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_MODALS_POLICY.isTrue &&
-                (DesktopModeFlags.INCLUDE_TOP_TRANSPARENT_FULLSCREEN_TASK_IN_DESKTOP_HEURISTIC
-                    .isTrue ||
-                    DesktopExperienceFlags.FORCE_CLOSE_TOP_TRANSPARENT_FULLSCREEN_TASK.isTrue)
-        ) {
-            updateTopTransparentFullscreenTaskId(info)
-        }
+        updateTopTransparentFullscreenTaskId(info)
         updateWallpaperToken(info)
         if (
-            DesktopExperienceFlags.ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX.isTrue &&
-                !desktopMixedTransitionHandler.hasTransition(transition) &&
+            !desktopMixedTransitionHandler.hasTransition(transition) &&
                 containsClosingTaskInDesktop(info)
         ) {
             desktopMixedTransitionHandler.addPendingMixedTransition(
@@ -99,6 +100,7 @@ class DesktopTasksTransitionObserver(
             closingTransitionToTransitionInfo.put(transition, info)
         }
         removeWallpaperOnLastTaskClosingIfNeeded(transition, info)
+        updateRememberedBoundsIfNeeded(info, transition)
     }
 
     private fun containsClosingTaskInDesktop(info: TransitionInfo): Boolean {
@@ -194,12 +196,14 @@ class DesktopTasksTransitionObserver(
      */
     private fun removeClosingTasks(info: TransitionInfo) {
         val wct = WindowContainerTransaction()
+        // Keeping processes alive allows for faster (warm) future launches of the same apps.
+        val killProcess = !Flags.skipKillProcessForDesktopTaskCoreCloseTransition()
         info.changes
             .filter { it.mode == TRANSIT_CLOSE }
             .mapNotNull { it.taskInfo }
             .forEach { taskInfo ->
                 if (taskInfo.windowingMode != WINDOWING_MODE_FREEFORM) return@forEach
-                wct.removeTask(taskInfo.token)
+                wct.removeTask(taskInfo.token, /* removeFromRecents= */ true, killProcess)
                 ProtoLog.d(
                     WM_SHELL_DESKTOP_MODE,
                     "DesktopTasksTransitionObserver: removing closing task=%d fully",
@@ -268,5 +272,117 @@ class DesktopTasksTransitionObserver(
                 }
             }
         }
+    }
+
+    private fun updateRememberedBoundsIfNeeded(info: TransitionInfo, transition: IBinder) {
+        if (!Flags.enableRememberedBounds()) {
+            return
+        }
+
+        // Clears remembered bounds if needed.
+        run forEachLoop@{
+            info.changes.forEach { change ->
+                change.taskInfo?.let { taskInfo ->
+                    // TODO: b/477848767 - Remember only position if the task is unresizable.
+                    if (change.mode == TRANSIT_OPEN && !taskInfo.isResizeable) {
+                        val desktopRepository = desktopUserRepositories.getProfile(taskInfo.userId)
+                        val packageName =
+                            taskInfo.componentNameForRememberedBounds?.packageName
+                                ?: return@forEachLoop
+                        desktopRepository.clearRememberedBoundsRatio(packageName)
+                        logV(
+                            "Remembered bounds is cleared as task#%d is unresizable",
+                            taskInfo.taskId,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!pendingUserBoundsChangeTransitions.contains(transition)) return
+        pendingUserBoundsChangeTransitions.remove(transition)
+
+        run forEachLoop@{
+            info.changes.forEach { change ->
+                change.taskInfo?.let { taskInfo ->
+                    if (change.mode != TRANSIT_CHANGE) return@forEachLoop
+                    // Has any bounds change.
+                    if (change.startAbsBounds == change.endAbsBounds) return@forEachLoop
+                    // Is a freeform task.
+                    if (!taskInfo.isDesktopTask()) return@forEachLoop
+                    // TODO: b/477848767 - Remember only position if the task is unresizable.
+                    // Is resizable.
+                    if (!taskInfo.isResizeable) {
+                        logV(
+                            "Remembered bounds is NOT updated as task#%d is unresizable",
+                            taskInfo.taskId,
+                        )
+                        return@forEachLoop
+                    }
+                    if (taskInfo.appCompatTaskInfo?.hasIsExcludeCaptionInsets() == true) {
+                        logV(
+                            "Remembered bounds is NOT updated as task#%d has " +
+                                "isExcludeCaptionInsets",
+                            taskInfo.taskId,
+                        )
+                        return@forEachLoop
+                    }
+
+                    val desktopRepository = desktopUserRepositories.getProfile(taskInfo.userId)
+                    if (desktopRepository.isTaskInFullImmersiveState(taskInfo.taskId)) {
+                        // We don't update the remembered bounds while the task is in full immersive
+                        // state.
+                        return@forEachLoop
+                    }
+
+                    val displayLayout =
+                        displayController.getDisplayLayout(taskInfo.displayId) ?: return@forEachLoop
+                    val packageName =
+                        taskInfo.componentNameForRememberedBounds?.packageName ?: return@forEachLoop
+                    val stableBounds =
+                        Rect().apply { displayLayout.getStableBoundsForDesktopMode(this) }
+                    val bounds = taskInfo.configuration.windowConfiguration.bounds
+                    val boundsRatio =
+                        RectF().apply {
+                            left =
+                                (bounds.left - stableBounds.left) / stableBounds.width().toFloat()
+                            top = (bounds.top - stableBounds.top) / stableBounds.height().toFloat()
+                            right =
+                                (bounds.right - stableBounds.left) / stableBounds.width().toFloat()
+                            bottom =
+                                (bounds.bottom - stableBounds.top) / stableBounds.height().toFloat()
+                        }
+                    logV(
+                        "Remembered bounds for package=%s is updated as task#%d was resized to " +
+                            "%s: boundsRatio=%s",
+                        packageName,
+                        taskInfo.taskId,
+                        bounds,
+                        boundsRatio,
+                    )
+                    desktopRepository.setRememberedBoundsRatio(packageName, boundsRatio)
+                }
+            }
+        }
+    }
+
+    fun addPendingUserBoundsChangeTransition(transition: IBinder) {
+        if (!Flags.enableRememberedBounds()) {
+            return
+        }
+        pendingUserBoundsChangeTransitions.add(transition)
+    }
+
+    private fun TaskInfo.isDesktopTask(): Boolean =
+        isFreeform && pinnedLayerController?.isNotPinned(taskId) == true
+
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
+    private fun logV(msg: String, vararg arguments: Any?) {
+        ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
+    }
+
+    private companion object {
+        const val TAG = "DesktopTasksTransitionObserver"
     }
 }

@@ -309,6 +309,9 @@ public class AssistUtils {
     }
 
     public static boolean isDisclosureEnabled(Context context) {
+        if (android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()) {
+            return false;
+        }
         return Settings.Secure.getInt(context.getContentResolver(),
                 Settings.Secure.ASSIST_DISCLOSURE_ENABLED, 0) != 0;
     }
@@ -320,6 +323,9 @@ public class AssistUtils {
      * pre-installed assistants.
      */
     public static boolean shouldDisclose(Context context, ComponentName assistant) {
+        if (android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()) {
+            return false;
+        }
         if (!allowDisablingAssistDisclosure(context)) {
             return true;
         }

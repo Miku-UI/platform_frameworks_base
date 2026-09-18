@@ -24,7 +24,6 @@ import com.android.systemui.statusbar.notification.collection.inflation.NotifInf
 import com.android.systemui.statusbar.notification.collection.inflation.NotificationRowBinderImpl;
 import com.android.systemui.statusbar.notification.row.NotifInflationErrorManager;
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import javax.inject.Inject;
 
@@ -105,16 +104,6 @@ public class NotifInflaterImpl implements NotifInflater {
             final NotificationEntry entry,
             InflationCallback callback) {
         return new NotificationRowContentBinder.InflationCallback() {
-            @Override
-            public void handleInflationException(
-                    NotificationEntry entry,
-                    Exception e) {
-                if (NotificationBundleUi.isEnabled()) {
-                    handleInflationException(e);
-                } else {
-                    mNotifErrorManager.setInflationError(entry, e);
-                }
-            }
             @Override
             public void handleInflationException(Exception e) {
                 mNotifErrorManager.setInflationError(entry, e);

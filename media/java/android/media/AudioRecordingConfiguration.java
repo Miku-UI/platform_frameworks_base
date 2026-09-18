@@ -229,7 +229,7 @@ public final class AudioRecordingConfiguration implements Parcelable {
     /**
      * Returns the user id of the application performing the recording.
      * <p>This information is only available if the caller has the
-     * {@link android.Manifest.permission.MODIFY_AUDIO_ROUTING}
+     * {@link android.Manifest.permission#MODIFY_AUDIO_ROUTING}
      * permission.
      * @return the user id
      * @throws SecurityException Thrown if the caller is missing the MODIFY_AUDIO_ROUTING permission

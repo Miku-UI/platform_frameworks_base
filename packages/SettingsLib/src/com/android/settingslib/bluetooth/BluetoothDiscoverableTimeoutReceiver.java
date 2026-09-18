@@ -73,7 +73,7 @@ public class BluetoothDiscoverableTimeoutReceiver extends BroadcastReceiver {
         if (intent.getAction() == null || !intent.getAction().equals(INTENT_DISCOVERABLE_TIMEOUT)) {
             return;
         }
-        LocalBluetoothAdapter localBluetoothAdapter = LocalBluetoothAdapter.getInstance();
+        LocalBluetoothAdapter localBluetoothAdapter = LocalBluetoothAdapter.getInstance(context);
         if(localBluetoothAdapter != null  &&
             localBluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {
             Log.d(TAG, "Disable discoverable...");

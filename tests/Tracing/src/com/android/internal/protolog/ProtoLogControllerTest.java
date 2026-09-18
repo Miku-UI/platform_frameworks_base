@@ -194,7 +194,8 @@ public class ProtoLogControllerTest {
         @Override
         @NonNull
         protected PerfettoProtoLogImpl createAndEnableNewPerfettoProtoLogImpl(
-                @NonNull ProtoLogDataSource datasource, @NonNull IProtoLogGroup[] currentGroups) {
+                @NonNull ProtoLogDataSource datasource, @NonNull IProtoLogGroup[] currentGroups,
+                boolean async) {
             mMockInjectedProtoLogInstance.setInitialGroups(
                     new HashSet<>(Arrays.asList(currentGroups)));
             return new DummyPerfettoProtoLogImpl(datasource, currentGroups,
@@ -213,7 +214,7 @@ public class ProtoLogControllerTest {
 
         @Override
         public void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
-                int paramsMask, @Nullable Object[] args) {
+                long paramsMask, @Nullable Object[] args) {
             // No-op for testing
         }
 

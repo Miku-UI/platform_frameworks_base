@@ -19,15 +19,35 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:orientation="vertical"
     android:filterTouchesWhenObscured="false"
     android:theme="?expressivePreferenceTheme"
     style="?expressivePreferenceRootLayoutStyle">
 
-    <include layout="@layout/settingslib_expressive_preference_icon_frame" />
-
-    <include layout="@layout/settingslib_expressive_preference_text_frame" />
-
     <LinearLayout
-        android:id="@android:id/widget_frame"
-        style="?expressivePreferenceWidgetFrameStyle" />
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="72dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:clipToPadding="false">
+
+        <include layout="@layout/settingslib_expressive_preference_icon_frame"/>
+        <include layout="@layout/settingslib_expressive_preference_text_frame"/>
+
+        <!-- Preference should place its actual preference widget here. -->
+        <LinearLayout
+            android:id="@android:id/widget_frame"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:minWidth="@dimen/settingslib_expressive_space_medium3"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:orientation="vertical"/>
+    </LinearLayout>
+
+    <include layout="@layout/settingslib_expressive_preference_footer"/>
+
 </com.android.settingslib.widget.DrawableStateLinearLayout>

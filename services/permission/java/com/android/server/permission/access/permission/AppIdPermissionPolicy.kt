@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.permission
 
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.pm.PermissionGroupInfo
 import android.content.pm.PermissionInfo
+import android.content.pm.PermissionInfo.NO_TARGET_SDK_VERSION
 import android.content.pm.SigningDetails
 import android.health.connect.HealthPermissions
 import android.os.Build
@@ -27,6 +30,7 @@ import android.permission.flags.Flags
 import android.util.Slog
 import com.android.internal.os.RoSystemProperties
 import com.android.internal.pm.permission.CompatibilityPermissionInfo
+import com.android.internal.pm.pkg.component.ParsedUsesPermission
 import com.android.modules.utils.BinaryXmlPullParser
 import com.android.modules.utils.BinaryXmlSerializer
 import com.android.server.permission.access.AccessState
@@ -37,8 +41,8 @@ import com.android.server.permission.access.PermissionUri
 import com.android.server.permission.access.SchemePolicy
 import com.android.server.permission.access.UidUri
 import com.android.server.permission.access.WriteMode
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.andInv
 import com.android.server.permission.access.util.hasAnyBit
 import com.android.server.permission.access.util.hasBits
@@ -87,6 +91,11 @@ class AppIdPermissionPolicy : SchemePolicy() {
         newState.externalState.appIdPackageNames.forEachIndexed { _, appId, _ ->
             inheritImplicitPermissionStates(appId, userId)
         }
+        onPermissionFlagsChangedListeners.forEachIndexed { _, it -> it.onUserAdded(userId) }
+    }
+
+    override fun MutateStateScope.onUserRemoved(userId: Int) {
+        onPermissionFlagsChangedListeners.forEachIndexed { _, it -> it.onUserRemoved(userId) }
     }
 
     override fun MutateStateScope.onAppIdRemoved(appId: Int) {
@@ -96,6 +105,7 @@ class AppIdPermissionPolicy : SchemePolicy() {
                 // Skip notifying the change listeners since the app ID no longer exists.
             }
         }
+        onPermissionFlagsChangedListeners.forEachIndexed { _, it -> it.onAppIdRemoved(appId) }
     }
 
     override fun MutateStateScope.onStorageVolumeMounted(
@@ -108,6 +118,9 @@ class AppIdPermissionPolicy : SchemePolicy() {
             // The package may still be removed even if it was once notified as installed.
             val packageState =
                 newState.externalState.packageStates[packageName] ?: return@forEachIndexed
+            // The package may still be unavailable if the storage volume is removed before fully
+            // scanned, in which case we should skip it and wait for the next time.
+            packageState.androidPackage ?: return@forEachIndexed
             adoptPermissions(packageState, changedPermissionNames)
             addPermissionGroups(packageState)
             addPermissions(packageState, changedPermissionNames)
@@ -121,16 +134,18 @@ class AppIdPermissionPolicy : SchemePolicy() {
         packageNames.forEachIndexed { _, packageName ->
             val packageState =
                 newState.externalState.packageStates[packageName] ?: return@forEachIndexed
+            packageState.androidPackage ?: return@forEachIndexed
             val installedPackageState = if (isSystemUpdated) packageState else null
             evaluateAllPermissionStatesForPackage(packageState, installedPackageState)
         }
         packageNames.forEachIndexed { _, packageName ->
             val packageState =
                 newState.externalState.packageStates[packageName] ?: return@forEachIndexed
+            packageState.androidPackage ?: return@forEachIndexed
             newState.externalState.userIds.forEachIndexed { _, userId ->
                 inheritImplicitPermissionStates(packageState.appId, userId)
             }
-            revokePermissionsOnPackageUpdate(packageState.appId)
+            updatePermissionsOnPackageUpdate(packageState.appId)
         }
     }
 
@@ -148,7 +163,7 @@ class AppIdPermissionPolicy : SchemePolicy() {
         newState.externalState.userIds.forEachIndexed { _, userId ->
             inheritImplicitPermissionStates(packageState.appId, userId)
         }
-        revokePermissionsOnPackageUpdate(packageState.appId)
+        updatePermissionsOnPackageUpdate(packageState.appId)
     }
 
     override fun MutateStateScope.onPackageRemoved(packageName: String, appId: Int) {
@@ -163,7 +178,7 @@ class AppIdPermissionPolicy : SchemePolicy() {
             // The removed package could be the reason why other packages sharing the same UID might
             // have been granted a permission. As a result, all permissions requested by the app ID
             // must be re-evaluated.
-            if (Flags.purposeDeclarationEnabled()) {
+            if (Flags.ppdInstallTimeEnabled()) {
                 evaluateAllPermissionStatesForAppId(appId)
             }
         }
@@ -266,10 +281,14 @@ class AppIdPermissionPolicy : SchemePolicy() {
         appId: Int,
         userId: Int,
     ) {
-        resetRuntimePermissions(packageName, userId)
+        resetRuntimePermissions(packageName, userId, true)
     }
 
-    fun MutateStateScope.resetRuntimePermissions(packageName: String, userId: Int) {
+    fun MutateStateScope.resetRuntimePermissions(
+        packageName: String,
+        userId: Int,
+        restorePregrants: Boolean,
+    ) {
         // It's okay to skip resetting permissions for packages that are removed,
         // because their states will be trimmed in onPackageRemoved()/onAppIdRemoved()
         val packageState = newState.externalState.packageStates[packageName] ?: return
@@ -298,10 +317,9 @@ class AppIdPermissionPolicy : SchemePolicy() {
             newFlags =
                 if (
                     isSystemOrInstalled &&
-                        (newFlags.hasBits(PermissionFlags.ROLE) ||
-                            newFlags.hasBits(PermissionFlags.PREGRANT))
+                        newFlags.hasAnyBit(PermissionFlags.ROLE or PermissionFlags.PREGRANT)
                 ) {
-                    newFlags or PermissionFlags.RUNTIME_GRANTED
+                    if (restorePregrants) newFlags or PermissionFlags.RUNTIME_GRANTED else newFlags
                 } else {
                     newFlags andInv
                         (PermissionFlags.RUNTIME_GRANTED or
@@ -498,7 +516,10 @@ class AppIdPermissionPolicy : SchemePolicy() {
                         )
                         return@forEachIndexed
                     }
-                    if (newState.externalState.packageStates[oldPackageName]?.isSystem == true) {
+                    if (
+                        oldPermission.isReconciled &&
+                            newState.externalState.packageStates[oldPackageName]?.isSystem == true
+                    ) {
                         Slog.w(
                             LOG_TAG,
                             "Ignoring permission $permissionName declared in system package" +
@@ -706,9 +727,15 @@ class AppIdPermissionPolicy : SchemePolicy() {
         }
     }
 
-    private fun MutateStateScope.revokePermissionsOnPackageUpdate(appId: Int) {
+    private fun MutateStateScope.updatePermissionsOnPackageUpdate(appId: Int) {
         revokeStorageAndMediaPermissionsOnPackageUpdate(appId)
         revokeHeartRatePermissionsOnPackageUpdate(appId)
+        if (Flags.accessLocalNetworkPermissionEnabled()) {
+            clearNearbyDevicesPermissionsUserFlagsOnPackageUpdate(appId)
+        }
+        if (Flags.locationButtonEnabled()) {
+            revokePermissionIfOnlyForLocationButtonOnPackageUpdate(appId)
+        }
     }
 
     private fun MutateStateScope.revokeStorageAndMediaPermissionsOnPackageUpdate(appId: Int) {
@@ -869,6 +896,56 @@ class AppIdPermissionPolicy : SchemePolicy() {
         }
     }
 
+    private fun MutateStateScope.clearNearbyDevicesPermissionsUserFlagsOnPackageUpdate(appId: Int) =
+        newState.userStates.forEachIndexed { _, userId, userState ->
+            val oldPermissionFlags =
+                oldState.userStates[userId]
+                    ?.appIdPermissionFlags[appId]
+                    ?.get(Manifest.permission.ACCESS_LOCAL_NETWORK) ?: 0
+            if (oldPermissionFlags.hasBits(PermissionFlags.IMPLICIT)) {
+                val isNearbyDevicesPermissionGroupRevoked =
+                    NEARBY_DEVICES_PERMISSIONS.noneIndexed { _, permissionName ->
+                        isRuntimePermissionGranted(appId, userId, permissionName)
+                    }
+                if (isNearbyDevicesPermissionGroupRevoked) {
+                    NEARBY_DEVICES_PERMISSIONS.forEachIndexed { _, permissionName ->
+                        updatePermissionFlags(
+                            appId,
+                            userId,
+                            permissionName,
+                            PermissionFlags.USER_SET or PermissionFlags.USER_FIXED,
+                            0,
+                        )
+                    }
+                }
+            }
+        }
+
+    private fun MutateStateScope.revokePermissionIfOnlyForLocationButtonOnPackageUpdate(
+        appId: Int
+    ) {
+        val onlyForLocationButton =
+            allPackagesInAppId(appId) { packageState ->
+                val usesPermission =
+                    packageState.androidPackage!!
+                        .usesPermissionMapping[Manifest.permission.ACCESS_FINE_LOCATION]
+                        ?: return@allPackagesInAppId false
+                usesPermission.usesPermissionFlags.hasBits(
+                    ParsedUsesPermission.FLAG_ONLY_FOR_LOCATION_BUTTON
+                )
+            }
+        if (!onlyForLocationButton) {
+            return
+        }
+        newState.userStates.forEachIndexed { _, userId, _ ->
+            if (
+                isRuntimePermissionGranted(appId, userId, Manifest.permission.ACCESS_FINE_LOCATION)
+            ) {
+                revokeRuntimePermission(appId, userId, Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
+    }
+
     private fun GetStateScope.isRuntimePermissionGranted(
         appId: Int,
         userId: Int,
@@ -878,7 +955,7 @@ class AppIdPermissionPolicy : SchemePolicy() {
         return PermissionFlags.isAppOpGranted(flags)
     }
 
-    fun MutateStateScope.revokeRuntimePermission(
+    private fun MutateStateScope.revokeRuntimePermission(
         appId: Int,
         userId: Int,
         permissionName: String,
@@ -1038,7 +1115,10 @@ class AppIdPermissionPolicy : SchemePolicy() {
             // declare at least one valid purpose in its manifest before it can be granted. Note
             // that a flag state may have INSTALL_GRANTED and PURPOSE_REVOKED bits set, in which
             // case the permission will not be granted.
-            if (Flags.purposeDeclarationEnabled() && permission.requiresPurpose) {
+            if (
+                Flags.ppdInstallTimeEnabled() &&
+                    permission.requiresPurposeTargetSdkVersion != NO_TARGET_SDK_VERSION
+            ) {
                 val hasValidPurpose =
                     requestingPackageStates.anyIndexed { _, it ->
                         hasValidPurposeForPackage(it.androidPackage!!, permission)
@@ -1185,20 +1265,20 @@ class AppIdPermissionPolicy : SchemePolicy() {
                 }
                 if (!isImplicitPermission && hasImplicitFlag) {
                     newFlags = newFlags andInv PermissionFlags.IMPLICIT
-                    var shouldRetainAsNearbyDevices = false
-                    if (permissionName in NEARBY_DEVICES_PERMISSIONS) {
+                    var shouldRetainAsBluetooth = false
+                    if (permissionName in BLUETOOTH_PERMISSIONS) {
                         val accessBackgroundLocationFlags =
                             getPermissionFlags(
                                 appId,
                                 userId,
                                 Manifest.permission.ACCESS_BACKGROUND_LOCATION,
                             )
-                        shouldRetainAsNearbyDevices =
+                        shouldRetainAsBluetooth =
                             PermissionFlags.isAppOpGranted(accessBackgroundLocationFlags) &&
                                 !accessBackgroundLocationFlags.hasBits(PermissionFlags.IMPLICIT)
                     }
                     val shouldRetainByMask = newFlags.hasAnyBit(SYSTEM_OR_POLICY_FIXED_MASK)
-                    if (shouldRetainAsNearbyDevices || shouldRetainByMask) {
+                    if (shouldRetainAsBluetooth || shouldRetainByMask) {
                         if (wasGrantedByImplicit) {
                             newFlags = newFlags or PermissionFlags.RUNTIME_GRANTED
                         }
@@ -1437,12 +1517,18 @@ class AppIdPermissionPolicy : SchemePolicy() {
         permissionName: String,
     ): Boolean? {
         val permissionAllowlist = newState.externalState.permissionAllowlist
+        val apexModuleName = packageState.apexModuleName
         val packageName = packageState.packageName
         return when {
             packageState.isVendor || packageState.isOdm ->
                 permissionAllowlist.getVendorSignatureAppAllowlistState(packageName, permissionName)
             packageState.isProduct ->
-                permissionAllowlist.getProductSignatureAppAllowlistState(
+                apexModuleName?.let {
+                    permissionAllowlist.getApexSignatureAppAllowlistState(
+                        packageName,
+                        permissionName,
+                    )
+                } ?: permissionAllowlist.getProductSignatureAppAllowlistState(
                     packageName,
                     permissionName,
                 )
@@ -1536,46 +1622,51 @@ class AppIdPermissionPolicy : SchemePolicy() {
         permissionName: String,
     ): Boolean? {
         val permissionAllowlist = newState.externalState.permissionAllowlist
-        val apexModuleName = packageState.apexModuleName
         val packageName = packageState.packageName
-        return when {
-            packageState.isVendor || packageState.isOdm ->
-                permissionAllowlist.getVendorPrivilegedAppAllowlistState(
-                    packageName,
-                    permissionName,
-                )
-            packageState.isProduct ->
-                permissionAllowlist.getProductPrivilegedAppAllowlistState(
-                    packageName,
-                    permissionName,
-                )
-            packageState.isSystemExt ->
-                permissionAllowlist.getSystemExtPrivilegedAppAllowlistState(
-                    packageName,
-                    permissionName,
-                )
-            apexModuleName != null -> {
-                val nonApexAllowlistState =
-                    permissionAllowlist.getPrivilegedAppAllowlistState(packageName, permissionName)
-                if (nonApexAllowlistState != null) {
-                    // TODO(andreionea): Remove check as soon as all apk-in-apex
-                    // permission allowlists are migrated.
-                    Slog.w(
-                        LOG_TAG,
-                        "Package $packageName is an APK in APEX but has permission" +
-                            " allowlist on the system image, please bundle the allowlist in the" +
-                            " $apexModuleName APEX instead",
-                    )
-                }
-                val apexAllowlistState =
-                    permissionAllowlist.getApexPrivilegedAppAllowlistState(
-                        apexModuleName,
+        val nonApexAllowlistState =
+            when {
+                packageState.isVendor || packageState.isOdm ->
+                    permissionAllowlist.getVendorPrivilegedAppAllowlistState(
                         packageName,
                         permissionName,
                     )
-                apexAllowlistState ?: nonApexAllowlistState
+                packageState.isProduct ->
+                    permissionAllowlist.getProductPrivilegedAppAllowlistState(
+                        packageName,
+                        permissionName,
+                    )
+                packageState.isSystemExt ->
+                    permissionAllowlist.getSystemExtPrivilegedAppAllowlistState(
+                        packageName,
+                        permissionName,
+                    )
+                else ->
+                    permissionAllowlist.getPrivilegedAppAllowlistState(packageName, permissionName)
             }
-            else -> permissionAllowlist.getPrivilegedAppAllowlistState(packageName, permissionName)
+        val apexModuleName = packageState.apexModuleName
+        return if (
+            apexModuleName != null &&
+                !(packageState.isVendor || packageState.isOdm || packageState.isSystemExt)
+        ) {
+            if (nonApexAllowlistState != null) {
+                // TODO(andreionea): Remove check as soon as all apk-in-apex
+                // permission allowlists are migrated.
+                Slog.w(
+                    LOG_TAG,
+                    "Package $packageName is an APK in APEX but has permission" +
+                        " allowlist on the system image, please bundle the allowlist in the" +
+                        " $apexModuleName APEX instead",
+                )
+            }
+            val apexAllowlistState =
+                permissionAllowlist.getApexPrivilegedAppAllowlistState(
+                    apexModuleName,
+                    packageName,
+                    permissionName,
+                )
+            apexAllowlistState ?: nonApexAllowlistState
+        } else {
+            nonApexAllowlistState
         }
     }
 
@@ -1612,6 +1703,18 @@ class AppIdPermissionPolicy : SchemePolicy() {
                 targetSdkVersion
             }
         }
+
+    private inline fun MutateStateScope.allPackagesInAppId(
+        appId: Int,
+        state: AccessState = newState,
+        predicate: (PackageState) -> Boolean,
+    ): Boolean {
+        val packageNames = state.externalState.appIdPackageNames[appId]!!
+        return packageNames.allIndexed { _, packageName ->
+            val packageState = state.externalState.packageStates[packageName]!!
+            packageState.androidPackage != null && predicate(packageState)
+        }
+    }
 
     private inline fun MutateStateScope.anyPackageInAppId(
         appId: Int,
@@ -1992,13 +2095,29 @@ class AppIdPermissionPolicy : SchemePolicy() {
                 Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
             )
 
-        private val NEARBY_DEVICES_PERMISSIONS =
+        val BLUETOOTH_PERMISSIONS =
             indexedSetOf(
                 Manifest.permission.BLUETOOTH_ADVERTISE,
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.NEARBY_WIFI_DEVICES,
             )
+
+        val NEARBY_DEVICES_PERMISSIONS: IndexedSet<String> =
+            mutableIndexedSetOf(
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.UWB_RANGING,
+                    Manifest.permission.NEARBY_WIFI_DEVICES,
+                )
+                .apply {
+                    if (Flags.rangingPermissionEnabled()) {
+                        this += Manifest.permission.RANGING
+                    }
+                    if (Flags.accessLocalNetworkPermissionEnabled()) {
+                        this += Manifest.permission.ACCESS_LOCAL_NETWORK
+                    }
+                }
 
         private val NOTIFICATIONS_PERMISSIONS = indexedSetOf(Manifest.permission.POST_NOTIFICATIONS)
 
@@ -2020,7 +2139,9 @@ class AppIdPermissionPolicy : SchemePolicy() {
                 PermissionFlags.APP_OP_REVOKED or
                 PermissionFlags.ONE_TIME or
                 PermissionFlags.HIBERNATION or
-                PermissionFlags.USER_SELECTED
+                PermissionFlags.USER_SELECTED or
+                PermissionFlags.TRUSTED_UI_SHOWN or
+                PermissionFlags.TRUSTED_UI_CONSENTED
 
         /**
          * Mask for all permission flags that imply we shouldn't automatically modify the permission
@@ -2046,6 +2167,33 @@ class AppIdPermissionPolicy : SchemePolicy() {
             oldFlags: Int,
             newFlags: Int,
         )
+
+        /**
+         * Called when a user is added to the system.
+         *
+         * Implementations should keep this method fast to avoid stalling the locked state mutation,
+         * and only call external code after [onStateMutated] when the new state has actually become
+         * the current state visible to external code.
+         */
+        fun onUserAdded(userId: Int) {}
+
+        /**
+         * Called when a user is removed from the system.
+         *
+         * Implementations should keep this method fast to avoid stalling the locked state mutation,
+         * and only call external code after [onStateMutated] when the new state has actually become
+         * the current state visible to external code.
+         */
+        fun onUserRemoved(userId: Int) {}
+
+        /**
+         * Called when an application ID (appId) is removed from the system.
+         *
+         * Implementations should keep this method fast to avoid stalling the locked state mutation,
+         * and only call external code after [onStateMutated] when the new state has actually become
+         * the current state visible to external code.
+         */
+        fun onAppIdRemoved(appId: Int) {}
 
         /**
          * Called when the upcoming new state has become the current state.

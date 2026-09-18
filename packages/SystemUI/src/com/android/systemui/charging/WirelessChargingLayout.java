@@ -34,9 +34,9 @@ import com.android.app.animation.Interpolators;
 import com.android.settingslib.Utils;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.recents.utilities.Utilities;
-import com.android.systemui.surfaceeffects.ripple.RippleShader;
-import com.android.systemui.surfaceeffects.ripple.RippleShader.RippleShape;
-import com.android.systemui.surfaceeffects.ripple.RippleView;
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader;
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader.RippleShape;
+import com.android.systemui.surfaceeffects.view.ripple.RippleView;
 
 import java.text.NumberFormat;
 

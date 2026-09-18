@@ -33,30 +33,32 @@ import java.util.concurrent.Executor;
 @SystemApi
 public final class TimeZoneCapabilitiesAndConfig implements Parcelable {
 
-    public static final @NonNull Creator<TimeZoneCapabilitiesAndConfig> CREATOR = new Creator<>() {
-        public TimeZoneCapabilitiesAndConfig createFromParcel(Parcel in) {
-            return TimeZoneCapabilitiesAndConfig.createFromParcel(in);
-        }
+    public static final @NonNull Creator<TimeZoneCapabilitiesAndConfig> CREATOR =
+            new Creator<>() {
+                public TimeZoneCapabilitiesAndConfig createFromParcel(Parcel in) {
+                    return TimeZoneCapabilitiesAndConfig.createFromParcel(in);
+                }
 
-        public TimeZoneCapabilitiesAndConfig[] newArray(int size) {
-            return new TimeZoneCapabilitiesAndConfig[size];
-        }
-    };
+                public TimeZoneCapabilitiesAndConfig[] newArray(int size) {
+                    return new TimeZoneCapabilitiesAndConfig[size];
+                }
+            };
 
     /**
      * The time zone detector status.
      *
-     * Implementation note for future platform engineers: This field is only needed by SettingsUI
+     * <p>Implementation note for future platform engineers: This field is only needed by SettingsUI
      * initially and so it has not been added to the SDK API. {@link TimeZoneDetectorStatus}
      * contains details about the internals of the time zone detector so thought should be given to
      * abstraction / exposing a lightweight version if something unbundled needs access to detector
      * details. Also, that could be good time to add separate APIs for bundled components, or add
      * new APIs that return something more extensible and generic like a Bundle or a less
-     * constraining name. See also {@link
-     * TimeManager#addTimeZoneDetectorListener(Executor, TimeManager.TimeZoneDetectorListener)},
-     * which notified of changes to any fields in this class, including the detector status.
+     * constraining name. See also {@link TimeManager#addTimeZoneDetectorListener(Executor,
+     * TimeManager.TimeZoneDetectorListener)}, which notified of changes to any fields in this
+     * class, including the detector status.
      */
     @NonNull private final TimeZoneDetectorStatus mDetectorStatus;
+
     @NonNull private final TimeZoneCapabilities mCapabilities;
     @NonNull private final TimeZoneConfiguration mConfiguration;
 
@@ -100,17 +102,13 @@ public final class TimeZoneCapabilitiesAndConfig implements Parcelable {
         return mDetectorStatus;
     }
 
-    /**
-     * Returns the user's time zone behavior capabilities.
-     */
+    /** Returns the user's time zone behavior capabilities. */
     @NonNull
     public TimeZoneCapabilities getCapabilities() {
         return mCapabilities;
     }
 
-    /**
-     * Returns the user's time zone behavior configuration.
-     */
+    /** Returns the user's time zone behavior configuration. */
     @NonNull
     public TimeZoneConfiguration getConfiguration() {
         return mConfiguration;
@@ -143,9 +141,12 @@ public final class TimeZoneCapabilitiesAndConfig implements Parcelable {
     @Override
     public String toString() {
         return "TimeZoneCapabilitiesAndConfig{"
-                + "mDetectorStatus=" + mDetectorStatus
-                + ", mCapabilities=" + mCapabilities
-                + ", mConfiguration=" + mConfiguration
+                + "mDetectorStatus="
+                + mDetectorStatus
+                + ", mCapabilities="
+                + mCapabilities
+                + ", mConfiguration="
+                + mConfiguration
                 + '}';
     }
 }

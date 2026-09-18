@@ -599,10 +599,15 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
                 }
                 mButton.setEnabled(mIsEnabled);
                 mButton.setOnClickListener(mListener);
-                mTextView.setOnClickListener(mListener);
+                mButton.setFocusable(true);
+                mButton.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+                mTextView.setFocusable(false);
+                mTextView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
                 mActionLayout.setEnabled(mIsEnabled);
+                mActionLayout.setFocusable(false);
+                mActionLayout.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
                 mActionLayout.setOnClickListener(mListener);
-                mActionLayout.setContentDescription(
+                mButton.setContentDescription(
                         TextUtils.isEmpty(mContentDescription) ? mText : mContentDescription);
             } else {
                 mButton.setText(mText);

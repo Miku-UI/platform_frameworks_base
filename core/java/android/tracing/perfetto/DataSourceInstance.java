@@ -16,7 +16,11 @@
 
 package android.tracing.perfetto;
 
+import android.annotation.CallSuper;
+
 import com.android.internal.annotations.VisibleForTesting;
+
+import java.util.Set;
 
 /**
  * @hide
@@ -38,7 +42,18 @@ public abstract class DataSourceInstance implements AutoCloseable {
      *
      * @param args Start arguments.
      */
-    protected void onStart(StartCallbackArguments args) {}
+    @CallSuper
+    protected void onStart(StartCallbackArguments args) {
+        synchronized (getDataSource().mRunningInstances) {
+            getDataSource().mRunningInstances.add(getInstanceIndex());
+
+            final Set<DataSource.TracingInstanceStartCallback> cbs =
+                    getDataSource().mOnStartCallbacks;
+            for (DataSource.TracingInstanceStartCallback onStartCb : cbs) {
+                onStartCb.onTracingInstanceStart(getInstanceIndex());
+            }
+        }
+    }
 
     /**
      * Executed when a flush is triggered.
@@ -47,7 +62,13 @@ public abstract class DataSourceInstance implements AutoCloseable {
      *       Anything that is run in this callback should execute quickly.
      * @param args Flush arguments.
      */
-    protected void onFlush(FlushCallbackArguments args) {}
+    @CallSuper
+    protected void onFlush(FlushCallbackArguments args) {
+        final Set<DataSource.TracingInstanceFlushCallback> cbs = getDataSource().mOnFlushCallbacks;
+        for (var onFlushCb : cbs) {
+            onFlushCb.onTracingFlush();
+        }
+    }
 
     /**
      * Executed when the tracing instance is stopped.
@@ -56,7 +77,18 @@ public abstract class DataSourceInstance implements AutoCloseable {
      *       Anything that is run in this callback should execute quickly.
      * @param args Stop arguments.
      */
-    protected void onStop(StopCallbackArguments args) {}
+    @CallSuper
+    protected void onStop(StopCallbackArguments args) {
+        synchronized (getDataSource().mRunningInstances) {
+            getDataSource().mRunningInstances.remove(getInstanceIndex());
+
+            final Set<DataSource.TracingInstanceStopCallback> cbs =
+                    getDataSource().mOnStopCallbacks;
+            for (var onFlushCb : cbs) {
+                onFlushCb.onTracingInstanceStop(getInstanceIndex());
+            }
+        }
+    }
 
     /**
      * Stop the data source instance (whose stop operation was previously postponed
@@ -83,5 +115,12 @@ public abstract class DataSourceInstance implements AutoCloseable {
 
     public final int getInstanceIndex() {
         return mInstanceIndex;
+    }
+
+    /**
+     * Returns the {@link DataSource} this instance is associated with.
+     */
+    public final DataSource getDataSource() {
+        return mDataSource;
     }
 }

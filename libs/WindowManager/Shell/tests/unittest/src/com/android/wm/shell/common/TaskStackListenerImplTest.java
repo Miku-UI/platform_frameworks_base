@@ -31,10 +31,8 @@ import android.content.ComponentName;
 import android.os.Handler;
 import android.os.Message;
 import android.os.RemoteException;
-import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
-import android.window.TaskSnapshot;
 
 import androidx.test.filters.SmallTest;
 
@@ -156,16 +154,6 @@ public class TaskStackListenerImplTest extends ShellTestCase {
         verify(mCallback).onTaskDescriptionChanged(eq(info));
         verify(mOtherCallback).onTaskDescriptionChanged(eq(info));
     }
-
-    @Test
-    @RequiresFlagsDisabled(com.android.window.flags.Flags.FLAG_REDUCE_TASK_SNAPSHOT_MEMORY_USAGE)
-    public void testOnTaskSnapshotChanged() {
-        TaskSnapshot snapshot = mock(TaskSnapshot.class);
-        mImpl.onTaskSnapshotChanged(123, snapshot);
-        verify(mCallback).onTaskSnapshotChanged(eq(123), eq(snapshot));
-        verify(mOtherCallback).onTaskSnapshotChanged(eq(123), eq(snapshot));
-    }
-
     @Test
     public void testOnBackPressedOnTaskRoot() {
         ActivityManager.RunningTaskInfo info = mock(ActivityManager.RunningTaskInfo.class);

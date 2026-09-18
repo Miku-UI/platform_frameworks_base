@@ -35,7 +35,7 @@
     <string name="install_for_print_preview" msgid="6366303997385509332">"पूर्वावलोकनासाठी पीडीएफ व्ह्यूअर इंस्टॉल करा"</string>
     <string name="printing_app_crashed" msgid="854477616686566398">"प्रिंटिंग अ‍ॅप क्रॅश झाले"</string>
     <string name="generating_print_job" msgid="3119608742651698916">"प्रिंट कार्य व्‍युत्‍पन्न करत आहे"</string>
-    <string name="save_as_pdf" msgid="5718454119847596853">"पीडीएफ म्‍हणून सेव्ह करा"</string>
+    <string name="save_as_pdf" msgid="5718454119847596853">"PDF म्‍हणून सेव्ह करा"</string>
     <string name="all_printers" msgid="5018829726861876202">"सर्व प्रिंटर..."</string>
     <string name="print_dialog" msgid="32628687461331979">"प्रिंट संवाद"</string>
     <string name="current_page_template" msgid="5145005201131935302">"<xliff:g id="CURRENT_PAGE">%1$d</xliff:g>/<xliff:g id="PAGE_COUNT">%2$d</xliff:g>"</string>
@@ -44,7 +44,8 @@
     <string name="expand_handle" msgid="7282974448109280522">"विस्तृत करण्याचे हँडल"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"संक्षिप्त करण्याचे हँडल"</string>
     <string name="print_button" msgid="645164566271246268">"प्रिंट करा"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"पीडीएफ वर सेव्ह करा"</string>
+    <string name="setup_button" msgid="323390526074568450">"सेट करा"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"PDF वर सेव्ह करा"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"प्रिंट पर्याय विस्तृत झाले"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"प्रिंट पर्याय संक्षिप्त झाले"</string>
     <string name="search" msgid="5421724265322228497">"शोधा"</string>

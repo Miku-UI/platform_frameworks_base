@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.notification.row.wrapper;
 
+import android.testing.TestableLooper.RunWithLooper;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -34,6 +35,7 @@ import org.junit.runner.RunWith;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
+@RunWithLooper
 public class NotificationCustomViewWrapperTest extends SysuiTestCase {
 
     private ExpandableNotificationRow mRow;
@@ -41,6 +43,7 @@ public class NotificationCustomViewWrapperTest extends SysuiTestCase {
 
     @Before
     public void setUp() throws Exception {
+        allowTestableLooperAsMainThread();
         mRow = mKosmos.createRow();
     }
 

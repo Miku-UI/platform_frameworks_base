@@ -22,6 +22,6 @@ import android.service.chooser.IChooserController;
 /** @hide */
 interface IChooserControllerCallback {
     oneway void registerChooserController(in IChooserController updater);
-    oneway void onBoundsChanged(in Rect size);
+    oneway void onBoundsChanged(in Rect bounds, in Rect defaultBounds);
     oneway void onClosed();
 }

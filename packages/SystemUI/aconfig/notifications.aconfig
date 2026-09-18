@@ -1,0 +1,71 @@
+package: "com.android.systemui"
+container: "system"
+
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
+flag {
+    name: "extend_huns_pinned_by_user"
+    namespace: "notifications"
+    description: "When a promoted notification is opened from the chip, even silent updates from the app will extend the heads up timeout, instead of shortening it."
+    bug: "448865271"
+}
+
+flag {
+    name: "launch_new_fsi_on_update"
+    namespace: "notifications"
+    description: "Launch a notification's fullScreenIntent when it is updated by the app from not having one to having one."
+    bug: "448616024"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "notification_animated_action_style_2026"
+    namespace: "notifications"
+    description: "Whether to use the new 2026 style for notification animated actions."
+    bug: "487036918"
+}
+
+flag {
+    name: "notification_chip_from_compact_content"
+    namespace: "notifications"
+    description: "Use resolveCompactContent() as the source of truth for promoted notification chips."
+    bug: "444195986"
+}
+
+flag {
+    name: "notification_debug_drawing"
+    namespace: "notifications"
+    description: "Enable debug drawing for notifications."
+    bug: "254512732"
+}
+
+flag {
+    name: "notification_developer_logging"
+    namespace: "notifications"
+    description: "Enable developer logging for notifications."
+    bug: "254512751"
+}
+
+flag {
+    name: "notification_expand_bundle_header_size"
+    namespace: "notifications"
+    description: "Fixes expansion of notification bundle headers."
+    bug: "467266483"
+}
+
+flag {
+    name: "notification_storage_alerts_channel"
+    namespace: "notifications"
+    description: "Use the high priority ALERTS channel for notification storage alerts."
+    bug: "466401283"
+}
+
+flag {
+    name: "notification_summarization_allow_animation"
+    namespace: "notifications"
+    description: "Animation support for notification summarization icon."
+    bug: "486942439"
+}
+
+# go/keep-sorted end

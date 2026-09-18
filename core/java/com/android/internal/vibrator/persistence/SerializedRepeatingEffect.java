@@ -43,6 +43,7 @@ import java.util.List;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class SerializedRepeatingEffect implements SerializedComposedEffect.SerializedSegment {
 
     @Nullable

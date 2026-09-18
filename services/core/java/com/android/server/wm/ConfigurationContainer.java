@@ -447,10 +447,6 @@ public abstract class ConfigurationContainer<E extends ConfigurationContainer> {
      *         fullscreen. {@code false} otherwise.
      */
     public boolean matchParentBounds() {
-        if (!com.android.window.flags.Flags.refactorMatchParentBounds()) {
-            return getResolvedOverrideBounds().isEmpty();
-        }
-
         final int windowingMode = getWindowingMode();
         if (windowingMode == WINDOWING_MODE_PINNED) return false;
         if (windowingMode == WINDOWING_MODE_FULLSCREEN) return true;
@@ -823,15 +819,15 @@ public abstract class ConfigurationContainer<E extends ConfigurationContainer> {
     /**
      * Returns true if this container is compatible with the input windowing mode and activity type.
      * The container is compatible:
-     * - If {@param activityType} and {@param windowingMode} match this container activity type and
+     * - If {@code activityType} and {@code windowingMode} match this container activity type and
      * windowing mode.
-     * - If {@param activityType} is {@link WindowConfiguration#ACTIVITY_TYPE_UNDEFINED} or
+     * - If {@code activityType} is {@link WindowConfiguration#ACTIVITY_TYPE_UNDEFINED} or
      * {@link WindowConfiguration#ACTIVITY_TYPE_STANDARD} and this containers activity type is also
-     * standard or undefined and its windowing mode matches {@param windowingMode}.
-     * - If {@param activityType} isn't {@link WindowConfiguration#ACTIVITY_TYPE_UNDEFINED} or
+     * standard or undefined and its windowing mode matches {@code windowingMode}.
+     * - If {@code activityType} isn't {@link WindowConfiguration#ACTIVITY_TYPE_UNDEFINED} or
      * {@link WindowConfiguration#ACTIVITY_TYPE_STANDARD} or this containers activity type isn't
-     * also standard or undefined and its activity type matches {@param activityType} regardless of
-     * if {@param windowingMode} matches the containers windowing mode.
+     * also standard or undefined and its activity type matches {@code activityType} regardless of
+     * if {@code windowingMode} matches the containers windowing mode.
      */
     public boolean isCompatible(@WindowConfiguration.WindowingMode int windowingMode,
             @WindowConfiguration.ActivityType int activityType) {

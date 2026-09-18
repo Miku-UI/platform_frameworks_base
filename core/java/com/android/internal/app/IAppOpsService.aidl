@@ -62,6 +62,7 @@ interface IAppOpsService {
     void setCameraAudioRestriction(int mode);
     void startWatchingModeWithFlags(int op, String packageName, int flags,
             IAppOpsCallback callback);
+    int checkOperationForDevice(int code, int uid, String packageName, @nullable String attributionTag, int virtualDeviceId);
     // End of methods also called by native code (there may be more blocks like this of native
     // methods later in this file).
     // Deprecated, use noteProxyOperationWithState instead.
@@ -152,7 +153,6 @@ interface IAppOpsService {
             in AttributionSourceState attributionSourceStateState, boolean skipProxyOperation);
     int checkOperationRawForDevice(int code, int uid, String packageName,
             @nullable String attributionTag, int virtualDeviceId);
-    int checkOperationForDevice(int code, int uid, String packageName, @nullable String attributionTag, int virtualDeviceId);
     SyncNotedAppOp noteOperationForDevice(int code, int uid, String packageName,
             @nullable String attributionTag, int virtualDeviceId,
             boolean shouldCollectAsyncNotedOp, String message, boolean shouldCollectMessage);

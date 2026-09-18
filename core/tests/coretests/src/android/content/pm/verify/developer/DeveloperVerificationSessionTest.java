@@ -81,6 +81,7 @@ public class DeveloperVerificationSessionTest {
     @Mock
     private IDeveloperVerificationSessionInterface mTestSessionInterface;
     private DeveloperVerificationSession mTestSession;
+    private int mTestVerificationFlags;
 
     @Before
     public void setUp() {
@@ -88,9 +89,14 @@ public class DeveloperVerificationSessionTest {
         mTestDeclaredLibraries.add(TEST_SHARED_LIBRARY_INFO1);
         mTestDeclaredLibraries.add(TEST_SHARED_LIBRARY_INFO2);
         mTestExtensionParams.putString(TEST_KEY, TEST_VALUE);
+        if (android.content.pm.Flags.verificationServiceAdb()) {
+            mTestVerificationFlags =
+                    DeveloperVerificationSession.FLAG_VERIFICATION_IS_ADB
+                            | DeveloperVerificationSession.FLAG_VERIFICATION_FORCED_ON_ADB;
+        }
         mTestSession = new DeveloperVerificationSession(TEST_ID, TEST_INSTALL_SESSION_ID,
                 TEST_PACKAGE_NAME, TEST_PACKAGE_URI, TEST_SIGNING_INFO, mTestDeclaredLibraries,
-                mTestExtensionParams, TEST_POLICY, mTestSessionInterface);
+                mTestExtensionParams, TEST_POLICY, mTestSessionInterface, mTestVerificationFlags);
     }
 
     @Test
@@ -119,14 +125,17 @@ public class DeveloperVerificationSessionTest {
         assertThat(sessionFromParcel.getExtensionParams().getString(TEST_KEY))
                 .isEqualTo(mTestExtensionParams.getString(TEST_KEY));
         assertThat(sessionFromParcel.getPolicy()).isEqualTo(TEST_POLICY);
+        if (android.content.pm.Flags.verificationServiceAdb()) {
+            assertThat(sessionFromParcel.getVerificationFlags()).isEqualTo(mTestVerificationFlags);
+        }
     }
 
     @Test
     public void testParcelWithNullExtensionParams() {
         DeveloperVerificationSession session = new DeveloperVerificationSession(TEST_ID,
-                TEST_INSTALL_SESSION_ID,
-                TEST_PACKAGE_NAME, TEST_PACKAGE_URI, TEST_SIGNING_INFO, mTestDeclaredLibraries,
-                /* extensionParams= */ null, TEST_POLICY, mTestSessionInterface);
+                TEST_INSTALL_SESSION_ID, TEST_PACKAGE_NAME, TEST_PACKAGE_URI, TEST_SIGNING_INFO,
+                mTestDeclaredLibraries, /* extensionParams= */ null, TEST_POLICY,
+                mTestSessionInterface, mTestVerificationFlags);
         Parcel parcel = Parcel.obtain();
         session.writeToParcel(parcel, 0);
         parcel.setDataPosition(0);

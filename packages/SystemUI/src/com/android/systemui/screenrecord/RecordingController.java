@@ -150,7 +150,7 @@ public class RecordingController
      */
     public Dialog createScreenRecordDialog(@Nullable Runnable onStartRecordingClicked) {
         if (isScreenCaptureDisabled()) {
-            return mScreenCaptureDisabledDialogDelegate.createSysUIDialog();
+            return mScreenCaptureDisabledDialogDelegate.createDialog();
         }
 
         mMediaProjectionMetricsLogger.notifyProjectionInitiated(

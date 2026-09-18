@@ -32,14 +32,6 @@ flag {
 }
 
 flag {
-    namespace: "window_surfaces"
-    name: "set_sc_properties_in_client"
-    description: "Set VRI SC properties in the client instead of system server"
-    is_fixed_read_only: true
-    bug: "308662081"
-}
-
-flag {
   name: "ignore_corner_radius_and_shadows"
   namespace: "window_surfaces"
   description: "Ignore the corner radius and shadows of a SurfaceControl"
@@ -85,6 +77,14 @@ flag {
 }
 
 flag {
+    name: "scvh_set_focusable_api"
+    namespace: "window_surfaces"
+    description: "Adds a focusable flag to SurfaceControlViewHost"
+    is_exported: true
+    bug: "425415517"
+}
+
+flag {
     name: "scvh_surface_control_lifetime_fix"
     namespace: "window_surfaces"
     description: "Fix lifetime issue with SurfaceControl's created by SCVH"
@@ -123,11 +123,24 @@ flag {
 }
 
 flag {
-    name: "deprecate_window_animator_frame_callback"
+    name: "mirror_surface_api"
     namespace: "window_surfaces"
-    description: "Utilize postVsyncCallback from Choreographer for WindowAnimator allowing more precise scheduling via vsyncId."
-    bug: "443142083"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Gate the api that allows apps to get mirrored surface control of its own window."
+    bug: "437391557"
+    is_exported: true
+}
+
+flag {
+    name: "screen_capture_exclusion_flags"
+    namespace: "window_surfaces"
+    description: "Enable the capability of excluding windows in screen captures by checking the exclusion flags."
+    bug: "469847524"
+}
+
+flag {
+    name: "support_custom_dim_color"
+    namespace: "toolkit"
+    description: "Enables support for setting a custom dim color on windows"
+    bug: "157648113"
+    is_exported: true
 }

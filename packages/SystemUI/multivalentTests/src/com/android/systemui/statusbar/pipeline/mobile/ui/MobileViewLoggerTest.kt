@@ -20,13 +20,14 @@ import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dump.DumpManager
-import com.android.systemui.log.LogBufferFactory
+import com.android.systemui.dump.realDumpManager
+import com.android.systemui.log.impl.LogBufferFactoryImpl
 import com.android.systemui.statusbar.pipeline.StatusBarPipelineFlags
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger.Companion.getIdForLogging
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.KeyguardMobileIconViewModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconViewModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.QsMobileIconViewModel
+import com.android.systemui.testKosmosNew
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -40,7 +41,8 @@ import org.mockito.MockitoAnnotations
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileViewLoggerTest : SysuiTestCase() {
-    private val buffer = LogBufferFactory(DumpManager(), mock()).create("buffer", 10)
+    private val kosmos = testKosmosNew()
+    private val buffer = LogBufferFactoryImpl(kosmos.realDumpManager, mock()).create("buffer", 10)
     private val stringWriter = StringWriter()
     private val printWriter = PrintWriter(stringWriter)
 

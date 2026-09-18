@@ -16,6 +16,8 @@
 
 package com.android.systemui.keyboard.shortcut.data.source
 
+import android.app.role.RoleManager
+import android.app.role.roleManager
 import android.content.res.mainResources
 import android.hardware.input.KeyGlyphMap
 import android.hardware.input.KeyGlyphMap.KeyCombination
@@ -25,13 +27,16 @@ import android.platform.test.annotations.EnableFlags
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_BACK
 import android.view.KeyEvent.KEYCODE_HOME
+import android.view.KeyEvent.KEYCODE_N
 import android.view.KeyEvent.KEYCODE_RECENT_APPS
 import android.view.KeyEvent.KEYCODE_TAB
 import android.view.KeyEvent.META_ALT_ON
+import android.view.KeyEvent.META_CTRL_ON
 import android.view.KeyEvent.META_META_ON
 import android.view.KeyEvent.META_SHIFT_ON
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.hardware.input.Flags.FLAG_ENABLE_NOTE_TAKING_KEYBOARD_SHORTCUT
 import com.android.systemui.Flags.FLAG_SHORTCUT_HELPER_KEY_GLYPH
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
@@ -52,7 +57,8 @@ class SystemShortcutsSourceTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
 
     private val inputManager = kosmos.fakeInputManager.inputManager
-    private val source = SystemShortcutsSource(kosmos.mainResources, inputManager)
+    private val roleManager = kosmos.roleManager
+    private val source = SystemShortcutsSource(kosmos.mainResources, inputManager, roleManager)
     private val mockKeyGlyphMap = mock(KeyGlyphMap::class.java)
     private val functionRowKeyCodes = listOf(KEYCODE_HOME, KEYCODE_BACK, KEYCODE_RECENT_APPS)
 
@@ -101,7 +107,7 @@ class SystemShortcutsSourceTest : SysuiTestCase() {
         testScope.runTest {
             whenever(mockKeyGlyphMap.functionRowKeys).thenReturn(intArrayOf())
             val hardwareShortcutMap =
-                mapOf(Pair(KeyCombination(KeyEvent.META_META_ON, KeyEvent.KEYCODE_1), KEYCODE_BACK))
+                mapOf(Pair(KeyCombination(META_META_ON, KeyEvent.KEYCODE_1), KEYCODE_BACK))
             whenever(mockKeyGlyphMap.hardwareShortcuts).thenReturn(hardwareShortcutMap)
 
             val groups = source.shortcutGroups(TEST_DEVICE_ID)
@@ -110,7 +116,7 @@ class SystemShortcutsSourceTest : SysuiTestCase() {
             val hardwareShortcut =
                 Triple(
                     context.getString(R.string.group_system_go_back),
-                    KeyEvent.META_META_ON,
+                    META_META_ON,
                     KeyEvent.KEYCODE_1,
                 )
             assertThat(shortcuts).contains(hardwareShortcut)
@@ -121,7 +127,7 @@ class SystemShortcutsSourceTest : SysuiTestCase() {
     fun shortcutGroups_flagDisabled_inputManagerReturnsHardwareShortcuts_returnsNoHardwareShortcuts() =
         testScope.runTest {
             val hardwareShortcutMap =
-                mapOf(Pair(KeyCombination(KeyEvent.META_META_ON, KeyEvent.KEYCODE_1), KEYCODE_BACK))
+                mapOf(Pair(KeyCombination(META_META_ON, KeyEvent.KEYCODE_1), KEYCODE_BACK))
             whenever(mockKeyGlyphMap.hardwareShortcuts).thenReturn(hardwareShortcutMap)
 
             val groups = source.shortcutGroups(TEST_DEVICE_ID)
@@ -130,7 +136,7 @@ class SystemShortcutsSourceTest : SysuiTestCase() {
             val hardwareShortcut =
                 Triple(
                     context.getString(R.string.group_system_go_back),
-                    KeyEvent.META_META_ON,
+                    META_META_ON,
                     KeyEvent.KEYCODE_1,
                 )
             assertThat(shortcuts).doesNotContain(hardwareShortcut)
@@ -159,6 +165,48 @@ class SystemShortcutsSourceTest : SysuiTestCase() {
                 )
 
             assertThat(shortcuts).containsAtLeastElementsIn(cycleThroughRecentAppsShortcuts)
+        }
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_NOTE_TAKING_KEYBOARD_SHORTCUT)
+    fun shortcutGroups_notesRoleAvailable_containsNotesShortcuts() {
+        testScope.runTest {
+            whenever(roleManager.isRoleAvailable(RoleManager.ROLE_NOTES)).thenReturn(true)
+
+            val groups = source.shortcutGroups(TEST_DEVICE_ID)
+
+            val shortcuts =
+                groups.flatMap { it.items }.map { c -> Triple(c.label, c.modifiers, c.keycode) }
+            assertThat(shortcuts)
+                .contains(
+                    Triple(
+                        context.getString(R.string.group_system_quick_memo),
+                        META_META_ON or META_CTRL_ON,
+                        KEYCODE_N,
+                    )
+                )
+        }
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_NOTE_TAKING_KEYBOARD_SHORTCUT)
+    fun shortcutGroups_notesRoleUnavailable_doesNotContainNotesShortcuts() {
+        testScope.runTest {
+            whenever(roleManager.isRoleAvailable(RoleManager.ROLE_NOTES)).thenReturn(false)
+
+            val groups = source.shortcutGroups(TEST_DEVICE_ID)
+
+            val shortcuts =
+                groups.flatMap { it.items }.map { c -> Triple(c.label, c.modifiers, c.keycode) }
+            assertThat(shortcuts)
+                .doesNotContain(
+                    Triple(
+                        context.getString(R.string.group_system_quick_memo),
+                        META_META_ON or META_CTRL_ON,
+                        KEYCODE_N,
+                    )
+                )
         }
     }
 

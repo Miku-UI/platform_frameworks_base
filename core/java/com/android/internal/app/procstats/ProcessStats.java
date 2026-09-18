@@ -16,6 +16,8 @@
 
 package com.android.internal.app.procstats;
 
+import static com.android.internal.app.procstats.Flags.removePageTypeInfoFromProcessStats;
+
 import android.content.ComponentName;
 import android.os.Debug;
 import android.os.Parcel;
@@ -271,9 +273,7 @@ public final class ProcessStats implements Parcelable {
         if (running) {
             // If we are actively running, we need to determine whether the system is
             // collecting swap pss data.
-            Debug.MemoryInfo info = new Debug.MemoryInfo();
-            Debug.getMemoryInfo(android.os.Process.myPid(), info);
-            mHasSwappedOutPss = info.hasSwappedOutPss();
+            mHasSwappedOutPss = isSwapEnabled();
         }
     }
 
@@ -678,11 +678,15 @@ public final class ProcessStats implements Parcelable {
 
     static final int[] BAD_TABLE = new int[0];
 
-
     /**
      * Load the system's memory fragmentation info.
      */
     public void updateFragmentation() {
+        // If the remove_pagetypeinfo_from_processstats flag is enabled, the pagetypeinfo should not
+        // be read.
+        if (removePageTypeInfoFromProcessStats()) {
+            return;
+        }
         // Parse /proc/pagetypeinfo and store the values.
         BufferedReader reader = null;
         try {
@@ -725,8 +729,21 @@ public final class ProcessStats implements Parcelable {
         }
     }
 
+    private static boolean isSwapEnabled() {
+        try (BufferedReader reader = new BufferedReader(new FileReader("/proc/swaps"))) {
+            // Skip header line.
+            if (reader.readLine() == null) {
+                return false;
+            }
+            // If there is a second line, there is a swap entry.
+            return reader.readLine() != null;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     /**
-     * Split the string of digits separaed by spaces.  There must be no
+     * Split the string of digits separated by spaces.  There must be no
      * leading or trailing spaces.  The format is ensured by the regex
      * above.
      */
@@ -1009,14 +1026,18 @@ public final class ProcessStats implements Parcelable {
             }
         }
 
-        // Fragmentation info (/proc/pagetypeinfo)
-        final int NPAGETYPES = mPageTypeLabels.size();
-        out.writeInt(NPAGETYPES);
-        for (int i=0; i<NPAGETYPES; i++) {
-            out.writeInt(mPageTypeNodes.get(i));
-            out.writeString(mPageTypeZones.get(i));
-            out.writeString(mPageTypeLabels.get(i));
-            out.writeIntArray(mPageTypeSizes.get(i));
+        // Update the page type info only when the remove_pagetypeinfo_from_processstats flag is not
+        // enabled
+        if (!removePageTypeInfoFromProcessStats()) {
+            // Fragmentation info (/proc/pagetypeinfo)
+            final int NPAGETYPES = mPageTypeLabels.size();
+            out.writeInt(NPAGETYPES);
+            for (int i = 0; i < NPAGETYPES; i++) {
+                out.writeInt(mPageTypeNodes.get(i));
+                out.writeString(mPageTypeZones.get(i));
+                out.writeString(mPageTypeLabels.get(i));
+                out.writeIntArray(mPageTypeSizes.get(i));
+            }
         }
 
         mCommonStringToIndex = null;
@@ -1348,21 +1369,25 @@ public final class ProcessStats implements Parcelable {
             }
         }
 
-        // Fragmentation info
-        final int NPAGETYPES = in.readInt();
-        mPageTypeNodes.clear();
-        mPageTypeNodes.ensureCapacity(NPAGETYPES);
-        mPageTypeZones.clear();
-        mPageTypeZones.ensureCapacity(NPAGETYPES);
-        mPageTypeLabels.clear();
-        mPageTypeLabels.ensureCapacity(NPAGETYPES);
-        mPageTypeSizes.clear();
-        mPageTypeSizes.ensureCapacity(NPAGETYPES);
-        for (int i=0; i<NPAGETYPES; i++) {
-            mPageTypeNodes.add(in.readInt());
-            mPageTypeZones.add(in.readString());
-            mPageTypeLabels.add(in.readString());
-            mPageTypeSizes.add(in.createIntArray());
+        // Update the page type info only when the remove_pagetypeinfo_from_processstats flag is not
+        // enabled
+        if (!removePageTypeInfoFromProcessStats()) {
+            // Fragmentation info
+            final int NPAGETYPES = in.readInt();
+            mPageTypeNodes.clear();
+            mPageTypeNodes.ensureCapacity(NPAGETYPES);
+            mPageTypeZones.clear();
+            mPageTypeZones.ensureCapacity(NPAGETYPES);
+            mPageTypeLabels.clear();
+            mPageTypeLabels.ensureCapacity(NPAGETYPES);
+            mPageTypeSizes.clear();
+            mPageTypeSizes.ensureCapacity(NPAGETYPES);
+            for (int i=0; i<NPAGETYPES; i++) {
+                mPageTypeNodes.add(in.readInt());
+                mPageTypeZones.add(in.readString());
+                mPageTypeLabels.add(in.readString());
+                mPageTypeSizes.add(in.createIntArray());
+            }
         }
 
         mIndexToCommonString = null;
@@ -1971,7 +1996,9 @@ public final class ProcessStats implements Parcelable {
             pw.print("  mRunning="); pw.println(mRunning);
         }
 
-        if (reqPackage == null) {
+        // Write the page type info only when the flag remove_pagetypeinfo_from_processstats is not
+        // enabled
+        if (!removePageTypeInfoFromProcessStats() && reqPackage == null) {
             dumpFragmentationLocked(pw);
         }
     }
@@ -2280,25 +2307,29 @@ public final class ProcessStats implements Parcelable {
         }
         pw.println();
 
-        final int NPAGETYPES = mPageTypeLabels.size();
-        for (int i=0; i<NPAGETYPES; i++) {
-            pw.print("availablepages,");
-            pw.print(mPageTypeLabels.get(i));
-            pw.print(",");
-            pw.print(mPageTypeZones.get(i));
-            pw.print(",");
-            // Wasn't included in original output.
-            //pw.print(mPageTypeNodes.get(i));
-            //pw.print(",");
-            final int[] sizes = mPageTypeSizes.get(i);
-            final int N = sizes == null ? 0 : sizes.length;
-            for (int j=0; j<N; j++) {
-                if (j != 0) {
-                    pw.print(",");
+        // Write the page type info only when the flag remove_pagetypeinfo_from_processstats is not
+        // enabled
+        if (!removePageTypeInfoFromProcessStats()) {
+            final int NPAGETYPES = mPageTypeLabels.size();
+            for (int i=0; i<NPAGETYPES; i++) {
+                pw.print("availablepages,");
+                pw.print(mPageTypeLabels.get(i));
+                pw.print(",");
+                pw.print(mPageTypeZones.get(i));
+                pw.print(",");
+                // Wasn't included in original output.
+                //pw.print(mPageTypeNodes.get(i));
+                //pw.print(",");
+                final int[] sizes = mPageTypeSizes.get(i);
+                final int N = sizes == null ? 0 : sizes.length;
+                for (int j=0; j<N; j++) {
+                    if (j != 0) {
+                        pw.print(",");
+                    }
+                    pw.print(sizes[j]);
                 }
-                pw.print(sizes[j]);
+                pw.println();
             }
-            pw.println();
         }
     }
 
@@ -2308,18 +2339,22 @@ public final class ProcessStats implements Parcelable {
     public void dumpDebug(ProtoOutputStream proto, long now, int section) {
         dumpProtoPreamble(proto);
 
-        final int NPAGETYPES = mPageTypeLabels.size();
-        for (int i = 0; i < NPAGETYPES; i++) {
-            final long token = proto.start(ProcessStatsSectionProto.AVAILABLE_PAGES);
-            proto.write(ProcessStatsAvailablePagesProto.NODE, mPageTypeNodes.get(i));
-            proto.write(ProcessStatsAvailablePagesProto.ZONE, mPageTypeZones.get(i));
-            proto.write(ProcessStatsAvailablePagesProto.LABEL, mPageTypeLabels.get(i));
-            final int[] sizes = mPageTypeSizes.get(i);
-            final int N = sizes == null ? 0 : sizes.length;
-            for (int j = 0; j < N; j++) {
-                proto.write(ProcessStatsAvailablePagesProto.PAGES_PER_ORDER, sizes[j]);
+        // Write the page type info to proto only when the flag
+        // remove_pagetypeinfo_from_processstats is not enabled
+        if (!removePageTypeInfoFromProcessStats()) {
+            final int NPAGETYPES = mPageTypeLabels.size();
+            for (int i = 0; i < NPAGETYPES; i++) {
+                final long token = proto.start(ProcessStatsSectionProto.AVAILABLE_PAGES);
+                proto.write(ProcessStatsAvailablePagesProto.NODE, mPageTypeNodes.get(i));
+                proto.write(ProcessStatsAvailablePagesProto.ZONE, mPageTypeZones.get(i));
+                proto.write(ProcessStatsAvailablePagesProto.LABEL, mPageTypeLabels.get(i));
+                final int[] sizes = mPageTypeSizes.get(i);
+                final int N = sizes == null ? 0 : sizes.length;
+                for (int j = 0; j < N; j++) {
+                    proto.write(ProcessStatsAvailablePagesProto.PAGES_PER_ORDER, sizes[j]);
+                }
+                proto.end(token);
             }
-            proto.end(token);
         }
 
         final ArrayMap<String, SparseArray<ProcessState>> procMap = mProcesses.getMap();

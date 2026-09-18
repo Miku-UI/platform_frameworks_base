@@ -21,13 +21,16 @@ import android.annotation.SuppressLint;
 import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.location.flags.Flags;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Handler;
+import android.net.Uri;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.os.UserHandle;
@@ -626,20 +629,40 @@ class GnssVisibilityControl {
     private static Notification createEmergencyLocationUserNotification(Context context) {
         // NOTE: Do not reuse the returned notification object as it will not reflect
         //       changes to notification text when the system language is changed.
-        final String firstLineText = context.getString(R.string.gpsNotifTitle);
-        final String secondLineText = context.getString(R.string.global_action_emergency);
+        final String firstLineText =
+                context.getString(R.string.emergency_location_notification_title);
+        final String secondLineText =
+                context.getString(R.string.emergency_location_notification_message);
         final String accessibilityServicesText = firstLineText + " (" + secondLineText + ")";
+        final Intent learnMoreIntent =
+                new Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(
+                                context.getString(
+                                        R.string.emergency_location_notification_learn_more_url)));
+        final PendingIntent learnMorePendingIntent =
+                PendingIntent.getActivity(
+                        context, 0, learnMoreIntent, PendingIntent.FLAG_IMMUTABLE);
+        final Notification.Action learnMoreAction =
+                new Notification.Action.Builder(
+                                null,
+                                context.getString(
+                                        R.string.emergency_location_notification_learn_more),
+                                learnMorePendingIntent)
+                        .build();
         return new Notification.Builder(context, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(com.android.internal.R.drawable.stat_sys_gps_on)
                 .setWhen(0)
                 .setOngoing(false)
                 .setAutoCancel(true)
-                .setColor(context.getColor(
-                        com.android.internal.R.color.system_notification_accent_color))
+                .setColor(
+                        context.getColor(
+                                com.android.internal.R.color.system_notification_accent_color))
                 .setDefaults(0)
                 .setTicker(accessibilityServicesText)
                 .setContentTitle(firstLineText)
                 .setContentText(secondLineText)
+                .addAction(learnMoreAction)
                 .build();
     }
 

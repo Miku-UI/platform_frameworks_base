@@ -21,14 +21,12 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.os.FileUtils;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -47,9 +45,6 @@ import java.nio.file.Files;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class StoragedUidIoStatsReaderTest {
-    @Rule
-    public RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
-
     private File mTestDir;
     private File mTestFile;
     // private Random mRand = new Random();

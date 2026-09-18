@@ -174,14 +174,19 @@ public final class ExternalDisplayStatsService {
         @Override
         public void onReceive(Context context, Intent intent) {
             int interactiveDisplaysCount = 0;
+            int[] displayIds;
             synchronized (mExternalDisplayStates) {
                 if (mExternalDisplayStates.size() == 0) {
                     return;
                 }
+                displayIds = new int[mExternalDisplayStates.size()];
                 for (var i = 0; i < mExternalDisplayStates.size(); i++) {
-                    if (mInjector.isInteractive(mExternalDisplayStates.keyAt(i))) {
-                        interactiveDisplaysCount++;
-                    }
+                    displayIds[i] = mExternalDisplayStates.keyAt(i);
+                }
+            }
+            for (var displayId : displayIds) {
+                if (mInjector.isInteractive(displayId)) {
+                    interactiveDisplaysCount++;
                 }
             }
 

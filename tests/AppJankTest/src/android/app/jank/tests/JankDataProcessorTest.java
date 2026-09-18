@@ -58,11 +58,13 @@ public class JankDataProcessorTest {
     public static void classSetup() {
         sEmptyActivityActivityScenario = ActivityScenario.launch(EmptyActivity.class);
         sActivityName = sEmptyActivityActivityScenario.toString();
+        JankUtils.forceEnableJankTrackingConfig();
     }
 
     @AfterClass
     public static void classTearDown() {
         sEmptyActivityActivityScenario.close();
+        JankUtils.resetJankTrackingConfigDefaults();
     }
 
     @Rule
@@ -315,13 +317,16 @@ public class JankDataProcessorTest {
         ArrayList<SurfaceControl.JankData> mockData = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
-            mockData.add(new SurfaceControl.JankData(
-                    /*frameVsyncId*/25 + i,
-                    SurfaceControl.JankData.JANK_NONE,
-                    NANOS_PER_MS * ((long) i),
-                    NANOS_PER_MS * ((long) i),
-                    NANOS_PER_MS * ((long) i)));
-
+            mockData.add(
+                    new SurfaceControl.JankData(
+                            /*frameVsyncId*/ 25 + i,
+                            SurfaceControl.JankData.JANK_NONE,
+                            SurfaceControl.JankData.JANK_NONE,
+                            NANOS_PER_MS * ((long) i),
+                            NANOS_PER_MS * ((long) i),
+                            NANOS_PER_MS * ((long) i),
+                            /*delay*/ 0,
+                            /*score*/ 0.0));
         }
 
         return mockData;
@@ -334,13 +339,16 @@ public class JankDataProcessorTest {
         ArrayList<SurfaceControl.JankData> mockData = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
-            mockData.add(new SurfaceControl.JankData(
-                    /*frameVsyncId*/i,
-                    SurfaceControl.JankData.JANK_NONE,
-                    NANOS_PER_MS * ((long) i),
-                    NANOS_PER_MS * ((long) i),
-                    NANOS_PER_MS * ((long) i)));
-
+            mockData.add(
+                    new SurfaceControl.JankData(
+                            /*frameVsyncId*/ i,
+                            SurfaceControl.JankData.JANK_NONE,
+                            SurfaceControl.JankData.JANK_NONE,
+                            NANOS_PER_MS * ((long) i),
+                            NANOS_PER_MS * ((long) i),
+                            NANOS_PER_MS * ((long) i),
+                            /*delay*/ 0,
+                            /*score*/ 0.0));
         }
 
         return mockData;

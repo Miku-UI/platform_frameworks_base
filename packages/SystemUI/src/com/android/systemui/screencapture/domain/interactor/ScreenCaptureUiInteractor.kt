@@ -16,50 +16,79 @@
 
 package com.android.systemui.screencapture.domain.interactor
 
-import android.content.res.Resources
-import com.android.dream.lowlight.dagger.qualifiers.Application
+import android.content.Context
+import android.os.UserHandle
+import android.widget.Toast
+import com.android.internal.logging.UiEventLogger
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.mediaprojection.devicepolicy.ScreenCaptureDevicePolicyResolver
 import com.android.systemui.res.R
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiSource
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiState
+import com.android.systemui.screencapture.data.repository.ScreenCaptureDeviceStateRepository
 import com.android.systemui.screencapture.data.repository.ScreenCaptureUiRepository
-import com.android.systemui.statusbar.policy.ConfigurationController
-import com.android.systemui.statusbar.policy.onConfigChanged
+import com.android.systemui.user.data.repository.UserRepository
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 @SysUISingleton
 class ScreenCaptureUiInteractor
 @Inject
 constructor(
-    @Main private val resources: Resources,
-    @Application private val scope: CoroutineScope,
-    configurationController: ConfigurationController,
+    @Application private val context: Context,
+    @Application private val applicationScope: CoroutineScope,
+    deviceStateRepository: ScreenCaptureDeviceStateRepository,
     private val repository: ScreenCaptureUiRepository,
+    private val userRepository: UserRepository,
+    private val devicePolicyResolver: Lazy<ScreenCaptureDevicePolicyResolver>,
+    private val uiEventLogger: UiEventLogger,
 ) {
 
-    val isLargeScreen: Flow<Boolean?> =
-        configurationController.onConfigChanged
-            .onStart { emit(resources.configuration) }
-            .map { resources.getBoolean(R.bool.config_enableLargeScreenScreencapture) }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), null)
+    val isLargeScreen: StateFlow<Boolean> = deviceStateRepository.isLargeScreen
 
-    fun uiState(type: ScreenCaptureType): Flow<ScreenCaptureUiState> = repository.uiState(type)
+    fun uiState(type: ScreenCaptureType): StateFlow<ScreenCaptureUiState> = repository.uiState(type)
 
-    fun show(parameters: ScreenCaptureUiParameters) {
+    fun isVisible(type: ScreenCaptureType): Boolean {
+        return uiState(type).value is ScreenCaptureUiState.Visible
+    }
+
+    // TODO(b/475561417) Remove nullable parameter if/when all invocations define a source.
+    fun show(parameters: ScreenCaptureUiParameters, source: ScreenCaptureUiSource? = null) {
+        if (
+            devicePolicyResolver
+                .get()
+                .isScreenCaptureCompletelyDisabled(
+                    UserHandle.of(userRepository.getSelectedUserInfo().id)
+                )
+        ) {
+            // Launch on the main thread
+            applicationScope.launch {
+                Toast.makeText(
+                        context,
+                        R.string.screen_capture_blocked_by_admin,
+                        Toast.LENGTH_SHORT,
+                    )
+                    .show()
+            }
+            return
+        }
+
         repository.updateStateForType(type = parameters.screenCaptureType) {
             if (it is ScreenCaptureUiState.Visible) {
                 return@updateStateForType it
             } else {
                 return@updateStateForType ScreenCaptureUiState.Visible(parameters)
             }
+        }
+
+        if (source != null) {
+            uiEventLogger.log(source.event)
         }
     }
 
@@ -68,7 +97,7 @@ constructor(
             if (it is ScreenCaptureUiState.Invisible) {
                 return@updateStateForType it
             } else {
-                return@updateStateForType ScreenCaptureUiState.Invisible
+                return@updateStateForType ScreenCaptureUiState.Invisible()
             }
         }
     }

@@ -26,6 +26,7 @@ import static com.android.internal.pm.pkg.parsing.ParsingUtils.parseKnownActivit
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityTaskManager;
+import android.app.compat.CompatChanges;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
@@ -80,8 +81,12 @@ public class ParsedActivityUtils {
     /**
      * Bit mask of all the valid bits that can be set in recreateOnConfigChanges.
      */
-    private static final int RECREATE_ON_CONFIG_CHANGES_MASK =
-            ActivityInfo.CONFIG_MCC | ActivityInfo.CONFIG_MNC;
+    public static final int RECREATE_ON_CONFIG_CHANGES_MASK =
+            ActivityInfo.CONFIG_MCC | ActivityInfo.CONFIG_MNC
+                    | (shouldSkipActivityRecreationOnConfigChange() ? (ActivityInfo.CONFIG_KEYBOARD
+                    | ActivityInfo.CONFIG_KEYBOARD_HIDDEN | ActivityInfo.CONFIG_NAVIGATION
+                    | ActivityInfo.CONFIG_TOUCHSCREEN | ActivityInfo.CONFIG_COLOR_MODE)
+                    : 0);
 
     @NonNull
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
@@ -143,12 +148,16 @@ public class ParsedActivityUtils {
                                 | flag(ActivityInfo.FLAG_SHOW_FOR_ALL_USERS, R.styleable.AndroidManifestActivity_showForAllUsers, sa)
                                 | flag(ActivityInfo.FLAG_SHOW_FOR_ALL_USERS, R.styleable.AndroidManifestActivity_showOnLockScreen, sa)
                                 | flag(ActivityInfo.FLAG_STATE_NOT_NEEDED, R.styleable.AndroidManifestActivity_stateNotNeeded, sa)
-                                | flag(ActivityInfo.FLAG_SYSTEM_USER_ONLY, R.styleable.AndroidManifestActivity_systemUserOnly, sa)));
+                                | flag(ActivityInfo.FLAG_SYSTEM_USER_ONLY,
+                                        R.styleable.AndroidManifestActivity_systemUserOnly, sa)));
+            if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+                activity.setFlags(activity.getFlags() | flag(ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX,
+                        R.styleable.AndroidManifestActivity_privateComputeCore, sa));
+            }
 
             if (!receiver) {
                 activity.setFlags(activity.getFlags() | (flag(ActivityInfo.FLAG_HARDWARE_ACCELERATED, R.styleable.AndroidManifestActivity_hardwareAccelerated, pkg.isHardwareAccelerated(), sa)
                                         | flag(ActivityInfo.FLAG_ALLOW_EMBEDDED, R.styleable.AndroidManifestActivity_allowEmbedded, sa)
-                                        | flag(ActivityInfo.FLAG_ALWAYS_FOCUSABLE, R.styleable.AndroidManifestActivity_alwaysFocusable, sa)
                                         | flag(ActivityInfo.FLAG_AUTO_REMOVE_FROM_RECENTS, R.styleable.AndroidManifestActivity_autoRemoveFromRecents, sa)
                                         | flag(ActivityInfo.FLAG_RELINQUISH_TASK_IDENTITY, R.styleable.AndroidManifestActivity_relinquishTaskIdentity, sa)
                                         | flag(ActivityInfo.FLAG_RESUME_WHILE_PAUSING, R.styleable.AndroidManifestActivity_resumeWhilePausing, sa)
@@ -261,7 +270,8 @@ public class ParsedActivityUtils {
     @NonNull
     public static ParseResult<ParsedActivity> parseActivityAlias(ParsingPackage pkg, Resources res,
             XmlResourceParser parser, boolean useRoundIcon, @Nullable String defaultSplitName,
-            @NonNull ParseInput input) throws XmlPullParserException, IOException {
+            @NonNull ParseInput input)
+            throws XmlPullParserException, IOException {
         TypedArray sa = res.obtainAttributes(parser, R.styleable.AndroidManifestActivityAlias);
         try {
             String targetActivity = sa.getNonConfigurationString(
@@ -297,6 +307,19 @@ public class ParsedActivityUtils {
             }
 
             ParsedActivityImpl activity = ParsedActivityImpl.makeAlias(targetActivity, target);
+
+            if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+                // unset FLAG_RUN_IN_PCC_SANDBOX and set based on privateComputeCore
+                // value for alias
+                activity.setFlags(activity.getFlags() & ~ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX);
+                boolean aliasMarkedPcc = sa.getBoolean(
+                        R.styleable.AndroidManifestActivityAlias_privateComputeCore,
+                        false);
+                if (aliasMarkedPcc) {
+                    activity.setFlags(activity.getFlags() | ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX);
+                }
+            }
+
             String tag = "<" + parser.getName() + ">";
 
             ParseResult<ParsedActivityImpl> result = ParsedMainComponentUtils.parseMainComponent(
@@ -396,7 +419,7 @@ public class ParsedActivityUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -579,36 +602,64 @@ public class ParsedActivityUtils {
             AttributeSet attrs, ParseInput input) {
         TypedArray sw = res.obtainAttributes(attrs, R.styleable.AndroidManifestLayout);
         try {
-            int width = -1;
+            int complexWidth = -1;
             float widthFraction = -1f;
-            int height = -1;
-            float heightFraction = -1f;
             final int widthType = sw.getType(R.styleable.AndroidManifestLayout_defaultWidth);
             if (widthType == TypedValue.TYPE_FRACTION) {
                 widthFraction = sw.getFraction(R.styleable.AndroidManifestLayout_defaultWidth, 1, 1,
                         -1);
             } else if (widthType == TypedValue.TYPE_DIMENSION) {
-                width = sw.getDimensionPixelSize(R.styleable.AndroidManifestLayout_defaultWidth,
-                        -1);
+                final TypedValue vOut =
+                        sw.peekValue(R.styleable.AndroidManifestLayout_defaultWidth);
+                if (vOut != null) {
+                    complexWidth = vOut.data;
+                }
             }
+
+            int complexHeight = -1;
+            float heightFraction = -1f;
             final int heightType = sw.getType(R.styleable.AndroidManifestLayout_defaultHeight);
             if (heightType == TypedValue.TYPE_FRACTION) {
                 heightFraction = sw.getFraction(R.styleable.AndroidManifestLayout_defaultHeight, 1,
                         1, -1);
             } else if (heightType == TypedValue.TYPE_DIMENSION) {
-                height = sw.getDimensionPixelSize(R.styleable.AndroidManifestLayout_defaultHeight,
-                        -1);
+                final TypedValue vOut =
+                        sw.peekValue(R.styleable.AndroidManifestLayout_defaultHeight);
+                if (vOut != null) {
+                    complexHeight = vOut.data;
+                }
             }
+
             int gravity = sw.getInt(R.styleable.AndroidManifestLayout_gravity, Gravity.CENTER);
-            int minWidth = sw.getDimensionPixelSize(R.styleable.AndroidManifestLayout_minWidth, -1);
-            int minHeight = sw.getDimensionPixelSize(R.styleable.AndroidManifestLayout_minHeight,
-                    -1);
+
+            int complexMinWidth = -1;
+            final int minWidthType = sw.getType(R.styleable.AndroidManifestLayout_minWidth);
+            if (minWidthType == TypedValue.TYPE_DIMENSION) {
+                final TypedValue vOut =
+                        sw.peekValue(R.styleable.AndroidManifestLayout_minWidth);
+                if (vOut != null) {
+                    complexMinWidth = vOut.data;
+                }
+            }
+
+            int complexMinHeight = -1;
+            final int minHeightType = sw.getType(R.styleable.AndroidManifestLayout_minHeight);
+            if (minHeightType == TypedValue.TYPE_DIMENSION) {
+                final TypedValue vOut =
+                        sw.peekValue(R.styleable.AndroidManifestLayout_minHeight);
+                if (vOut != null) {
+                    complexMinHeight = vOut.data;
+                }
+            }
+
             String windowLayoutAffinity =
                     sw.getNonConfigurationString(
                             R.styleable.AndroidManifestLayout_windowLayoutAffinity, 0);
-            final ActivityInfo.WindowLayout windowLayout = new ActivityInfo.WindowLayout(width,
-                    widthFraction, height, heightFraction, gravity, minWidth, minHeight,
-                    windowLayoutAffinity);
+
+            final ActivityInfo.WindowLayout windowLayout = new ActivityInfo.WindowLayout(
+                    complexWidth, widthFraction, complexHeight, heightFraction, gravity,
+                    complexMinWidth, complexMinHeight, windowLayoutAffinity,
+                    res.getDisplayMetrics());
             return input.success(windowLayout);
         } finally {
             sw.recycle();
@@ -638,13 +689,28 @@ public class ParsedActivityUtils {
                 ParsingPackageUtils.METADATA_ACTIVITY_WINDOW_LAYOUT_AFFINITY);
         ActivityInfo.WindowLayout layout = activity.getWindowLayout();
         if (layout == null) {
-            layout = new ActivityInfo.WindowLayout(-1 /* width */, -1 /* widthFraction */,
-                    -1 /* height */, -1 /* heightFraction */, Gravity.NO_GRAVITY,
-                    -1 /* minWidth */, -1 /* minHeight */, windowLayoutAffinity);
+            layout = new ActivityInfo.WindowLayout(-1 /* complexWidth */, -1 /* widthFraction */,
+                    -1 /* complexHeight */, -1 /* heightFraction */, Gravity.NO_GRAVITY,
+                    -1 /* complexMinWidth */, -1 /* complexMinHeight */, windowLayoutAffinity,
+                    null);
         } else {
             layout.windowLayoutAffinity = windowLayoutAffinity;
         }
         return input.success(layout);
+    }
+
+    /**
+     * Whether we should skip the activity recreation by default on config change of
+     * {@link ActivityInfo#CONFIG_KEYBOARD}, {@link ActivityInfo#CONFIG_KEYBOARD_HIDDEN},
+     * {@link ActivityInfo#CONFIG_NAVIGATION}, {@link ActivityInfo#CONFIG_TOUCHSCREEN} and
+     * {@link ActivityInfo#CONFIG_COLOR_MODE}.
+     *
+     * @hide
+     */
+    public static boolean shouldSkipActivityRecreationOnConfigChange() {
+        return com.android.window.flags.Flags.enableLessActivityRecreationOnConfigChange()
+                && CompatChanges.isChangeEnabled(
+                        ActivityInfo.SKIP_ACTIVITY_RECREATION_ON_CONFIG_CHANGE);
     }
 
     /**

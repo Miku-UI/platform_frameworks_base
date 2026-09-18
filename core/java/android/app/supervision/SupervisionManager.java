@@ -16,7 +16,10 @@
 
 package android.app.supervision;
 
+import static android.Manifest.permission.BYPASS_ROLE_QUALIFICATION;
 import static android.Manifest.permission.INTERACT_ACROSS_USERS;
+import static android.Manifest.permission.MANAGE_ROLE_HOLDERS;
+import static android.Manifest.permission.MANAGE_SUPERVISION;
 import static android.Manifest.permission.MANAGE_USERS;
 import static android.Manifest.permission.QUERY_USERS;
 import static android.permission.flags.Flags.FLAG_ENABLE_SYSTEM_SUPERVISION_ROLE_BEHAVIOR;
@@ -33,10 +36,13 @@ import android.annotation.TestApi;
 import android.annotation.UserHandleAware;
 import android.annotation.UserIdInt;
 import android.app.supervision.flags.Flags;
-import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.Intent;
+import android.os.IpcDataCache;
 import android.os.RemoteException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class provides information about and manages supervision.
@@ -47,6 +53,15 @@ import android.os.RemoteException;
 @SystemApi
 @FlaggedApi(Flags.FLAG_SUPERVISION_MANAGER_APIS)
 public class SupervisionManager {
+
+    private static final int GET_POLICIES_CACHE_SIZE = 8;
+    private static final String GET_POLICIES_API = "get_supervision_policies";
+    private static final String GET_POLICIES_CACHE_NAME = "SupervisionManagerPolicies";
+    private static final IpcDataCache.Config sSupervisionManagerCache =
+            new IpcDataCache.Config(
+                    GET_POLICIES_CACHE_SIZE, IpcDataCache.MODULE_SYSTEM, GET_POLICIES_API);
+    private final IpcDataCache<Integer, List<Policy>> mGetPoliciesCache;
+
     /**
      * Listener for supervision state changes.
      *
@@ -61,6 +76,13 @@ public class SupervisionManager {
                             onSupervisionEnabled(userId);
                         } else {
                             onSupervisionDisabled(userId);
+                        }
+                    }
+
+                    @Override
+                    public void onPolicyChanged(Policy policy) {
+                        if (Flags.enableSupervisionManagerPolicyApis()) {
+                            SupervisionListener.this.onPolicyChanged(policy);
                         }
                     }
                 };
@@ -80,6 +102,14 @@ public class SupervisionManager {
          * @hide
          */
         public void onSupervisionDisabled(@UserIdInt int userId) {}
+
+        /**
+         * Called after a policy has been changed.
+         *
+         * @param policy the policy that has changed
+         * @hide
+         */
+        public void onPolicyChanged(Policy policy) {}
     }
 
     private final Context mContext;
@@ -103,13 +133,14 @@ public class SupervisionManager {
             "android.app.supervision.action.ENABLE_SUPERVISION";
 
     /**
-     * Activity Action: Ask the user to confirm disabling supervision.
+     * Activity Action: Request to disable supervision.
      *
-     * <p>The intent must be invoked via {@link Activity#startActivityForResult} to receive the
-     * result of whether or not the user approved the action. If approved, the result will be {@link
-     * Activity#RESULT_OK}.
+     * <p>The intent can only be started by apps that hold the {@link
+     * android.app.role.RoleManager#ROLE_SUPERVISION} role. If there are no other apps that hold the
+     * role, supervision will be disabled and the role will be removed from the calling app.
      *
-     * <p>If supervision is not enabled, the operation will return a failure result.
+     * <p>If there are other apps that hold the role, then the role will still be removed from the
+     * calling app, but supervision will remain enabled.
      *
      * @hide
      */
@@ -120,18 +151,48 @@ public class SupervisionManager {
             "android.app.supervision.action.DISABLE_SUPERVISION";
 
     /**
-     * SupervisionService's identifier for setting policies or restrictions in
-     * {@link DevicePolicyManager}.
+     * Activity Action: Ask the user for supervision approval.
+     *
+     * <p>Matching activities from apps that hold the {@link
+     * android.app.role.RoleManager#ROLE_SUPERVISION} role will be included as alternative approval
+     * options in the activity started by the intent returned from {@link
+     * #createConfirmSupervisionCredentialsIntent()}.
+     *
+     * <p>A result code of {@link android.app.Activity#RESULT_OK} indicates successful supervision
+     * approval confirmation.
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_CONFIRM_SUPERVISION_APPROVAL =
+            "android.app.supervision.action.CONFIRM_SUPERVISION_APPROVAL";
+
+    /**
+     * SupervisionService's identifier for setting policies or restrictions in {@link
+     * DevicePolicyManager}.
      *
      * @hide
      */
     public static final String SUPERVISION_SYSTEM_ENTITY = SupervisionManager.class.getName();
 
     /** @hide */
-    @UnsupportedAppUsage
     public SupervisionManager(Context context, @Nullable ISupervisionManager service) {
         mContext = context;
         mService = service;
+
+        mGetPoliciesCache =
+                new IpcDataCache<>(
+                        sSupervisionManagerCache.child(GET_POLICIES_CACHE_NAME),
+                        (userId) -> {
+                            try {
+                                if (service == null) {
+                                    return new ArrayList<>();
+                                }
+                                return service.getPolicies((int) userId);
+                            } catch (RemoteException e) {
+                                throw e.rethrowFromSystemServer();
+                            }
+                        });
     }
 
     /**
@@ -253,7 +314,7 @@ public class SupervisionManager {
      */
     @SystemApi
     @FlaggedApi(FLAG_ENABLE_SYSTEM_SUPERVISION_ROLE_BEHAVIOR)
-    @RequiresPermission(android.Manifest.permission.MANAGE_ROLE_HOLDERS)
+    @RequiresPermission(MANAGE_ROLE_HOLDERS)
     public boolean shouldAllowBypassingSupervisionRoleQualification() {
         if (mService != null) {
             try {
@@ -263,6 +324,26 @@ public class SupervisionManager {
             }
         }
         return false;
+    }
+
+    /**
+     * Sets whether bypassing role qualification is allowed for the supervision role.
+     *
+     * @param allowBypassing {@code true} if bypassing role qualification is allowed, {@code false}
+     *     otherwise.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_ENABLE_SUPERVISION_MANAGER_POLICY_APIS)
+    @RequiresPermission(BYPASS_ROLE_QUALIFICATION)
+    public void setShouldAllowBypassingSupervisionRoleQualification(boolean allowBypassing) {
+        if (mService != null) {
+            try {
+                mService.setShouldAllowBypassingSupervisionRoleQualification(allowBypassing);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
     }
 
     /**
@@ -315,15 +396,29 @@ public class SupervisionManager {
     }
 
     /**
-     * Registers a listener to be notified on supervision state changes.
+     * Registers a listener to be notified on supervision state changes for the current user .
      *
      * @param listener Listener to be registered. Can't be null.
      * @hide
      */
     public void registerSupervisionListener(@NonNull SupervisionListener listener) {
+        registerSupervisionListenerForUser(mContext.getUserId(), listener);
+    }
+
+    /**
+     * Registers a listener to be notified on supervision state changes for a given user.
+     *
+     * <p>The listener will only be notified on supervision state changes for the specified user.
+     *
+     * @param userId the int ID of the user to register the listener for.
+     * @param listener Listener to be registered. Can't be null.
+     * @hide
+     */
+    public void registerSupervisionListenerForUser(
+            @UserIdInt int userId, @NonNull SupervisionListener listener) {
         if (mService != null) {
             try {
-                mService.registerSupervisionListener(mContext.getUserId(), listener.mListener);
+                mService.registerSupervisionListener(userId, listener.mListener);
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -340,6 +435,53 @@ public class SupervisionManager {
         if (mService != null) {
             try {
                 mService.unregisterSupervisionListener(listener.mListener);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+    }
+
+    /**
+     * Returns a list of all policies that have been set.
+     *
+     * @return the list of policies
+     * @see Policy
+     * @throws SecurityException if the caller does not hold the required permissions
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ENABLE_SUPERVISION_MANAGER_POLICY_APIS)
+    @RequiresPermission(MANAGE_SUPERVISION)
+    @NonNull
+    public List<Policy> getPolicies() {
+        List<Policy> policies = mGetPoliciesCache.query(mContext.getUserId());
+        if (policies != null) {
+            return policies;
+        }
+        return new ArrayList<>();
+    }
+
+    /** @hide */
+    public static void invalidateGetPoliciesCache() {
+        sSupervisionManagerCache.invalidateCache();
+    }
+
+    /**
+     * Sets a supervision policy.
+     *
+     * @param policy the supervision policy to set
+     * @see Policy
+     * @throws IllegalStateException if the policy is invalid
+     * @throws SecurityException if the caller does not hold the required permissions
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ENABLE_SUPERVISION_MANAGER_POLICY_APIS)
+    @RequiresPermission(MANAGE_SUPERVISION)
+    public void setPolicy(@NonNull Policy policy) {
+        if (mService != null) {
+            try {
+                mService.setPolicy(mContext.getUserId(), policy);
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }

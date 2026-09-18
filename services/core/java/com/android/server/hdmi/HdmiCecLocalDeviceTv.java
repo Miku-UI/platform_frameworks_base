@@ -484,9 +484,14 @@ public class HdmiCecLocalDeviceTv extends HdmiCecLocalDevice {
         HdmiCecMessage routingChange =
                 HdmiCecMessageBuilder.buildRoutingChange(
                         getDeviceInfo().getLogicalAddress(), oldPath, newPath);
-        mService.sendCecCommand(routingChange);
-        addAndStartAction(
-                new RoutingControlAction(this, newPath, callback), true);
+        mService.sendCecCommand(routingChange, new HdmiControlService.SendMessageCallback() {
+            @Override
+            public void onSendCompleted(int error) {
+                addAndStartAction(
+                        new RoutingControlAction(HdmiCecLocalDeviceTv.this, newPath, callback),
+                        true);
+            }
+        });
     }
 
     @ServiceThreadOnly
@@ -584,7 +589,7 @@ public class HdmiCecLocalDeviceTv extends HdmiCecLocalDevice {
             return Constants.HANDLED;
         }
         int portId = getPrevPortId();
-        if (portId != Constants.INVALID_PORT_ID) {
+        if (portId != Constants.INVALID_PORT_ID && portId != Constants.CEC_SWITCH_HOME) {
             // TODO: Do this only if TV is not showing multiview like PIP/PAP.
 
             HdmiDeviceInfo inactiveSource = mService.getHdmiCecNetwork().getCecDeviceInfo(
@@ -819,7 +824,12 @@ public class HdmiCecLocalDeviceTv extends HdmiCecLocalDevice {
     @ServiceThreadOnly
     void onNewAvrAdded(HdmiDeviceInfo avr) {
         assertRunOnServiceThread();
+        // Early return if connected to a port that does not support ARC.
+        if (isConnected(avr.getPortId()) && !isArcFeatureEnabled(avr.getPortId())) {
+            return;
+        }
         addAndStartAction(new SystemAudioAutoInitiationAction(this, avr.getLogicalAddress()));
+
         if (!isDirectConnectAddress(avr.getPhysicalAddress())) {
             startArcAction(false);
         } else if (isConnected(avr.getPortId()) && isArcFeatureEnabled(avr.getPortId())
@@ -941,7 +951,6 @@ public class HdmiCecLocalDeviceTv extends HdmiCecLocalDevice {
                         synchronized (mLock) {
                             mSupportedSads = supportedSadsDone;
                         }
-                        notifyArcStatusToAudioService(false, new ArrayList<>());
                         synchronized (mLock) {
                             notifyArcStatusToAudioService(true, mSupportedSads);
                         }

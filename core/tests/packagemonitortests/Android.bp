@@ -28,6 +28,7 @@ android_test {
         "src/com/android/internal/content/withoutpermission/PackageMonitorPermissionTest.java",
     ],
     static_libs: [
+        "TestParameterInjector",
         "androidx.test.runner",
         "compatibility-device-util-axt",
         "frameworks-base-testutils",

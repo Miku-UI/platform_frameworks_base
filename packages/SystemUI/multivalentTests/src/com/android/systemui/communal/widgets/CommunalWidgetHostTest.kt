@@ -396,6 +396,25 @@ class CommunalWidgetHostTest : SysuiTestCase() {
         }
 
     @Test
+    fun refreshProviderInfo_handlesWrappedDeadObjectException() =
+        kosmos.runTest {
+            val providerInfoValues by collectLastValue(underTest.appWidgetProviders)
+
+            whenever(appWidgetHost.appWidgetIds).thenReturn(intArrayOf(1, 2))
+            whenever(appWidgetHost.setListener(eq(1), org.mockito.kotlin.any())).thenAnswer {
+                throw RuntimeException(DeadObjectException())
+            }
+            whenever(appWidgetManager.getAppWidgetInfo(1)).thenReturn(providerInfo1)
+            whenever(appWidgetManager.getAppWidgetInfo(2)).thenReturn(providerInfo2)
+            underTest.refreshProviders()
+
+            with(providerInfoValues!!) {
+                assertThat(size).isEqualTo(1)
+                assertThat(containsKey(2)).isTrue()
+            }
+        }
+
+    @Test
     fun onAllocateAppWidgetId_handlesDeadObjectException() =
         kosmos.runTest {
             whenever(appWidgetHost.setListener(eq(1), org.mockito.kotlin.any())).thenAnswer {

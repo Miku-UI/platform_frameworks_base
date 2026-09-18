@@ -104,11 +104,6 @@ oneway interface IWindow {
     void dispatchDragEvent(in DragEvent event);
 
     /**
-     * Called for non-application windows when the enter animation has completed.
-     */
-    void dispatchWindowShown();
-
-    /**
      * Called when Keyboard Shortcuts are requested for the window.
      */
     void requestAppKeyboardShortcuts(IResultReceiver receiver, int deviceId);
@@ -124,4 +119,37 @@ oneway interface IWindow {
      * Dump the details of a window.
      */
     void dumpWindow(in ParcelFileDescriptor pfd);
+
+    /**
+     * Request the window to disable or re-enable drawing for hardware accelerated rendering.
+     *
+     * Drawing is enabled by default. When drawing is requested to be disabled, most windows that
+     * use the UI Toolkit for rendering will not submit any frames to the compositor. The server
+     * can toggle this on or off at will to control client rendering.
+     *
+     * Note that clients may still produce output when using non-standard rendering pipelines.
+     */
+    void requestHardwareRendererOutputDisabled(boolean disabled);
+
+    /**
+     * Request to disable view animations for this window by overriding the animation scale.
+     *
+     * View animations can only be toggled for the entire process. They will only be disabled for
+     * this process if *all* view roots for the process have requested animations to be disabled.
+     */
+     void requestViewAnimationsDisabled(boolean disabled);
+
+    /**
+     * Dispatches a command to scroll the main content to the top.
+     *
+     * @param x The x-coordinate of the scroll-to-top command, in the coordinate
+     *         space of this window.
+     */
+    void dispatchScrollToTop(int x);
+
+    /**
+     * Request the window to share its AccessibilityEmbeddedConnection to integrate this window
+     * into a custom accessibility hierarchy.
+     */
+    void requestAccessibilityEmbeddedConnection(IResultReceiver receiver);
 }

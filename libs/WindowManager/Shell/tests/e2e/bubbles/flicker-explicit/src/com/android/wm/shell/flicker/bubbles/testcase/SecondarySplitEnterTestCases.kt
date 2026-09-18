@@ -25,23 +25,21 @@ import org.hamcrest.CoreMatchers.notNullValue
 import org.junit.Assume.assumeThat
 import org.junit.Test
 
-/**
- * Verifies an app enters the secondary split-screen area.
- */
+/** Verifies an app enters the secondary split-screen area. */
 interface SecondarySplitEnterTestCases : BubbleFlickerSubjects {
 
     /**
      * The component that was in the secondary split before the transition began.
      *
-     * Override this in your test if a secondary app exists at the start.
-     * It is null by default, and tests that rely on it will be skipped.
+     * Override this in your test if a secondary app exists at the start. It is null by default, and
+     * tests that rely on it will be skipped.
      */
     val previousSecondaryApp: IComponentNameMatcher?
         get() = null
 
     /**
-     * Verifies that if a secondary app existed before the transition, it becomes
-     * invisible after the new app replaces it.
+     * Verifies that if a secondary app existed before the transition, it becomes invisible after
+     * the new app replaces it.
      *
      * This test is skipped if [previousSecondaryApp] is null.
      */
@@ -50,7 +48,7 @@ interface SecondarySplitEnterTestCases : BubbleFlickerSubjects {
         assumeThat(
             "Skipping test: No previous secondary app was defined to be replaced.",
             previousSecondaryApp,
-            notNullValue()
+            notNullValue(),
         )
 
         val component = previousSecondaryApp!!
@@ -71,8 +69,8 @@ interface SecondarySplitEnterTestCases : BubbleFlickerSubjects {
      * Verifies the test app's layer is visible and correctly positioned as the secondary
      * split-screen app at the end of the transition.
      *
-     * It checks that the app's bounds snap to the split-screen divider in the
-     * expected position by considering the portrait and landscape orientations.
+     * It checks that the app's bounds snap to the split-screen divider in the expected position by
+     * considering the portrait and landscape orientations.
      */
     @Test
     fun secondaryAppBoundsIsVisibleAtEnd() {

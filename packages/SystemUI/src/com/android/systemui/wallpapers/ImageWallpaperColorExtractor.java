@@ -24,6 +24,7 @@ import android.graphics.RectF;
 import android.os.Trace;
 import android.util.ArraySet;
 import android.util.Log;
+import android.util.LruCache;
 import android.util.MathUtils;
 
 import androidx.annotation.NonNull;
@@ -67,7 +68,10 @@ public class ImageWallpaperColorExtractor {
     private final Set<RectF> mProcessedRegions = new ArraySet<>();
 
     private float mWallpaperDimAmount = 0f;
+    private final List<Float> mPendingDimAmountCalculation = new ArrayList<>();
     private WallpaperColors mWallpaperColors;
+    private final LruCache<Float, WallpaperColors> mRecentCalculatedWallpaperColors =
+            new LruCache<>(10 /* maxSize */);
 
     // By default we assume that colors were loaded from disk and don't need to be recomputed
     private boolean mRecomputeColors = false;
@@ -226,6 +230,24 @@ public class ImageWallpaperColorExtractor {
         return mWallpaperColors;
     }
 
+    /**
+     * To let the wallpaper color extractor calculate an extra wallpaper color result with a given
+     * dim amount. If the color result is not yet ready, return null and call
+     * {@link ImageWallpaperColorExtractorCallback#onColorsProcessed()} when the colors are ready.
+     */
+    WallpaperColors onComputeColorsWithDim(float dimAmount) {
+        if (mMiniBitmap == null) return null;
+        if (dimAmount == mWallpaperDimAmount) {
+            return mWallpaperColors;
+        }
+        WallpaperColors cachedColor = mRecentCalculatedWallpaperColors.get(dimAmount);
+        if (cachedColor == null) {
+            mPendingDimAmountCalculation.add(dimAmount);
+            mLongExecutor.execute(this::onComputeColorsSynchronized);
+        }
+        return cachedColor;
+    }
+
     private void onComputeColorsSynchronized() {
         synchronized (mLock) {
             if (mRecomputeColors) return;
@@ -239,7 +261,17 @@ public class ImageWallpaperColorExtractor {
      */
     private void recomputeColorsInternal() {
         if (mMiniBitmap == null) return;
-        mWallpaperColors = getWallpaperColors(mMiniBitmap, mWallpaperDimAmount);
+        mWallpaperColors = mRecentCalculatedWallpaperColors.get(mWallpaperDimAmount);
+        if (mWallpaperColors == null) {
+            mWallpaperColors = getWallpaperColors(mMiniBitmap, mWallpaperDimAmount);
+            mRecentCalculatedWallpaperColors.put(mWallpaperDimAmount, mWallpaperColors);
+        }
+        for (Float dim: mPendingDimAmountCalculation) {
+            if (mRecentCalculatedWallpaperColors.get(dim) == null) {
+                mRecentCalculatedWallpaperColors.put(dim, getWallpaperColors(mMiniBitmap, dim));
+            }
+        }
+        mPendingDimAmountCalculation.clear();
         mColorExtractorCallback.onColorsProcessed();
     }
 

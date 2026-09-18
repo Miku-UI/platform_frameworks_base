@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"медичний виріб"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"Дозволити додатку &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; транслювати додатки й системні функції між пристроями (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> і &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;)?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"Додатку <xliff:g id="APP_NAME">%1$s</xliff:g> буде надано такі дозволи:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"Додаток <xliff:g id="APP_NAME_0">%1$s</xliff:g> матиме доступ до контенту, що відображається чи відтворюється на пристрої (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>), зокрема до аудіо, фото, платіжної інформації, паролів і повідомлень.&lt;br/&gt;&lt;br/&gt;Додаток <xliff:g id="APP_NAME_1">%1$s</xliff:g> зможе транслювати додатки на пристрій <xliff:g id="DEVICE_NAME">%3$s</xliff:g>, поки ви не скасуєте цей дозвіл."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"Додаток <xliff:g id="APP_NAME">%1$s</xliff:g> від імені пристрою <xliff:g id="DEVICE_NAME">%2$s</xliff:g> запитує дозвіл на трансляцію додатків і системних функцій між вашими пристроями"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"Додаток <xliff:g id="APP_NAME">%1$s</xliff:g> від імені вашого пристрою \"<xliff:g id="DEVICE_NAME">%2$s</xliff:g>\" запитує дозвіл на доступ до фотографій, медіафайлів і сповіщень на вашому <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Дозволити додатку &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; транслювати додатки й системні функції між пристроями (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> і &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;)?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"Додатку <xliff:g id="APP_NAME">%1$s</xliff:g> буде надано такі дозволи:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"Додаток <xliff:g id="APP_NAME_0">%1$s</xliff:g> матиме доступ до контенту, що відображається чи відтворюється на пристрої <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, зокрема до аудіо, фото, платіжної інформації, паролів і повідомлень.&lt;br/&gt;&lt;br/&gt;Додаток <xliff:g id="APP_NAME_2">%1$s</xliff:g> зможе транслювати додатки на пристрій <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>, поки ви не скасуєте цей дозвіл."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"Додаток <xliff:g id="APP_NAME">%1$s</xliff:g> від імені пристрою \"<xliff:g id="DEVICE_NAME">%2$s</xliff:g>\" запитує дозвіл на трансляцію додатків на вашому <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Дозволити додатку &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; транслювати аудіо й системні функції між пристроями (<xliff:g id="DEVICE_TYPE">%3$s</xliff:g> і &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;)?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"Додатку <xliff:g id="APP_NAME">%2$s</xliff:g> буде надано такі дозволи:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"пристрій"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Цей додаток зможе синхронізувати інформацію (наприклад, імена людей, які телефонують) між телефоном і вибраним пристроєм"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"Дозвольте додатку &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; синхронізувати інформацію, зокрема дані про абонента, і виконувати розумні дії на вашому пристрої (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>)"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"Дозвольте пристрою &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; синхронізувати інформацію, зокрема дані про абонента, і виконувати розумні дії на вашому пристрої (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>)"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Дозволити"</string>
     <string name="consent_no" msgid="2640796915611404382">"Не дозволяти"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Скасувати"</string>
@@ -67,9 +67,10 @@
     <string name="permission_microphone" msgid="2152206421428732949">"Мікрофон"</string>
     <string name="permission_call_logs" msgid="5546761417694586041">"Журнали викликів"</string>
     <string name="permission_nearby_devices" msgid="7530973297737123481">"Пристрої поблизу"</string>
-    <string name="permission_media_routing_control" msgid="5498639511586715253">"Змінити пристр. виводу медіа"</string>
-    <string name="permission_storage" msgid="6831099350839392343">"Фотографії та медіафайли"</string>
+    <string name="permission_media_routing_control" msgid="5498639511586715253">"Змінити пристрій виводу медіа"</string>
+    <string name="permission_storage" msgid="6831099350839392343">"Фотографії і медіафайли"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Сповіщення"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Трансляція екрана й додатків"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Транслювати дані на <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Дублювати екран"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Транслювати додатки"</string>
@@ -83,17 +84,18 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Записувати аудіо"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Знаходити пристрої поблизу, підключатися до них і визначати їх відносне розташування"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Читати всі сповіщення, зокрема таку інформацію, як контакти, повідомлення й фотографії"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Читати всі сповіщення, зокрема таку інформацію, як контакти, повідомлення й фотографії&lt;br/&gt;• Надсилати сповіщення&lt;br/&gt;&lt;br/&gt;Ви можете будь-коли змінити дозвіл цього додатка на перегляд і надсилання сповіщень, вибравши \"Налаштування\" &gt; \"Сповіщення\"."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Читати всі сповіщення, зокрема таку інформацію, як контакти, повідомлення й фотографії&lt;br/&gt;• Надсилати вам сповіщення&lt;br/&gt;&lt;br/&gt;Ви можете будь-коли змінити дозвіл цього додатка на перегляд і надсилання сповіщень, вибравши \"Налаштування\" > \"Сповіщення\"."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"Транслюйте фотографії і медіафайли з телефона на інші свої пристрої."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Надсилання сповіщень"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"Транслюйте екран телефона разом із вмістом додатків на інші свої пристрої. Ваші пристрої матимуть доступ до контенту, що відображається на телефоні, зокрема до аудіо, фото, платіжної інформації, паролів і повідомлень, навіть коли телефон заблоковано.&lt;br/&gt;&lt;br/&gt;Передавайте зі своїх пристроїв на телефон дані мікрофона, камери й інших датчиків, зокрема ті, які стосуються взаємодії, як-от сенсорні жести й кліки мишею."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Транслюйте дані з мікрофона, камери й інших датчиків пристрою &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; на свій <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Записуйте відео з екрана, транслюйте або показуйте екран пристрою (<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>) на пристрій &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;Додаток <xliff:g id="APP_NAME">%1$s</xliff:g> матиме доступ до контенту, що відображається чи відтворюється на пристрої (<xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>), зокрема до аудіо, фото, платіжної інформації, паролів і повідомлень."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Ваш <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> транслюватиме додатки на пристрій &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;.br/&gt;&lt;br/&gt;Додаток <xliff:g id="APP_NAME">%1$s</xliff:g> матиме доступ до контенту, що відображається чи відтворюється на пристрої <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, зокрема до аудіо, фото, платіжної інформації, паролів і повідомлень, навіть коли <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> заблоковано."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Отримувати доступ до списку доступних пристроїв і вибирати, з якого з них транслюватиметься аудіо або відео з інших додатків"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
-    <string name="device_type" product="default" msgid="8268703872070046263">"телефоні"</string>
-    <string name="device_type" product="tablet" msgid="5038791954983067774">"планшеті"</string>
-    <string name="device_type" product="tv" msgid="5355611506659405636">"телевізорі"</string>
-    <string name="device_type" product="device" msgid="1526125965802507189">"пристрої"</string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Надсилати сповіщення"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Надсилати сповіщення, навіть коли ввімкнено режим \"Не турбувати\""</string>
+    <string name="device_type" product="default" msgid="8268703872070046263">"телефон"</string>
+    <string name="device_type" product="tablet" msgid="5038791954983067774">"планшет"</string>
+    <string name="device_type" product="tv" msgid="5355611506659405636">"телевізор"</string>
+    <string name="device_type" product="device" msgid="1526125965802507189">"пристрій"</string>
 </resources>

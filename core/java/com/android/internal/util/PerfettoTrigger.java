@@ -16,10 +16,11 @@
 
 package com.android.internal.util;
 
-import android.os.PerfettoTrace;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.SparseLongArray;
+
+import com.android.internal.dev.perfetto.sdk.PerfettoTrace;
 
 import java.io.IOException;
 
@@ -61,7 +62,8 @@ public class PerfettoTrigger {
         }
 
         // If we are registering with the SDK, use it directly.
-        if (PerfettoTrace.getAttempedSystemRegistration()) {
+        if (android.os.Flags.perfettoSdkTracingV3()
+                    && PerfettoTrace.getAttempedSystemRegistration()) {
             PerfettoTrace.activateTrigger(triggerName, 0);
             return;
         }

@@ -258,8 +258,7 @@ TEST(CanvasOp, simpleDrawRegionRect) {
 TEST(CanvasOp, simpleDrawRegionPath) {
     CanvasOpBuffer buffer;
     EXPECT_EQ(buffer.size(), 0);
-    SkPath path;
-    path.addCircle(50, 50, 50);
+    const SkPath path = SkPath::Circle(50, 50, 50);
     SkRegion clip;
     clip.setRect(SkIRect::MakeWH(100, 100));
     SkRegion region;
@@ -384,8 +383,7 @@ TEST(CanvasOp, simpleDrawArc) {
 TEST(CanvasOp, simpleDrawPath) {
     CanvasOpBuffer buffer;
     EXPECT_EQ(buffer.size(), 0);
-    SkPath path;
-    path.addCircle(50, 50, 30);
+    const SkPath path = SkPath::Circle(50, 50, 30);
     buffer.push<Op::DrawPath> ({
         .path = path,
         .paint = SkPaint{}

@@ -18,6 +18,8 @@ package com.android.server.usb.descriptors;
 import android.hardware.usb.UsbDevice;
 import android.util.Log;
 
+import com.android.server.usb.UsbDeviceFingerprint.Hashcode;
+
 import java.util.ArrayList;
 
 /**
@@ -52,16 +54,8 @@ public final class UsbDescriptorParser {
     // Obtained from the first VidieoClass Header descriptor.
     private int mVCInterfacesSpec = UsbDeviceDescriptor.USBSPEC_1_0;
 
-    /**
-     * Connect this parser to an existing set of already parsed descriptors.
-     * This is useful for reporting.
-     */
-    public UsbDescriptorParser(String deviceAddr, ArrayList<UsbDescriptor> descriptors) {
-        mDeviceAddr = deviceAddr;
-        mDescriptors = descriptors;
-        //TODO some error checking here....
-        mDeviceDescriptor = (UsbDeviceDescriptor) descriptors.get(0);
-    }
+    // Hashcode of the raw descriptor for this USB device.
+    private Hashcode mDescriptorHashcode;
 
     /**
      * Connect this parser to an byte array containing unparsed (raw) device descriptors
@@ -71,6 +65,52 @@ public final class UsbDescriptorParser {
         mDeviceAddr = deviceAddr;
         mDescriptors = new ArrayList<UsbDescriptor>(DESCRIPTORS_ALLOC_SIZE);
         parseDescriptors(rawDescriptors);
+        calculateHashcode(rawDescriptors);
+    }
+
+    private UsbDescriptorParser(String deviceAddr) {
+        mDeviceAddr = deviceAddr;
+        byte[] rawDescriptors = getRawDescriptors();
+
+        if (rawDescriptors != null) {
+            mDescriptors = new ArrayList<UsbDescriptor>(DESCRIPTORS_ALLOC_SIZE);
+            parseDescriptors(rawDescriptors);
+            calculateHashcode(rawDescriptors);
+        } else {
+            mDescriptors = null;
+        }
+    }
+
+    /**
+     * Construct a parser using just a device address.
+     *
+     * <p>The descriptors are read from the provided usb device. If no descriptors can be read, then
+     * this returns null.
+     *
+     * @return UsbDescriptorParser or null
+     */
+    public static UsbDescriptorParser fromDeviceAddress(String deviceAddr) {
+        UsbDescriptorParser parser = new UsbDescriptorParser(deviceAddr);
+        if (parser.getDescriptors() == null) {
+            return null;
+        }
+
+        return parser;
+    }
+
+    // Calculate the hashcode by hashing the raw bytes of all the descriptors.
+    private void calculateHashcode(byte[] rawDescriptors) {
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()
+                || com.android.server.usb.flags.Flags.enableUsbHostAuthorization()) {
+            mDescriptorHashcode = Hashcode.getHasher().putBytes(rawDescriptors).hash();
+        } else {
+            mDescriptorHashcode = Hashcode.createEmptyHashcode();
+        }
+    }
+
+    /** Gets a hash of all the descriptors that were parsed. */
+    public Hashcode getDescriptorHashcode() {
+        return mDescriptorHashcode;
     }
 
     public String getDeviceAddr() {

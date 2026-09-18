@@ -17,17 +17,22 @@ package com.android.wm.shell.desktopmode.multidesks
 
 import android.content.Context
 import android.graphics.Rect
+import android.os.Handler
 import android.os.IBinder
 import android.view.Choreographer
 import android.view.SurfaceControl
 import android.window.TransitionInfo
 import android.window.TransitionRequestInfo
 import android.window.WindowContainerTransaction
+import com.android.internal.jank.Cuj.CUJ_DESKTOP_MODE_DESK_SWITCH
+import com.android.internal.jank.InteractionJankMonitor
 import com.android.internal.protolog.ProtoLog
+import com.android.window.flags.Flags
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes
 import com.android.wm.shell.desktopmode.DesktopUserRepositories
 import com.android.wm.shell.desktopmode.DesktopWallpaperActivity
+import com.android.wm.shell.desktopmode.SnapController
 import com.android.wm.shell.desktopmode.multidesks.animation.DeskSwitchAnimationUtils
 import com.android.wm.shell.desktopmode.multidesks.animation.DeskSwitchAnimationUtils.FADE_IN_SPRING_CONFIG
 import com.android.wm.shell.desktopmode.multidesks.animation.DeskSwitchAnimationUtils.FADE_IN_START_FRACTION
@@ -48,6 +53,9 @@ class DeskSwitchTransitionHandler(
     private val transitions: Transitions,
     private val displayController: DisplayController,
     private val transactionProvider: () -> SurfaceControl.Transaction,
+    private val shellMainHandler: Handler,
+    private val interactionJankMonitor: InteractionJankMonitor,
+    private val snapController: SnapController,
 ) : Transitions.TransitionHandler {
 
     constructor(
@@ -56,6 +64,9 @@ class DeskSwitchTransitionHandler(
         desktopState: DesktopState,
         transitions: Transitions,
         displayController: DisplayController,
+        shellMainHandler: Handler,
+        interactionJankMonitor: InteractionJankMonitor,
+        snapController: SnapController,
     ) : this(
         context = context,
         desktopUserRepositories = desktopUserRepositories,
@@ -63,6 +74,9 @@ class DeskSwitchTransitionHandler(
         transitions = transitions,
         displayController = displayController,
         transactionProvider = { SurfaceControl.Transaction() },
+        shellMainHandler = shellMainHandler,
+        interactionJankMonitor = interactionJankMonitor,
+        snapController = snapController,
     )
 
     private val pendingTransitions = mutableMapOf<IBinder, PendingSwitch>()
@@ -161,6 +175,17 @@ class DeskSwitchTransitionHandler(
             }
         val toDeskEndBounds = Rect(displayBounds)
 
+        val instrumentationChange = changes.fromDesk ?: changes.toDesk
+        val instrumentationSurface = instrumentationChange?.leash
+        if (instrumentationSurface != null) {
+            interactionJankMonitor.begin(
+                instrumentationSurface,
+                context,
+                shellMainHandler,
+                CUJ_DESKTOP_MODE_DESK_SWITCH,
+            )
+        }
+
         startTransaction.apply {
             changes.fromDeskTasks.forEach { c -> setAlpha(c.leash, 1f) }
             changes.fromDesk?.leash?.let { leash ->
@@ -178,6 +203,7 @@ class DeskSwitchTransitionHandler(
                     toDeskStartBounds.top.toFloat(),
                 )
             }
+            setFrameTimeline(Choreographer.getInstance().vsyncId)
             apply()
         }
 
@@ -189,11 +215,16 @@ class DeskSwitchTransitionHandler(
             runningAnimationCount--
             if (runningAnimationCount <= 0) {
                 logD("All animations finished, finishing transition")
+                snapController.onDeskSwitchAnimationEnded(
+                    changes.displayId,
+                    changes.toDeskId
+                )
                 finishTransaction.apply {
                     changes.fromDeskTasks.forEach { c -> setAlpha(c.leash, 0f) }
                     changes.toDeskTasks.forEach { c -> setAlpha(c.leash, 1f) }
                 }
                 finishCallback.onTransitionFinished(/* wct */ null)
+                interactionJankMonitor.end(CUJ_DESKTOP_MODE_DESK_SWITCH)
             }
         }
 
@@ -203,15 +234,13 @@ class DeskSwitchTransitionHandler(
 
         // Now actually start the animations.
         logD("startAnimation: changes=%s", changes)
-        val tx = transactionProvider()
-        // First the wallpaper animation.
-        startWallpaperAnimation(
-            displayId = changes.displayId,
-            numberOfDesks = changes.totalDesks,
-            fromDeskIndex = changes.fromDeskPosition,
-            toDeskIndex = changes.toDeskPosition,
+        snapController.onDeskSwitchAnimationStarting(
+            changes.displayId,
+            changes.fromDeskId,
+            changes.toDeskId
         )
-        // Then the bounds animation, which triggers fade-in/out animations within it.
+        val tx = transactionProvider()
+        // Animate the bounds animation, which triggers fade-in/out animations within it.
         PhysicsAnimator.getInstance(
                 DeskSwitchAnimationUtils.DeskBoundsChange(
                     fromDeskBounds = Rect(fromDeskStartBounds),
@@ -314,7 +343,7 @@ class DeskSwitchTransitionHandler(
 
                 if (DeskSwitchAnimationUtils.DEBUG_ANIMATION) {
                     logD(
-                        "tick(%d): fromAnimBounds=%s toAnimBounds=%s fadeOut=%d fadeIn=%d",
+                        "tick(%f): fromAnimBounds=%s toAnimBounds=%s fadeOut=%f fadeIn=%f",
                         animFraction,
                         fromDeskAnimBounds,
                         toDeskAnimBounds,
@@ -356,27 +385,6 @@ class DeskSwitchTransitionHandler(
         transition: IBinder,
         request: TransitionRequestInfo,
     ): WindowContainerTransaction? = null
-
-    override fun onTransitionConsumed(
-        transition: IBinder,
-        aborted: Boolean,
-        finishTransaction: SurfaceControl.Transaction?,
-    ) {
-        // An aborted pending switch transition might mean we're moving from an empty desk to
-        // another empty desk, so there won't be animation targets. The desktop wallpaper still
-        // needs to be animated though.
-        if (!aborted) return
-        val pendingSwitch = pendingTransitions.remove(transition) ?: return
-        val repository = desktopUserRepositories.getProfile(pendingSwitch.userId)
-        val fromDeskIndex = repository.getDeskPosition(pendingSwitch.fromDeskId) ?: return
-        val toDeskIndex = repository.getDeskPosition(pendingSwitch.toDeskId) ?: return
-        startWallpaperAnimation(
-            displayId = pendingSwitch.displayId,
-            numberOfDesks = repository.getNumberOfDesks(pendingSwitch.displayId),
-            fromDeskIndex = fromDeskIndex,
-            toDeskIndex = toDeskIndex,
-        )
-    }
 
     private fun getDeskSwitchChanges(
         pendingSwitch: PendingSwitch,
@@ -422,28 +430,9 @@ class DeskSwitchTransitionHandler(
             fromDeskPosition = fromDeskPosition,
             toDeskPosition = toDeskPosition,
             totalDesks = repository.getNumberOfDesks(displayId),
+            fromDeskId = fromDeskId,
+            toDeskId = toDeskId,
         )
-    }
-
-    private fun startWallpaperAnimation(
-        displayId: Int,
-        numberOfDesks: Int,
-        fromDeskIndex: Int,
-        toDeskIndex: Int,
-    ) {
-        if (!desktopState.shouldShowHomeBehindDesktop) {
-            logD("startWallpaperAnimation: sending broadcast")
-            context.sendBroadcast(
-                DesktopWallpaperActivity.createWallpaperSlideAnimationIntent(
-                    displayId = displayId,
-                    numberOfDesks = numberOfDesks,
-                    fromDeskIndex = fromDeskIndex,
-                    toDeskIndex = toDeskIndex,
-                )
-            )
-        } else {
-            // TODO: b/441146489 - animate the launcher wallpaper?
-        }
     }
 
     private fun getAnimationFraction(startBounds: Rect, endBounds: Rect, animBounds: Rect): Float {
@@ -464,11 +453,11 @@ class DeskSwitchTransitionHandler(
         val fromDeskPosition: Int,
         val toDeskPosition: Int,
         val totalDesks: Int,
+        val fromDeskId: Int,
+        val toDeskId: Int,
     ) {
         override fun toString(): String {
-            val fromDeskId = fromDesk?.taskInfo?.taskId
             val fromDeskTaskIds = fromDeskTasks.mapNotNull { it.taskInfo?.taskId }
-            val toDeskId = toDesk?.taskInfo?.taskId
             val toDeskTaskIds = toDeskTasks.mapNotNull { it.taskInfo?.taskId }
             return "DeskSwitchChanges(displayId=$displayId, " +
                 "fromDesk=$fromDeskId with tasks=$fromDeskTaskIds, " +
@@ -484,6 +473,8 @@ class DeskSwitchTransitionHandler(
         }
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

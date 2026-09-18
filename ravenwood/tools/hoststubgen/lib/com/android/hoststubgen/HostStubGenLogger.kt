@@ -316,8 +316,11 @@ class HostStubGenLoggerOptions {
      */
     fun maybeHandleCommandLineArg(currentArg: String, nextArgProvider: () -> String): Boolean {
         when (currentArg) {
-            "-v", "--verbose" -> setConsoleLogLevel(LogLevel.Verbose)
             "-d", "--debug" -> setConsoleLogLevel(LogLevel.Debug)
+            "-v", "--verbose" -> setConsoleLogLevel(LogLevel.Verbose)
+            "-i", "--info" -> setConsoleLogLevel(LogLevel.Info)
+            "-w", "--warn" -> setConsoleLogLevel(LogLevel.Warn)
+            "-e", "--error" -> setConsoleLogLevel(LogLevel.Error)
             "-q", "--quiet" -> setConsoleLogLevel(LogLevel.None)
             "--verbose-log" -> addFilePrinter(LogLevel.Verbose, nextArgProvider())
             "--debug-log" -> addFilePrinter(LogLevel.Debug, nextArgProvider())

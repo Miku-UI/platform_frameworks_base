@@ -24,6 +24,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.app.Activity;
 import android.compat.testing.PlatformCompatChangeRule;
+import android.content.ContentResolver;
 import android.os.Bundle;
 import android.platform.test.annotations.PlatinumTest;
 import android.platform.test.annotations.Presubmit;
@@ -151,12 +152,14 @@ public class FontScaleConverterActivityTest {
     }
 
     private static void restoreSystemFontScaleToDefault() {
+        ContentResolver contentResolver =
+                InstrumentationRegistry.getInstrumentation().getContext().getContentResolver();
+        float defaultFontScale = Settings.System.getFloat(contentResolver,
+                Settings.System.DEFAULT_DEVICE_FONT_SCALE, 1.0f);
         ShellIdentityUtils.invokeWithShellPermissions(() -> {
             // TODO(b/279083734): would use Settings.System.resetToDefaults() if it existed
             Settings.System.putString(
-                    InstrumentationRegistry.getInstrumentation()
-                            .getContext()
-                            .getContentResolver(),
+                    contentResolver,
                     Settings.System.FONT_SCALE,
                     null,
                     /* overrideableByRestore= */ true);
@@ -168,7 +171,7 @@ public class FontScaleConverterActivityTest {
                                         .getContext()
                                         .getResources()
                                         .getConfiguration()
-                                        .fontScale == 1
+                                        .fontScale == defaultFontScale
         );
     }
 

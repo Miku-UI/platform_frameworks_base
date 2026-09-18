@@ -32,6 +32,8 @@ import android.hardware.hdmi.IHdmiControlService;
 import android.hardware.hdmi.IHdmiDeviceEventListener;
 import android.hardware.hdmi.IHdmiHotplugEventListener;
 import android.hardware.hdmi.IHdmiSystemAudioModeChangeListener;
+import android.media.AudioAttributes;
+import android.media.AudioDeviceAttributes;
 import android.media.AudioDevicePort;
 import android.media.AudioFormat;
 import android.media.AudioGain;
@@ -1054,11 +1056,21 @@ class TvInputHardwareManager implements TvInputHal.Callback {
             if (mAudioManager.listAudioDevicePorts(devicePorts) != AudioManager.SUCCESS) {
                 return;
             }
-            int sinkDevice = mAudioManager.getDevicesForStream(AudioManager.STREAM_MUSIC);
+            final AudioAttributes mediaAttr = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+
+            List<AudioDeviceAttributes> devices = mAudioManager.getDevicesForAttributes(mediaAttr);
+
             for (AudioDevicePort port : devicePorts) {
-                if ((port.type() & sinkDevice) != 0 &&
-                        !AudioSystem.isInputDevice(port.type())) {
-                    sinks.add(port);
+                for (AudioDeviceAttributes device : devices) {
+                    int nativeType = device.getInternalType();
+                    if (!AudioSystem.isInputDevice(port.type()) &&
+                            nativeType == port.type()) {
+                        sinks.add(port);
+                        break;
+                    }
                 }
             }
         }

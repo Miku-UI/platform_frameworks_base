@@ -40,7 +40,6 @@ import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
 import android.util.ArrayMap;
 import android.util.MergedConfiguration;
-import android.view.IWindow;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.WindowRelayoutResult;
@@ -50,6 +49,8 @@ import android.window.WindowContextInfo;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
+
+import com.android.internal.view.WindowClientTransactionHandler;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -85,7 +86,7 @@ public class ClientTransactionItemTest {
     @Mock
     private IBinder mWindowClientToken;
     @Mock
-    private IWindow mWindow;
+    private WindowClientTransactionHandler mWindow;
 
     // Can't mock final class.
     private Configuration mGlobalConfig;
@@ -206,13 +207,20 @@ public class ClientTransactionItemTest {
                 123 /* displayId */, 321 /* syncSeqId */, true /* syncWithBuffers */,
                 true /* dragResizing */, activityWindowInfo);
 
+        item.preExecute(mHandler);
         item.execute(mHandler, mPendingActions);
 
         final ArgumentCaptor<WindowRelayoutResult> layout =
                 ArgumentCaptor.forClass(WindowRelayoutResult.class);
-        verify(mWindow).resized(layout.capture(), eq(true) /* reportDraw */,
-                eq(true) /* forceLayout */, eq(123) /* displayId */, eq(true) /* syncWithBuffers */,
-                eq(true) /* dragResizing */);
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            verify(mWindow).updatePendingResize(layout.capture(), eq(true) /* reportDraw */,
+                    eq(true) /* forceLayout */, eq(123) /* displayId */,
+                    eq(true) /* syncWithBuffers */, eq(true) /* dragResizing */);
+        } else {
+            verify(mWindow).resized(layout.capture(), eq(true) /* reportDraw */,
+                    eq(true) /* forceLayout */, eq(123) /* displayId */,
+                    eq(true) /* syncWithBuffers */, eq(true) /* dragResizing */);
+        }
         assertEquals(frames, layout.getValue().frames);
         assertEquals(mergedConfiguration, layout.getValue().mergedConfiguration);
         assertEquals(mInsetsState, layout.getValue().insetsState);
@@ -226,13 +234,22 @@ public class ClientTransactionItemTest {
         final WindowStateInsetsControlChangeItem item = new WindowStateInsetsControlChangeItem(
                 mWindow, mInsetsState, activeControls);
 
+        item.preExecute(mHandler);
         item.execute(mHandler, mPendingActions);
 
-        verify(mWindow).insetsControlChanged(mInsetsState, activeControls);
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            verify(mWindow).updatePendingInsetsControls(mInsetsState, activeControls);
+        } else {
+            verify(mWindow).insetsControlChanged(mInsetsState, activeControls);
+        }
     }
 
     @Test
     public void testWindowStateInsetsControlChangeItem_executeError() throws RemoteException {
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            // updatePendingInsetsControls won't throw RemoteException.
+            return;
+        }
         final InsetsSourceControl.Array spiedActiveControls = spy(new InsetsSourceControl.Array());
         final WindowStateInsetsControlChangeItem item = new WindowStateInsetsControlChangeItem(
                 mWindow, mInsetsState, spiedActiveControls, false /* copyActiveControls */);

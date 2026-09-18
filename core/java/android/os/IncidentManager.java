@@ -265,7 +265,7 @@ public class IncidentManager {
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          */
         @Override
         public boolean equals(@Nullable Object obj) {
@@ -346,14 +346,14 @@ public class IncidentManager {
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          */
         public int describeContents() {
             return mFileDescriptor != null ? Parcelable.CONTENTS_FILE_DESCRIPTOR : 0;
         }
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          */
         public void writeToParcel(Parcel out, int flags) {
             out.writeLong(mTimestampNs);
@@ -371,14 +371,14 @@ public class IncidentManager {
          */
         public static final @android.annotation.NonNull Parcelable.Creator<IncidentReport> CREATOR = new Parcelable.Creator() {
             /**
-             * @inheritDoc
+             * {@inheritDoc}
              */
             public IncidentReport[] newArray(int size) {
                 return new IncidentReport[size];
             }
 
             /**
-             * @inheritDoc
+             * {@inheritDoc}
              */
             public IncidentReport createFromParcel(Parcel in) {
                 return new IncidentReport(in);

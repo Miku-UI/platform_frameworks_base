@@ -20,14 +20,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -42,8 +40,6 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = MemoryFile.class)
 public class MemoryFileTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private void compareBuffers(byte[] buffer1, byte[] buffer2, int length) throws Exception {
         for (int i = 0; i < length; i++) {

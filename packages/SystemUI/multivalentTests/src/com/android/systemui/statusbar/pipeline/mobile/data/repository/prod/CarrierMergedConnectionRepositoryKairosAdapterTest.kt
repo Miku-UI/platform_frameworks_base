@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository.prod
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.activated
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.launchKairosNetwork
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kosmos.testScope
@@ -30,7 +29,6 @@ import kotlinx.coroutines.launch
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class CarrierMergedConnectionRepositoryKairosAdapterTest :

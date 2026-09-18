@@ -16,12 +16,17 @@
 
 package com.android.server.accessibility;
 
+import static android.app.admin.DevicePolicyIdentifiers.getIdentifierForUserRestriction;
+
 import static com.android.settingslib.RestrictedLockUtils.EnforcedAdmin;
 
 import android.annotation.UserIdInt;
 import android.app.admin.DevicePolicyManager;
+import android.app.admin.EnforcingAdmin;
+import android.app.admin.PolicyEnforcementInfo;
 import android.content.Context;
 import android.content.pm.UserInfo;
+import android.os.Binder;
 import android.os.UserHandle;
 import android.os.UserManager;
 
@@ -35,6 +40,7 @@ import java.util.List;
  */
 public class RestrictedLockUtilsInternal {
 
+    // LINT.IfChange
     /**
      * Disables accessibility service that are not permitted.
      */
@@ -66,8 +72,26 @@ public class RestrictedLockUtilsInternal {
         } else if (!permittedByProfileAdmin) {
             return profileAdmin;
         }
-        return null;
+        String userRestriction = UserManager.DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICE;
+        PolicyEnforcementInfo policyEnforcementInfo;
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            policyEnforcementInfo = dpm.getEnforcingAdminsForPolicy(
+                    getIdentifierForUserRestriction(userRestriction), userId);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+        if (policyEnforcementInfo.getAllAdmins().isEmpty()) {
+            return null;
+        }
+        EnforcingAdmin aapmEnforcingAdmin = policyEnforcementInfo.getMostImportantEnforcingAdmin();
+        EnforcedAdmin aapmEnforcedAdmin = new EnforcedAdmin(aapmEnforcingAdmin.getComponentName(),
+                userRestriction,
+                aapmEnforcingAdmin.getUserHandle());
+        return aapmEnforcedAdmin;
     }
+    // LINT.ThenChange(frameworks/base/packages/SettingsLib/src/com/android/settingslib
+    // /RestrictedLockUtilsInternal.java)
 
     /**
      * Disables input method that are not permitted.

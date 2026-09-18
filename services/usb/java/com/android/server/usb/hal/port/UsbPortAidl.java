@@ -22,43 +22,52 @@ import static android.hardware.usb.UsbOperationInternal.USB_OPERATION_SUCCESS;
 import static com.android.server.usb.UsbPortManager.logAndPrint;
 import static com.android.server.usb.UsbPortManager.logAndPrintException;
 
-import android.annotation.Nullable;
-import android.hardware.usb.ContaminantProtectionStatus;
-import android.hardware.usb.IUsb;
-import android.hardware.usb.IUsbOperationInternal;
-import android.hardware.usb.UsbManager.UsbHalVersion;
-import android.hardware.usb.UsbPort;
-import android.hardware.usb.UsbPortStatus;
-import android.hardware.usb.PortMode;
-import android.hardware.usb.Status;
-import android.hardware.usb.IUsbCallback;
-import android.hardware.usb.PortRole;
-import android.hardware.usb.PortStatus;
-import android.hardware.usb.ComplianceWarning;
-import android.hardware.usb.DisplayPortAltModeInfo;
 import android.hardware.usb.AltModeData;
 import android.hardware.usb.AltModeData.DisplayPortAltModeData;
+import android.hardware.usb.ContaminantProtectionStatus;
+import android.hardware.usb.DisplayPortAltModeInfo;
 import android.hardware.usb.DisplayPortAltModePinAssignment;
+import android.hardware.usb.IUsb;
+import android.hardware.usb.IUsbCallback;
+import android.hardware.usb.IUsbOperationInternal;
+import android.hardware.usb.PortMode;
+import android.hardware.usb.PortPartnerStatus;
+import android.hardware.usb.PortRole;
+import android.hardware.usb.PortStatus;
+import android.hardware.usb.PowerProfile;
+import android.hardware.usb.PowerProfileInfo;
+import android.hardware.usb.PowerProfileMatchInfo;
+import android.hardware.usb.PowerProfileMatchResult;
+import android.hardware.usb.PowerProfileVendor;
+import android.hardware.usb.StaticPortInformation;
+import android.hardware.usb.Status;
+import android.hardware.usb.TypecDefault;
+import android.hardware.usb.UsbManager.UsbHalVersion;
+import android.hardware.usb.UsbPdBattery;
+import android.hardware.usb.UsbPdFixed;
+import android.hardware.usb.UsbPdSprAvs;
+import android.hardware.usb.UsbPdSprPps;
+import android.hardware.usb.UsbPdVariable;
+import android.hardware.usb.UsbPort;
+import android.hardware.usb.UsbPortStatus;
 import android.hardware.usb.flags.Flags;
-import android.os.Build;
-import android.os.ServiceManager;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.util.IntArray;
 import android.util.Log;
 import android.util.LongSparseArray;
-import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.usb.UsbPortManager;
 import com.android.server.usb.hal.port.RawPortInfo;
 
-import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Implements the methods to interact with AIDL USB HAL.
@@ -125,6 +134,23 @@ public final class UsbPortAidl implements UsbPortHal {
      * USB device mode disabled due to docking event.
      */
     public static final int AIDL_USB_DATA_STATUS_DISABLED_DOCK_DEVICE_MODE = 8;
+    /**
+     * The maximum voltage limit in mV as defined by the Type-C Connector Specification
+     */
+    private static final int AIDL_POWER_PROFILE_VOLTAGE_LIMIT_MV = 48000;
+    /**
+     * The maximum current limit in mA as defined by the Type-C Connector Specification
+     */
+    private static final int AIDL_POWER_PROFILE_CURRENT_LIMIT_MA = 5000;
+    /**
+     * The maximum power limit in mW as defined by the Type-C Connector Specification
+     */
+    private static final int AIDL_POWER_PROFILE_POWER_LIMIT_MW = 240000;
+    /**
+     * The maximum name length for a PowerProfile of type {@link #POWER_PROFILE_TYPE_VENDOR}
+     */
+    private static final int AIDL_POWER_PROFILE_VENDOR_NAME_MAX_LENGTH = 64;
+
 
     public @UsbHalVersion int getUsbHalVersion() throws RemoteException {
         synchronized (mLock) {
@@ -658,6 +684,224 @@ public final class UsbPortAidl implements UsbPortHal {
             return null;
         }
 
+        private int formatPowerProfileCurrentMa(int currentMa) {
+            if (currentMa < 0) {
+                return PowerProfileInfo.POWER_PROFILE_ERROR_FIELD_NOT_SUPPORTED;
+            }
+            if (currentMa > AIDL_POWER_PROFILE_CURRENT_LIMIT_MA) {
+                return AIDL_POWER_PROFILE_CURRENT_LIMIT_MA;
+            }
+            return currentMa;
+        }
+
+        private int formatPowerProfileVoltageMv(int voltageMv) {
+            if (voltageMv < 0) {
+                return PowerProfileInfo.POWER_PROFILE_ERROR_FIELD_NOT_SUPPORTED;
+            }
+            if (voltageMv > AIDL_POWER_PROFILE_VOLTAGE_LIMIT_MV) {
+                return AIDL_POWER_PROFILE_VOLTAGE_LIMIT_MV;
+            }
+            return voltageMv;
+        }
+
+        private int formatPowerProfilePowerMw(int powerMw) {
+            if (powerMw < 0) {
+                return PowerProfileInfo.POWER_PROFILE_ERROR_FIELD_NOT_SUPPORTED;
+            }
+            if (powerMw > AIDL_POWER_PROFILE_POWER_LIMIT_MW) {
+                return AIDL_POWER_PROFILE_POWER_LIMIT_MW;
+            }
+            return powerMw;
+        }
+
+       private PowerProfileInfo[] populatePowerProfileInfo(
+                    android.hardware.usb.PowerProfile[] profiles) {
+            PowerProfileInfo[] profileInfoList;
+
+            if (profiles == null) {
+                return new PowerProfileInfo[0];
+            }
+
+            profileInfoList = new PowerProfileInfo[profiles.length];
+
+            for (int i = 0; i < profiles.length; i++) {
+                PowerProfileInfo.Builder builder = new PowerProfileInfo.Builder();
+
+                switch (profiles[i].getTag()) {
+                    case PowerProfile.typecDefaultProfile:
+                        TypecDefault defaultProfile = profiles[i].getTypecDefaultProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_RP_DEFAULT);
+                        builder.setMaxVoltageMv(5000);
+                        builder.setMaxCurrentMa(formatPowerProfileCurrentMa(
+                                defaultProfile.maxCurrentMa));
+                        break;
+                    case PowerProfile.typec15AProfile:
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_RP_1_5A);
+                        builder.setMaxVoltageMv(5000);
+                        builder.setMaxCurrentMa(1500);
+                        break;
+                    case PowerProfile.typec30AProfile:
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_RP_3_0A);
+                        builder.setMaxVoltageMv(5000);
+                        builder.setMaxCurrentMa(3000);
+                        break;
+                    case PowerProfile.fixedProfile:
+                        UsbPdFixed fixedProfile = profiles[i].getFixedProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_FIXED);
+                        builder.setMaxVoltageMv(formatPowerProfileVoltageMv(
+                                fixedProfile.voltageMv));
+                        builder.setMaxCurrentMa(formatPowerProfileCurrentMa(
+                                fixedProfile.maxCurrentMa));
+                        break;
+                    case PowerProfile.variableProfile:
+                        UsbPdVariable variableProfile = profiles[i].getVariableProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_VARIABLE);
+                        builder.setMaxVoltageMv(formatPowerProfileVoltageMv(
+                                variableProfile.maxVoltageMv));
+                        builder.setMinVoltageMv(formatPowerProfileVoltageMv(
+                                variableProfile.minVoltageMv));
+                        builder.setMaxCurrentMa(formatPowerProfileCurrentMa(
+                                variableProfile.maxCurrentMa));
+                        break;
+                    case PowerProfile.batteryProfile:
+                        UsbPdBattery batteryProfile = profiles[i].getBatteryProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_BATTERY);
+                        builder.setMaxVoltageMv(formatPowerProfileVoltageMv(
+                                batteryProfile.maxVoltageMv));
+                        builder.setMinVoltageMv(formatPowerProfileVoltageMv(
+                                batteryProfile.minVoltageMv));
+                        builder.setMaxPowerMw(formatPowerProfilePowerMw(
+                                batteryProfile.maxPowerMw));
+                        break;
+                    case PowerProfile.sprPpsProfile:
+                        UsbPdSprPps sprPpsProfile = profiles[i].getSprPpsProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_SPR_PPS);
+                        builder.setMaxVoltageMv(formatPowerProfileVoltageMv(
+                                sprPpsProfile.maxVoltageMv));
+                        builder.setMinVoltageMv(formatPowerProfileVoltageMv(
+                                sprPpsProfile.minVoltageMv));
+                        builder.setMaxCurrentMa(formatPowerProfileCurrentMa(
+                                sprPpsProfile.maxCurrentMa));
+                        break;
+                    case PowerProfile.sprAvsProfile:
+                        UsbPdSprAvs sprAvsProfile = profiles[i].getSprAvsProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_SPR_AVS);
+                        builder.setMaxCurrentMa(formatPowerProfileCurrentMa(
+                                sprAvsProfile.maxCurrent15vMa));
+                        builder.setMinCurrentMa(formatPowerProfileCurrentMa(
+                                sprAvsProfile.maxCurrent20vMa));
+                        break;
+                    case PowerProfile.vendorProfile:
+                        PowerProfileVendor vendorProfile = profiles[i].getVendorProfile();
+                        builder.setPowerProfileType(PowerProfileInfo.POWER_PROFILE_TYPE_VENDOR);
+                        // Take a max length for security purposes
+                        builder.setName(vendorProfile.name.substring(
+                                Math.min(vendorProfile.name.length(),
+                                AIDL_POWER_PROFILE_VENDOR_NAME_MAX_LENGTH)));
+                        builder.setMaxVoltageMv(formatPowerProfileVoltageMv(
+                                vendorProfile.maxVoltageMv));
+                        builder.setMinVoltageMv(formatPowerProfileVoltageMv(
+                                vendorProfile.minVoltageMv));
+                        builder.setMaxCurrentMa(formatPowerProfileCurrentMa(
+                                vendorProfile.maxCurrentMa));
+                        builder.setMinCurrentMa(formatPowerProfileCurrentMa(
+                                vendorProfile.minCurrentMa));
+                        builder.setMaxPowerMw(formatPowerProfilePowerMw(
+                                vendorProfile.maxPowerMw));
+                        break;
+                    default:
+                        break;
+                }
+
+                profileInfoList[i] = builder.build();
+            }
+
+            return profileInfoList;
+        }
+
+        private PowerProfileMatchInfo[] populatePowerProfileMatches(
+                PowerProfileMatchResult[] matchResults) {
+            PowerProfileMatchInfo[] matchInfoList;
+
+            if (matchResults == null) {
+                return new PowerProfileMatchInfo[0];
+            }
+
+            matchInfoList = new PowerProfileMatchInfo[matchResults.length];
+
+            for (int i = 0; i < matchResults.length; i++) {
+                PowerProfileMatchResult matchResult = matchResults[i];
+                PowerProfileMatchInfo.Builder builder = new PowerProfileMatchInfo.Builder();
+                builder.setPortIndex(matchResult.portIndex)
+                        .setPartnerIndex(matchResult.partnerIndex);
+                switch (matchResult.result.getTag()) {
+                    case PowerProfile.typecDefaultProfile:
+                        TypecDefault defaultProfile = matchResult.result.getTypecDefaultProfile();
+                        builder.setMaxVoltageMv(5000);
+                        builder.setMaxCurrentMa(defaultProfile.maxCurrentMa);
+                        break;
+                    case PowerProfile.typec15AProfile:
+                        builder.setMaxVoltageMv(5000);
+                        builder.setMaxCurrentMa(1500);
+                        break;
+                    case PowerProfile.typec30AProfile:
+                        builder.setMaxVoltageMv(5000);
+                        builder.setMaxCurrentMa(3000);
+                        break;
+                    case PowerProfile.fixedProfile:
+                        UsbPdFixed fixedProfile = matchResult.result.getFixedProfile();
+                        builder.setMaxVoltageMv(fixedProfile.voltageMv);
+                        builder.setMaxCurrentMa(fixedProfile.maxCurrentMa);
+                        break;
+                    case PowerProfile.variableProfile:
+                        UsbPdVariable variableProfile = matchResult.result.getVariableProfile();
+                        builder.setMaxVoltageMv(variableProfile.maxVoltageMv);
+                        builder.setMinVoltageMv(variableProfile.minVoltageMv);
+                        builder.setMaxCurrentMa(variableProfile.maxCurrentMa);
+                        break;
+                    case PowerProfile.batteryProfile:
+                        UsbPdBattery batteryProfile = matchResult.result.getBatteryProfile();
+                        builder.setMaxVoltageMv(batteryProfile.maxVoltageMv);
+                        builder.setMinVoltageMv(batteryProfile.minVoltageMv);
+                        builder.setMaxPowerMw(batteryProfile.maxPowerMw);
+                        break;
+                    case PowerProfile.sprPpsProfile:
+                        UsbPdSprPps sprPpsProfile = matchResult.result.getSprPpsProfile();
+                        builder.setMaxVoltageMv(sprPpsProfile.maxVoltageMv);
+                        builder.setMinVoltageMv(sprPpsProfile.minVoltageMv);
+                        builder.setMaxCurrentMa(sprPpsProfile.maxCurrentMa);
+                        break;
+                    case PowerProfile.sprAvsProfile:
+                        UsbPdSprAvs sprAvsProfile = matchResult.result.getSprAvsProfile();
+                        builder.setMaxCurrentMa(sprAvsProfile.maxCurrent15vMa);
+                        builder.setMinCurrentMa(sprAvsProfile.maxCurrent20vMa);
+                        break;
+                    case PowerProfile.vendorProfile:
+                        PowerProfileVendor vendorProfile = matchResult.result.getVendorProfile();
+                        if (vendorProfile.maxVoltageMv >= 0) {
+                            builder.setMaxVoltageMv(vendorProfile.maxVoltageMv);
+                        }
+                        if (vendorProfile.minVoltageMv >= 0) {
+                            builder.setMinVoltageMv(vendorProfile.minVoltageMv);
+                        }
+                        if (vendorProfile.maxCurrentMa >= 0) {
+                            builder.setMaxCurrentMa(vendorProfile.maxCurrentMa);
+                        }
+                        if (vendorProfile.minCurrentMa >= 0) {
+                            builder.setMinCurrentMa(vendorProfile.minCurrentMa);
+                        }
+                        if (vendorProfile.maxPowerMw >= 0) {
+                            builder.setMaxPowerMw(vendorProfile.maxPowerMw);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                matchInfoList[i] = builder.build();
+            }
+            return matchInfoList;
+        }
+
         @Override
         public void notifyPortStatusChange(
                android.hardware.usb.PortStatus[] currentPortStatus, int retval) {
@@ -675,29 +919,69 @@ public final class UsbPortAidl implements UsbPortHal {
             int numStatus = currentPortStatus.length;
             for (int i = 0; i < numStatus; i++) {
                 PortStatus current = currentPortStatus[i];
-                RawPortInfo temp = new RawPortInfo(current.portName,
-                        toSupportedModes(current.supportedModes),
-                        toSupportedContaminantProtectionModes(current
-                                .supportedContaminantProtectionModes),
-                        toPortMode(current.currentMode),
-                        current.canChangeMode,
-                        current.currentPowerRole,
-                        current.canChangePowerRole,
-                        current.currentDataRole,
-                        current.canChangeDataRole,
-                        current.supportsEnableContaminantPresenceProtection,
-                        toContaminantProtectionStatus(current.contaminantProtectionStatus),
-                        current.supportsEnableContaminantPresenceDetection,
-                        current.contaminantDetectionStatus,
-                        toUsbDataStatusInt(current.usbDataStatus),
-                        current.powerTransferLimited,
-                        current.powerBrickStatus,
-                        current.supportsComplianceWarnings,
-                        formatComplianceWarnings(current.complianceWarnings),
-                        current.plugOrientation,
-                        toSupportedAltModesInt(current.supportedAltModes),
-                        formatDisplayPortAltModeInfo(current.supportedAltModes));
-                newPortInfo.add(temp);
+                PortPartnerStatus currentPartner = current.partnerStatus;
+                RawPortInfo.Builder builder = new RawPortInfo.Builder(current.portName);
+                PowerProfileInfo[] partnerSinkProfiles, partnerSourceProfiles;
+                PowerProfileMatchInfo[] portSinkMatches, portSourceMatches;
+                PowerProfileInfo[] portSinkProfiles = populatePowerProfileInfo(
+                        current.sinkPowerProfiles);
+                PowerProfileInfo[] portSourceProfiles = populatePowerProfileInfo(
+                    current.sourcePowerProfiles);
+
+                if (currentPartner != null) {
+                    partnerSinkProfiles = populatePowerProfileInfo(
+                            currentPartner.sinkPowerProfiles);
+                    partnerSourceProfiles = populatePowerProfileInfo(
+                            currentPartner.sourcePowerProfiles);
+                    portSinkMatches = populatePowerProfileMatches(current.sinkMatchResults);
+                    portSourceMatches = populatePowerProfileMatches(current.sourceMatchResults);
+                } else {
+                    partnerSinkProfiles = new PowerProfileInfo[0];
+                    partnerSourceProfiles = new PowerProfileInfo[0];
+                    portSinkMatches = new PowerProfileMatchInfo[0];
+                    portSourceMatches = new PowerProfileMatchInfo[0];
+                }
+
+                builder.setSupportedModes(toSupportedModes(current.supportedModes))
+                        .setSupportedContaminantProtectionModes(
+                            toSupportedContaminantProtectionModes(
+                            current.supportedContaminantProtectionModes))
+                        .setCurrentMode(toPortMode(current.currentMode))
+                        .setCanChangeMode(current.canChangeMode)
+                        .setCurrentPowerRole(current.currentPowerRole)
+                        .setCanChangePowerRole(current.canChangePowerRole)
+                        .setCurrentDataRole(current.currentDataRole)
+                        .setCanChangeDataRole(current.canChangeDataRole)
+                        .setSupportsEnableContaminantPresenceProtection(
+                            current.supportsEnableContaminantPresenceProtection)
+                        .setContaminantProtectionStatus(toContaminantProtectionStatus(
+                            current.contaminantProtectionStatus))
+                        .setSupportsEnableContaminantPresenceDetection(
+                            current.supportsEnableContaminantPresenceDetection)
+                        .setContaminantDetectionStatus(current.contaminantDetectionStatus)
+                        .setUsbDataStatus(toUsbDataStatusInt(current.usbDataStatus))
+                        .setPowerTransferLimited(current.powerTransferLimited)
+                        .setPowerBrickConnectionStatus(current.powerBrickStatus)
+                        .setSupportsComplianceWarnings(current.supportsComplianceWarnings)
+                        .setComplianceWarnings(formatComplianceWarnings(current.complianceWarnings))
+                        .setPlugState(current.plugOrientation)
+                        .setSupportedAltModes(toSupportedAltModesInt(current.supportedAltModes))
+                        .setDisplayPortAltModeInfo(formatDisplayPortAltModeInfo(
+                            current.supportedAltModes));
+                if (getInterfaceVersion() >= 4) {
+                    builder.setSupportsPartnerBc12Type(current.supportsPartnerBc12Type)
+                            .setSupportsPowerProfiles(current.supportsPowerProfiles);
+                    if (current.supportsPartnerBc12Type && currentPartner != null) {
+                        builder.setPartnerBc12Type(currentPartner.bc12Type);
+                    }
+                    if (current.supportsPowerProfiles) {
+                        builder.setPortPowerProfiles(portSinkProfiles, portSourceProfiles)
+                                .setPartnerPowerProfiles(partnerSinkProfiles, partnerSourceProfiles)
+                                .setPowerProfileMatchInfo(portSinkMatches, portSourceMatches);
+                    }
+                }
+
+                newPortInfo.add(builder.build());
                 UsbPortManager.logAndPrint(Log.INFO, mPw, "ClientCallback AIDL V1: "
                         + current.portName);
             }
@@ -836,6 +1120,35 @@ public final class UsbPortAidl implements UsbPortHal {
                         "notifyResetUsbPortStatus: Failed to call onOperationComplete",
                         e);
             }
+        }
+
+        @Override
+        public void notifyQueryStaticPortInformation(
+                String portName, StaticPortInformation portInfo, int retval, long operationID) {
+            if (!Flags.enableUsbCapabilitiesReporting()) {
+                return;
+            }
+            if (retval != Status.SUCCESS) {
+                UsbPortManager.logAndPrint(
+                        Log.ERROR,
+                        mPw,
+                        "notifyQueryStaticPortInformation: "
+                                + portName
+                                + ": opID: "
+                                + operationID
+                                + " failed. err: "
+                                + retval);
+                return;
+            }
+            UsbPortManager.logAndPrint(
+                    Log.INFO,
+                    mPw,
+                    "notifyQueryStaticPortInformation: "
+                            + portName
+                            + ": opID: "
+                            + operationID
+                            + " successful. portInfo: "
+                            + portInfo);
         }
 
         @Override

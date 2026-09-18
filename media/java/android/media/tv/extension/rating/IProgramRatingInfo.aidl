@@ -23,10 +23,30 @@ import android.os.Bundle;
  * @hide
  */
 interface IProgramRatingInfo {
-    // Register a listener to receive notifications when ProgramRatingInfo is updated.
+    /**
+     * Registers a listener to receive notifications when ProgramInfo is updated.
+     *
+     * @param clientToken A token used to uniquely identify the client registering the listener.
+     * @param listener    The listener to be called when ProgramInfo's content rating updated.
+     */
     void addProgramRatingInfoListener(String clientToken, in IProgramRatingInfoListener listener);
-    // Remove a listener for ProgramRatingInfo update notifications.
+    /**
+     * Removes a previously registered listener for ProgramInfo update notifications.
+     *
+     * @param listener The listener that was previously registered to monitor ProgramInfo updates
+     *                 and should now be removed.
+     */
     void removeProgramRatingInfoListener(in IProgramRatingInfoListener listener);
-    // Get ProgramRatingInfo that may only be obtained when viewing.
+    /**
+     * Gets the ProgramInfo, which contains content rating information for the current program.
+     * This information can only be retrieved during an active viewing session.
+     *
+     * @param sessionToken The token that associates this request with a specific viewing session.
+     * @return A Bundle containing the program's rating information, or null if it is not available.
+     *         The Bundle must contain the following key:
+     *         <ul><li>
+     *         KEY_CONTENT_RATINGS: The content ratings applicable to the current channel.
+     *         </li></ul>
+     */
     Bundle getProgramRatingInfo(String sessionToken);
 }

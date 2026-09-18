@@ -46,7 +46,6 @@ import static com.android.server.accessibility.AccessibilityTraceProto.WHERE;
 import static com.android.server.accessibility.AccessibilityTraceProto.WINDOW_MANAGER_SERVICE;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
-import static com.android.server.wm.WindowTracingLegacy.WINSCOPE_EXT;
 
 import android.accessibilityservice.AccessibilityTrace;
 import android.annotation.NonNull;
@@ -83,6 +82,7 @@ import android.view.WindowManager;
 import android.view.WindowManager.TransitionFlags;
 import android.view.WindowManager.TransitionType;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.SomeArgs;
 import com.android.internal.util.TraceBuffer;
 import com.android.internal.util.function.pooled.PooledLambda;
@@ -935,8 +935,7 @@ final class AccessibilityController {
                                 MyHandler.MESSAGE_NOTIFY_MAGNIFICATION_REGION_CHANGED, args)
                         .sendToTarget();
             }
-            if (com.android.server.accessibility.Flags.enableMagnificationMagnifyNavBarAndIme()
-                    && !mOldImeRegion.equals(mImeRegion)) {
+            if (!mOldImeRegion.equals(mImeRegion)) {
                 mOldImeRegion.set(mImeRegion);
                 final SomeArgs args = SomeArgs.obtain();
                 args.arg1 = Region.obtain(mImeRegion);
@@ -1479,28 +1478,30 @@ final class AccessibilityController {
             }
         }
 
-        private static final int CPU_STATS_COUNT = 5;
-        private static final int BUFFER_CAPACITY = 1024 * 1024 * 12;
-        private static final String TRACE_FILENAME = "/data/misc/a11ytrace/a11y_trace"
-                + WINSCOPE_EXT;
-        private static final String TAG = "AccessibilityTracing";
-        private static final long MAGIC_NUMBER_VALUE =
-                ((long) MAGIC_NUMBER_H << 32) | MAGIC_NUMBER_L;
+        static final String TAG = "AccessibilityTracing";
 
         private final Object mLock = new Object();
         private final WindowManagerService mService;
-        private final File mTraceFile;
-        private final TraceBuffer mBuffer;
-        private final LogHandler mHandler;
+
+        // Lazily created; we'll only pay the thread tax if/when tracing is enabled.
+        @GuardedBy("mLock")
+        private Handler mHandler;
+
+        // Writes are guarded by `mLock`.
         private volatile boolean mEnabled;
 
         AccessibilityTracing(WindowManagerService service) {
             mService = service;
-            mTraceFile = new File(TRACE_FILENAME);
-            mBuffer = new TraceBuffer(BUFFER_CAPACITY);
-            HandlerThread workThread = new HandlerThread(TAG);
-            workThread.start();
-            mHandler = new LogHandler(workThread.getLooper());
+        }
+
+        @GuardedBy("mLock")
+        private Handler getHandlerLocked() {
+            if (mHandler == null) {
+                HandlerThread workThread = new HandlerThread(TAG);
+                workThread.start();
+                mHandler = new LogHandler(workThread.getLooper(), mService);
+            }
+            return mHandler;
         }
 
         /**
@@ -1512,13 +1513,16 @@ final class AccessibilityController {
                 return;
             }
             synchronized (mLock) {
+                if (mEnabled) {
+                    Slog.e(TAG, "Error: Tracing already started.");
+                    return;
+                }
                 mEnabled = true;
-                mBuffer.resetBuffer();
             }
         }
 
         /**
-         * Stops the trace and write the current buffer to disk
+         * Stops the trace and write the current buffer to disk.
          */
         void stopTrace() {
             if (IS_USER) {
@@ -1526,12 +1530,12 @@ final class AccessibilityController {
                 return;
             }
             synchronized (mLock) {
-                mEnabled = false;
-                if (mEnabled) {
-                    Slog.e(TAG, "Error: tracing enabled while waiting for flush.");
+                if (!mEnabled) {
+                    Slog.e(TAG, "Error: Tracing already stopped.");
                     return;
                 }
-                writeTraceToFile();
+                mEnabled = false;
+                getHandlerLocked().sendEmptyMessage(LogHandler.MESSAGE_WRITE_FILE);
             }
         }
 
@@ -1612,7 +1616,7 @@ final class AccessibilityController {
                     String.valueOf(processId), String.valueOf(threadId), ignoreStackEntries);
         }
 
-        private  String toStackTraceString(StackTraceElement[] stackTraceElements,
+        private static String toStackTraceString(StackTraceElement[] stackTraceElements,
                 Set<String> ignoreStackEntries) {
 
             if (stackTraceElements == null) {
@@ -1684,23 +1688,39 @@ final class AccessibilityController {
             args.arg6 = callingStack;
             args.arg7 = a11yDump;
 
-            mHandler.obtainMessage(
-                    LogHandler.MESSAGE_LOG_TRACE_ENTRY, callingUid, 0, args).sendToTarget();
+            synchronized (mLock) {
+                // Technically tracing may have been disabled from another thread after the earlier
+                // fast volatile check. Do a final check here to ensure trace logs are only posted
+                // in the enabled state, and therefore always flushed when tracing is disabled.
+                if (mEnabled) {
+                    getHandlerLocked()
+                            .obtainMessage(LogHandler.MESSAGE_LOG_TRACE_ENTRY, callingUid, 0, args)
+                            .sendToTarget();
+                } else {
+                    args.recycle();
+                }
+            }
         }
 
-        /**
-         * Writes the trace buffer to new file for the bugreport.
-         */
-        void writeTraceToFile() {
-            mHandler.sendEmptyMessage(LogHandler.MESSAGE_WRITE_FILE);
-        }
+        private static final class LogHandler extends Handler {
+            private static final int CPU_STATS_COUNT = 5;
+            private static final int BUFFER_CAPACITY = 1024 * 1024 * 12;
+            private static final String TRACE_FILENAME = "/data/misc/a11ytrace/a11y_trace.winscope";
+            private static final long MAGIC_NUMBER_VALUE =
+                    ((long) MAGIC_NUMBER_H << 32) | MAGIC_NUMBER_L;
 
-        private class LogHandler extends Handler {
             public static final int MESSAGE_LOG_TRACE_ENTRY = 1;
             public static final int MESSAGE_WRITE_FILE = 2;
 
-            LogHandler(Looper looper) {
+            private final WindowManagerService mService;
+            private final File mTraceFile;
+            private final TraceBuffer mBuffer;
+
+            LogHandler(Looper looper, WindowManagerService service) {
                 super(looper);
+                mService = service;
+                mTraceFile = new File(TRACE_FILENAME);
+                mBuffer = new TraceBuffer(BUFFER_CAPACITY);
             }
 
             @Override
@@ -1754,49 +1774,49 @@ final class AccessibilityController {
                             os.write(CPU_STATS, printCpuStats(reportedTimeStampNanos));
 
                             os.end(tokenOuter);
-                            synchronized (mLock) {
-                                mBuffer.add(os);
-                            }
+                            mBuffer.add(os);
                         } catch (Exception e) {
                             Slog.e(TAG, "Exception while tracing state", e);
+                        } finally {
+                            args.recycle();
                         }
                         break;
                     }
                     case MESSAGE_WRITE_FILE: {
-                        synchronized (mLock) {
-                            writeTraceToFileInternal();
-                        }
+                        writeTraceToFileAndReset();
                         break;
                     }
                 }
             }
-        }
 
-        /**
-         * Writes the trace buffer to disk.
-         */
-        private void writeTraceToFileInternal() {
-            try {
-                ProtoOutputStream proto = new ProtoOutputStream();
-                proto.write(MAGIC_NUMBER, MAGIC_NUMBER_VALUE);
-                long timeOffsetNs =
-                        TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
-                        - SystemClock.elapsedRealtimeNanos();
-                proto.write(REAL_TO_ELAPSED_TIME_OFFSET_NANOS, timeOffsetNs);
-                mBuffer.writeTraceToFile(mTraceFile, proto);
-            } catch (IOException e) {
-                Slog.e(TAG, "Unable to write buffer to file", e);
+            /**
+             * Writes the trace buffer to disk and resets it.
+             */
+            private void writeTraceToFileAndReset() {
+                try {
+                    ProtoOutputStream proto = new ProtoOutputStream();
+                    proto.write(MAGIC_NUMBER, MAGIC_NUMBER_VALUE);
+                    long timeOffsetNs =
+                            TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
+                                    - SystemClock.elapsedRealtimeNanos();
+                    proto.write(REAL_TO_ELAPSED_TIME_OFFSET_NANOS, timeOffsetNs);
+                    mBuffer.writeTraceToFile(mTraceFile, proto);
+                } catch (IOException e) {
+                    Slog.e(TAG, "Unable to write buffer to file", e);
+                } finally {
+                    mBuffer.resetBuffer();
+                }
             }
-        }
 
-        /**
-         * Returns the string of CPU stats.
-         */
-        private String printCpuStats(long timeStampNanos) {
-            Pair<String, String> stats = mService.mAmInternal.getAppProfileStatsForDebugging(
-                    timeStampNanos, CPU_STATS_COUNT);
+            /**
+             * Returns the string of CPU stats.
+             */
+            private String printCpuStats(long timeStampNanos) {
+                Pair<String, String> stats = mService.mAmInternal.getAppProfileStatsForDebugging(
+                        timeStampNanos, CPU_STATS_COUNT);
 
-            return stats.first + stats.second;
+                return stats.first + stats.second;
+            }
         }
     }
 }

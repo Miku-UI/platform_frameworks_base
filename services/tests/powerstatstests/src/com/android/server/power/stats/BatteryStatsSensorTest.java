@@ -26,6 +26,8 @@ import android.view.Display;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import org.junit.Test;
 
 /**
@@ -434,8 +436,8 @@ public class BatteryStatsSensorTest {
         clocks.uptime = 100; // in ms
 
         // TimeBases are on for some time.
-        BatteryStatsImpl.TimeBase timeBase = bi.getOnBatteryTimeBase();
-        BatteryStatsImpl.TimeBase bgTimeBase = bi.getOnBatteryBackgroundTimeBase(UID);
+        TimeBase timeBase = bi.getOnBatteryTimeBase();
+        TimeBase bgTimeBase = bi.getOnBatteryBackgroundTimeBase(UID);
         timeBase.setRunning(true, clocks.uptime * 1000, clocks.realtime * 1000);
         bgTimeBase.setRunning(true, clocks.uptime * 1000, clocks.realtime * 1000);
         bi.noteUidProcessStateLocked(UID, ActivityManager.PROCESS_STATE_IMPORTANT_BACKGROUND);

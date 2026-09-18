@@ -17,8 +17,6 @@
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
 import android.graphics.drawable.TestStubDrawable
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -129,22 +127,6 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(android.app.Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
-    fun handleToggleClick_dndInactive_activatesDnd() =
-        testScope.runTest {
-            val dndMode by collectLastValue(zenModeInteractor.dndMode)
-
-            assertThat(dndMode?.isActive).isFalse()
-
-            underTest.handleInput(
-                QSTileInputTestKtx.toggleClick(data = modelOf(false, emptyList()))
-            )
-
-            assertThat(dndMode?.isActive).isTrue()
-        }
-
-    @Test
-    @EnableFlags(android.app.Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     fun handleToggleClick_noModesActive_activatesQuickMode() =
         testScope.runTest {
             val dndMode by collectLastValue(zenModeInteractor.dndMode)
@@ -179,16 +161,13 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
     private fun modelOf(
         isActivated: Boolean,
         activeModeIdsAndNames: List<String>,
-        quickMode: ZenMode? = MANUAL_DND,
+        quickMode: ZenMode = MANUAL_DND,
     ): ModesTileModel {
         return ModesTileModel(
             isActivated,
             activeModeIdsAndNames.map {
-                // For testing purposes, we use the same value for id and name, but replicate
-                // the flagged behavior of the DataInteractor.
-                if (android.app.Flags.modesUiTileReactivatesLast())
-                    ModesTileModel.ActiveMode(it, it)
-                else ModesTileModel.ActiveMode(null, it)
+                // For testing purposes, we use the same value for id and name.
+                ModesTileModel.ActiveMode(it, it)
             },
             TestStubDrawable("icon").asIcon(resId = 123),
             quickMode,

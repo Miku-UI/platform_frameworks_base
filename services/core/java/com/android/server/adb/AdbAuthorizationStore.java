@@ -62,6 +62,7 @@ class AdbAuthorizationStore {
     private static final String XML_ATTRIBUTE_LAST_CONNECTION = "lastConnection";
     private static final String XML_TAG_WIFI_ACCESS_POINT = "wifiAP";
     private static final String XML_ATTRIBUTE_WIFI_BSSID = "bssid";
+    private static final String XML_ATTRIBUTE_WIFI_SSID = "ssid";
 
     private final File mStoreFile;
 
@@ -88,7 +89,7 @@ class AdbAuthorizationStore {
         }
 
         Map<String, Long> trustedKeys = new HashMap<>();
-        List<String> trustedNetworks = new ArrayList<>();
+        List<WifiNetwork> trustedNetworks = new ArrayList<>();
         try (FileInputStream keyStream = atomicFile.openRead()) {
             TypedXmlPullParser parser;
             try {
@@ -152,9 +153,10 @@ class AdbAuthorizationStore {
                 serializer.attributeLong(null, XML_ATTRIBUTE_LAST_CONNECTION, keyEntry.getValue());
                 serializer.endTag(null, XML_TAG_ADB_KEY);
             }
-            for (String bssid : data.trustedNetworks()) {
+            for (WifiNetwork network : data.trustedNetworks()) {
                 serializer.startTag(null, XML_TAG_WIFI_ACCESS_POINT);
-                serializer.attribute(null, XML_ATTRIBUTE_WIFI_BSSID, bssid);
+                serializer.attribute(null, XML_ATTRIBUTE_WIFI_BSSID, network.bssid());
+                serializer.attribute(null, XML_ATTRIBUTE_WIFI_SSID, network.ssid());
                 serializer.endTag(null, XML_TAG_WIFI_ACCESS_POINT);
             }
             serializer.endTag(null, XML_KEYSTORE_START_TAG);
@@ -175,7 +177,7 @@ class AdbAuthorizationStore {
     }
 
     private void readKeyStoreContents(
-            TypedXmlPullParser parser, Map<String, Long> keyMap, List<String> trustedNetworks)
+            TypedXmlPullParser parser, Map<String, Long> keyMap, List<WifiNetwork> trustedNetworks)
             throws XmlPullParserException, IOException {
         while ((parser.next()) != XmlPullParser.END_DOCUMENT) {
             // This parser is very forgiving. For backwards-compatibility, we simply iterate through
@@ -205,18 +207,32 @@ class AdbAuthorizationStore {
     }
 
     private void addTrustedNetworkToTrustedNetworks(
-            TypedXmlPullParser parser, List<String> trustedNetworks) {
+            TypedXmlPullParser parser, List<WifiNetwork> trustedNetworks) {
         String bssid = parser.getAttributeValue(null, XML_ATTRIBUTE_WIFI_BSSID);
-        trustedNetworks.add(bssid);
+        String ssid = parser.getAttributeValue(null, XML_ATTRIBUTE_WIFI_SSID);
+        if (ssid == null) {
+            ssid = "";
+        }
+        trustedNetworks.add(new WifiNetwork(bssid, ssid));
     }
+
+    /**
+     * Represents a Wi-Fi network, containing its BSSID and SSID.
+     *
+     * @param bssid The Basic Service Set Identifier (MAC address) of the access point.
+     * @param ssid The Service Set Identifier (network name) of the access point. The ssid can be
+     *     empty for trusted networks that are saved before AdbAuthorizationStore started saving
+     *     SSID.
+     */
+    record WifiNetwork(@NonNull String bssid, @NonNull String ssid) {}
 
     /**
      * Represents the data model for the AdbAuthorizationStore.
      *
      * @param keys A map of public keys to the last connection time.
-     * @param trustedNetworks A list of trusted WiFi networks BSSIDs.
+     * @param trustedNetworks A list of trusted WiFi networks.
      */
-    record Entries(Map<String, Long> keys, List<String> trustedNetworks) {
+    record Entries(Map<String, Long> keys, List<WifiNetwork> trustedNetworks) {
 
         Entries() {
             this(new HashMap<>(), new ArrayList<>());

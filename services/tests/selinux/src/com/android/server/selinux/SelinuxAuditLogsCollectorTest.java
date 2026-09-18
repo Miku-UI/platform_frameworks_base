@@ -58,7 +58,6 @@ public class SelinuxAuditLogsCollectorTest {
     private final SelinuxAuditLogsCollector mSelinuxAutidLogsCollector =
             // Ignore rate limiting for tests
             new SelinuxAuditLogsCollector(
-                    () -> TEST_DOMAIN,
                     new RateLimiter(mClock, /* window= */ Duration.ofMillis(0)),
                     new QuotaLimiter(
                             mClock, /* windowSize= */ Duration.ofHours(1), /* maxPermits= */ 5));
@@ -354,29 +353,6 @@ public class SelinuxAuditLogsCollectorTest {
                                 "tclass",
                                 null,
                                 true));
-    }
-
-    @Test
-    public void testNotWriteAuditLogs_notTestDomain() throws Exception {
-        writeTestLog("denied", "perm", "stype", "ttype", "tclass");
-
-        boolean done = mSelinuxAutidLogsCollector.collect(ANSWER_TAG);
-
-        assertThat(done).isTrue();
-        verify(
-                () ->
-                        FrameworkStatsLog.write(
-                                anyInt(),
-                                anyBoolean(),
-                                any(),
-                                anyString(),
-                                any(),
-                                anyString(),
-                                any(),
-                                anyString(),
-                                any(),
-                                anyBoolean()),
-                never());
     }
 
     @Test

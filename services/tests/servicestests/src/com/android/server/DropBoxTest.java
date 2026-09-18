@@ -16,6 +16,13 @@
 
 package com.android.server;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -30,12 +37,20 @@ import android.os.Process;
 import android.os.StatFs;
 import android.os.UserHandle;
 import android.provider.Settings;
-import android.test.AndroidTestCase;
+
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.server.DropBoxManagerInternal.EntrySource;
 import com.android.server.DropBoxManagerService.EntryFile;
 
 import libcore.io.Streams;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -55,16 +70,16 @@ import java.util.zip.GZIPOutputStream;
  * Run with:
  * bit FrameworksServicesTests:com.android.server.DropBoxTest
  */
-public class DropBoxTest extends AndroidTestCase {
+@RunWith(AndroidJUnit4.class)
+public class DropBoxTest {
     private Context mContext;
 
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
+    @Before
+    public void setUp() throws Exception {
 
         LocalServices.removeServiceForTest(DropBoxManagerInternal.class);
 
-        mContext = new ContextWrapper(super.getContext()) {
+        mContext = new ContextWrapper(InstrumentationRegistry.getInstrumentation().getContext()) {
             @Override
             public void sendBroadcastAsUser(Intent intent,
                     UserHandle user, String receiverPermission, Bundle options) {
@@ -73,6 +88,7 @@ public class DropBoxTest extends AndroidTestCase {
         };
     }
 
+    @After
     public void tearDown() throws Exception {
         ContentResolver cr = getContext().getContentResolver();
         Settings.Global.putString(cr, Settings.Global.DROPBOX_AGE_SECONDS, "");
@@ -81,11 +97,11 @@ public class DropBoxTest extends AndroidTestCase {
         Settings.Global.putString(cr, Settings.Global.DROPBOX_TAG_PREFIX + "DropBoxTest", "");
     }
 
-    @Override
     public Context getContext() {
         return mContext;
     }
 
+    @Test
     public void testAddText() throws Exception {
         File dir = getEmptyDir("testAddText");
         DropBoxManagerService service = new DropBoxManagerService(getContext(), dir,
@@ -123,6 +139,7 @@ public class DropBoxTest extends AndroidTestCase {
         e2.close();
     }
 
+    @Test
     public void testAddData() throws Exception {
         File dir = getEmptyDir("testAddData");
         DropBoxManagerService service = new DropBoxManagerService(getContext(), dir,
@@ -150,6 +167,7 @@ public class DropBoxTest extends AndroidTestCase {
         e.close();
     }
 
+    @Test
     public void testAddFile() throws Exception {
         File dir = getEmptyDir("testAddFile");
         long before = System.currentTimeMillis();
@@ -220,6 +238,7 @@ public class DropBoxTest extends AndroidTestCase {
         e3.close();
     }
 
+    @Test
     public void testAddEntry_Success() throws Exception {
         File dir = getEmptyDir("testAddEntry");
         long before = System.currentTimeMillis();
@@ -252,6 +271,7 @@ public class DropBoxTest extends AndroidTestCase {
         assertEquals("test", new String(Streams.readFully(entry.getInputStream())));
     }
 
+    @Test
     public void testAddEntry_Failure() throws Exception {
         File dir = getEmptyDir("testAddEntry");
         long before = System.currentTimeMillis();
@@ -281,6 +301,7 @@ public class DropBoxTest extends AndroidTestCase {
         assertNull(entry);
     }
 
+    @Test
     public void testAddEntriesInTheFuture() throws Exception {
         File dir = getEmptyDir("testAddEntriesInTheFuture");
         long before = System.currentTimeMillis();
@@ -354,6 +375,7 @@ public class DropBoxTest extends AndroidTestCase {
         e3.close();
     }
 
+    @Test
     public void testIsTagEnabled() throws Exception {
         File dir = getEmptyDir("testIsTagEnabled");
         DropBoxManagerService service = new DropBoxManagerService(getContext(), dir,
@@ -388,6 +410,51 @@ public class DropBoxTest extends AndroidTestCase {
         e1.close();
     }
 
+    @Test
+    public void testIsTagEnabledWithException() throws Exception {
+        testIsTagEnabledWithExceptionImpl();
+    }
+
+    private void testIsTagEnabledWithExceptionImpl() throws Exception {
+        File dir = getEmptyDir("testIsTagEnabledWithException");
+        DropBoxManagerService service = new DropBoxManagerService(getContext(), dir,
+                Looper.getMainLooper());
+        DropBoxManager dropbox = new DropBoxManager(getContext(), service.getServiceStub());
+
+        final String wtfTag = "data_app_wtf";
+        final String exceptionClassName =
+                "android.view.ViewRootImpl$CalledFromWrongThreadException";
+
+        // Initialize defaults for the tag.
+        ContentResolver cr = getContext().getContentResolver();
+        Settings.Global.putString(cr, Settings.Global.DROPBOX_TAG_PREFIX + wtfTag, "");
+
+        // Default: wtfTag is disabled
+        assertFalse(dropbox.isTagEnabled(wtfTag));
+        assertFalse(dropbox.isTagEnabled(wtfTag, null));
+
+        // With exception: should be enabled
+        assertTrue(dropbox.isTagEnabled(wtfTag, exceptionClassName));
+
+        // Other exception: should still be disabled
+        assertFalse(dropbox.isTagEnabled(wtfTag, "java.lang.RuntimeException"));
+
+        // Explicitly enabled in settings: should be enabled regardless of exception
+        Settings.Global.putString(cr, Settings.Global.DROPBOX_TAG_PREFIX + wtfTag, "enabled");
+        assertTrue(dropbox.isTagEnabled(wtfTag));
+        assertTrue(dropbox.isTagEnabled(wtfTag, null));
+        assertTrue(dropbox.isTagEnabled(wtfTag, exceptionClassName));
+        assertTrue(dropbox.isTagEnabled(wtfTag, "java.lang.RuntimeException"));
+
+        // Explicitly disabled in settings: should be disabled regardless of defaults
+        Settings.Global.putString(cr, Settings.Global.DROPBOX_TAG_PREFIX + wtfTag, "disabled");
+        assertFalse(dropbox.isTagEnabled(wtfTag));
+        assertFalse(dropbox.isTagEnabled(wtfTag, null));
+        assertFalse(dropbox.isTagEnabled(wtfTag, exceptionClassName));
+        assertFalse(dropbox.isTagEnabled(wtfTag, "java.lang.RuntimeException"));
+    }
+
+    @Test
     public void testGetNextEntry() throws Exception {
         File dir = getEmptyDir("testGetNextEntry");
         DropBoxManagerService service = new DropBoxManagerService(getContext(), dir,
@@ -434,6 +501,7 @@ public class DropBoxTest extends AndroidTestCase {
         x2.close();
     }
 
+    @Test
     public void testSizeLimits() throws Exception {
         File dir = getEmptyDir("testSizeLimits");
         int blockSize =  new StatFs(dir.getPath()).getBlockSize();
@@ -536,6 +604,7 @@ public class DropBoxTest extends AndroidTestCase {
         t2.close();
     }
 
+    @Test
     public void testAgeLimits() throws Exception {
         File dir = getEmptyDir("testAgeLimits");
         int blockSize = new StatFs(dir.getPath()).getBlockSize();
@@ -577,6 +646,7 @@ public class DropBoxTest extends AndroidTestCase {
         e0.close();
     }
 
+    @Test
     public void testFileCountLimits() throws Exception {
         File dir = getEmptyDir("testFileCountLimits");
 
@@ -627,6 +697,7 @@ public class DropBoxTest extends AndroidTestCase {
         f2.close();
     }
 
+    @Test
     public void testCreateDropBoxManagerWithInvalidDirectory() throws Exception {
         // If created with an invalid directory, the DropBoxManager should suffer quietly
         // and fail all operations (this is how it survives a full disk).
@@ -651,6 +722,7 @@ public class DropBoxTest extends AndroidTestCase {
         e.close();
     }
 
+    @Test
     public void testDropBoxEntrySerialization() throws Exception {
         // Make sure DropBoxManager.Entry can be serialized to a Parcel and back
         // under a variety of conditions.
@@ -818,6 +890,7 @@ public class DropBoxTest extends AndroidTestCase {
         parcel.recycle();
     }
 
+    @Test
     public void testDropBoxEntrySerializationDoesntLeakFileDescriptors() throws Exception {
         File dir = getEmptyDir("testDropBoxEntrySerialization");
         File f = new File(dir, "file.dat");
@@ -846,6 +919,7 @@ public class DropBoxTest extends AndroidTestCase {
         assertTrue(after < before + 20);
     }
 
+    @Test
     public void testEntryFile() throws Exception {
         File fromDir = getEmptyDir("testEntryFile_from");
         File toDir = getEmptyDir("testEntryFile_to");
@@ -1047,6 +1121,7 @@ public class DropBoxTest extends AndroidTestCase {
         }
     }
 
+    @Test
     public void testCompareEntries() {
         File dir = getEmptyDir("testCompareEntries");
         assertEquals(-1,

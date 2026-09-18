@@ -174,7 +174,6 @@ public class ImsService extends Service {
      * ongoing call will be rejected.
      * @hide TODO: move this to system API when we have a backing implementation + CTS testing
      */
-    @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
     public static final long CAPABILITY_SUPPORTS_SIMULTANEOUS_CALLING = 1 << 3;
 
     /**

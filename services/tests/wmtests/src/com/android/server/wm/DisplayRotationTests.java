@@ -38,6 +38,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.anyInt;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.anyString;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.atLeast;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.atMost;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.eq;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
@@ -63,6 +64,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.database.ContentObserver;
+import android.graphics.Rect;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -73,7 +75,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManagerInternal;
 import android.os.SystemClock;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -81,8 +82,11 @@ import android.provider.Settings;
 import android.view.Display;
 import android.view.DisplayAddress;
 import android.view.IRotationWatcher;
+import android.view.IWindowManager;
+import android.view.InsetsState;
 import android.view.Surface;
 import android.view.WindowManager;
+import android.window.TransitionRequestInfo;
 
 import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
@@ -142,6 +146,7 @@ public class DisplayRotationTests {
     private static long sCurrentUptimeMillis = 10_000;
 
     private static WindowManagerService sMockWm;
+    private static AppCompatCameraPolicy sMockAppCompatCameraPolicy;
     private DisplayContent mMockDisplayContent;
     private DisplayRotationReversionController mMockDisplayRotationReversionController;
     private DisplayPolicy mMockDisplayPolicy;
@@ -178,13 +183,24 @@ public class DisplayRotationTests {
         sMockWm = mock(WindowManagerService.class);
         sMockWm.mPowerManagerInternal = mock(PowerManagerInternal.class);
         sMockWm.mPolicy = mock(WindowManagerPolicy.class);
+        sMockAppCompatCameraPolicy = mock(AppCompatCameraPolicy.class);
         sMockRoot.mDeviceStateAutoRotateSettingController = null;
         sHandler = new TestHandler(null, sClock);
 
         final WindowManagerService.H wmHandler = mock(WindowManagerService.H.class);
         when(wmHandler.getLooper()).thenReturn(sHandler.getLooper());
+        AppCompatCameraPolicy mockAppCompatCameraPolicy = sMockAppCompatCameraPolicy;
+        doReturn("").when(mockAppCompatCameraPolicy)
+                .getSummaryForDisplayRotationHistoryRecord(any());
+        WindowTestsBase.setFieldValue(sMockWm, "mAppCompatCameraPolicy",
+                sMockAppCompatCameraPolicy);
         WindowTestsBase.setFieldValue(sMockWm, "mRoot", sMockRoot);
         WindowTestsBase.setFieldValue(sMockWm, "mH", wmHandler);
+
+        final ActivityTaskManagerService mockAtms = mock(ActivityTaskManagerService.class);
+        WindowTestsBase.setFieldValue(sMockWm, "mAtmService", mockAtms);
+        mockAtms.mChainTracker = mock(ActionChain.Tracker.class);
+        sMockWm.mDisplayEnabled = true;
     }
 
     @AfterClass
@@ -325,8 +341,7 @@ public class DisplayRotationTests {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR)
-    public void createDeviceStateAutoRotateDependencies_flagEnabled_settingControllerNotNull() {
+    public void createDeviceStateAutoRotateDependencies_autoRotateAvailable_controllerNotNull() {
         final DeviceStateAutoRotateSettingController settingController =
                 createDeviceStateAutoRotateDependencies(/* isFoldable= */ true,
                         /* autoRotateEnabled= */ true, /* isDeviceStateConfigNonEmpty= */ true);
@@ -335,17 +350,6 @@ public class DisplayRotationTests {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR)
-    public void createDeviceStateAutoRotateDependencies_flagDisabled_settingControllerNull() {
-        final DeviceStateAutoRotateSettingController settingController =
-                createDeviceStateAutoRotateDependencies(/* isFoldable= */ true,
-                        /* autoRotateEnabled= */ true, /* isDeviceStateConfigNonEmpty= */ true);
-
-        assertNull(settingController);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR)
     public void createDeviceStateAutoRotateDependencies_notFoldable_settingControllerNull() {
         final DeviceStateAutoRotateSettingController settingController =
                 createDeviceStateAutoRotateDependencies(/* isFoldable= */ false,
@@ -355,7 +359,6 @@ public class DisplayRotationTests {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR)
     public void createDeviceStateAutoRotateDependencies_autoRotateDisabled_settingControllerNull() {
         final DeviceStateAutoRotateSettingController settingController =
                 createDeviceStateAutoRotateDependencies(/* isFoldable= */ true,
@@ -365,7 +368,6 @@ public class DisplayRotationTests {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR)
     public void createDeviceStateAutoRotateDependencies_dSAutoRotateConfigNull_settingControllerNull() {
         final DeviceStateAutoRotateSettingController settingController =
                 createDeviceStateAutoRotateDependencies(/* isFoldable= */ true,
@@ -843,6 +845,54 @@ public class DisplayRotationTests {
 
         freezeRotation(Surface.ROTATION_90);
         assertEquals(Surface.ROTATION_90, mTarget.getUserRotation());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_NEW_INSETS_STATE_WITH_ROTATION)
+    public void testUpdateRotationUnchecked_sendNewInsetsStateWithRotation() throws Exception {
+        mBuilder.build();
+        configureDisplayRotation(SCREEN_ORIENTATION_PORTRAIT, false, false);
+        thawRotation();
+
+        // Enable shell transitions
+        final TransitionController mockTransitionController = mock(TransitionController.class);
+        final Field transitionControllerField = WindowContainer.class
+                .getDeclaredField("mTransitionController");
+        transitionControllerField.setAccessible(true);
+        transitionControllerField.set(mMockDisplayContent, mockTransitionController);
+        when(mockTransitionController.isShellTransitionsEnabled()).thenReturn(true);
+        when(mMockDisplayContent.getLastHasContent()).thenReturn(true);
+        when(mMockDisplayContent.inTransition()).thenReturn(false);
+        when(mMockDisplayPolicy.isScreenOnFully()).thenReturn(true);
+
+        final ActionChain mockChain = mock(ActionChain.class);
+        when(sMockWm.mAtmService.mChainTracker.startTransit(anyString())).thenReturn(mockChain);
+        when(mockChain.isCollecting()).thenReturn(false);
+
+        // Prepare end InsetsState
+        final InsetsState endInsetsState = new InsetsState();
+        endInsetsState.setDisplayFrame(new Rect(0, 0, 100, 100));
+        doReturn(endInsetsState).when(mMockDisplayContent).getInsetsStateForRotation(anyInt());
+        doNothing().when(mMockDisplayContent).requestChangeTransition(anyInt(), any(), any());
+
+        // Set current rotation and target rotation for orientation
+        mTarget.setRotation(Surface.ROTATION_0);
+        spyOn(mTarget);
+        doReturn(Surface.ROTATION_90).when(mTarget).rotationForOrientation(anyInt(), anyInt());
+
+        // Trigger rotation change
+        mTarget.updateOrientation(SCREEN_ORIENTATION_UNSPECIFIED, true /* forceUpdate */);
+        assertTrue(waitForUiHandler());
+
+        // Verify that requestChangeTransition was called with the new InsetsState
+        final ArgumentCaptor<TransitionRequestInfo.DisplayChange> displayChangeCaptor =
+                ArgumentCaptor.forClass(TransitionRequestInfo.DisplayChange.class);
+        verify(mMockDisplayContent).requestChangeTransition(anyInt(), displayChangeCaptor.capture(),
+                any());
+
+        assertNotNull(displayChangeCaptor.getValue().getEndInsetsState());
+        assertEquals(endInsetsState, displayChangeCaptor.getValue().getEndInsetsState());
+        assertEquals(Surface.ROTATION_90, displayChangeCaptor.getValue().getEndRotation());
     }
 
     private boolean waitForUiHandler() {
@@ -1497,6 +1547,91 @@ public class DisplayRotationTests {
         assertFalse("Display rotation should respect app requested orientation if"
                 + " fixed to user rotation if no auto rotation.", mTarget.isFixedToUserRotation());
     }
+
+    // ====================================================
+    // Tests for laptop state auto-rotate override
+    // ====================================================
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_AUTO_ROTATE_ON_SLATE_STATE)
+    public void testUpdatesRotationWhenSensorUpdatesInLaptopStates() throws Exception {
+        mBuilder.setIsLaptop(true);
+        mBuilder.build();
+        configureDisplayRotation(SCREEN_ORIENTATION_LANDSCAPE, false, false);
+
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.LID_OPEN);
+        assertEquals(IWindowManager.FIXED_TO_USER_ROTATION_DEFAULT,
+                mTarget.getFixedToUserRotationMode());
+
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.LID_CLOSED);
+        assertEquals(IWindowManager.FIXED_TO_USER_ROTATION_DEFAULT,
+                mTarget.getFixedToUserRotationMode());
+
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.SLATE);
+        assertEquals(IWindowManager.FIXED_TO_USER_ROTATION_DISABLED,
+                mTarget.getFixedToUserRotationMode());
+
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.DOCKED);
+        assertEquals(IWindowManager.FIXED_TO_USER_ROTATION_DEFAULT,
+                mTarget.getFixedToUserRotationMode());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_AUTO_ROTATE_ON_SLATE_STATE)
+    public void testUpdateRotationOnlyInSlateState() throws Exception {
+        WindowTestsBase.setFieldValue(sMockWm, "mIsPc", true);
+
+        mBuilder.setIsLaptop(true);
+        mBuilder.build();
+        configureDisplayRotation(SCREEN_ORIENTATION_LANDSCAPE, false, false);
+
+        when(mMockDisplayPolicy.isScreenOnEarly()).thenReturn(true);
+        when(mMockDisplayPolicy.isAwake()).thenReturn(true);
+        when(mMockDisplayPolicy.isKeyguardDrawComplete()).thenReturn(true);
+        when(mMockDisplayPolicy.isWindowManagerDrawComplete()).thenReturn(true);
+
+        thawRotation();
+
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.SLATE);
+        verifyOrientationListenerRegistration(1);
+
+        // Display rotation based on sensor input is enabled in SLATE state
+        mOrientationSensorListener.onSensorChanged(createSensorEvent(Surface.ROTATION_90));
+        assertEquals(Surface.ROTATION_90, mTarget.rotationForOrientation(
+                SCREEN_ORIENTATION_UNSPECIFIED, Surface.ROTATION_0));
+
+        mOrientationSensorListener.onSensorChanged(createSensorEvent(Surface.ROTATION_0));
+        assertEquals(Surface.ROTATION_0, mTarget.rotationForOrientation(
+                SCREEN_ORIENTATION_UNSPECIFIED, Surface.ROTATION_0));
+
+        // Display rotation based on sensor input is disabled in DOCKED state
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.DOCKED);
+        mOrientationSensorListener.onSensorChanged(createSensorEvent(Surface.ROTATION_90));
+        assertEquals(Surface.ROTATION_0, mTarget.rotationForOrientation(
+                SCREEN_ORIENTATION_UNSPECIFIED, Surface.ROTATION_0));
+
+        WindowTestsBase.setFieldValue(sMockWm, "mIsPc", false);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_AUTO_ROTATE_ON_SLATE_STATE)
+    public void testRestoreSettings_updatesLaptopMode() throws Exception {
+        mBuilder.setIsLaptop(true);
+        mBuilder.build();
+        configureDisplayRotation(SCREEN_ORIENTATION_LANDSCAPE, false, false);
+
+        mTarget.foldStateChanged(DeviceStateController.DeviceStateEnum.SLATE);
+        assertEquals(IWindowManager.FIXED_TO_USER_ROTATION_DISABLED,
+                mTarget.getFixedToUserRotationMode());
+
+        // Restore settings with default fixed rotation.
+        mTarget.restoreSettings(WindowManagerPolicy.USER_ROTATION_FREE, Surface.ROTATION_0,
+                IWindowManager.FIXED_TO_USER_ROTATION_DEFAULT);
+
+        // Laptop mode should still enforce disabled fixed rotation.
+        assertEquals(IWindowManager.FIXED_TO_USER_ROTATION_DISABLED,
+                mTarget.getFixedToUserRotationMode());
+    }
+
     private DeviceStateAutoRotateSettingController createDeviceStateAutoRotateDependencies(
             boolean isFoldable, boolean autoRotateEnabled, boolean isDeviceStateConfigNonEmpty) {
         // init
@@ -1663,6 +1798,7 @@ public class DisplayRotationTests {
         private int mDeskDockRotation;
         private int mUndockedHdmiRotation;
         private boolean mIsFoldable;
+        private boolean mIsLaptop;
 
         private DisplayRotationBuilder setIsDefaultDisplay(boolean isDefaultDisplay) {
             mIsDefaultDisplay = isDefaultDisplay;
@@ -1719,6 +1855,11 @@ public class DisplayRotationTests {
 
         private DisplayRotationBuilder setIsFoldable(boolean value) {
             mIsFoldable = value;
+            return this;
+        }
+
+        private DisplayRotationBuilder setIsLaptop(boolean value) {
+            mIsLaptop = value;
             return this;
         }
 
@@ -1833,6 +1974,14 @@ public class DisplayRotationTests {
             field.setAccessible(true);
             field.set(mMockDisplayContent, mock(FixedRotationTransitionListener.class));
 
+            field = WindowContainer.class.getDeclaredField("mTransitionController");
+            field.setAccessible(true);
+            field.set(mMockDisplayContent, mock(TransitionController.class));
+
+            field = DisplayContent.class.getDeclaredField("mRemoteDisplayChangeController");
+            field.setAccessible(true);
+            field.set(mMockDisplayContent, mock(RemoteDisplayChangeController.class));
+
             mMockDisplayPolicy = mock(DisplayPolicy.class);
             mMockStatusBarManagerInternal = mock(StatusBarManagerInternal.class);
             when(mMockDisplayPolicy.getStatusBarManagerInternal()).thenReturn(
@@ -1900,7 +2049,7 @@ public class DisplayRotationTests {
 
             mDeviceStateController = mock(DeviceStateController.class);
             when(mDeviceStateController.isFoldable()).thenReturn(mIsFoldable);
-            mMockDisplayContent.mAppCompatCameraPolicy = mock(AppCompatCameraPolicy.class);
+            when(mDeviceStateController.isLaptop()).thenReturn(mIsLaptop);
             mTarget = new TestDisplayRotation(mMockDisplayContent, mMockDisplayAddress,
                     mMockDisplayPolicy, mMockDisplayWindowSettings, mMockContext,
                     mDeviceStateController);

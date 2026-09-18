@@ -25,5 +25,6 @@ val Kosmos.notificationStackInteractor by Fixture {
     NotificationStackInteractor(
         keyguardInteractor = keyguardInteractor,
         powerInteractor = powerInteractor,
+        lockscreenNotificationsInteractor = lockscreenNotificationsInteractor,
     )
 }

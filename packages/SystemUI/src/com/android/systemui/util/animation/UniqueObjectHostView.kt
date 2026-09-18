@@ -21,7 +21,6 @@ import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import com.android.systemui.Flags
 import com.android.systemui.res.R
 
 /**
@@ -52,16 +51,7 @@ class UniqueObjectHostView(context: Context) : FrameLayout(context) {
 
         if (isCurrentHost()) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-            getChildAt(0)?.let { mediaFrame ->
-                if (!Flags.mediaFrameDimensionsFix()) {
-                    // Media host dimensions are correct. Its child cannot show larger dimensions.
-                    // We also need to ensure that dimensions are not less than expected.
-                    if (cachedWidth > mediaFrame.width || cachedHeight > mediaFrame.height) {
-                        mediaFrame.layoutParams = LayoutParams(cachedWidth, cachedHeight)
-                    }
-                }
-                mediaFrame.requiresRemeasuring = false
-            }
+            getChildAt(0)?.let { it.requiresRemeasuring = false }
         }
         // The goal here is that the view will always have a consistent measuring, regardless
         // if it's attached or not.

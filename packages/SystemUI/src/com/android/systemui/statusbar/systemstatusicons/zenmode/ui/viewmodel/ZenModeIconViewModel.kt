@@ -19,8 +19,7 @@ package com.android.systemui.statusbar.systemstatusicons.zenmode.ui.viewmodel
 import android.content.Context
 import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.statusbar.policy.domain.model.ZenModeInfo
 import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.SystemStatusIconViewModel
@@ -35,17 +34,14 @@ import dagger.assisted.AssistedInject
 class ZenModeIconViewModel
 @AssistedInject
 constructor(@Assisted private val context: Context, interactor: ZenModeInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
-
-    private val hydrator: Hydrator = Hydrator("ZenModeIconViewModel.hydrator")
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
 
     override val slotName = context.getString(com.android.internal.R.string.status_bar_zen)
 
     private val zenModeState: ZenModeInfo? by
-        hydrator.hydratedStateOf(
+        interactor.mainActiveMode.hydratedStateOf(
             traceName = "SystemStatus.zenModeState",
             initialValue = null,
-            source = interactor.mainActiveMode,
         )
 
     override val visible: Boolean
@@ -53,10 +49,6 @@ constructor(@Assisted private val context: Context, interactor: ZenModeInteracto
 
     override val icon: Icon?
         get() = zenModeState?.icon
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
 
     @AssistedFactory
     interface Factory {

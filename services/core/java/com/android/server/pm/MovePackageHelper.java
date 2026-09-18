@@ -16,6 +16,7 @@
 
 package com.android.server.pm;
 
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.content.pm.PackageManager.INSTALL_INTERNAL;
 import static android.content.pm.PackageManager.MOVE_FAILED_3RD_PARTY_NOT_ALLOWED_ON_INTERNAL;
 import static android.content.pm.PackageManager.MOVE_FAILED_DEVICE_ADMIN;
@@ -24,6 +25,7 @@ import static android.content.pm.PackageManager.MOVE_FAILED_INTERNAL_ERROR;
 import static android.content.pm.PackageManager.MOVE_FAILED_LOCKED_USER;
 import static android.content.pm.PackageManager.MOVE_FAILED_OPERATION_PENDING;
 import static android.content.pm.PackageManager.MOVE_FAILED_SYSTEM_PACKAGE;
+import static android.os.Process.INVALID_UID;
 
 import static com.android.server.pm.PackageManagerService.DEBUG_INSTALL;
 import static com.android.server.pm.PackageManagerService.TAG;
@@ -145,6 +147,7 @@ public final class MovePackageHelper {
         final InstallSource installSource = packageState.getInstallSource();
         final String packageAbiOverride = packageState.getCpuAbiOverride();
         final int appId = UserHandle.getAppId(pkg.getUid());
+        final int pccId = enablePccFrameworkSupport() ? packageState.getPccId() : INVALID_UID;
         final String seinfo = packageState.getSeInfo();
         final String label = String.valueOf(pm.getApplicationLabel(
                 AndroidPackageUtils.generateAppInfoWithoutState(pkg)));
@@ -303,7 +306,7 @@ public final class MovePackageHelper {
             }).start();
 
             move = new MoveInfo(moveId, currentVolumeUuid, volumeUuid, packageName,
-                    appId, seinfo, targetSdkVersion, fromCodePath);
+                    appId, seinfo, targetSdkVersion, fromCodePath, pccId);
         } else {
             move = null;
         }
@@ -371,7 +374,8 @@ public final class MovePackageHelper {
 
         try {
             mPm.mInstaller.getAppSize(packageStateInternal.getVolumeUuid(), packageNames, userId,
-                    0, packageStateInternal.getAppId(), ceDataInodes, codePaths, stats);
+                    0, packageStateInternal.getAppId(), packageStateInternal.getPccId(),
+                    ceDataInodes, codePaths, stats);
 
             // For now, ignore code size of packages on system partition
             if (PackageManagerServiceUtils.isSystemApp(packageStateInternal)

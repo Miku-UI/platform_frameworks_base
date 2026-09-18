@@ -25,7 +25,6 @@ import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.lowlight.shared.model.LowLightActionEntry
 import com.android.systemui.lowlight.shared.model.LowLightDisplayBehavior
 import com.android.systemui.lowlightclock.LowLightClockDreamAction
-import com.android.systemui.lowlightclock.LowLightMonitor
 import com.android.systemui.res.R
 import dagger.Binds
 import dagger.Module
@@ -38,12 +37,6 @@ import javax.inject.Provider
 
 @Module(includes = [LowLightDreamModule::class])
 abstract class LowLightClockModule {
-    /** Inject into LowLightMonitor. */
-    @Binds
-    @IntoMap
-    @ClassKey(LowLightMonitor::class)
-    abstract fun bindLowLightMonitor(lowLightMonitor: LowLightMonitor): CoreStartable
-
     companion object {
         const val Y_TRANSLATION_ANIMATION_OFFSET: String = "y_translation_animation_offset"
         const val Y_TRANSLATION_ANIMATION_DURATION_MILLIS: String =

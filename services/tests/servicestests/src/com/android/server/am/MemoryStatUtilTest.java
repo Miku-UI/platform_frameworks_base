@@ -18,7 +18,6 @@ package com.android.server.am;
 
 import static com.android.server.am.MemoryStatUtil.MemoryStat;
 import static com.android.server.am.MemoryStatUtil.PAGE_SIZE;
-import static com.android.server.am.MemoryStatUtil.parseMemoryStatFromMemcg;
 import static com.android.server.am.MemoryStatUtil.parseMemoryStatFromProcfs;
 
 import static org.junit.Assert.assertEquals;
@@ -36,41 +35,6 @@ import java.util.Collections;
  */
 @SmallTest
 public class MemoryStatUtilTest {
-    private static final String MEMORY_STAT_CONTENTS = String.join(
-            "\n",
-            "cache 96", // keep different from total_cache to catch reading wrong value
-            "rss 97", // keep different from total_rss to catch reading wrong value
-            "rss_huge 0",
-            "mapped_file 524288",
-            "writeback 0",
-            "swap 95", // keep different from total_rss to catch reading wrong value
-            "pgpgin 16717",
-            "pgpgout 5037",
-            "pgfault 99", // keep different from total_pgfault to catch reading wrong value
-            "pgmajfault 98", // keep different from total_pgmajfault to catch reading wrong value
-            "inactive_anon 503808",
-            "active_anon 46309376",
-            "inactive_file 876544",
-            "active_file 81920",
-            "unevictable 0",
-            "hierarchical_memory_limit 18446744073709551615",
-            "hierarchical_memsw_limit 18446744073709551615",
-            "total_cache 4",
-            "total_rss 3",
-            "total_rss_huge 0",
-            "total_mapped_file 524288",
-            "total_writeback 0",
-            "total_swap 5",
-            "total_pgpgin 16717",
-            "total_pgpgout 5037",
-            "total_pgfault 1",
-            "total_pgmajfault 2",
-            "total_inactive_anon 503808",
-            "total_active_anon 46309376",
-            "total_inactive_file 876544",
-            "total_active_file 81920",
-            "total_unevictable 0");
-
     private static final String PROC_STAT_CONTENTS = String.join(
             " ",
             "1040",
@@ -125,25 +89,6 @@ public class MemoryStatUtilTest {
             "3198888671",
             "3198889956",
             "0");
-
-    @Test
-    public void testParseMemoryStatFromMemcg_parsesCorrectValues() {
-        MemoryStat stat = parseMemoryStatFromMemcg(MEMORY_STAT_CONTENTS);
-        assertEquals(1, stat.pgfault);
-        assertEquals(2, stat.pgmajfault);
-        assertEquals(3, stat.rssInBytes);
-        assertEquals(4, stat.cacheInBytes);
-        assertEquals(5, stat.swapInBytes);
-    }
-
-    @Test
-    public void testParseMemoryStatFromMemcg_emptyMemoryStatContents() {
-        MemoryStat stat = parseMemoryStatFromMemcg("");
-        assertNull(stat);
-
-        stat = parseMemoryStatFromMemcg(null);
-        assertNull(stat);
-    }
 
     @Test
     public void testParseMemoryStatFromProcfs_parsesCorrectValues() {

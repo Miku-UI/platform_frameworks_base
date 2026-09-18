@@ -83,10 +83,12 @@ class DropTargetManager(
         container.addView(view, 0)
         view.alpha = 0f
 
-        view.elevation = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            DROP_TARGET_ELEVATION_DP, context.resources.displayMetrics
-        )
+        view.elevation =
+            TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                DROP_TARGET_ELEVATION_DP,
+                context.resources.displayMetrics,
+            )
         // Match parent and the target is drawn within the view
         view.layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
     }
@@ -122,12 +124,15 @@ class DropTargetManager(
     fun hideDropTargets() {
         val dragZones = state?.dragZones
         if (dragZones.isNullOrEmpty()) return
-        val lowestBottom = dragZones.map { it.bounds }.maxOf { dragZone ->
-            when (dragZone) {
-                is RectZone -> dragZone.rect.bottom // rect bottom
-                is CircleZone -> dragZone.y - dragZone.radius // circle bottom
-            }
-        }
+        val lowestBottom =
+            dragZones
+                .map { it.bounds }
+                .maxOf { dragZone ->
+                    when (dragZone) {
+                        is RectZone -> dragZone.rect.bottom // rect bottom
+                        is CircleZone -> dragZone.y - dragZone.radius // circle bottom
+                    }
+                }
         // use coordinate that will not hit any drag zone, so drop targets will be hidden
         onDragUpdated(0, lowestBottom + 1)
     }
@@ -149,9 +154,9 @@ class DropTargetManager(
     }
 
     /**
-     * Runs the provided action once all drop target views are removed from the container.
-     * If there are no drop target views currently present or being animated, the action will be
-     * executed immediately.
+     * Runs the provided action once all drop target views are removed from the container. If there
+     * are no drop target views currently present or being animated, the action will be executed
+     * immediately.
      */
     fun onDropTargetRemoved(action: Runnable) {
         onDropTargetsRemovedAction = action
@@ -229,10 +234,12 @@ class DropTargetManager(
 
     private fun onDropTargetRemoved() {
         val action = onDropTargetsRemovedAction ?: return
-        if ((0 until container.childCount).any {
+        if (
+            (0 until container.childCount).any {
                 val childView = container.getChildAt(it)
                 childView is DropTargetView && childView.tag == getDropViewTag()
-            }) {
+            }
+        ) {
             return
         }
         onDropTargetsRemovedAction = null
@@ -240,10 +247,7 @@ class DropTargetManager(
     }
 
     /** Stores the current drag state. */
-    private inner class DragState(
-        val dragZones: List<DragZone>,
-        val draggedObject: DraggedObject,
-    ) {
+    private inner class DragState(val dragZones: List<DragZone>, val draggedObject: DraggedObject) {
         val initialDragZone =
             draggedObject.initialLocation?.let {
                 if (it.isOnLeft(isLayoutRtl)) {

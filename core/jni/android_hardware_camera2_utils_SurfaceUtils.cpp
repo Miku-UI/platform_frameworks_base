@@ -207,6 +207,22 @@ static jlong SurfaceUtils_nativeGetSurfaceId(JNIEnv* env, jobject thiz, jobject 
     return reinterpret_cast<jlong>(b.get());
 }
 
+static jlong SurfaceUtils_nativeGetSurfaceUniqueId(JNIEnv* env, jobject thiz, jobject surface) {
+    ALOGV("nativeGetSurfaceUniqueId");
+    sp<Surface> s;
+    if ((s = getSurface(env, surface)) == NULL) {
+        ALOGE("%s: Could not retrieve native Surface from surface.", __FUNCTION__);
+        return 0;
+    }
+    uint64_t id;
+    auto ret = s->getUniqueId(&id);
+    if (ret != NO_ERROR) {
+        ALOGE("%s: Could not retrieve unique id from surface.", __FUNCTION__);
+        return 0;
+    }
+    return id;
+}
+
 } // extern "C"
 
 static const JNINativeMethod gCameraSurfaceUtilsMethods[] = {
@@ -219,6 +235,8 @@ static const JNINativeMethod gCameraSurfaceUtilsMethods[] = {
         {"nativeDetectSurfaceUsageFlags", "(Landroid/view/Surface;)J",
          (void*)SurfaceUtils_nativeDetectSurfaceUsageFlags},
         {"nativeGetSurfaceId", "(Landroid/view/Surface;)J", (void*)SurfaceUtils_nativeGetSurfaceId},
+        {"nativeGetSurfaceUniqueId", "(Landroid/view/Surface;)J",
+            (void*)SurfaceUtils_nativeGetSurfaceUniqueId},
 };
 
 // Get all the required offsets in java class and register native functions

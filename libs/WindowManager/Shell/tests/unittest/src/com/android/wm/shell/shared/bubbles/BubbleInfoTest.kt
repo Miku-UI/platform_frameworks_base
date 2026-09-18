@@ -22,6 +22,7 @@ import android.os.Parcel
 import android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
+import com.android.users.UserType
 import com.android.wm.shell.ShellTestCase
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -44,12 +45,14 @@ class BubbleInfoTest : ShellTestCase() {
                 "title",
                 "Some app",
                 true,
-                true,
                 ParcelableFlyoutMessage(
                     Icon.createWithContentUri(Uri.parse("content://image/123")),
                     "sender",
-                    "message"
-                )
+                    "message",
+                ),
+                false,
+                false,
+                UserType.MAIN,
             )
         val parcel = Parcel.obtain()
         bubbleInfo.writeToParcel(parcel, PARCELABLE_WRITE_RETURN_VALUE)
@@ -72,5 +75,8 @@ class BubbleInfoTest : ShellTestCase() {
             assertThat(title).isEqualTo("sender")
             assertThat(message).isEqualTo("message")
         }
+        assertThat(bubbleInfo.isApp).isFalse()
+        assertThat(bubbleInfo.isChat).isFalse()
+        assertThat(bubbleInfo.userType).isEqualTo(UserType.MAIN)
     }
 }

@@ -45,10 +45,12 @@ import android.view.MotionEvent;
 import android.view.SurfaceControl;
 import android.window.DesktopModeFlags;
 
+import com.android.window.flags.Flags;
 import com.android.wm.shell.R;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.InputMethod;
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.ResizeTrigger;
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController;
 
 /**
  * Utility class that contains logic common to classes implementing {@link DragPositioningCallback}
@@ -81,15 +83,19 @@ public class DragPositioningCallbackUtility {
      * @param delta                 difference between start input and current input in x/y
      *                              coordinates
      * @param windowDecoration      window decoration of the task being dragged
-     * @return whether this method changed repositionTaskBounds
+     * @param result                the result of the change bounds calculation, including whether
+     *                              this method changed repositionTaskBounds, and whether the bounds
+     *                              is violating the size constraints
      */
-    static boolean changeBounds(int ctrlType, Rect repositionTaskBounds, Rect taskBoundsAtDragStart,
+    static void changeBounds(int ctrlType, Rect repositionTaskBounds, Rect taskBoundsAtDragStart,
             Rect stableBounds, PointF delta, DisplayController displayController,
-            WindowDecorationWrapper windowDecoration, boolean canEnterDesktopMode) {
+            WindowDecorationWrapper windowDecoration, boolean canEnterDesktopMode,
+            ChangeBoundsResult result) {
+        result.reset();
         // If task is being dragged rather than resized, return since this method only handles
         // with resizing
         if (ctrlType == CTRL_TYPE_UNDEFINED) {
-            return false;
+            return;
         }
 
         final int oldLeft = repositionTaskBounds.left;
@@ -142,28 +148,46 @@ public class DragPositioningCallbackUtility {
             }
         }
 
-        // If width or height are negative or exceeding the width or height constraints, revert the
+        // If width or height are negative or violating the width or height constraints, revert the
         // respective bounds to use previous bound dimensions.
-        if (isExceedingWidthConstraint(repositionTaskBounds.width(),
+        if (isViolatingWidthConstraints(repositionTaskBounds.width(),
                 /* startingWidth= */ oldRight - oldLeft, stableBounds, displayController,
                 windowDecoration, canEnterDesktopMode)) {
             repositionTaskBounds.right = oldRight;
             repositionTaskBounds.left = oldLeft;
             isAspectRatioMaintained = false;
+            result.violatingSizeConstraints = Flags.enableNoResizeCursor();
         }
-        if (isExceedingHeightConstraint(repositionTaskBounds.height(),
+        if (isViolatingHeightConstraints(repositionTaskBounds.height(),
                 /* startingHeight= */oldBottom - oldTop, stableBounds, displayController,
                 windowDecoration, canEnterDesktopMode)) {
             repositionTaskBounds.top = oldTop;
             repositionTaskBounds.bottom = oldBottom;
             isAspectRatioMaintained = false;
+            result.violatingSizeConstraints = Flags.enableNoResizeCursor();
+        }
+
+        int taskId = windowDecoration.getTaskInfo().taskId;
+        PinnedLayerController pinnedLayerController = windowDecoration.getPinnedLayerController();
+        if (pinnedLayerController != null && pinnedLayerController.isPinned(taskId)) {
+            if (isExceedingPinnedLayerConstraint(repositionTaskBounds.width(),
+                    stableBounds.width())) {
+                repositionTaskBounds.left = oldLeft;
+                repositionTaskBounds.right = oldRight;
+                isAspectRatioMaintained = false;
+            }
+            if (isExceedingPinnedLayerConstraint(repositionTaskBounds.height(),
+                    stableBounds.height())) {
+                repositionTaskBounds.top = oldTop;
+                repositionTaskBounds.bottom = oldBottom;
+                isAspectRatioMaintained = false;
+            }
         }
 
         // If the application is unresizeable and any bounds have been set back to their old
         // location or to a stable bound edge, reset all the bounds to maintain the applications
         // aspect ratio.
-        if (DesktopModeFlags.ENABLE_WINDOWING_SCALED_RESIZING.isTrue()
-                && !isAspectRatioMaintained && !windowDecoration.getTaskInfo().isResizeable) {
+        if (!isAspectRatioMaintained && !windowDecoration.getTaskInfo().isResizeable) {
             repositionTaskBounds.top = oldTop;
             repositionTaskBounds.bottom = oldBottom;
             repositionTaskBounds.right = oldRight;
@@ -171,10 +195,17 @@ public class DragPositioningCallbackUtility {
         }
 
         // If there are no changes to the bounds after checking new bounds against minimum and
-        // maximum width and height, do not set bounds and return false
-        return oldLeft != repositionTaskBounds.left || oldTop != repositionTaskBounds.top
+        // maximum width and height, do not set bounds and set result.boundsChanged to false
+        result.boundsChanged = oldLeft != repositionTaskBounds.left
+                || oldTop != repositionTaskBounds.top
                 || oldRight != repositionTaskBounds.right
                 || oldBottom != repositionTaskBounds.bottom;
+    }
+
+    private static boolean isExceedingPinnedLayerConstraint(int taskDimension,
+            int screenDimension) {
+        double maxDimension = screenDimension * 0.7;
+        return (double) taskDimension > maxDimension;
     }
 
     /**
@@ -227,16 +258,16 @@ public class DragPositioningCallbackUtility {
     }
 
     /**
-     * Checks whether the new task bounds exceed the allowed width.
+     * Checks whether the new task bounds violate the allowed width.
      *
      * @param repositionedWidth task width after repositioning.
      * @param startingWidth task width before repositioning.
      * @param maxResizeBounds stable bounds for display.
      * @param displayController display controller for the task being checked.
      * @param windowDecoration contains decor info and helpers for the task.
-     * @return whether the task is exceeding any of the width constrains, minimum or maximum.
+     * @return whether the task is violating any of the width constraints, minimum or maximum.
      */
-    public static boolean isExceedingWidthConstraint(int repositionedWidth, int startingWidth,
+    public static boolean isViolatingWidthConstraints(int repositionedWidth, int startingWidth,
             Rect maxResizeBounds, DisplayController displayController,
             WindowDecorationWrapper windowDecoration, boolean canEnterDesktopMode) {
         boolean isSizeIncreasing = (repositionedWidth - startingWidth) > 0;
@@ -253,16 +284,16 @@ public class DragPositioningCallbackUtility {
     }
 
     /**
-     * Checks whether the new task bounds exceed the allowed height.
+     * Checks whether the new task bounds violate the allowed height.
      *
      * @param repositionedHeight task's height after repositioning.
      * @param startingHeight task's height before repositioning.
      * @param maxResizeBounds stable bounds for display.
      * @param displayController display controller for the task being checked.
      * @param windowDecoration contains decor info and helpers for the task.
-     * @return whether the task is exceeding any of the height constrains, minimum or maximum.
+     * @return whether the task is violating any of the height constraints, minimum or maximum.
      */
-    public static boolean isExceedingHeightConstraint(int repositionedHeight, int startingHeight,
+    public static boolean isViolatingHeightConstraints(int repositionedHeight, int startingHeight,
             Rect maxResizeBounds, DisplayController displayController,
             WindowDecorationWrapper windowDecoration, boolean canEnterDesktopMode) {
         boolean isSizeIncreasing = (repositionedHeight - startingHeight) > 0;
@@ -305,16 +336,30 @@ public class DragPositioningCallbackUtility {
 
     private static float getMinWidth(DisplayController displayController,
             WindowDecorationWrapper windowDecoration, boolean canEnterDesktopMode) {
-        return windowDecoration.getTaskInfo().minWidth < 0 ? getDefaultMinWidth(displayController,
-                windowDecoration, canEnterDesktopMode)
-                : windowDecoration.getTaskInfo().minWidth;
+        if (!Flags.respectSystemDefaultMinSize()) {
+            return windowDecoration.getTaskInfo().minWidth < 0
+                    ? getDefaultMinWidth(displayController, windowDecoration, canEnterDesktopMode)
+                    : windowDecoration.getTaskInfo().minWidth;
+        }
+
+        return Math.max(
+                windowDecoration.getTaskInfo().minWidth,
+                getDefaultMinWidth(displayController, windowDecoration, canEnterDesktopMode)
+        );
     }
 
     private static float getMinHeight(DisplayController displayController,
             WindowDecorationWrapper windowDecoration, boolean canEnterDesktopMode) {
-        return windowDecoration.getTaskInfo().minHeight < 0 ? getDefaultMinHeight(displayController,
-                windowDecoration, canEnterDesktopMode)
-                : windowDecoration.getTaskInfo().minHeight;
+        if (!Flags.respectSystemDefaultMinSize()) {
+            return windowDecoration.getTaskInfo().minHeight < 0
+                    ? getDefaultMinHeight(displayController, windowDecoration, canEnterDesktopMode)
+                    : windowDecoration.getTaskInfo().minHeight;
+        }
+
+        return Math.max(
+                windowDecoration.getTaskInfo().minHeight,
+                getDefaultMinHeight(displayController, windowDecoration, canEnterDesktopMode)
+        );
     }
 
     private static float getDefaultMinWidth(DisplayController displayController,
@@ -368,5 +413,26 @@ public class DragPositioningCallbackUtility {
          */
         default void onDragResizeEnded(int taskId, @NonNull ResizeTrigger resizeTrigger,
                 @NonNull InputMethod inputMethod, @NonNull Rect endTaskBounds) {}
+    }
+
+    /**
+     * The result of a change bounds calculation.
+     */
+    public static class ChangeBoundsResult {
+        /**
+         * Whether the bounds have changed as a result of the calculation.
+         */
+        public boolean boundsChanged;
+
+        /**
+         * Whether the new bounds violate any size constraints (e.g. maximum or minimum
+         * width/height).
+         */
+        public boolean violatingSizeConstraints;
+
+        public void reset() {
+            boundsChanged = false;
+            violatingSizeConstraints = false;
+        }
     }
 }

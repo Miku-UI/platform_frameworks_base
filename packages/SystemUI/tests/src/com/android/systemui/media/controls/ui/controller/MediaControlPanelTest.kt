@@ -37,7 +37,6 @@ import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Bundle
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.provider.Settings
@@ -65,6 +64,7 @@ import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.BroadcastSender
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
+import com.android.systemui.communal.widgets.CommunalTransitionAnimatorController
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.media.controls.MediaTestUtils
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
@@ -88,10 +88,10 @@ import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.policy.KeyguardStateController
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffectView
-import com.android.systemui.surfaceeffects.ripple.MultiRippleView
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseAnimationConfig
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseView
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseAnimationConfig
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffectView
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleView
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView
 import com.android.systemui.util.animation.TransitionLayout
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.settings.GlobalSettings
@@ -130,8 +130,6 @@ private const val SESSION_KEY = "SESSION_KEY"
 private const val SESSION_ARTIST = "SESSION_ARTIST"
 private const val SESSION_TITLE = "SESSION_TITLE"
 private const val DISABLED_DEVICE_NAME = "DISABLED_DEVICE_NAME"
-private const val REC_APP_NAME = "REC APP NAME"
-private const val APP_NAME = "APP_NAME"
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -216,6 +214,9 @@ public class MediaControlPanelTest : SysuiTestCase() {
     @Mock private lateinit var lockscreenUserManager: NotificationLockscreenUserManager
 
     @Mock private lateinit var communalSceneInteractor: CommunalSceneInteractor
+    @Mock
+    private lateinit var communalAnimationControllerFactory:
+        CommunalTransitionAnimatorController.Factory
 
     @Mock private lateinit var globalSettings: GlobalSettings
 
@@ -243,7 +244,7 @@ public class MediaControlPanelTest : SysuiTestCase() {
         val icon = context.getDrawable(R.drawable.ic_android)
         whenever(packageManager.getApplicationIcon(anyString())).thenReturn(icon)
         whenever(packageManager.getApplicationIcon(any<ApplicationInfo>())).thenReturn(icon)
-        whenever(packageManager.getApplicationInfo(eq(PACKAGE), anyInt()))
+        whenever(packageManager.getApplicationInfoAsUser(eq(PACKAGE), anyInt(), anyInt()))
             .thenReturn(applicationInfo)
         whenever(packageManager.getApplicationLabel(any())).thenReturn(PACKAGE)
         context.setMockPackageManager(packageManager)
@@ -268,6 +269,7 @@ public class MediaControlPanelTest : SysuiTestCase() {
                     communalSceneInteractor,
                     lockscreenUserManager,
                     globalSettings,
+                    communalAnimationControllerFactory,
                 ) {
                 override fun loadAnimator(
                     animId: Int,
@@ -1810,7 +1812,7 @@ public class MediaControlPanelTest : SysuiTestCase() {
 
             clock.advanceTime(
                 MediaControlPanel.TURBULENCE_NOISE_PLAY_DURATION +
-                    TurbulenceNoiseAnimationConfig.DEFAULT_EASING_DURATION_IN_MILLIS.toLong()
+                    TurbulenceNoiseAnimationConfig.DEFAULT_FADING_DURATION_IN_MILLIS.toLong()
             )
 
             assertThat(turbulenceNoiseView.visibility).isEqualTo(View.INVISIBLE)
@@ -1819,7 +1821,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADERLIB_LOADING_EFFECT_REFACTOR)
     fun playTurbulenceNoise_newLoadingEffect_finishesAfterDuration() {
         val semanticActions =
             MediaButton(
@@ -1843,7 +1844,7 @@ public class MediaControlPanelTest : SysuiTestCase() {
 
             clock.advanceTime(
                 MediaControlPanel.TURBULENCE_NOISE_PLAY_DURATION +
-                    TurbulenceNoiseAnimationConfig.DEFAULT_EASING_DURATION_IN_MILLIS.toLong()
+                    TurbulenceNoiseAnimationConfig.DEFAULT_FADING_DURATION_IN_MILLIS.toLong()
             )
 
             assertThat(loadingEffectView.visibility).isEqualTo(View.INVISIBLE)
@@ -1874,7 +1875,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADERLIB_LOADING_EFFECT_REFACTOR)
     fun playTurbulenceNoise_newLoadingEffect_whenPlaybackStateIsNotPlaying_doesNotPlayTurbulence() {
         val semanticActions =
             MediaButton(
@@ -1938,7 +1938,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
         verify(activityStarter).postStartActivityDismissingKeyguard(eq(pendingIntent))
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_CAROUSEL_ARROWS)
     @Test
     fun bindPageArrows() {
         player.attachPlayer(viewHolder)
@@ -1951,7 +1950,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
         verify(mediaCarouselScrollHandler).scrollByStep(eq(1))
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_CAROUSEL_ARROWS)
     @Test
     fun setArrowsVisible() {
         val guidePx =
@@ -1972,7 +1970,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
         verify(collapsedSet).setGuidelineEnd(eq(R.id.action_button_guideline), eq(guidePx))
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_CAROUSEL_ARROWS)
     @Test
     fun setArrowsVisible_alreadyVisible_noOp() {
         setArrowsVisible()
@@ -1986,7 +1983,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
         verify(collapsedSet).setVisibility(R.id.page_right, ConstraintSet.VISIBLE)
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_CAROUSEL_ARROWS)
     @Test
     fun setArrowsNotVisible() {
         val guidePx =
@@ -2008,7 +2004,6 @@ public class MediaControlPanelTest : SysuiTestCase() {
         verify(collapsedSet).setGuidelineEnd(eq(R.id.action_button_guideline), eq(guidePx))
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_CAROUSEL_ARROWS)
     @Test
     fun enablePageArrows() {
         player.attachPlayer(viewHolder)
@@ -2019,6 +2014,24 @@ public class MediaControlPanelTest : SysuiTestCase() {
 
         player.setPageRightEnabled(true)
         assertThat(viewHolder.pageRight.isEnabled).isTrue()
+    }
+
+    @Test
+    fun loadAppIconFromUser() {
+        val secondAppInfo = mock(ApplicationInfo::class.java)
+        val secondAppIcon = context.getDrawable(R.drawable.ic_media_next)
+        whenever(packageManager.getApplicationInfoAsUser(eq(PACKAGE), anyInt(), eq(2)))
+            .thenReturn(secondAppInfo)
+        whenever(packageManager.getApplicationIcon(eq(secondAppInfo))).thenReturn(secondAppIcon)
+
+        val secondMedia = mediaData.copy(userId = 2, resumption = true)
+        player.attachPlayer(viewHolder)
+        player.bindPlayer(secondMedia, PACKAGE)
+
+        bgExecutor.runAllReady()
+        mainExecutor.runAllReady()
+
+        assertThat(appIcon.drawable).isEqualTo(secondAppIcon)
     }
 
     private fun getColorIcon(color: Int): Icon {

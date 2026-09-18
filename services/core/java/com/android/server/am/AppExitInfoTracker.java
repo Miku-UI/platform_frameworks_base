@@ -18,6 +18,17 @@ package com.android.server.am;
 
 import static android.app.ActivityManager.RunningAppProcessInfo.procStateToImportance;
 import static android.app.ActivityManagerInternal.ALLOW_NON_FULL;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidTrackEvent.PROCESS_DIED_EVENT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.PROCESS_NAME;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.PID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.SUB_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.IMPORTANCE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.RSS_KB;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidProcessDiedEvent.HAS_FOREGROUND_SERVICES;
+import static android.os.PerfettoCategories.PROC_LIFECYCLE_CATEGORY;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_PROCESSES;
@@ -50,6 +61,7 @@ import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.AtomicFile;
+import android.util.IndentingPrintWriter;
 import android.util.Pair;
 import android.util.Pools.SynchronizedPool;
 import android.util.Slog;
@@ -61,6 +73,8 @@ import android.util.proto.WireTypeMismatchException;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.ProcessMap;
+import com.android.internal.dev.perfetto.sdk.PerfettoTrace;
+import com.android.internal.dev.perfetto.sdk.PerfettoTrackEventBuilder;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.function.pooled.PooledLambda;
@@ -293,8 +307,12 @@ public final class AppExitInfoTracker {
                 obtainRawRecord(app, System.currentTimeMillis())).sendToTarget();
     }
 
-    void scheduleNoteAppKill(final ProcessRecord app, final @Reason int reason,
-            final @SubReason int subReason, final String msg) {
+    void scheduleNoteAppKill(
+            final ProcessRecord app,
+            final @Reason int reason,
+            final @SubReason int subReason,
+            final String msg,
+            @Nullable ApplicationExitInfo.AnrInfo anrInfo) {
         if (!mAppExitInfoLoaded.get()) {
             return;
         }
@@ -306,6 +324,9 @@ public final class AppExitInfoTracker {
         raw.setReason(reason);
         raw.setSubReason(subReason);
         raw.setDescription(msg);
+        if (anrInfo != null) {
+            raw.setAnrInfo(anrInfo);
+        }
         mKillHandler.obtainMessage(KillHandler.MSG_APP_KILL, raw).sendToTarget();
     }
 
@@ -334,7 +355,7 @@ public final class AppExitInfoTracker {
                         + "(uid=" + uid + ") since its process record is not found");
             }
         } else {
-            scheduleNoteAppKill(app, reason, subReason, msg);
+            scheduleNoteAppKill(app, reason, subReason, msg, /* anrInfo= */ null);
         }
     }
 
@@ -393,11 +414,12 @@ public final class AppExitInfoTracker {
                     raw.getPid(), raw.getRealUid());
             Pair<Long, Object> lmkd = mAppExitInfoSourceLmkd.remove(
                     raw.getPid(), raw.getRealUid());
-            mIsolatedUidRecords.removeIsolatedUidLocked(raw.getRealUid());
 
             if (info == null) {
                 info = addExitInfoLocked(raw);
             }
+
+            mIsolatedUidRecords.removeIsolatedUidLocked(raw.getRealUid());
 
             if (lmkd != null) {
                 updateExistingExitInfoRecordLocked(info, null,
@@ -469,8 +491,9 @@ public final class AppExitInfoTracker {
             addExitInfoInnerLocked(packages[i], uid, info);
         }
 
-        // SDK sandbox exits are stored under both real and package UID
-        if (Process.isSdkSandboxUid(uid)) {
+        // SDK and PCC sandbox exits are stored under both real and package UID
+        if (Process.isSdkSandboxUid(uid) || (enablePccFrameworkSupport()
+                && Process.isPrivateComputeCoreUid(uid))) {
             for (int i = 0; i < packages.length; i++) {
                 addExitInfoInnerLocked(packages[i], raw.getPackageUid(), info);
             }
@@ -621,6 +644,19 @@ public final class AppExitInfoTracker {
         ApplicationExitInfo info = mTmpInfoList.size() > 0 ? mTmpInfoList.getFirst() : null;
         mTmpInfoList.clear();
         return info;
+    }
+
+    /** Returns exit info from the last time the given process had UI, or null. */
+    @Nullable
+    ApplicationExitInfo getLastExitInfoForUiProcess(
+            final String packageName, final int uid, final String processName) {
+        synchronized (mLock) {
+            final AppExitInfoContainer container = mData.get(packageName, uid);
+            if (container == null) {
+                return null;
+            }
+            return container.getMostRecentExitInfoLocked(processName, /* filterHasShownUi */ true);
+        }
     }
 
     @VisibleForTesting
@@ -856,33 +892,38 @@ public final class AppExitInfoTracker {
     void dumpHistoryProcessExitInfo(PrintWriter pw, String packageName) {
         pw.println("ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)");
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        IndentingPrintWriter iPw = new IndentingPrintWriter(pw, "  ");
         synchronized (mLock) {
             pw.println("Last Timestamp of Persistence Into Persistent Storage: "
                     + sdf.format(new Date(mLastAppExitInfoPersistTimestamp)));
+            iPw.increaseIndent();
             if (TextUtils.isEmpty(packageName)) {
                 forEachPackageLocked((name, records) -> {
-                    dumpHistoryProcessExitInfoLocked(pw, "  ", name, records, sdf);
+                    dumpHistoryProcessExitInfoLocked(iPw, name, records, sdf);
                     return AppExitInfoTracker.FOREACH_ACTION_NONE;
                 });
             } else {
                 SparseArray<AppExitInfoContainer> array = mData.getMap().get(packageName);
                 if (array != null) {
-                    dumpHistoryProcessExitInfoLocked(pw, "  ", packageName, array, sdf);
+                    dumpHistoryProcessExitInfoLocked(iPw, packageName, array, sdf);
                 }
             }
+            iPw.decreaseIndent();
         }
     }
 
     @GuardedBy("mLock")
-    private void dumpHistoryProcessExitInfoLocked(PrintWriter pw, String prefix,
+    private void dumpHistoryProcessExitInfoLocked(IndentingPrintWriter pw,
             String packageName, SparseArray<AppExitInfoContainer> array,
             SimpleDateFormat sdf) {
-        pw.println(prefix + "package: " + packageName);
+        pw.println("package: " + packageName);
         int size = array.size();
+        pw.increaseIndent();
         for (int i = 0; i < size; i++) {
-            pw.println(prefix + "  Historical Process Exit for uid=" + array.keyAt(i));
-            array.valueAt(i).dumpLocked(pw, prefix + "    ", sdf);
+            pw.println("Historical Process Exit for uid=" + array.keyAt(i));
+            array.valueAt(i).dumpLocked(pw, sdf);
         }
+        pw.decreaseIndent();
     }
 
     @GuardedBy("mLock")
@@ -923,19 +964,29 @@ public final class AppExitInfoTracker {
             return;
         }
         info.setLoggedInStatsd(true);
-        final String pkgName = info.getPackageName();
-        String processName = info.getProcessName();
-        if (TextUtils.equals(pkgName, processName)) {
-            // Omit the process name here to save space
-            processName = null;
-        } else if (processName != null && pkgName != null && processName.startsWith(pkgName)) {
-            // Strip the prefix to save space
-            processName = processName.substring(pkgName.length());
+        if (android.os.Flags.perfettoSdkTracingV3()) {
+            PerfettoTrackEventBuilder builder =
+                    PerfettoTrace.instant(PROC_LIFECYCLE_CATEGORY, "process_died").beginProto()
+                            .beginNested(PROCESS_DIED_EVENT);
+
+            if (info.getRss() != 0) {
+                builder = builder.addField(RSS_KB, info.getRss());
+            }
+            builder.addField(UID, info.getPackageUid())
+                    .addField(PID, info.getPid())
+                    .addField(PROCESS_NAME, info.getProcessName())
+                    .addField(REASON, info.getReason())
+                    .addField(SUB_REASON, info.getSubReason())
+                    .addField(IMPORTANCE, info.getImportance())
+                    .addField(HAS_FOREGROUND_SERVICES, info.hasForegroundServices() ? 1 : 0)
+                    .endNested()
+                    .endProto()
+                    .emit();
         }
         FrameworkStatsLog.write(FrameworkStatsLog.APP_PROCESS_DIED,
-                info.getPackageUid(), processName, info.getReason(), info.getSubReason(),
-                info.getImportance(), (int) info.getPss(), (int) info.getRss(),
-                info.hasForegroundServices());
+                info.getPackageUid(), info.getProcessName(), info.getReason(),
+                info.getSubReason(), info.getImportance(), (int) info.getPss(),
+                (int) info.getRss(), info.hasForegroundServices(), info.getStatus());
     }
 
     @GuardedBy("mLock")
@@ -1051,6 +1102,7 @@ public final class AppExitInfoTracker {
             info.setRss(app.mProfile.getLastRss());
             info.setTimestamp(timestamp);
             info.setHasForegroundServices(app.mServices.hasReportedForegroundServices());
+            info.setHasShownUi(app.getHasShownUi());
         }
 
         return info;
@@ -1334,6 +1386,35 @@ public final class AppExitInfoTracker {
             mMaxCapacity = maxCapacity;
         }
 
+        /**
+         * Returns the latest exit info that matches all filters, or null.
+         *
+         * @param processNameFilter ProcessName filter. Use empty string ("") to disable.
+         * @param hasShownUiFilter HasShownUi filter. Use null to disable.
+         */
+        @VisibleForTesting
+        @GuardedBy("mLock")
+        @Nullable ApplicationExitInfo getMostRecentExitInfoLocked(
+                final String processNameFilter,
+                final @Nullable Boolean hasShownUiFilter) {
+            ApplicationExitInfo result = null;
+            for (int i = 0, size = mExitInfos.size(); i < size; i++) {
+                final ApplicationExitInfo info = mExitInfos.get(i);
+                if (!TextUtils.isEmpty(processNameFilter)
+                        && !processNameFilter.equals(info.getProcessName())) {
+                    continue;
+                }
+                if (hasShownUiFilter != null && hasShownUiFilter != info.hasShownUi()) {
+                    continue;
+                }
+
+                if (result == null || result.getTimestamp() < info.getTimestamp()) {
+                    result = info;
+                }
+            }
+            return result;
+        }
+
         @VisibleForTesting
         @GuardedBy("mLock")
         void getExitInfosLocked(
@@ -1483,12 +1564,14 @@ public final class AppExitInfoTracker {
         }
 
         @GuardedBy("mLock")
-        void dumpLocked(PrintWriter pw, String prefix, SimpleDateFormat sdf) {
+        void dumpLocked(IndentingPrintWriter pw, SimpleDateFormat sdf) {
             mTmpInfoList.clear();
             getExitInfosLocked(/* filterPid */ 0, /* maxNum */ 0, mTmpInfoList);
+            pw.increaseIndent();
             for (int i = 0, size = mTmpInfoList.size(); i < size; i++) {
-                mTmpInfoList.get(i).dump(pw, prefix + "  ", "#" + i, sdf);
+                mTmpInfoList.get(i).dump(pw, "#" + i, sdf);
             }
+            pw.decreaseIndent();
             mTmpInfoList.clear();
         }
 
@@ -1821,7 +1904,8 @@ public final class AppExitInfoTracker {
             if (allUsers) {
                 uid = UserHandle.getAppId(uid);
                 for (int i = mData.size() - 1; i >= 0; i--) {
-                    if (UserHandle.getAppId(mData.keyAt(i)) == uid) {
+                    int entUid = mData.keyAt(i);
+                    if (UserHandle.isSameAppIdWithPcc(UserHandle.getAppId(entUid), uid)) {
                         mData.removeAt(i);
                     }
                 }

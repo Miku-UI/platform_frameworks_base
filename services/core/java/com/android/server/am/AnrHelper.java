@@ -241,12 +241,22 @@ class AnrHelper {
                 r.appNotResponding(onlyDumpSelf);
                 final long endTime = SystemClock.uptimeMillis();
 
-                if (android.os.profiling.Flags.systemTriggeredProfilingNew() && r.mAppInfo != null
-                        && r.mAppInfo.packageName != null) {
-                    mService.sendProfilingTrigger(
-                            r.mUid,
-                            r.mAppInfo.packageName,
-                            ProfilingTrigger.TRIGGER_TYPE_ANR);
+                if (android.os.profiling.Flags.systemTriggeredProfilingNew()) {
+                    // mAppInfo represents the ApplicationInfo of the specific component (Activity,
+                    // Service, etc.) that triggered the ANR. It can be null if the ANR is reported
+                    // via a simplified method that doesn't include component info, or if the
+                    // component info isn't available at the time of reporting (e.g., some input
+                    // dispatching timeouts). Falling back to r.mApp.info.packageName ensures that
+                    // we can still identify the package associated with the process to trigger
+                    // profiling.
+                    final String packageName = r.mAppInfo != null ? r.mAppInfo.packageName
+                            : (r.mApp.info != null ? r.mApp.info.packageName : null);
+                    if (packageName != null) {
+                        mService.sendProfilingTrigger(
+                                r.mUid,
+                                packageName,
+                                ProfilingTrigger.TRIGGER_TYPE_ANR);
+                    }
                 }
 
                 Slog.d(TAG, "Completed ANR of " + r.mApp.processName + " in "

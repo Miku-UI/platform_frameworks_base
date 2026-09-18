@@ -31,14 +31,12 @@ import static org.mockito.Mockito.verify;
 import android.location.Location;
 import android.location.flags.Flags;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -63,9 +61,6 @@ public class LocationFudgerTest {
     private Random mRandom;
 
     private LocationFudger mFudger;
-
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Before
     public void setUp() {
@@ -176,41 +171,7 @@ public class LocationFudgerTest {
     }
 
     @Test
-    public void testDensityBasedCoarsening_ifAnyFlagIsOff1_cacheIsNotUsed() {
-        // This feature requires two flags: one for the population density provider (which could
-        // be used by various client), and a second one for actually enabling the new coarsening
-        // algorithm.
-        mSetFlagsRule.disableFlags(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POPULATION_DENSITY_PROVIDER);
-        LocationFudgerCache cache = mock(LocationFudgerCache.class);
-
-        mFudger.setLocationFudgerCache(cache);
-
-        mFudger.createCoarse(createLocation("test", mRandom));
-
-        verify(cache, never()).getCoarseningLevel(anyDouble(), anyDouble());
-    }
-
-    @Test
-    public void testDensityBasedCoarsening_ifAnyFlagIsOff2_cacheIsNotUsed() {
-        // This feature requires two flags: one for the population density provider (which could
-        // be used by various client), and a second one for actually enabling the new coarsening
-        // algorithm.
-        mSetFlagsRule.enableFlags(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_POPULATION_DENSITY_PROVIDER);
-        LocationFudgerCache cache = mock(LocationFudgerCache.class);
-
-        mFudger.setLocationFudgerCache(cache);
-
-        mFudger.createCoarse(createLocation("test", mRandom));
-
-        verify(cache, never()).getCoarseningLevel(anyDouble(), anyDouble());
-    }
-
-    @Test
-    public void testDensityBasedCoarsening_ifFeatureIsEnabledButNoDefaultValue_cacheIsNotUsed() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POPULATION_DENSITY_PROVIDER);
+    public void testDensityBasedCoarsening_noDefaultValue_cacheIsNotUsed() {
         LocationFudgerCache cache = mock(LocationFudgerCache.class);
         doReturn(false).when(cache).hasDefaultValue();
 
@@ -222,9 +183,7 @@ public class LocationFudgerTest {
     }
 
     @Test
-    public void testDensityBasedCoarsening_ifFeatureIsEnabledButNoDefaultValue_defaultIsFetched() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POPULATION_DENSITY_PROVIDER);
+    public void testDensityBasedCoarsening_noDefaultValue_defaultIsFetched() {
         LocationFudgerCache cache = mock(LocationFudgerCache.class);
         doReturn(false).when(cache).hasDefaultValue();
 
@@ -236,9 +195,7 @@ public class LocationFudgerTest {
     }
 
     @Test
-    public void testDensityBasedCoarsening_ifFeatureIsEnabledAndDefaultIsSet_cacheIsUsed() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POPULATION_DENSITY_PROVIDER);
+    public void testDensityBasedCoarsening_defaultIsSet_cacheIsUsed() {
         LocationFudgerCache cache = mock(LocationFudgerCache.class);
         doReturn(true).when(cache).hasDefaultValue();
 
@@ -247,7 +204,7 @@ public class LocationFudgerTest {
         Location fine = createLocation("test", mRandom);
         mFudger.createCoarse(fine);
 
-        // We can't verify that the coordinatese of "fine" are passed to the API due to the addition
+        // We can't verify that the coordinates of "fine" are passed to the API due to the addition
         // of the offset. We must use anyDouble().
         verify(cache).getCoarseningLevel(anyDouble(), anyDouble());
     }
@@ -258,8 +215,6 @@ public class LocationFudgerTest {
         // frameworks/base/services/tests/mockingservicestests/src/com/android/server/...
         // location/geometry/S2CellIdUtilsTest.java
 
-        mSetFlagsRule.enableFlags(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POPULATION_DENSITY_PROVIDER);
         // Arbitrary location in Times Square, NYC
         double[] latLng = new double[] {40.758896, -73.985130};
         int s2Level = 1;

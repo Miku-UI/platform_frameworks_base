@@ -394,6 +394,64 @@ NestMembers:
 InnerClasses:
   public static #x= #x of #x;            // Stub=class com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub of class com/android/hoststubgen/test/tinyframework/IPretendingAidl
   public static #x= #x of #x;           // Proxy=class com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub$Proxy of class com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub
+## Class: com/android/hoststubgen/test/tinyframework/IgnoreClassTest.class
+  Compiled from "MoreClasses.java"
+class com.android.hoststubgen.test.tinyframework.IgnoreClassTest
+  minor version: 0
+  major version: 65
+  flags: (0x0020) ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/IgnoreClassTest
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 2, methods: 3, attributes: 1
+Constant pool:
+{
+  public static int sValue;
+    descriptor: I
+    flags: (0x0009) ACC_PUBLIC, ACC_STATIC
+
+  public int mValue;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+
+  public com.android.hoststubgen.test.tinyframework.IgnoreClassTest();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: aload_0
+         x: iconst_1
+         x: putfield      #x                  // Field mValue:I
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0      10     0  this   Lcom/android/hoststubgen/test/tinyframework/IgnoreClassTest;
+
+  public int foo();
+    descriptor: ()I
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: iconst_2
+         x: ireturn
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       2     0  this   Lcom/android/hoststubgen/test/tinyframework/IgnoreClassTest;
+
+  static {};
+    descriptor: ()V
+    flags: (0x0008) ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: iconst_5
+         x: putstatic     #x                 // Field sValue:I
+         x: return
+      LineNumberTable:
+}
+SourceFile: "MoreClasses.java"
 ## Class: com/android/hoststubgen/test/tinyframework/R$Nested.class
   Compiled from "R.java"
 public class com.android.hoststubgen.test.tinyframework.R$Nested
@@ -470,6 +528,61 @@ NestMembers:
   com/android/hoststubgen/test/tinyframework/R$Nested
 InnerClasses:
   public static #x= #x of #x;           // Nested=class com/android/hoststubgen/test/tinyframework/R$Nested of class com/android/hoststubgen/test/tinyframework/R
+## Class: com/android/hoststubgen/test/tinyframework/ThrowClassTest.class
+  Compiled from "MoreClasses.java"
+class com.android.hoststubgen.test.tinyframework.ThrowClassTest
+  minor version: 0
+  major version: 65
+  flags: (0x0020) ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/ThrowClassTest
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 1, methods: 3, attributes: 1
+Constant pool:
+{
+  public int mValue;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+
+  public com.android.hoststubgen.test.tinyframework.ThrowClassTest();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: aload_0
+         x: iconst_1
+         x: putfield      #x                  // Field mValue:I
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0      10     0  this   Lcom/android/hoststubgen/test/tinyframework/ThrowClassTest;
+
+  public int foo();
+    descriptor: ()I
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: iconst_2
+         x: ireturn
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       2     0  this   Lcom/android/hoststubgen/test/tinyframework/ThrowClassTest;
+
+  static {};
+    descriptor: ()V
+    flags: (0x0008) ACC_STATIC
+    Code:
+      stack=2, locals=0, args_size=0
+         x: new           #x                 // class java/lang/RuntimeException
+         x: dup
+         x: invokespecial #x                 // Method java/lang/RuntimeException."<init>":()V
+         x: athrow
+      LineNumberTable:
+}
+SourceFile: "MoreClasses.java"
 ## Class: com/android/hoststubgen/test/tinyframework/TinyFrameworkAnnotations.class
   Compiled from "TinyFrameworkAnnotations.java"
 public final class com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
@@ -4499,6 +4612,1066 @@ Constant pool:
             0       1     0  this   Lcom/android/hoststubgen/test/tinyframework/exp/sub/A;
 }
 SourceFile: "A.java"
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot01.class
+  Compiled from "BadAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot01
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot01
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 2, attributes: 1
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot01();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot01;
+
+  public void foo();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=0, locals=1, args_size=1
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       1     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot01;
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+}
+SourceFile: "BadAnnot01.java"
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot02.class
+  Compiled from "BadAnnot02.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot02
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot02
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 1, methods: 1, attributes: 1
+Constant pool:
+{
+  public int foo;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot02();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: aload_0
+         x: iconst_1
+         x: putfield      #x                  // Field foo:I
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0      10     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot02;
+}
+SourceFile: "BadAnnot02.java"
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner.class
+  Compiled from "BadAnnot03.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot03$StaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot03$StaticInner();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner;
+}
+SourceFile: "BadAnnot03.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot03.class
+  Compiled from "BadAnnot03.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot03
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot03
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot03();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot03;
+}
+SourceFile: "BadAnnot03.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner.class
+  Compiled from "BadAnnot04.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot04$NonStaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot04$NonStaticInner(com.android.hoststubgen.test.tinyframework.outer.BadAnnot04);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot04;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner;
+            0       5     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot04;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "BadAnnot04.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot04.class
+  Compiled from "BadAnnot04.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot04
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot04
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot04();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot04;
+}
+SourceFile: "BadAnnot04.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner.class
+  Compiled from "BadAnnot11.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot11$StaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 2, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot11$StaticInner();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner;
+
+  public void foo();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=0, locals=1, args_size=1
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       1     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner;
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+}
+SourceFile: "BadAnnot11.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot11
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot11
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot11.class
+  Compiled from "BadAnnot11.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot11
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot11
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot11();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot11;
+}
+SourceFile: "BadAnnot11.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot11$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot11
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot12$StaticInner.class
+  Compiled from "BadAnnot12.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot12$StaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot12$StaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 1, methods: 1, attributes: 3
+Constant pool:
+{
+  public int foo;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot12$StaticInner();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: aload_0
+         x: iconst_1
+         x: putfield      #x                  // Field foo:I
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0      10     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot12$StaticInner;
+}
+SourceFile: "BadAnnot12.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot12
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot12$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot12
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot12.class
+  Compiled from "BadAnnot12.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot12
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot12
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot12();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot12;
+}
+SourceFile: "BadAnnot12.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot12$StaticInner
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot12$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot12
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2.class
+  Compiled from "BadAnnot13.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot13$StaticInner$StaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot13$StaticInner$StaticInner2();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2;
+}
+SourceFile: "BadAnnot13.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+InnerClasses:
+  public static #x= #x of #x;          // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+  public static #x= #x of #x;           // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner.class
+  Compiled from "BadAnnot13.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot13$StaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot13$StaticInner();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner;
+}
+SourceFile: "BadAnnot13.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+  public static #x= #x of #x;           // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot13.class
+  Compiled from "BadAnnot13.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot13
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot13();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot13;
+}
+SourceFile: "BadAnnot13.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+  public static #x= #x of #x;          // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2.class
+  Compiled from "BadAnnot14.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot14$StaticInner$NonStaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot14$StaticInner$NonStaticInner2(com.android.hoststubgen.test.tinyframework.outer.BadAnnot14$StaticInner);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2;
+            0       5     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "BadAnnot14.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+InnerClasses:
+  public static #x= #x of #x;          // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+  public #x= #x of #x;                  // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner.class
+  Compiled from "BadAnnot14.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot14$StaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot14$StaticInner();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner;
+}
+SourceFile: "BadAnnot14.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+  public #x= #x of #x;                  // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot14.class
+  Compiled from "BadAnnot14.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot14
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot14();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot14;
+}
+SourceFile: "BadAnnot14.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+  public #x= #x of #x;                 // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner.class
+  Compiled from "BadAnnot21.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot21$NonStaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 2, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot21$NonStaticInner(com.android.hoststubgen.test.tinyframework.outer.BadAnnot21);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot21;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner;
+            0       5     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot21;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+
+  public void foo();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=0, locals=1, args_size=1
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       1     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner;
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+}
+SourceFile: "BadAnnot21.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot21
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot21
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot21.class
+  Compiled from "BadAnnot21.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot21
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot21
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot21();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot21;
+}
+SourceFile: "BadAnnot21.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot21$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot21
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot22$NonStaticInner.class
+  Compiled from "BadAnnot22.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot22$NonStaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot22$NonStaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 1, methods: 1, attributes: 3
+Constant pool:
+{
+  public int foo;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot22$NonStaticInner(com.android.hoststubgen.test.tinyframework.outer.BadAnnot22);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot22;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: aload_0
+         x: iconst_1
+         x: putfield      #x                  // Field foo:I
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0      10     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot22$NonStaticInner;
+            0      10     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot22;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "BadAnnot22.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot22
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot22$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot22
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot22.class
+  Compiled from "BadAnnot22.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot22
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot22
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot22();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot22;
+}
+SourceFile: "BadAnnot22.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot22$NonStaticInner
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot22$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot22
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2.class
+  Compiled from "BadAnnot23.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot23$NonStaticInner$StaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot23$NonStaticInner$StaticInner2();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2;
+}
+SourceFile: "BadAnnot23.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+InnerClasses:
+  public #x= #x of #x;                 // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+  public static #x= #x of #x;           // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner.class
+  Compiled from "BadAnnot23.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot23$NonStaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot23$NonStaticInner(com.android.hoststubgen.test.tinyframework.outer.BadAnnot23);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot23;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner;
+            0       5     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot23;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "BadAnnot23.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+  public static #x= #x of #x;           // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot23.class
+  Compiled from "BadAnnot23.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot23
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot23();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot23;
+}
+SourceFile: "BadAnnot23.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+  public static #x= #x of #x;          // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2.class
+  Compiled from "BadAnnot24.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot24$NonStaticInner$NonStaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot24$NonStaticInner$NonStaticInner2(com.android.hoststubgen.test.tinyframework.outer.BadAnnot24$NonStaticInner);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2;
+            0       5     1 this$1   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "BadAnnot24.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+InnerClasses:
+  public #x= #x of #x;                 // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+  public #x= #x of #x;                  // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner.class
+  Compiled from "BadAnnot24.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot24$NonStaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot24$NonStaticInner(com.android.hoststubgen.test.tinyframework.outer.BadAnnot24);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner;
+            0       5     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "BadAnnot24.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+  public #x= #x of #x;                  // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot24.class
+  Compiled from "BadAnnot24.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot24
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.BadAnnot24();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/BadAnnot24;
+}
+SourceFile: "BadAnnot24.java"
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner
+  com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+  public #x= #x of #x;                 // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$Inner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 1, methods: 2, attributes: 3
+Constant pool:
+{
+  public int bar;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+
+  public com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$Inner2(com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: aload_0
+         x: iconst_2
+         x: putfield      #x                  // Field bar:I
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0      10     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2;
+            0      10     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+
+  public void foo();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=0, locals=1, args_size=1
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       1     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2;
+    RuntimeInvisibleAnnotations:
+      x: #x()
+        android.hosttest.annotation.HostSideTestKeep
+}
+SourceFile: "GoodAnnot01.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+InnerClasses:
+  public static #x= #x of #x;          // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public #x= #x of #x;                  // Inner2=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$NonStatic
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$NonStatic(com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1);
+    descriptor: (Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1;)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=2, args_size=2
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic;
+            0       5     1 this$0   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1;
+    MethodParameters:
+      Name                           Flags
+      <no name>                      final mandated
+}
+SourceFile: "GoodAnnot01.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+InnerClasses:
+  public static #x= #x of #x;          // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public #x= #x of #x;                  // NonStatic=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$Static
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$Static();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static;
+}
+SourceFile: "GoodAnnot01.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+InnerClasses:
+  public static #x= #x of #x;          // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public static #x= #x of #x;           // Static=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 3
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1;
+}
+SourceFile: "GoodAnnot01.java"
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+InnerClasses:
+  public static #x= #x of #x;           // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public #x= #x of #x;                  // NonStatic=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  public static #x= #x of #x;           // Static=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  public #x= #x of #x;                  // Inner2=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  public com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         x: aload_0
+         x: invokespecial #x                  // Method java/lang/Object."<init>":()V
+         x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            0       5     0  this   Lcom/android/hoststubgen/test/tinyframework/outer/GoodAnnot01;
+}
+SourceFile: "GoodAnnot01.java"
+RuntimeInvisibleAnnotations:
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2
+InnerClasses:
+  public static #x= #x of #x;           // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public #x= #x of #x;                 // NonStatic=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  public static #x= #x of #x;          // Static=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  public #x= #x of #x;                 // Inner2=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
 ## Class: com/android/hoststubgen/test/tinyframework/packagetest/A.class
   Compiled from "A.java"
 public class com.android.hoststubgen.test.tinyframework.packagetest.A

@@ -1,0 +1,19 @@
+package: "com.android.server.textclassifier"
+container: "system"
+
+flag {
+    name: "textclassifier_pending_request_timeout_enabled"
+    namespace: "textclassifier"
+    description: "Enable timeout for pending TextClassifier service requests."
+    bug: "441722807"
+}
+
+flag {
+    name: "textclassifier_skip_redundant_icon_rewriting"
+    namespace: "textclassifier"
+    description: "Skips rewriting of icons in TextClassifier responses for callers with full package visibility."
+    bug: "360979035"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

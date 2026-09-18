@@ -21,20 +21,20 @@ import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
 import android.tools.PlatformConsts.DESKTOP_MODE_MINIMUM_WINDOW_HEIGHT_DP
 import android.tools.PlatformConsts.DESKTOP_MODE_MINIMUM_WINDOW_WIDTH_DP
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.appLayerHasSizeAtEnd
+import com.android.wm.shell.flicker.utils.resizeVeilKeepsDecreasingInSize
 import com.android.wm.shell.scenarios.ResizeAppWithCornerResize
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.appLayerHasSizeAtEnd
-import com.android.wm.shell.flicker.utils.resizeVeilKeepsDecreasingInSize
 
 /**
  * Resize app window using corner resize to the smallest possible height and width.
@@ -45,14 +45,13 @@ import com.android.wm.shell.flicker.utils.resizeVeilKeepsDecreasingInSize
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class ResizeAppToMinimumWindowSizeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
-    inner class ResizeAppToMinimumSize : ResizeAppWithCornerResize(
-        rotation = flicker.scenario.startRotation,
-        horizontalChange = -1500,
-        verticalChange = 1500
-    )
+class ResizeAppToMinimumWindowSizeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+    inner class ResizeAppToMinimumSize :
+        ResizeAppWithCornerResize(
+            rotation = flicker.scenario.startRotation,
+            horizontalChange = -1500,
+            verticalChange = 1500,
+        )
 
     @Rule
     @JvmField
@@ -62,26 +61,20 @@ class ResizeAppToMinimumWindowSizeFlickerTest(flicker: FlickerTest) : DesktopMod
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.resizeAppWithCornerResize()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.resizeAppWithCornerResize() }
+            teardown { scenario.teardown() }
         }
 
     @Test
-    fun appLayerHasSizeAtEnd() = flicker.appLayerHasSizeAtEnd(
-        testApp,
-        DESKTOP_MODE_MINIMUM_WINDOW_WIDTH_DP,
-        DESKTOP_MODE_MINIMUM_WINDOW_HEIGHT_DP
-    )
+    fun appLayerHasSizeAtEnd() =
+        flicker.appLayerHasSizeAtEnd(
+            testApp,
+            DESKTOP_MODE_MINIMUM_WINDOW_WIDTH_DP,
+            DESKTOP_MODE_MINIMUM_WINDOW_HEIGHT_DP,
+        )
 
-    @Test
-    fun resizeVeilKeepsDecreasingInSize() = flicker.resizeVeilKeepsDecreasingInSize(testApp)
+    @Test fun resizeVeilKeepsDecreasingInSize() = flicker.resizeVeilKeepsDecreasingInSize(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

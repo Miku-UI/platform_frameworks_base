@@ -19,6 +19,7 @@ package com.android.internal.telephony;
 import android.telephony.SubscriptionInfo;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
+import android.telephony.SubscriptionPlan;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 
 interface ISub {
@@ -153,6 +154,8 @@ interface ISub {
      * @param nameSource, 0: DEFAULT_SOURCE, 1: SIM_SOURCE, 2: USER_INPUT
      * @return the number of records updated
      */
+     @JavaPassthrough(annotation = "@android.annotation.RequiresPermission("
+                    + "android.Manifest.permission.MODIFY_PHONE_STATE)")
     int setDisplayNameUsingSrc(String displayName, int subId, int nameSource);
 
     /**
@@ -298,6 +301,20 @@ interface ISub {
     void setPhoneNumber(int subId, int source, String number,
             String callingPackage, String callingFeatureId);
 
+    String getLastKnownPhoneNumberFromFirstAvailableSource(int subId,
+            String callingPackage, String callingFeatureId);
+
+    /**
+     * Check whether the named package can "manage" the named subscription as the specified user.
+     *
+     * @param subInfo the SubscriptionInfo to check
+     * @param packageName either self package name if calling from the public API or
+     *         the target package if calling from a privileged process
+     * @param user the UserHandle from which to check the package
+     */
+    boolean canManageSubscriptionAsUser(
+            in SubscriptionInfo info, String packageName, in UserHandle user);
+
     /**
      * Set the Usage Setting for this subscription.
      *
@@ -411,4 +428,49 @@ interface ISub {
      */
     @EnforcePermission("WRITE_EMBEDDED_SUBSCRIPTIONS")
     void setTransferStatus(int subId, int status);
+
+    /**
+     * Set the enrollable subscription plans for a specific subscription.
+     *
+     * @param subId the subscription ID of the subscription.
+     * @param plans the array of SubscriptionPlans.
+     * @param expirationDurationMillis the duration after which the subscription plans
+     *        will be automatically cleared, or {@code 0} to leave the plans until
+     *        explicitly cleared, or the next reboot, whichever happens first
+     * @param callingPackage the package name that called this function
+     */
+    void setEnrollableSubscriptionPlans(int subId, in SubscriptionPlan[] plans,
+            long expirationDurationMillis, String callingPackage);
+
+    /**
+     * Get the enrollable subscription plans for the given subscription id.
+     *
+     * @param subId the subscription ID of the subscription.
+     * @param callingPackage the package name that called this function
+     * @return the enrollable {@link SubscriptionPlan}s for the given subscription id, or
+     *         {@code null} if not found.
+     */
+    SubscriptionPlan[] getEnrollableSubscriptionPlans(int subId, String callingPackage);
+
+    /**
+     * Get the package name that owns the enrollable subscription plans.
+     * Only callable by the system.
+     *
+     * @param subId the subscriber to get the owner for.
+     * @return the package name, or null if not found.
+     */
+    String getEnrollableSubscriptionPlansOwner(int subId);
+
+    /**
+     * Returns the SIM PINs database for backing up.
+     */
+    @EnforcePermission("CONTROL_SIM_AUTO_PIN_MANAGEMENT")
+    byte[] getAllPlatformManagedPinsForBackup();
+
+    /**
+     * Called during setup wizard restore flow to attempt to restore the backed up SIM card PINs.
+     * @param data with the SIM card PINs database to restore.
+     */
+    @EnforcePermission("CONTROL_SIM_AUTO_PIN_MANAGEMENT")
+    void restorePlatformManagedSimPins(in byte[] data);
 }

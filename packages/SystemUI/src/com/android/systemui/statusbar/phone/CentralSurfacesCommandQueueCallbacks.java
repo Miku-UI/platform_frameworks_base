@@ -46,6 +46,7 @@ import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.systemui.assist.AssistManager;
 import com.android.systemui.camera.CameraIntents;
+import com.android.systemui.camera.domain.interactor.CameraNotifyWarmUpInteractor;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.DisplayId;
 import com.android.systemui.dagger.qualifiers.Main;
@@ -55,8 +56,6 @@ import com.android.systemui.keyguard.WakefulnessLifecycle;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.qs.QSHost;
-import com.android.systemui.qs.QSPanelController;
-import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.recents.ScreenPinningRequest;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
@@ -106,6 +105,7 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
     private final NotificationStackScrollLayoutController mNotificationStackScrollLayoutController;
     private final StatusBarHideIconsForBouncerManager mStatusBarHideIconsForBouncerManager;
     private final PowerManager mPowerManager;
+    private final CameraNotifyWarmUpInteractor mCameraNotifyWarmUpInteractor;
     private final Optional<Vibrator> mVibratorOptional;
     private final int mDisplayId;
     private final UserTracker mUserTracker;
@@ -154,6 +154,7 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
             NotificationStackScrollLayoutController notificationStackScrollLayoutController,
             StatusBarHideIconsForBouncerManager statusBarHideIconsForBouncerManager,
             PowerManager powerManager,
+            CameraNotifyWarmUpInteractor cameraNotifyWarmUpInteractor,
             Optional<Vibrator> vibratorOptional,
             @DisplayId int displayId,
             Lazy<CameraLauncher> cameraLauncherLazy,
@@ -185,6 +186,7 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
         mNotificationStackScrollLayoutController = notificationStackScrollLayoutController;
         mStatusBarHideIconsForBouncerManager = statusBarHideIconsForBouncerManager;
         mPowerManager = powerManager;
+        mCameraNotifyWarmUpInteractor = cameraNotifyWarmUpInteractor;
         mVibratorOptional = vibratorOptional;
         mDisplayId = displayId;
         mCameraLauncherLazy = cameraLauncherLazy;
@@ -221,16 +223,8 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
 
     @Override
     public void clickTile(ComponentName tile) {
-        if (QsInCompose.isEnabled()) {
-            if (tile != null) {
-                mQSHost.clickTile(tile);
-            }
-        } else {
-            // Can't inject this because it changes with the QS fragment
-            QSPanelController qsPanelController = mCentralSurfaces.getQSPanelController();
-            if (qsPanelController != null) {
-                qsPanelController.clickTile(tile);
-            }
+        if (tile != null) {
+            mQSHost.clickTile(tile);
         }
     }
 
@@ -301,7 +295,7 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
 
         if ((diff1 & StatusBarManager.DISABLE_NOTIFICATION_ALERTS) != 0) {
             if ((state1 & StatusBarManager.DISABLE_NOTIFICATION_ALERTS) != 0) {
-                mHeadsUpManager.releaseAllImmediately();
+                mHeadsUpManager.releaseAllImmediately("CentralSurfacesCommandQueueCallbacks");
             }
         }
 
@@ -344,7 +338,7 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
                 }
                 mShadeController.animateExpandShade();
                 mNotificationStackScrollLayoutController.setWillExpand(true);
-                mHeadsUpManager.unpinAll(true /* userUnpinned */);
+                mHeadsUpManager.unpinAll(true /* userUnpinned */, "CentralSurfaces");
                 mMetricsLogger.count("panel_open", 1);
             } else if (!mQsController.getExpanded()
                     && !mShadeController.isExpandingOrCollapsing()) {
@@ -393,6 +387,9 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
         }
 
         if (!mKeyguardStateController.isShowing()) {
+            if (com.android.internal.camera.flags.Flags.cameraWarmUp()) {
+                mCameraNotifyWarmUpInteractor.notifyCameraWarmUp();
+            }
             final Intent cameraIntent = CameraIntents.getInsecureCameraIntent(mContext, mUserTracker.getUserId());
             cameraIntent.putExtra(CameraIntents.EXTRA_LAUNCH_SOURCE, source);
             mActivityStarter.startActivityDismissingKeyguard(cameraIntent,
@@ -721,6 +718,9 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
     }
 
     private void startInsecureCameraIntent(int source) {
+        if (com.android.internal.camera.flags.Flags.cameraWarmUp()) {
+            mCameraNotifyWarmUpInteractor.notifyCameraWarmUp();
+        }
         final Intent cameraIntent = CameraIntents.getInsecureCameraIntent(mContext,
                 mUserTracker.getUserId());
         cameraIntent.putExtra(CameraIntents.EXTRA_LAUNCH_SOURCE, source);

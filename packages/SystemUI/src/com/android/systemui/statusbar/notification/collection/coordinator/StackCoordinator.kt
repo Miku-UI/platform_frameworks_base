@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.notification.collection.coordinator
 import android.util.Log
 import com.android.app.tracing.traceSection
 import com.android.server.notification.Flags.screenshareNotificationHiding
-import com.android.systemui.Flags.screenshareNotificationHidingBugFix
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
@@ -75,7 +74,6 @@ constructor(
 
         val isSensitiveContentProtectionActive =
             screenshareNotificationHiding() &&
-                    screenshareNotificationHidingBugFix() &&
                     sensitiveNotificationProtectionController.isSensitiveStateActive
 
         val notifEntryList = getFlatNotifEntryList(entries)

@@ -23,6 +23,8 @@ import android.hardware.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Provides Lut properties of the device.
@@ -84,6 +86,22 @@ public final class LutProperties {
         return mDimension;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || !(obj instanceof LutProperties)) {
+            return false;
+        }
+        LutProperties that = (LutProperties) obj;
+        return mDimension == that.mDimension
+               && mSize == that.mSize
+               && Arrays.equals(mSamplingKeys, that.mSamplingKeys);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mDimension, mSize, Arrays.hashCode(mSamplingKeys));
+    }
+
     /**
      * @return the size of the Lut for each dimension
      */
@@ -104,9 +122,48 @@ public final class LutProperties {
         return mSamplingKeys;
     }
 
+    private String samplingKeyToString(@SamplingKey int samplingKey) {
+        switch(samplingKey) {
+            case 0:
+                return "RGB";
+            case 1:
+                return "MAX_RGB";
+            case 2:
+                return "CIE_Y";
+            default:
+                return String.valueOf(samplingKey);
+        }
+    }
+
+    private String samplingKeysToString() {
+        if (mSamplingKeys.length == 0) {
+            return "[]";
+        }
+
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < mSamplingKeys.length; i++) {
+            sb.append(samplingKeyToString(mSamplingKeys[i]));
+            if (i != mSamplingKeys.length - 1) {
+                sb.append(", ");
+            }
+        }
+        sb.append("]");
+
+        return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        return "LutProperties{"
+                + "dimension=" + mDimension
+                + ", size=" + mSize
+                + ", samplingKeys=" + samplingKeysToString()
+                + "}";
+    }
+
     /* use in the native code */
     private LutProperties(@Dimension int dimension, int size, @SamplingKey int[] samplingKeys) {
-        if (dimension != ONE_DIMENSION || dimension != THREE_DIMENSION) {
+        if (dimension != ONE_DIMENSION && dimension != THREE_DIMENSION) {
             throw new IllegalArgumentException("The dimension is either 1 or 3!");
         }
         mDimension = dimension;

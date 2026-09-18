@@ -19,10 +19,10 @@ package android.telecom.Logging;
 import android.annotation.NonNull;
 import android.telecom.Log;
 import android.text.TextUtils;
+import android.util.IndentingPrintWriter;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.time.Instant;
 import java.time.ZoneId;

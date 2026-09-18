@@ -211,7 +211,7 @@ public class TelephonyRegistryManager {
             Log.d(TAG, "addOnOpportunisticSubscriptionsChangedListener listener already present");
             return;
         }
-        /**
+        /*
          * The callback methods need to be called on the executor thread where
          * this object was created.  If the binder did that for us it'd be nice.
          */
@@ -1181,6 +1181,26 @@ public class TelephonyRegistryManager {
         }
     }
 
+    /**
+     * Notify external listeners that satellite purchase mode changed.
+     *
+     * @param subId subscription ID.
+     * @param isEnabled {@code true} If satellite purchase mode is started,
+     *                         {@code false} if purchase mode ends.
+     * @param purchaseModeState State of the purchase mode. Network setup, teardown and Purchase
+     *                          Mode active or inactive. Inactive by default.
+     * @hide
+     */
+    public void notifySatellitePurchaseModeChanged(int subId, boolean isEnabled,
+            @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+        try {
+            sRegistry.notifySatellitePurchaseModeChanged(subId, isEnabled, purchaseModeState);
+        } catch (RemoteException ex) {
+            // system server crash
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
    /**
      * Notify external listeners that the radio security algorithms have changed.
      * @param slotIndex for the phone object that got updated
@@ -1209,6 +1229,64 @@ public class TelephonyRegistryManager {
             int slotIndex, int subId, CellularIdentifierDisclosure disclosure) {
         try {
             sRegistry.notifyCellularIdentifierDisclosedChanged(slotIndex, subId, disclosure);
+        } catch (RemoteException ex) {
+            // system server crash
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Notify the listeners that emergency mode has been entered
+     * when AP domain selection is enabled.
+     *
+     * @param slotIndex for which the emergency mode changed.
+     * @param subId for which the emergency mode changed.
+     * @param type the emergency type of emergency mode change.
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     * @hide
+     */
+    public void notifyDomainSelectionEmergencyModeEntered(int slotIndex, int subId,
+            @TelephonyManager.DomainSelectionEmergencyType int type) {
+        try {
+            sRegistry.notifyDomainSelectionEmergencyModeChanged(slotIndex, subId, type, true);
+        } catch (RemoteException ex) {
+            // system server crash
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Notify the listeners that emergency mode has been exited
+     * when AP domain selection is enabled.
+     *
+     * @param slotIndex for which the emergency mode changed.
+     * @param subId for which the emergency mode changed.
+     * @param type the emergency type of emergency mode change.
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     * @hide
+     */
+    public void notifyDomainSelectionEmergencyModeExited(int slotIndex, int subId,
+            @TelephonyManager.DomainSelectionEmergencyType int type) {
+        try {
+            sRegistry.notifyDomainSelectionEmergencyModeChanged(slotIndex, subId, type, false);
+        } catch (RemoteException ex) {
+            // system server crash
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Notify external listeners of new network security events.
+     *
+     * @param slotIndex for the phone object that the event applies to
+     * @param subId for which the event applies to
+     * @param events details of the network security event
+     * @hide
+     */
+    public void notifyNetworkSecurityEvents(
+            int slotIndex, int subId, Set<NetworkSecurityEvent> events) {
+        try {
+            sRegistry.notifyNetworkSecurityEvents(slotIndex, subId, List.copyOf(events));
         } catch (RemoteException ex) {
             // system server crash
             throw ex.rethrowFromSystemServer();
@@ -1375,12 +1453,24 @@ public class TelephonyRegistryManager {
             eventList.add(TelephonyCallback.EVENT_CARRIER_ROAMING_NTN_SIGNAL_STRENGTH_CHANGED);
         }
 
+        if (telephonyCallback instanceof TelephonyCallback.SatellitePurchaseModeListener) {
+            eventList.add(TelephonyCallback.EVENT_SATELLITE_PURCHASE_MODE_CHANGED);
+        }
+
         if (telephonyCallback instanceof TelephonyCallback.CellularIdentifierDisclosedListener) {
             eventList.add(TelephonyCallback.EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED);
         }
 
         if (telephonyCallback instanceof TelephonyCallback.SecurityAlgorithmsListener) {
             eventList.add(TelephonyCallback.EVENT_SECURITY_ALGORITHMS_CHANGED);
+        }
+
+        if (telephonyCallback instanceof TelephonyCallback.DomainSelectionEmergencyModeListener) {
+            eventList.add(TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED);
+        }
+
+        if (telephonyCallback instanceof TelephonyCallback.NetworkSecurityEventsListener) {
+            eventList.add(TelephonyCallback.EVENT_NETWORK_SECURITY_EVENTS);
         }
 
         return eventList;
@@ -1557,15 +1647,20 @@ public class TelephonyRegistryManager {
         Objects.requireNonNull(executor, "registerTelephonyCallback: executor cannot be null.");
         Objects.requireNonNull(callback, "registerTelephonyCallback: callback cannot be null.");
 
-        callback.init(executor);
         final int[] events = getEventsFromCallback(callback).stream().mapToInt(i -> i).toArray();
         if (events.length == 0) {
             throw new IllegalArgumentException(
                     "registerTelephonyCallback(): callback must implement at least one listener.");
         }
 
-        listenFromCallback(renounceFineLocationAccess, renounceCoarseLocationAccess, subId,
-                pkgName, attributionTag, callback, events, notifyNow);
+        callback.init(executor);
+        try {
+            listenFromCallback(renounceFineLocationAccess, renounceCoarseLocationAccess, subId,
+                    pkgName, attributionTag, callback, events, notifyNow);
+        } catch (Throwable t) {
+            callback.close();
+            throw t;
+        }
     }
 
     /**
@@ -1576,8 +1671,12 @@ public class TelephonyRegistryManager {
      */
     public void unregisterTelephonyCallback(int subId, String pkgName, String attributionTag,
             @NonNull TelephonyCallback callback, boolean notifyNow) {
-        listenFromCallback(false, false, subId,
-                pkgName, attributionTag, callback, new int[0], notifyNow);
+        try {
+            listenFromCallback(false, false, subId,
+                    pkgName, attributionTag, callback, new int[0], notifyNow);
+        } finally {
+            callback.close();
+        }
     }
 
     @NonNull

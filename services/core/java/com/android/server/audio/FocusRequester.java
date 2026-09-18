@@ -211,6 +211,14 @@ public class FocusRequester {
         return mSdkTarget;
     }
 
+    IBinder getSourceRef() {
+        return mSourceRef;
+    }
+
+    IAudioFocusDispatcher getFocusDispatcher() {
+        return mFocusDispatcher;
+    }
+
     private static String focusChangeToString(int focus) {
         switch(focus) {
             case AudioManager.AUDIOFOCUS_NONE:

@@ -31,7 +31,7 @@ import org.junit.runners.model.Statement
  * was conceivable, so this rule is intended to support those legacy tests.
  */
 class AnimatorIsolationWorkaroundRule(
-    private val requiredLooper: Looper? = Looper.getMainLooper(),
+    private val requiredLooper: Looper? = Looper.getMainLooper()
 ) : TestRule {
     private inner class IsolationWorkaroundHandler(ruleThread: Thread) : AnimationHandler() {
         private val exceptionDeferrer = TestExceptionDeferrer(TAG, ruleThread)
@@ -48,11 +48,6 @@ class AnimatorIsolationWorkaroundRule(
                 addedCallbacks.add(callback)
             }
             super.addAnimationFrameCallback(callback, delay)
-        }
-
-        override fun addOneShotCommitCallback(callback: AnimationFrameCallback?) {
-            checkLooper()
-            super.addOneShotCommitCallback(callback)
         }
 
         override fun removeCallback(callback: AnimationFrameCallback?) {

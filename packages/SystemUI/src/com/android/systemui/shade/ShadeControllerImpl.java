@@ -27,17 +27,18 @@ import com.android.keyguard.KeyguardViewController;
 import com.android.systemui.DejankUtils;
 import com.android.systemui.assist.AssistManager;
 import com.android.systemui.dagger.SysUISingleton;
-import com.android.systemui.dagger.qualifiers.DisplayId;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.scene.domain.interactor.WindowRootViewVisibilityInteractor;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
+import com.android.systemui.shade.domain.interactor.ShadeDisplaysInteractor;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.NotificationShadeWindowController;
 import com.android.systemui.statusbar.StatusBarState;
 import com.android.systemui.statusbar.notification.row.NotificationGutsManager;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
+import com.android.systemui.statusbar.window.StatusBarWindowController;
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore;
 
 import dagger.Lazy;
@@ -53,8 +54,6 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
     private static final String TAG = "ShadeControllerImpl";
     private static final boolean SPEW = false;
 
-    private final int mDisplayId;
-
     private final CommandQueue mCommandQueue;
     private final Executor mMainExecutor;
     private final WindowRootViewVisibilityInteractor mWindowRootViewVisibilityInteractor;
@@ -68,10 +67,10 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
     private final Lazy<NotificationPanelViewController> mNpvc;
     private final Lazy<AssistManager> mAssistManagerLazy;
     private final Lazy<NotificationGutsManager> mGutsManager;
+    private final Lazy<ShadeDisplaysInteractor> mShadeDisplaysInteractorLazy;
 
     private boolean mExpandedVisible;
     private boolean mLockscreenOrShadeVisible;
-
     private ShadeVisibilityListener mShadeVisibilityListener;
 
     @Inject
@@ -85,16 +84,17 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
             StatusBarWindowControllerStore statusBarWindowControllerStore,
             DeviceProvisionedController deviceProvisionedController,
             NotificationShadeWindowController notificationShadeWindowController,
-            @DisplayId int displayId,
             Lazy<NotificationShadeWindowViewController> notificationShadeWindowViewController,
             Lazy<NotificationPanelViewController> shadeViewControllerLazy,
             Lazy<AssistManager> assistManagerLazy,
-            Lazy<NotificationGutsManager> gutsManager
+            Lazy<NotificationGutsManager> gutsManager,
+            Lazy<ShadeDisplaysInteractor> shadeDisplaysInteractorLazy
     ) {
         super(commandQueue,
                 keyguardViewController,
                 notificationShadeWindowController,
                 assistManagerLazy);
+        mShadeDisplaysInteractorLazy = shadeDisplaysInteractorLazy;
         SceneContainerFlag.assertInLegacyMode();
         mCommandQueue = commandQueue;
         mMainExecutor = mainExecutor;
@@ -106,7 +106,6 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
         mGutsManager = gutsManager;
         mNotificationShadeWindowController = notificationShadeWindowController;
         mNotifShadeWindowViewController = notificationShadeWindowViewController;
-        mDisplayId = displayId;
         mKeyguardStateController = keyguardStateController;
         mAssistManagerLazy = assistManagerLazy;
     }
@@ -121,7 +120,7 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
         // Make our window larger and the panel expanded.
         makeExpandedVisible(true /* force */);
         getNpvc().expand(false /* animate */);
-        getCommandQueue().recomputeDisableFlags(mDisplayId, false /* animate */);
+        getCommandQueue().recomputeDisableFlags(getDisplayId(), false /* animate */);
     }
 
     @Override
@@ -293,7 +292,7 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
         mNotificationShadeWindowController.setPanelVisible(true);
 
         notifyVisibilityChanged(true);
-        getCommandQueue().recomputeDisableFlags(mDisplayId, !force /* animate */);
+        getCommandQueue().recomputeDisableFlags(getDisplayId(), !force /* animate */);
         notifyExpandedVisibleChanged(true);
     }
 
@@ -313,8 +312,13 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
 
         // Update the visibility of notification shade and status bar window.
         mNotificationShadeWindowController.setPanelVisible(false);
-        mStatusBarWindowControllerStore.getDefaultDisplay().setForceStatusBarVisible(
-                false, /* source=*/ "ShadeControllerImpl#makeExpandedInvisible");
+        StatusBarWindowController statusBarWindowController =
+                mStatusBarWindowControllerStore.forDisplay(getDisplayId());
+        if (statusBarWindowController != null) {
+            statusBarWindowController.setForceStatusBarVisible(
+                    /* forceStatusBarVisible= */ false,
+                    /* source= */ "ShadeControllerImpl#makeExpandedInvisible");
+        }
 
         // Close any guts that might be visible
         mGutsManager.get().closeAndSaveGuts(
@@ -328,7 +332,7 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
         runPostCollapseActions();
         notifyExpandedVisibleChanged(false);
         getCommandQueue().recomputeDisableFlags(
-                mDisplayId,
+                getDisplayId(),
                 getNpvc().shouldHideStatusBarIconsWhenExpanded());
 
         // Trimming will happen later if Keyguard is showing - doing it here might cause a jank in
@@ -404,4 +408,7 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
         }
     }
 
+    private int getDisplayId() {
+        return mShadeDisplaysInteractorLazy.get().getDisplayId().getValue();
+    }
 }

@@ -65,7 +65,9 @@ public final class ManualTimeZoneSuggestion implements Parcelable {
         String zoneId = in.readString();
         ManualTimeZoneSuggestion suggestion = new ManualTimeZoneSuggestion(zoneId);
         @SuppressWarnings("unchecked")
-        ArrayList<String> debugInfo = (ArrayList<String>) in.readArrayList(null /* classLoader */, java.lang.String.class);
+        ArrayList<String> debugInfo =
+                (ArrayList<String>)
+                        in.readArrayList(null /* classLoader */, java.lang.String.class);
         suggestion.mDebugInfo = debugInfo;
         return suggestion;
     }
@@ -89,13 +91,14 @@ public final class ManualTimeZoneSuggestion implements Parcelable {
     @NonNull
     public List<String> getDebugInfo() {
         return mDebugInfo == null
-                ? Collections.emptyList() : Collections.unmodifiableList(mDebugInfo);
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(mDebugInfo);
     }
 
     /**
      * Associates information with the instance that can be useful for debugging / logging. The
-     * information is present in {@link #toString()} but is not considered for
-     * {@link #equals(Object)} and {@link #hashCode()}.
+     * information is present in {@link #toString()} but is not considered for {@link
+     * #equals(Object)} and {@link #hashCode()}.
      */
     public void addDebugInfo(String... debugInfos) {
         if (mDebugInfo == null) {
@@ -112,8 +115,7 @@ public final class ManualTimeZoneSuggestion implements Parcelable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ManualTimeZoneSuggestion
-                that = (ManualTimeZoneSuggestion) o;
+        ManualTimeZoneSuggestion that = (ManualTimeZoneSuggestion) o;
         return Objects.equals(mZoneId, that.mZoneId);
     }
 
@@ -125,8 +127,10 @@ public final class ManualTimeZoneSuggestion implements Parcelable {
     @Override
     public String toString() {
         return "ManualTimeZoneSuggestion{"
-                + "mZoneId=" + mZoneId
-                + ", mDebugInfo=" + mDebugInfo
+                + "mZoneId="
+                + mZoneId
+                + ", mDebugInfo="
+                + mDebugInfo
                 + '}';
     }
 
@@ -136,13 +140,8 @@ public final class ManualTimeZoneSuggestion implements Parcelable {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--zone_id": {
-                    zoneId = cmd.getNextArgRequired();
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--zone_id" -> zoneId = cmd.getNextArgRequired();
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
         ManualTimeZoneSuggestion suggestion = new ManualTimeZoneSuggestion(zoneId);

@@ -16,16 +16,19 @@
 
 package com.android.systemui.qs.pipeline.data.repository
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testCase
-import com.android.systemui.kosmos.testScope
+import com.android.systemui.qs.flags.QsSplitInternetTile
+import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -35,76 +38,98 @@ class DefaultTilesQSHostRepositoryTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
 
-    @Before
-    fun setup() {
-        overrideDefaultTilesResource(DEFAULT_TILES)
-    }
+    private val Kosmos.underTest by
+        Kosmos.Fixture {
+            DefaultTilesQSHostRepository(testCase.context.resources, hsuTilesRepository)
+        }
+
+    @Test
+    @DisableFlags(QsSplitInternetTile.FLAG_NAME)
+    fun flagDisabled_hasInternet_noWifi() =
+        kosmos.runTest {
+            assertThat(underTest.getDefaultTiles(false)).contains(internetTileSpec)
+            assertThat(underTest.getDefaultTiles(false)).doesNotContain(wifiTileSpec)
+        }
+
+    @Test
+    @EnableFlags(QsSplitInternetTile.FLAG_NAME)
+    @DisableFlags(QsSplitInternetTile.SUPPRESSION_FLAG_NAME)
+    fun flagEnabled_hasWifi_noInternet() =
+        kosmos.runTest {
+            assertThat(underTest.getDefaultTiles(false)).contains(wifiTileSpec)
+            assertThat(underTest.getDefaultTiles(false)).doesNotContain(internetTileSpec)
+        }
 
     @Test
     fun getDefaultTiles_notHeadlessSystemUser_returnDefault() =
-        with(kosmos) {
-            testScope.runTest {
-                val isHeadlessSystemUser = false
-                val underTest =
-                    DefaultTilesQSHostRepository(testCase.context.resources, hsuTilesRepository)
+        kosmos.runTest {
+            overrideDefaultTilesResource(CUSTOM_DEFAULT_TILES)
+            val isHeadlessSystemUser = false
 
-                val result = underTest.getDefaultTiles(isHeadlessSystemUser)
+            val result = underTest.getDefaultTiles(isHeadlessSystemUser)
 
-                assertThat(result).isEqualTo(TilesSettingConverter.toTilesList(DEFAULT_TILES))
-            }
+            assertThat(result).isEqualTo(TilesSettingConverter.toTilesList(CUSTOM_DEFAULT_TILES))
         }
 
     @Test
     fun getDefaultTiles_isHeadlessSystemUser_returnHsuAllowList() =
-        with(kosmos) {
-            testScope.runTest {
-                val isHeadlessSystemUser = true
-                overrideHsuAllowListResource(arrayOf("x", "y", "z"))
-                val underTest =
-                    DefaultTilesQSHostRepository(testCase.context.resources, hsuTilesRepository)
+        kosmos.runTest {
+            overrideDefaultTilesResource(CUSTOM_DEFAULT_TILES)
+            val isHeadlessSystemUser = true
+            overrideHsuAllowListResource(arrayOf("x", "y", "z"))
 
-                val result = underTest.getDefaultTiles(isHeadlessSystemUser)
+            val result = underTest.getDefaultTiles(isHeadlessSystemUser)
 
-                assertThat(result).isEqualTo(TilesSettingConverter.toTilesList("x,y,z"))
-            }
+            assertThat(result).isEqualTo(TilesSettingConverter.toTilesList("x,y,z"))
         }
 
     @Test
     fun getDefaultTiles_isHeadlessSystemUserWithEmptyHsuAllowList_returnDefault() =
-        with(kosmos) {
-            testScope.runTest {
-                val isHeadlessSystemUser = true
-                overrideHsuAllowListResource(emptyArray())
-                val underTest =
-                    DefaultTilesQSHostRepository(testCase.context.resources, hsuTilesRepository)
+        kosmos.runTest {
+            overrideDefaultTilesResource(CUSTOM_DEFAULT_TILES)
+            val isHeadlessSystemUser = true
+            overrideHsuAllowListResource(emptyArray())
 
-                val result = underTest.getDefaultTiles(isHeadlessSystemUser)
+            val result = underTest.getDefaultTiles(isHeadlessSystemUser)
 
-                assertThat(result).isEqualTo(TilesSettingConverter.toTilesList(DEFAULT_TILES))
-            }
+            assertThat(result).isEqualTo(TilesSettingConverter.toTilesList(CUSTOM_DEFAULT_TILES))
         }
 
-    private fun overrideDefaultTilesResource(defaultTiles: String) =
-        with(kosmos) {
-            testCase.context.orCreateTestableResources.addOverride(
-                R.string.quick_settings_tiles_default,
-                defaultTiles,
-            )
-            testCase.context.orCreateTestableResources.addOverride(
-                R.string.quick_settings_tiles_new_default,
-                defaultTiles,
-            )
+    @Test
+    @EnableFlags(QsSplitInternetTile.FLAG_NAME)
+    @DisableFlags(QsSplitInternetTile.SUPPRESSION_FLAG_NAME)
+    fun getDefaultTiles_headlessSystemUser_withInternetTile_flagEnabled_hasWifiInstead() =
+        kosmos.runTest {
+            overrideDefaultTilesResource(CUSTOM_DEFAULT_TILES)
+            val isHeadlessSystemUser = true
+            overrideHsuAllowListResource(arrayOf("x", "internet", "z"))
+
+            val result = underTest.getDefaultTiles(isHeadlessSystemUser)
+
+            assertThat(result).isEqualTo(TilesSettingConverter.toTilesList("x,wifi,z"))
         }
 
-    private fun overrideHsuAllowListResource(allowList: Array<String>) =
-        with(kosmos) {
-            testCase.context.orCreateTestableResources.addOverride(
-                R.array.hsu_allow_list_qs_tiles,
-                allowList,
-            )
-        }
+    private fun Kosmos.overrideDefaultTilesResource(defaultTiles: String) {
+        testCase.context.orCreateTestableResources.addOverride(
+            if (QsSplitInternetTile.isEnabled) {
+                R.string.quick_settings_tiles_default_split
+            } else {
+                R.string.quick_settings_tiles_default
+            },
+            defaultTiles,
+        )
+    }
+
+    private fun Kosmos.overrideHsuAllowListResource(allowList: Array<String>) {
+        testCase.context.orCreateTestableResources.addOverride(
+            R.array.hsu_allow_list_qs_tiles,
+            allowList,
+        )
+    }
 
     companion object {
-        private const val DEFAULT_TILES = "a,b,c"
+        private val internetTileSpec = TileSpec.create("internet")
+        private val wifiTileSpec = TileSpec.create("wifi")
+        private const val CUSTOM_DEFAULT_TILES = "a,b,c"
     }
 }

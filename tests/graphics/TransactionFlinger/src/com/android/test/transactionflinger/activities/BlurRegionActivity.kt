@@ -88,7 +88,7 @@ class BlurRegionActivity : SceneActivity() {
                     blurRegion = Scene.BlurRegion(
                         10.0, 1.0,
                         0.25, 0.25, 0.75, 0.75, 0.0,
-                        0.0, 0.0, 0.0
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                     )
                 }
             }

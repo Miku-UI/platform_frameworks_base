@@ -52,6 +52,8 @@
 
                 <include layout="@layout/notification_2025_title" />
 
+                <include layout="@layout/notification_2025_subtext" />
+
                 <include layout="@layout/notification_template_text_multiline" />
 
                 <LinearLayout

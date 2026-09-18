@@ -41,6 +41,10 @@ import static android.app.AppOpsManager.OP_READ_SKIN_TEMPERATURE;
 import static android.app.AppOpsManager.OP_RECEIVE_AMBIENT_TRIGGER_AUDIO;
 import static android.app.AppOpsManager.OP_RECEIVE_SANDBOX_TRIGGER_AUDIO;
 import static android.app.AppOpsManager.OP_RECORD_AUDIO;
+import static android.app.AppOpsManager.OP_READ_BLOOD_PRESSURE;
+import static android.app.AppOpsManager.OP_READ_HEART_RATE_VARIABILITY;
+import static android.app.AppOpsManager.OP_READ_RESPIRATORY_RATE;
+import static android.app.AppOpsManager.OP_READ_VO2_MAX;
 import static android.app.AppOpsManager.OP_RESERVED_FOR_TESTING;
 import static android.app.AppOpsManager.OP_RUN_IN_BACKGROUND;
 
@@ -161,6 +165,10 @@ public class HistoricalRegistry implements HistoricalRegistryInterface {
             OP_READ_HEART_RATE,
             OP_READ_OXYGEN_SATURATION,
             OP_READ_SKIN_TEMPERATURE,
+            OP_READ_BLOOD_PRESSURE,
+            OP_READ_HEART_RATE_VARIABILITY,
+            OP_READ_RESPIRATORY_RATE,
+            OP_READ_VO2_MAX,
             OP_RESERVED_FOR_TESTING
     };
     // These app ops are deemed important for detecting a malicious app, and are recorded

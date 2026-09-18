@@ -28,7 +28,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.inputdevice.tutorial.ui.TutorialNotificationCoordinator
 import com.android.systemui.inputdevice.tutorial.ui.view.KeyboardTouchpadTutorialActivity
-import com.android.systemui.shared.Flags.newTouchpadGesturesTutorial
 import dagger.Lazy
 import javax.inject.Inject
 
@@ -42,10 +41,8 @@ constructor(
     @Application private val applicationContext: Context,
 ) : CoreStartable {
     override fun start() {
-        if (newTouchpadGesturesTutorial()) {
-            tutorialNotificationCoordinator.get().start()
-            registerTutorialBroadcastReceiver()
-        }
+        tutorialNotificationCoordinator.get().start()
+        registerTutorialBroadcastReceiver()
     }
 
     private fun registerTutorialBroadcastReceiver() {

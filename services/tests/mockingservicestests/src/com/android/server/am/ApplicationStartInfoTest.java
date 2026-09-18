@@ -123,7 +123,7 @@ public class ApplicationStartInfoTest {
                 mContext.getMainLooper());
         mAms.mAtmInternal = spy(mAms.mActivityTaskManager.getAtmInternal());
         mAms.mPackageManagerInt = mPackageManagerInt;
-        mAppStartInfoTracker.mService = mAms;
+        mAppStartInfoTracker.init(mAms);
         doReturn(new ComponentName("", "")).when(mPackageManagerInt).getSystemUiServiceComponent();
         doReturn("com.android.test").when(mPackageManagerInt).getNameForUid(anyInt());
         // Remove stale instance of PackageManagerInternal if there is any
@@ -134,8 +134,6 @@ public class ApplicationStartInfoTest {
                 Clock.SYSTEM_CLOCK.elapsedRealtime(), Clock.SYSTEM_CLOCK);
         mAppStartInfoTracker.clearProcessStartInfo(true);
         mAppStartInfoTracker.mAppStartInfoLoaded.set(true);
-        mAppStartInfoTracker.mAppStartInfoHistoryListSize =
-                mAppStartInfoTracker.APP_START_INFO_HISTORY_LIST_SIZE;
         doNothing().when(mAppStartInfoTracker).schedulePersistProcessStartInfo(anyBoolean());
 
         mAppStartInfoTracker.mProcStartStoreDir = new File(mContext.getFilesDir(),
@@ -152,6 +150,16 @@ public class ApplicationStartInfoTest {
     @Test
     @EnableFlags(android.app.Flags.FLAG_APP_START_INFO_COMPONENT)
     public void testApplicationStartInfo() throws Exception {
+        testApplicationStartInfoVariant(/*isNativeService=*/ false);
+    }
+
+    @Test
+    @EnableFlags(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE)
+    public void testApplicationStartInfoNative() throws Exception {
+        testApplicationStartInfoVariant(/*isNativeService=*/ true);
+    }
+
+    private void testApplicationStartInfoVariant(boolean isNativeService) throws Exception {
         // Make sure we can write to the file.
         assertTrue(FileUtils.createDir(mAppStartInfoTracker.mProcStartStoreDir));
 
@@ -169,7 +177,8 @@ public class ApplicationStartInfoTest {
                 APP_1_UID,                   // packageUid
                 null,                        // definingUid
                 APP_1_PROCESS_NAME,          // processName
-                APP_1_PACKAGE_NAME);         // packageName
+                APP_1_PACKAGE_NAME,          // packageName
+                isNativeService);
 
         ArrayList<ApplicationStartInfo> list = new ArrayList<ApplicationStartInfo>();
 
@@ -340,7 +349,8 @@ public class ApplicationStartInfoTest {
                 APP_1_UID,                   // packageUid
                 APP_1_DEFINING_UID,          // definingUid
                 APP_1_PROCESS_NAME,          // processName
-                APP_1_PACKAGE_NAME);         // packageName
+                APP_1_PACKAGE_NAME,          // packageName
+                isNativeService);
         ServiceRecord service = ServiceRecord.newEmptyInstanceForTest(mAms);
 
         mAppStartInfoTracker.handleProcessServiceStart(appStartTimestampService, app, service);
@@ -369,7 +379,8 @@ public class ApplicationStartInfoTest {
                 APP_1_UID_USER_2,                // packageUid
                 null,                            // definingUid
                 APP_1_PROCESS_NAME,              // processName
-                APP_1_PACKAGE_NAME);             // packageName
+                APP_1_PACKAGE_NAME,              // packageName
+                isNativeService);
 
         mAppStartInfoTracker.handleProcessBroadcastStart(appStartTimestampBroadcast, app,
                 buildIntent(COMPONENT), false /* isAlarm */);
@@ -417,7 +428,8 @@ public class ApplicationStartInfoTest {
                 app2UidUser2,                    // packageUid
                 null,                            // definingUid
                 app2ProcessName,                 // processName
-                app2PackageName);                // packageName
+                app2PackageName,                 // packageName
+                isNativeService);
 
         mAppStartInfoTracker.handleProcessContentProviderStart(appStartTimestampRContentProvider,
                 app);
@@ -470,13 +482,25 @@ public class ApplicationStartInfoTest {
     @Test
     @EnableFlags(android.app.Flags.FLAG_APP_START_INFO_COMPONENT)
     public void testInProgressRecordsLimit() throws Exception {
+        testInProgressRecordsLimitVariant(/*isNativeService=*/ false);
+    }
+
+    @SuppressWarnings("GuardedBy")
+    @Test
+    @EnableFlags(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE)
+    public void testInProgressRecordsLimitNative() throws Exception {
+        testInProgressRecordsLimitVariant(/*isNativeService=*/ true);
+    }
+
+    private void testInProgressRecordsLimitVariant(boolean isNativeService) throws Exception {
         ProcessRecord app = makeProcessRecord(
                 APP_1_PID_1,                 // pid
                 APP_1_UID,                   // uid
                 APP_1_UID,                   // packageUid
                 null,                        // definingUid
                 APP_1_PROCESS_NAME,          // processName
-                APP_1_PACKAGE_NAME);         // packageName
+                APP_1_PACKAGE_NAME,          // packageName
+                isNativeService);
 
         // Mock performing 2 x MAX_IN_PROGRESS_RECORDS successful starts and ensure that the list
         // never exceeds the expected size of MAX_IN_PROGRESS_RECORDS.
@@ -511,6 +535,16 @@ public class ApplicationStartInfoTest {
      */
     @Test
     public void testHistoricalRecordsOrdering() throws Exception {
+        testHistoricalRecordsOrderingVariant(/*isNativeService=*/ false);
+    }
+
+    @Test
+    @EnableFlags(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE)
+    public void testHistoricalRecordsOrderingNative() throws Exception {
+        testHistoricalRecordsOrderingVariant(/*isNativeService=*/ true);
+    }
+
+    private void testHistoricalRecordsOrderingVariant(boolean isNativeService) throws Exception {
         // Clear old records
         mAppStartInfoTracker.clearProcessStartInfo(false);
 
@@ -521,7 +555,8 @@ public class ApplicationStartInfoTest {
                 APP_1_UID,                       // packageUid
                 null,                            // definingUid
                 APP_1_PROCESS_NAME,              // processName
-                APP_1_PACKAGE_NAME);             // packageName
+                APP_1_PACKAGE_NAME,              // packageName
+                isNativeService);
 
         mAppStartInfoTracker.handleProcessBroadcastStart(3, app, buildIntent(COMPONENT),
                 false /* isAlarm */);
@@ -630,6 +665,17 @@ public class ApplicationStartInfoTest {
     /** Test that new timestamps are added to the correct record (the most recently created one). */
     @Test
     public void testTimestampAddedToCorrectRecord() throws Exception {
+        testTimestampAddedToCorrectRecordVariant(/*isNativeService=*/ false);
+    }
+
+    @Test
+    @EnableFlags(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE)
+    public void testTimestampAddedToCorrectRecordNative() throws Exception {
+        testTimestampAddedToCorrectRecordVariant(/*isNativeService=*/ true);
+    }
+
+    private void testTimestampAddedToCorrectRecordVariant(boolean isNativeService)
+                throws Exception {
         // Use a different start timestamp for each record so we can identify which was added to.
         final long startTimeRecord1 = 123L;
         final long startTimeRecord2 = 456L;
@@ -643,7 +689,8 @@ public class ApplicationStartInfoTest {
                 APP_1_UID,                       // packageUid
                 null,                            // definingUid
                 APP_1_PROCESS_NAME,              // processName
-                APP_1_PACKAGE_NAME);             // packageName
+                APP_1_PACKAGE_NAME,              // packageName
+                isNativeService);
 
         // Trigger a start info record.
         mAppStartInfoTracker.handleProcessBroadcastStart(startTimeRecord1, app,
@@ -687,6 +734,16 @@ public class ApplicationStartInfoTest {
      */
     @Test
     public void testOldRecordsCleanup() throws Exception {
+        testOldRecordsCleanupVariant(/*isNativeService=*/ false);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_APP_START_INFO_COMPONENT)
+    public void testOldRecordsCleanupNative() throws Exception {
+        testOldRecordsCleanupVariant(/*isNativeService=*/ true);
+    }
+
+    private void testOldRecordsCleanupVariant(boolean isNativeService) throws Exception {
         // Use a different start timestamp for each record so we can identify which was removed.
         // This timestamp is not used for ordering and has no impact on removal.
         final long startTimeRecord1 = 123L;
@@ -700,7 +757,8 @@ public class ApplicationStartInfoTest {
                 APP_1_UID,                       // packageUid
                 null,                            // definingUid
                 APP_1_PROCESS_NAME,              // processName
-                APP_1_PACKAGE_NAME);             // packageName
+                APP_1_PACKAGE_NAME,              // packageName
+                isNativeService);
 
         // Set monotonic time to 1, and then trigger a start info record.
         doReturn(1L).when(mAppStartInfoTracker).getMonotonicTimeMs();
@@ -761,20 +819,25 @@ public class ApplicationStartInfoTest {
     }
 
     private ProcessRecord makeProcessRecord(int pid, int uid, int packageUid, Integer definingUid,
-            String processName, String packageName) {
-        return makeProcessRecord(pid, uid, packageUid, definingUid, processName, packageName, mAms);
+            String processName, String packageName, boolean isNativeService) {
+        return makeProcessRecord(pid, uid, packageUid, definingUid, processName, packageName, mAms,
+                                 isNativeService);
     }
 
     @SuppressWarnings("GuardedBy")
     static ProcessRecord makeProcessRecord(int pid, int uid, int packageUid, Integer definingUid,
-            String processName, String packageName, ActivityManagerService ams) {
+            String processName, String packageName, ActivityManagerService ams,
+            boolean isNativeService) {
         ApplicationInfo ai = new ApplicationInfo();
         ai.packageName = packageName;
         ProcessRecord app = new ProcessRecord(ams, ai, processName, uid);
         app.setPid(pid);
         app.info.uid = packageUid;
         if (definingUid != null) {
-            app.setHostingRecord(HostingRecord.byAppZygote(COMPONENT, "", definingUid, ""));
+            app.setHostingRecord(HostingRecord.byAppZygote(
+                    HostingRecord.HOSTING_TYPE_BOUND_SERVICE,
+                    COMPONENT, "", definingUid, "", isNativeService,
+                    Process.INVALID_UID /* callerUid */, null /* callerProcessName */));
         }
         return app;
     }

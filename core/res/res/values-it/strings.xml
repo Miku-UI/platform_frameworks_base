@@ -159,6 +159,10 @@
     <string name="wfc_mode_wifi_preferred_summary" msgid="1035175836270943089">"Chiamata tramite Wi-Fi"</string>
     <string name="wfc_mode_cellular_preferred_summary" msgid="4958965609212575619">"Chiamata su rete mobile"</string>
     <string name="wfc_mode_wifi_only_summary" msgid="104951993894678665">"Solo Wi-Fi"</string>
+    <string name="adaptive_low_frequency_less_than_one_minute" msgid="8869498183646028708">"~ %s"</string>
+    <string name="adaptive_low_frequency_neg_less_than_one_minute" msgid="2590062535985417056">"~ −%s"</string>
+    <string name="elapsed_time_low_frequency_short_format_h_mm" msgid="6728141238066668781">"%1$d:%2$02d:--"</string>
+    <string name="elapsed_time_low_frequency_short_format_mm" msgid="2405181895215514414">"%1$02d:--"</string>
     <!-- no translation found for crossSimFormat_spn (9125246077491634262) -->
     <skip />
     <string name="crossSimFormat_spn_cross_sim_calling" msgid="5620807020002879057">"Chiamate di backup <xliff:g id="SPN">%s</xliff:g>"</string>
@@ -279,6 +283,7 @@
     <string name="global_action_restart" msgid="4678451019561687074">"Riavvia"</string>
     <string name="global_action_emergency" msgid="1387617624177105088">"Emergenza"</string>
     <string name="global_action_bug_report" msgid="5127867163044170003">"Segnalazione di bug"</string>
+    <string name="global_action_feedback" msgid="3480836834202300036">"Feedback"</string>
     <string name="global_action_logout" msgid="6093581310002476511">"Termina sessione"</string>
     <string name="global_action_screenshot" msgid="2610053466156478564">"Screenshot"</string>
     <string name="global_action_standby" msgid="6786920589970257642">"Standby"</string>
@@ -327,6 +332,7 @@
     <string name="notification_channel_accessibility_hearing_device" msgid="7816963856388758952">"Protesi uditiva"</string>
     <string name="notification_channel_accessibility_security_policy" msgid="1727787021725251912">"Utilizzo dell\'accessibilità"</string>
     <string name="notification_channel_display" msgid="6905032605735615090">"Display"</string>
+    <string name="notification_channel_parental_controls" msgid="2963963315750128538">"Controllo genitori"</string>
     <string name="foreground_service_app_in_background" msgid="1439289699671273555">"L\'app <xliff:g id="APP_NAME">%1$s</xliff:g> sta consumando la batteria"</string>
     <string name="foreground_service_apps_in_background" msgid="7340037176412387863">"<xliff:g id="NUMBER">%1$d</xliff:g> app stanno consumando la batteria"</string>
     <string name="foreground_service_tap_for_details" msgid="9078123626015586751">"Tocca per conoscere i dettagli sull\'utilizzo dei dati e della batteria"</string>
@@ -338,7 +344,7 @@
     <string name="user_owner_app_label" msgid="1553595155465750298">"Passa all\'app <xliff:g id="APP_NAME">%1$s</xliff:g> personale"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Passa all\'app <xliff:g id="APP_NAME">%1$s</xliff:g> di lavoro"</string>
     <string name="permgrouplab_contacts" msgid="7443702399615347952">"Contatti e account"</string>
-    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"accedere ai tuoi contatti e visualizzare l\'elenco dei tuoi account che possono salvare contatti su questo dispositivo"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"Possono accedere ai tuoi contatti e visualizzare l\'elenco dei tuoi account che possono salvare contatti su questo dispositivo"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Posizione"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"Possono accedere alla posizione di questo dispositivo"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Calendario"</string>
@@ -549,6 +555,8 @@
     <string name="permdesc_backgroundCamera" msgid="1615291686191138250">"Questa app può scattare foto e registrare video tramite la fotocamera in qualsiasi momento."</string>
     <string name="permlab_systemCamera" msgid="3642917457796210580">"Consenti a un\'applicazione o a un servizio di accedere alle videocamere del sistema per fare foto e video"</string>
     <string name="permdesc_systemCamera" msgid="5938360914419175986">"Questa app di sistema o con privilegi può scattare foto e registrare video tramite una fotocamera di sistema in qualsiasi momento. Richiede che anche l\'app disponga dell\'autorizzazione android.permission.CAMERA"</string>
+    <string name="permlab_warmUpCamera" msgid="6135692056406854923">"Consenti a un\'applicazione o a un servizio di inviare un segnale di riscaldamento al sottosistema della fotocamera"</string>
+    <string name="permdesc_warmUpCamera" msgid="925343364567764736">"Questa app di sistema o con privilegi può inviare un segnale al sottosistema della fotocamera per riscaldare un dispositivo fotocamera e migliorarne le prestazioni, tra gli altri vantaggi"</string>
     <string name="permlab_cameraOpenCloseListener" msgid="5548732769068109315">"Consenti a un\'applicazione o a un servizio di ricevere callback relativi all\'apertura o alla chiusura di videocamere."</string>
     <string name="permdesc_cameraOpenCloseListener" msgid="2002636131008772908">"Questa app può ricevere callback quando una videocamera viene aperta (da una specifica applicazione) o chiusa."</string>
     <string name="permlab_cameraHeadlessSystemUser" msgid="680194666834500050">"Consenti a un\'applicazione o a un servizio di accedere alla fotocamera come utente di sistema senza testa."</string>
@@ -636,12 +644,16 @@
     <string name="permdesc_bluetooth_connect" product="default" msgid="4546016548795544617">"Consente all\'app di connettersi ai dispositivi Bluetooth accoppiati"</string>
     <string name="permlab_bluetooth_advertise" msgid="2781147747928853177">"Trasmissione di annunci a dispositivi Bluetooth vicini"</string>
     <string name="permdesc_bluetooth_advertise" product="default" msgid="6085174451034210183">"Consente all\'app di trasmettere annunci ai dispositivi Bluetooth nelle vicinanze"</string>
-    <string name="permlab_uwb_ranging" msgid="8141915781475770665">"Possibilità di stabilire la posizione relativa tra dispositivi a banda ultralarga nelle vicinanze"</string>
+    <string name="permlab_uwb_ranging" msgid="8141915781475770665">"Possibilità di stabilire la posizione relativa tra dispositivi a banda ultralarga vicini"</string>
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Consenti all\'app di stabilire la posizione relativa tra dispositivi a banda ultralarga nelle vicinanze"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"Interazione con dispositivi Wi-Fi vicini"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Consente all\'app di trasmettere annunci e connettersi a dispositivi Wi‑Fi vicini e di stabilirne la posizione relativa."</string>
-    <string name="permlab_access_local_network" msgid="3420360767259066877">"accedere ai dispositivi della rete locale"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"Accesso ai dispositivi della rete locale"</string>
     <string name="permdesc_access_local_network" msgid="6364679803386822638">"Consente all\'app di accedere ai dispositivi della rete locale"</string>
+    <string name="permlab_use_loopback_interface" msgid="8032765172835686213">"utilizza l\'interfaccia di loopback"</string>
+    <string name="permdesc_use_loopback_interface" msgid="47684087751145157">"Consente all\'app di interagire con altre app tramite l\'interfaccia di loopback"</string>
+    <string name="permlab_force_use_loopback_interface" msgid="1319727311706416481">"forza l\'utilizzo dell\'interfaccia di loopback"</string>
+    <string name="permdesc_force_use_loopback_interface" msgid="5829032514048681980">"Consente all\'app di interagire con altre app tramite l\'interfaccia di loopback senza richiedere che l\'altra app disponga delle autorizzazioni di loopback"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"stabilire la posizione relativa tra dispositivi nelle vicinanze"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Consenti all\'app di stabilire la posizione relativa tra dispositivi nelle vicinanze"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Informazioni del servizio di pagamento NFC preferito"</string>
@@ -747,35 +759,50 @@
   </string-array>
     <string name="fingerprint_error_vendor_unknown" msgid="4170002184907291065">"Si è verificato un errore. Riprova."</string>
     <string name="fingerprint_icon_content_description" msgid="4741068463175388817">"Icona dell\'impronta"</string>
-    <string name="device_unlock_notification_name" msgid="2632928999862915709">"Sblocco dispositivo"</string>
+    <string name="device_unlock_notification_name" msgid="2632928999862915709">"Sblocco del dispositivo"</string>
     <string name="alternative_unlock_setup_notification_title" msgid="6241508547901933544">"Prova un\'altra modalità di sblocco"</string>
-    <string name="alternative_face_setup_notification_content" msgid="3384959224091897331">"Usa lo Sblocco con il Volto se la tua impronta non viene riconosciuta, ad esempio se hai le dita bagnate"</string>
+    <string name="alternative_face_setup_notification_content" product="default" msgid="3384959224091897331">"Usa lo Sblocco con il Volto se la tua impronta non viene riconosciuta, ad esempio se hai le dita bagnate"</string>
+    <string name="alternative_face_setup_notification_content" product="desktop" msgid="8589631194028810041">"Sblocca con il volto se la tua impronta non viene riconosciuta, ad esempio se hai le dita bagnate"</string>
     <string name="alternative_fp_setup_notification_content" msgid="7454096947415721639">"Usa lo Sblocco con l\'Impronta se il tuo volto non viene riconosciuto, ad esempio se non c\'è abbastanza luce"</string>
-    <string name="face_recalibrate_notification_name" msgid="7311163114750748686">"Sblocco con il Volto"</string>
-    <string name="face_recalibrate_notification_title" msgid="2524791952735579082">"Problema con Sblocco con il Volto"</string>
+    <string name="face_recalibrate_notification_name" product="default" msgid="7311163114750748686">"Sblocco con il Volto"</string>
+    <string name="face_recalibrate_notification_name" product="desktop" msgid="6343244778393495390">"Sblocca con il volto"</string>
+    <string name="face_recalibrate_notification_title" product="default" msgid="2524791952735579082">"Problema con Sblocco con il Volto"</string>
+    <string name="face_recalibrate_notification_title" product="desktop" msgid="7502893130398903561">"Problema con lo sblocco con il volto"</string>
     <string name="face_recalibrate_notification_content" msgid="3064513770251355594">"Tocca per eliminare il tuo modello del volto e poi riaggiungi il tuo volto"</string>
-    <string name="face_sensor_privacy_enabled" msgid="7407126963510598508">"Per utilizzare lo Sblocco con il Volto, attiva "<b>"l\'accesso alla fotocamera"</b>" in Impostazioni &gt; Privacy"</string>
+    <string name="face_sensor_privacy_enabled" product="default" msgid="7407126963510598508">"Per utilizzare lo Sblocco con il Volto, attiva "<b>"l\'accesso alla fotocamera"</b>" in Impostazioni &gt; Privacy"</string>
+    <string name="face_sensor_privacy_enabled" product="desktop" msgid="7690221855638766930">"Per sbloccare con il volto, attiva "<b>"Accesso alla fotocamera"</b>" in Impostazioni &gt; Privacy"</string>
     <string name="fingerprint_recalibrate_notification_name" msgid="1414578431898579354">"Sblocco con l\'Impronta"</string>
     <string name="fingerprint_recalibrate_notification_title" msgid="2406561052064558497">"Impossibile utilizzare il sensore di impronte digitali"</string>
     <string name="fingerprint_recalibrate_notification_content" msgid="8519935717822194943">"Contatta un fornitore di servizi di riparazione."</string>
     <string name="face_acquired_insufficient" msgid="6889245852748492218">"Impossibile creare il modello del volto. Riprova."</string>
     <string name="face_acquired_too_bright" msgid="8070756048978079164">"Troppa luce. Prova con una luce più soft."</string>
     <string name="face_acquired_too_dark" msgid="8539853432479385326">"Luce insufficiente"</string>
-    <string name="face_acquired_too_close" msgid="4453646176196302462">"Allontana il telefono"</string>
-    <string name="face_acquired_too_far" msgid="2922278214231064859">"Avvicina lo smartphone"</string>
-    <string name="face_acquired_too_high" msgid="8278815780046368576">"Sposta lo smartphone più in alto"</string>
-    <string name="face_acquired_too_low" msgid="4075391872960840081">"Sposta lo smartphone più in basso"</string>
-    <string name="face_acquired_too_right" msgid="6245286514593540859">"Sposta lo smartphone verso sinistra"</string>
-    <string name="face_acquired_too_left" msgid="9201762240918405486">"Sposta lo smartphone verso destra"</string>
-    <string name="face_acquired_poor_gaze" msgid="4427153558773628020">"Guarda più direttamente verso il dispositivo."</string>
-    <string name="face_acquired_not_detected" msgid="1057966913397548150">"Volto non visibile. Tieni lo smartphone all\'altezza degli occhi."</string>
-    <string name="face_acquired_too_much_motion" msgid="8199691445085189528">"Troppo movimento. Tieni fermo il telefono."</string>
+    <string name="face_acquired_too_close" product="default" msgid="4453646176196302462">"Allontana il telefono"</string>
+    <string name="face_acquired_too_close" product="desktop" msgid="7189579448504853047">"Allontana il dispositivo"</string>
+    <string name="face_acquired_too_far" product="default" msgid="2922278214231064859">"Avvicina lo smartphone"</string>
+    <string name="face_acquired_too_far" product="desktop" msgid="6590730829823321223">"Avvicina il dispositivo"</string>
+    <string name="face_acquired_too_high" product="default" msgid="8278815780046368576">"Sposta lo smartphone più in alto"</string>
+    <string name="face_acquired_too_high" product="desktop" msgid="717393614154504299">"Sposta il dispositivo più in alto"</string>
+    <string name="face_acquired_too_low" product="default" msgid="4075391872960840081">"Sposta lo smartphone più in basso"</string>
+    <string name="face_acquired_too_low" product="desktop" msgid="7695733281069538045">"Sposta il dispositivo più in basso"</string>
+    <string name="face_acquired_too_right" product="default" msgid="6245286514593540859">"Sposta lo smartphone verso sinistra"</string>
+    <string name="face_acquired_too_right" product="desktop" msgid="4058756237538843740">"Sposta il dispositivo verso sinistra"</string>
+    <string name="face_acquired_too_left" product="default" msgid="9201762240918405486">"Sposta lo smartphone verso destra"</string>
+    <string name="face_acquired_too_left" product="desktop" msgid="5804819007366973778">"Sposta il dispositivo verso destra"</string>
+    <string name="face_acquired_poor_gaze" msgid="6746437451436776485">"Guarda dritto nella fotocamera"</string>
+    <string name="face_acquired_not_detected" product="default" msgid="1057966913397548150">"Volto non visibile. Tieni lo smartphone all\'altezza degli occhi."</string>
+    <string name="face_acquired_not_detected" product="desktop" msgid="1047701586390904260">"Il volto non è visibile. Tieni il dispositivo all\'altezza degli occhi."</string>
+    <string name="face_acquired_too_much_motion" product="default" msgid="8199691445085189528">"Troppo movimento. Tieni fermo il telefono."</string>
+    <string name="face_acquired_too_much_motion" product="desktop" msgid="7135563968992659161">"Troppo movimento. Tieni fermo il dispositivo."</string>
     <string name="face_acquired_recalibrate" msgid="8724013080976469746">"Ripeti l\'acquisizione del volto."</string>
     <string name="face_acquired_too_different" msgid="4505278456634706967">"Volto non riconosciuto. Riprova."</string>
     <string name="face_acquired_too_similar" msgid="8882920552674125694">"Cambia leggermente la posizione della testa"</string>
-    <string name="face_acquired_pan_too_extreme" msgid="5417928604710621088">"Guarda dritto nello smartphone"</string>
-    <string name="face_acquired_tilt_too_extreme" msgid="5715715666540716620">"Guarda dritto nello smartphone"</string>
-    <string name="face_acquired_roll_too_extreme" msgid="8261939882838881194">"Guarda dritto nel telefono"</string>
+    <string name="face_acquired_pan_too_extreme" product="default" msgid="5417928604710621088">"Guarda dritto nello smartphone"</string>
+    <string name="face_acquired_pan_too_extreme" product="desktop" msgid="821456302944137576">"Guarda più direttamente verso il dispositivo"</string>
+    <string name="face_acquired_tilt_too_extreme" product="default" msgid="5715715666540716620">"Guarda dritto nello smartphone"</string>
+    <string name="face_acquired_tilt_too_extreme" product="desktop" msgid="1119243364774233108">"Guarda più direttamente verso il dispositivo"</string>
+    <string name="face_acquired_roll_too_extreme" product="default" msgid="8261939882838881194">"Guarda dritto nel telefono"</string>
+    <string name="face_acquired_roll_too_extreme" product="desktop" msgid="3665467581072397682">"Guarda più direttamente verso il dispositivo"</string>
     <string name="face_acquired_obscured" msgid="4917643294953326639">"Rimuovi tutto ciò che ti nasconde il viso"</string>
     <string name="face_acquired_sensor_dirty" msgid="8968391891086721678">"Pulisci la parte superiore dello schermo, inclusa la barra nera"</string>
     <!-- no translation found for face_acquired_dark_glasses_detected (5643703296620631986) -->
@@ -788,19 +815,25 @@
   <string-array name="face_acquired_vendor">
   </string-array>
     <string name="face_error_hw_not_available" msgid="5085202213036026288">"Imposs. verificare volto. Hardware non disponibile."</string>
-    <string name="face_error_timeout" msgid="2598544068593889762">"Riprova lo Sblocco con il Volto"</string>
+    <string name="face_error_timeout" product="default" msgid="2598544068593889762">"Riprova lo Sblocco con il Volto"</string>
+    <string name="face_error_timeout" product="desktop" msgid="8136501408214657840">"Prova di nuovo a sbloccare con il volto"</string>
     <string name="face_error_no_space" msgid="5649264057026021723">"Impossibile salvare nuovi dati del volto. Elimina un volto vecchio."</string>
     <string name="face_error_canceled" msgid="2164434737103802131">"Operazione associata al volto annullata."</string>
-    <string name="face_error_user_canceled" msgid="5766472033202928373">"Sblocco con il Volto annullato dall\'utente"</string>
+    <string name="face_error_user_canceled" product="default" msgid="5766472033202928373">"Sblocco con il Volto annullato dall\'utente"</string>
+    <string name="face_error_user_canceled" product="desktop" msgid="8903551031462609651">"Sblocco con il volto annullato dall\'utente"</string>
     <string name="face_error_lockout" msgid="7864408714994529437">"Troppi tentativi. Riprova più tardi."</string>
-    <string name="face_error_lockout_permanent" msgid="8533257333130473422">"Troppi tentativi. Sblocco con il Volto non disponibile."</string>
+    <string name="face_error_lockout_permanent" product="default" msgid="8533257333130473422">"Troppi tentativi. Sblocco con il Volto non disponibile."</string>
+    <string name="face_error_lockout_permanent" product="desktop" msgid="1885291877517229762">"Troppi tentativi. Sblocco con il volto non disponibile."</string>
     <string name="face_error_lockout_screen_lock" msgid="5062609811636860928">"Troppi tentativi. Inserisci il blocco schermo."</string>
     <string name="face_error_unable_to_process" msgid="5723292697366130070">"Impossibile verificare il volto. Riprova."</string>
-    <string name="face_error_not_enrolled" msgid="1134739108536328412">"Non hai configurato lo Sblocco con il Volto"</string>
-    <string name="face_error_hw_not_present" msgid="7940978724978763011">"Sblocco con il Volto non è supportato su questo dispositivo"</string>
+    <string name="face_error_not_enrolled" product="default" msgid="1134739108536328412">"Non hai configurato lo Sblocco con il Volto"</string>
+    <string name="face_error_not_enrolled" product="desktop" msgid="7350396330456504527">"Lo sblocco con il volto non è ancora stato configurato"</string>
+    <string name="face_error_hw_not_present" product="default" msgid="7940978724978763011">"Sblocco con il Volto non è supportato su questo dispositivo"</string>
+    <string name="face_error_hw_not_present" product="desktop" msgid="4947323392112708365">"Lo sblocco con il volto non è supportato sul dispositivo"</string>
     <string name="face_error_security_update_required" msgid="5076017208528750161">"Sensore temporaneamente disattivato."</string>
     <string name="face_name_template" msgid="3877037340223318119">"Volto <xliff:g id="FACEID">%d</xliff:g>"</string>
-    <string name="face_app_setting_name" msgid="5854024256907828015">"Usa lo Sblocco con il Volto"</string>
+    <string name="face_app_setting_name" product="default" msgid="5854024256907828015">"Usa lo Sblocco con il Volto"</string>
+    <string name="face_app_setting_name" product="desktop" msgid="8226850671242901114">"Sblocca con il volto"</string>
     <string name="face_or_screen_lock_app_setting_name" msgid="1603149075605709106">"Usa lo Sblocco con il Volto o il blocco schermo"</string>
     <string name="face_dialog_default_subtitle" msgid="6620492813371195429">"Usa il tuo volto per continuare"</string>
     <string name="face_or_screen_lock_dialog_default_subtitle" msgid="5006381531158341844">"Per continuare devi usare il tuo volto o il tuo blocco schermo"</string>
@@ -822,6 +855,8 @@
     <string name="permdesc_readMediaVideo" msgid="3846400073770403528">"Consente all\'app di leggere i file video dal tuo spazio di archiviazione condiviso."</string>
     <string name="permlab_readMediaImages" msgid="4057590631020986789">"Lettura dei file immagine dallo spazio di archiviazione condiviso"</string>
     <string name="permdesc_readMediaImages" msgid="5836219373138469259">"Consente all\'app di leggere i file immagine dal tuo spazio di archiviazione condiviso."</string>
+    <string name="permlab_readMediaDocuments" msgid="5716810755602938263">"lettura dei file documento dallo spazio di archiviazione condiviso"</string>
+    <string name="permdesc_readMediaDocuments" msgid="5665930210237304120">"Consente all\'app di leggere i file documento dal tuo spazio di archiviazione condiviso."</string>
     <string name="permlab_readVisualUserSelect" msgid="5516204215354667586">"Lettura dei file immagine e video selezionati dall\'utente dallo spazio di archiviazione condiviso"</string>
     <string name="permdesc_readVisualUserSelect" msgid="8027174717714968217">"Consente all\'app di leggere i file immagine e video che selezioni dal tuo spazio di archiviazione condiviso."</string>
     <string name="permlab_sdcardWrite" msgid="4863021819671416668">"Modifica/eliminazione dei contenuti dell\'archivio condiviso"</string>
@@ -1055,8 +1090,12 @@
     <string name="lockscreen_pattern_correct" msgid="8050630103651508582">"Corretta."</string>
     <string name="lockscreen_pattern_wrong" msgid="2940138714468358458">"Riprova"</string>
     <string name="lockscreen_password_wrong" msgid="8605355913868947490">"Riprova"</string>
+    <string name="lockscreen_click_to_unlock_hint" msgid="6056691847669178119">"Fai clic per sbloccare"</string>
+    <string name="lockscreen_enter_to_unlock_hint" msgid="4248057180339112937">"Premi Invio per sbloccare"</string>
+    <string name="lockscreen_key_to_unlock_hint" msgid="9042402393653798264">"Premi un tasto qualsiasi per sbloccare"</string>
     <string name="lockscreen_storage_locked" msgid="634993789186443380">"Sblocca per accedere a funzioni e dati"</string>
-    <string name="faceunlock_multiple_failures" msgid="681991538434031708">"Numero massimo di tentativi di Sblocco con il Volto superato"</string>
+    <string name="faceunlock_multiple_failures" product="default" msgid="681991538434031708">"Numero massimo di tentativi di Sblocco con il Volto superato"</string>
+    <string name="faceunlock_multiple_failures" product="desktop" msgid="5388142244463490793">"Numero massimo di tentativi di sblocco con il volto raggiunto"</string>
     <string name="lockscreen_missing_sim_message_short" msgid="1229301273156907613">"Nessuna SIM presente"</string>
     <string name="lockscreen_missing_sim_message" product="tablet" msgid="3986843848305639161">"Nessuna SIM presente nel tablet."</string>
     <string name="lockscreen_missing_sim_message" product="tv" msgid="3903140876952198273">"Nessuna SIM presente nel dispositivo Android TV."</string>
@@ -1110,6 +1149,7 @@
     <string name="lockscreen_access_pattern_cell_added_verbose" msgid="2931364927622563465">"È stata aggiunta la cella <xliff:g id="CELL_INDEX">%1$s</xliff:g>"</string>
     <string name="lockscreen_access_pattern_detected" msgid="3931150554035194012">"Sequenza completata"</string>
     <string name="lockscreen_access_pattern_area" msgid="1288780416685002841">"Area sequenza."</string>
+    <string name="lockscreen_access_pattern_cell_verbose" msgid="6670905066468035137">"Cella <xliff:g id="CELL_INDEX">%1$s</xliff:g>"</string>
     <string name="keyguard_accessibility_widget_changed" msgid="7298011259508200234">"%1$s. Widget %2$d di %3$d."</string>
     <string name="keyguard_accessibility_add_widget" msgid="8245795023551343672">"Aggiungi widget."</string>
     <string name="keyguard_accessibility_widget_empty_slot" msgid="544239307077644480">"Vuoto"</string>
@@ -1126,7 +1166,8 @@
     <string name="keyguard_accessibility_expand_lock_area" msgid="4215280881346033434">"Espandi area di sblocco."</string>
     <string name="keyguard_accessibility_slide_unlock" msgid="2968195219692413046">"Sblocco con scorrimento."</string>
     <string name="keyguard_accessibility_pattern_unlock" msgid="8669128146589233293">"Sblocco con sequenza."</string>
-    <string name="keyguard_accessibility_face_unlock" msgid="4533832120787386728">"Sblocco con il Volto."</string>
+    <string name="keyguard_accessibility_face_unlock" product="default" msgid="4533832120787386728">"Sblocco con il Volto."</string>
+    <string name="keyguard_accessibility_face_unlock" product="desktop" msgid="6739732585954513653">"Sblocca con il volto."</string>
     <string name="keyguard_accessibility_pin_unlock" msgid="4020864007967340068">"Sblocco con PIN."</string>
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"Sblocco tramite PIN della SIM."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"Sblocco tramite PUK della SIM."</string>
@@ -1276,6 +1317,7 @@
     <string name="whichApplicationLabel" msgid="7852182961472531728">"Completa azione"</string>
     <string name="whichViewApplication" msgid="5733194231473132945">"Apri con"</string>
     <string name="whichViewApplicationNamed" msgid="415164730629690105">"Apri con %1$s"</string>
+    <string name="open_app_name" msgid="6114096770130122912">"Apri <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="whichViewApplicationLabel" msgid="7367556735684742409">"Apri"</string>
     <string name="whichOpenHostLinksWith" msgid="7645631470199397485">"Apri i link <xliff:g id="HOST">%1$s</xliff:g> con"</string>
     <string name="whichOpenLinksWith" msgid="1120936181362907258">"Apri i link con"</string>
@@ -1442,6 +1484,9 @@
     <string name="carrier_app_notification_text" msgid="6567057546341958637">"Tocca per configurarla"</string>
     <string name="time_zone_change_notification_title" msgid="5232503069219193218">"Il tuo fuso orario è cambiato"</string>
     <string name="time_zone_change_notification_body" msgid="6135793674904665585">"Il tuo fuso orario attuale è <xliff:g id="TIME_ZONE_DISPLAY_NAME">%1$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET">%2$s</xliff:g>)"</string>
+    <string name="time_zone_offset_change_notification_title" msgid="8232305835199459588">"Cambio dell\'ora"</string>
+    <string name="time_zone_offset_change_notification_body_forward" msgid="1299493962341887576">"L\'orologio è stato spostato in avanti di <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g>. Il tuo fuso orario attuale è <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)."</string>
+    <string name="time_zone_offset_change_notification_body_backward" msgid="6643532078142642118">"L\'orologio è stato spostato indietro di <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g>. Il tuo fuso orario attuale è <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)."</string>
     <string name="time_picker_dialog_title" msgid="9053376764985220821">"Imposta ora"</string>
     <string name="date_picker_dialog_title" msgid="5030520449243071926">"Imposta data"</string>
     <string name="date_time_set" msgid="4603445265164486816">"Imposta"</string>
@@ -1451,7 +1496,7 @@
     <string name="no_permissions" msgid="5729199278862516390">"Nessuna autorizzazione richiesta"</string>
     <string name="perm_costs_money" msgid="749054595022779685">"potrebbe comportare dei costi"</string>
     <string name="dlg_ok" msgid="5103447663504839312">"Ok"</string>
-    <string name="usb_charging_notification_title" msgid="1674124518282666955">"Dispositivo in carica tramite USB"</string>
+    <string name="usb_charging_notification_title" msgid="1674124518282666955">"In carica tramite USB"</string>
     <string name="usb_supplying_notification_title" msgid="5378546632408101811">"Dispositivo collegato in carica tramite USB"</string>
     <string name="usb_mtp_notification_title" msgid="1065989144124499810">"Trasferimento file tramite USB attivato"</string>
     <string name="usb_ptp_notification_title" msgid="5043437571863443281">"Modalità PTP tramite USB attivata"</string>
@@ -1481,6 +1526,14 @@
     <string name="usb_contaminant_detected_message" msgid="7346100585390795743">"La porta USB viene disattivata automaticamente. Tocca per avere ulteriori informazioni."</string>
     <string name="usb_contaminant_not_detected_title" msgid="2651167729563264053">"Utilizzo porta USB consentito"</string>
     <string name="usb_contaminant_not_detected_message" msgid="892863190942660462">"Il telefono non rileva più liquidi o detriti."</string>
+    <string name="usb_authorization_notify_on_screenlock_title" msgid="4219670768084927681">"Nuovo dispositivo USB collegato"</string>
+    <string name="usb_authorization_notify_on_screenlock_message" msgid="3391658768099414499">"Accedi per considerare attendibile questo dispositivo USB e iniziare a utilizzarlo."</string>
+    <string name="usb_authorization_notify_on_screenlock_message_multiple" msgid="1722575755931059980">"Accedi per considerare attendibili questi dispositivi USB e iniziare a utilizzarli."</string>
+    <string name="usb_authorization_notify_finish_logging_in_title" msgid="3417036506115006412">"Nuovo dispositivo USB collegato"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message" msgid="7996802340128367690">"Accedi entro <xliff:g id="NUM_SECONDS">%1$d</xliff:g> secondi per considerare attendibile questo dispositivo USB. In caso contrario, dovrai disconnetterlo e riconnetterlo."</string>
+    <string name="usb_authorization_notify_finish_logging_in_title_multiple" msgid="3184839817149193434">"Nuovi dispositivi USB collegati"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message_multiple" msgid="6745916608298736853">"Accedi entro <xliff:g id="NUM_SECONDS">%1$d</xliff:g> secondi per considerare attendibili questi dispositivi USB. In caso contrario, dovrai disconnetterli e riconnetterli."</string>
+    <string name="notification_channel_usb_authorization" msgid="7567851967410736399">"Autorizzazione dispositivo USB"</string>
     <string name="taking_remote_bugreport_notification_title" msgid="1582531382166919850">"Recupero della segnalazione di bug…"</string>
     <string name="share_remote_bugreport_notification_title" msgid="6708897723753334999">"Condividere la segnalazione di bug?"</string>
     <string name="sharing_remote_bugreport_notification_title" msgid="3077385149217638550">"Condivisione della segnalazione di bug…"</string>
@@ -1624,6 +1677,9 @@
     <string name="gpsNotifMessage" msgid="7346649122793758032">"Richiesto da <xliff:g id="NAME">%1$s</xliff:g> (<xliff:g id="SERVICE">%2$s</xliff:g>)"</string>
     <string name="gpsVerifYes" msgid="3719843080744112940">"Sì"</string>
     <string name="gpsVerifNo" msgid="1671201856091564741">"No"</string>
+    <string name="emergency_location_notification_title" msgid="917557758257778958">"Posizione condivisa per emergenza"</string>
+    <string name="emergency_location_notification_message" msgid="1877038822515882885">"Il tuo operatore ha condiviso la tua posizione con i servizi di emergenza"</string>
+    <string name="emergency_location_notification_learn_more" msgid="8718634939217070481">"Scopri di più"</string>
     <string name="sync_too_many_deletes" msgid="6999440774578705300">"Limite di eliminazioni superato"</string>
     <string name="sync_too_many_deletes_desc" msgid="7409327940303504440">"Ci sono <xliff:g id="NUMBER_OF_DELETED_ITEMS">%1$d</xliff:g> elementi eliminati per <xliff:g id="TYPE_OF_SYNC">%2$s</xliff:g>, account <xliff:g id="ACCOUNT_NAME">%3$s</xliff:g> . Come vuoi procedere?"</string>
     <string name="sync_really_delete" msgid="5657871730315579051">"Elimina gli elementi"</string>
@@ -1785,7 +1841,7 @@
     <string name="safe_media_volume_warning" product="default" msgid="3751676824423049994">"Vuoi aumentare il volume oltre il livello consigliato?\n\nL\'ascolto ad alto volume per lunghi periodi di tempo potrebbe danneggiare l\'udito."</string>
     <string name="csd_dose_reached_warning" product="default" msgid="491875107583931974">"Vuoi continuare ad ascoltare a un volume alto?\n\nIl volume delle cuffie è rimasto alto per un periodo superiore a quello raccomandato, con il rischio di danneggiare l\'udito"</string>
     <string name="csd_momentary_exposure_warning" product="default" msgid="7730840903435405501">"Rilevato suono forte\n\nIl volume delle cuffie è più alto di quello raccomandato e potrebbe danneggiare il tuo udito"</string>
-    <string name="accessibility_shortcut_warning_dialog_title" msgid="4017995837692622933">"Usare la scorciatoia Accessibilità?"</string>
+    <string name="accessibility_shortcut_warning_dialog_title" msgid="4017995837692622933">"Usare la scorciatoia di accessibilità?"</string>
     <string name="accessibility_shortcut_toogle_warning" msgid="4161716521310929544">"Quando la scorciatoia è attiva, puoi premere entrambi i pulsanti del volume per tre secondi per avviare una funzione di accessibilità."</string>
     <string name="accessibility_shortcut_multiple_service_warning_title" msgid="3135860819356676426">"Vuoi attivare la scorciatoia per le funzioni di accessibilità?"</string>
     <string name="accessibility_shortcut_multiple_service_warning" msgid="3740723309483706911">"Se tieni premuti entrambi i tasti del volume per qualche secondo, vengono attivate le funzioni di accessibilità. Questa operazione potrebbe modificare il funzionamento del dispositivo.\n\nFunzioni correnti:\n<xliff:g id="SERVICE">%1$s</xliff:g>\nPuoi modificare le funzioni selezionate in Impostazioni &gt; Accessibilità."</string>
@@ -1794,8 +1850,8 @@
     <string name="accessibility_shortcut_single_service_warning" msgid="6363127705112844257">"Se tieni premuti entrambi i tasti del volume per qualche secondo verrà attivata la funzione di accessibilità <xliff:g id="SERVICE">%1$s</xliff:g>. Questa operazione potrebbe modificare il funzionamento del dispositivo.\n\nPuoi associare questa scorciatoia a un\'altra funzionalità in Impostazioni &gt; Accessibilità."</string>
     <string name="accessibility_shortcut_on" msgid="5463618449556111344">"Attiva"</string>
     <string name="accessibility_shortcut_off" msgid="3651336255403648739">"Non attivare"</string>
-    <string name="accessibility_shortcut_menu_item_status_on" msgid="6608392117189732543">"ON"</string>
-    <string name="accessibility_shortcut_menu_item_status_off" msgid="5531598275559472393">"OFF"</string>
+    <string name="accessibility_shortcut_menu_item_status_on" msgid="6162756705754654002">"On"</string>
+    <string name="accessibility_shortcut_menu_item_status_off" msgid="6274512913017713543">"Off"</string>
     <string name="accessibility_enable_service_title" msgid="3931558336268541484">"Vuoi consentire a <xliff:g id="SERVICE">%1$s</xliff:g> di avere il controllo totale del tuo dispositivo?"</string>
     <string name="accessibility_service_warning_description" msgid="291674995220940133">"Il controllo totale è appropriato per le app che rispondono alle tue esigenze di accessibilità, ma non per gran parte delle app."</string>
     <string name="accessibility_service_screen_control_title" msgid="190017412626919776">"Visualizzare e controllare lo schermo"</string>
@@ -1809,6 +1865,12 @@
     <string name="accessibility_select_shortcut_menu_title" msgid="6002726538854613272">"Tocca una funzionalità per iniziare a usarla:"</string>
     <string name="accessibility_edit_shortcut_menu_button_title" msgid="239446795930436325">"Scegli le funzionalità da usare con il pulsante Accessibilità"</string>
     <string name="accessibility_edit_shortcut_menu_volume_title" msgid="2245540598834891500">"Scegli le funzionalità da usare con la scorciatoia tasti del volume"</string>
+    <string name="accessibility_shortcut_label_button" msgid="6473341300585254821">"pulsante Accessibilità"</string>
+    <string name="accessibility_shortcut_label_volume_keys" msgid="5642990791242136231">"tasti del volume"</string>
+    <string name="accessibility_shortcut_label_gesture" msgid="7987298674836890931">"gesto"</string>
+    <string name="accessibility_shortcut_label_quick_settings" msgid="6851280333772213611">"impostazioni rapide"</string>
+    <string name="accessibility_shortcut_label_triple_tap" msgid="9058975959054454796">"triplo tocco"</string>
+    <string name="accessibility_shortcut_label_top_row_key" msgid="1488840908672437180">"tasto di accessibilità"</string>
     <string name="accessibility_uncheck_legacy_item_warning" msgid="8047830891064817447">"Il servizio <xliff:g id="SERVICE_NAME">%s</xliff:g> è stato disattivato"</string>
     <string name="edit_accessibility_shortcut_menu_button" msgid="8885752738733772935">"Modifica scorciatoie"</string>
     <string name="done_accessibility_shortcut_menu_button" msgid="3668407723770815708">"Fine"</string>
@@ -1842,7 +1904,7 @@
     <string name="hearing_device_notification_switch_button" msgid="3619524619430941300">"Cambia"</string>
     <string name="hearing_device_notification_settings_button" msgid="6673651052880279178">"Impostazioni"</string>
     <string name="user_switching_message" msgid="1912993630661332336">"Passaggio a <xliff:g id="NAME">%1$s</xliff:g>…"</string>
-    <string name="user_logging_out_message" msgid="7216437629179710359">"Disconnessione di <xliff:g id="NAME">%1$s</xliff:g> in corso…"</string>
+    <string name="user_logging_out_message" msgid="2968888364742643174">"Uscita in corso…"</string>
     <string name="owner_name" msgid="8713560351570795743">"Proprietario"</string>
     <string name="guest_name" msgid="8502103277839834324">"Ospite"</string>
     <string name="headless_system_user_name" msgid="1849150903255530049">"Utente di sistema"</string>
@@ -1980,6 +2042,7 @@
     <string name="managed_profile_label_badge_3" msgid="6882151970556391957">"<xliff:g id="LABEL">%1$s</xliff:g> di lavoro (3°)"</string>
     <string name="clone_profile_label_badge" msgid="1871997694718793964">"<xliff:g id="LABEL">%1$s</xliff:g> (clone)"</string>
     <string name="private_profile_label_badge" msgid="1712086003787839183">"<xliff:g id="LABEL">%1$s</xliff:g> privato"</string>
+    <string name="hsu_label_badge" msgid="1357272000281944932">"<xliff:g id="LABEL">%1$s</xliff:g> di sistema"</string>
     <string name="lock_to_app_unlock_pin" msgid="3890940811866290782">"Richiedi il PIN per lo sblocco"</string>
     <string name="lock_to_app_unlock_pattern" msgid="2694204070499712503">"Richiedi sequenza di sblocco prima di sbloccare"</string>
     <string name="lock_to_app_unlock_password" msgid="9126722403506560473">"Richiedi password prima di sbloccare"</string>
@@ -2053,6 +2116,9 @@
     <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
     <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
     <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
+    <string name="notification_history_metric_subtext" msgid="7408216222655116821">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>: <xliff:g id="METRIC_VALUE">%2$s</xliff:g>"</string>
+    <string name="notification_metric_running_timer" msgid="1096459900744921213">"Timer in funzione"</string>
+    <string name="notification_metric_running_stopwatch" msgid="8039546029949295377">"Cronometro in esecuzione"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Rispondi"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Rifiuta"</string>
@@ -2085,6 +2151,38 @@
     <string name="app_suspended_default_message" msgid="6451215678552004172">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> non è al momento disponibile. Viene gestita tramite <xliff:g id="APP_NAME_1">%2$s</xliff:g>."</string>
     <string name="app_suspended_more_details" msgid="211260942831587014">"Scopri di più"</string>
     <string name="app_suspended_unsuspend_message" msgid="1665438589450555459">"Riattiva app"</string>
+    <string name="app_lock_add_screen_lock_button_text" msgid="9209013414563206600">"Aggiungi blocco schermo"</string>
+    <string name="app_lock_add_screen_lock_message" msgid="6107009360675769892">"Il blocco schermo può essere un PIN, una sequenza o una password. Lo userai per sbloccare il dispositivo e accedere alle app bloccate."</string>
+    <string name="app_lock_add_screen_lock_title" msgid="6905612843620128689">"Prima, aggiungi un blocco schermo"</string>
+    <string name="enable_app_lock_success_toast_message" msgid="3339622779190529987">"L\'app <xliff:g id="APP_NAME">%1$s</xliff:g> è bloccata"</string>
+    <string name="enable_app_lock_failure_toast_message" msgid="1055838896510445566">"Impossibile bloccare <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="disable_app_lock_success_toast_message" msgid="360172251656799346">"Blocco dell\'app rimosso"</string>
+    <string name="enable_app_lock_biometric_prompt_subtitle" msgid="8215241065630017088">"Il blocco dell\'app verrà aggiunto a <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="disable_app_lock_biometric_prompt_subtitle" msgid="3963064765974508170">"Il blocco dell\'app verrà rimosso da <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="locked_app_biometric_prompt_description" msgid="5892653396104581919">"Questa app è protetta con il blocco dell\'app"</string>
+    <string name="locked_app_external_display_message" msgid="5483884799685545338">"Per accedere all\'app su questo display, verifica prima la tua identità sull\'altro dispositivo"</string>
+    <string name="app_lock_edu_dialog_enable_app_lock_title" msgid="283314042336592322">"Aggiungere il blocco app a <xliff:g id="APP_NAME">%1$s</xliff:g>?"</string>
+    <string name="app_lock_edu_dialog_description_template" msgid="8563718120753342530">"Per la tua sicurezza, solo tu puoi accedere a questa app con %1$s o %2$s"</string>
+    <string name="app_lock_edu_dialog_description_template_no_biometrics" msgid="7122017109150633691">"Per la tua sicurezza, solo tu puoi accedere a questa app con il tuo %1$s"</string>
+    <string name="app_lock_edu_dialog_info_header" msgid="5876120209204270990">"Con blocco app"</string>
+    <string name="app_lock_edu_dialog_info_notifications" msgid="1124438392204873305">"I contenuti delle notifiche saranno nascosti"</string>
+    <string name="app_lock_edu_dialog_info_widgets" msgid="8809009414650740872">"Widget e scorciatoie verranno rimossi"</string>
+    <string name="app_lock_edu_dialog_info_ai_disclaimer" msgid="5623615653703542050">"Gli agenti e i servizi AI a cui hai consentito di accedere a %1$s potranno comunque accedere ai suoi dati"</string>
+    <string name="app_lock_edu_dialog_button_lock" msgid="3914687128135704801">"Aggiungi blocco app"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="default" msgid="1348151645996748654">"Sblocco con il Volto"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="desktop" msgid="380233309639495358">"Sblocca con il volto"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint" msgid="5206107469561561455">"Sblocco con l\'Impronta"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="default" msgid="6551410616110497401">"Sblocco con l\'Impronta o Sblocco con il Volto"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="desktop" msgid="4797005135507921547">"Sblocco con Impronta, Sblocca con volto"</string>
+    <string name="app_lock_edu_dialog_lockscreen_password_name" msgid="6019284267033007445">"password"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pattern_name" msgid="2370939002644936965">"pattern"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pin_name" msgid="6458607126966304795">"PIN"</string>
+    <string name="app_lock_permission_review_dialog_title_photos" msgid="6193222920123912729">"Le tue foto potrebbero essere ancora mostrate in altre app"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_photos" msgid="1854948251386976703">"App con accesso alle tue foto"</string>
+    <string name="app_lock_permission_review_dialog_title_files" msgid="8820759644609198515">"I tuoi file potrebbero essere ancora mostrati in altre app"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_files" msgid="2999447193189851364">"App con accesso ai tuoi file"</string>
+    <string name="app_lock_permission_review_expand_app_list_button" msgid="3214809707125223273">"Visualizza tutto"</string>
+    <string name="app_lock_permission_review_continue_button" msgid="4045066724173414043">"Continua"</string>
     <string name="work_mode_off_title" msgid="6367463960165135829">"Riattivare le app di lavoro?"</string>
     <string name="work_mode_turn_on" msgid="5316648862401307800">"Riattiva"</string>
     <string name="work_mode_emergency_call_button" msgid="6818855962881612322">"Emergenza"</string>
@@ -2163,13 +2261,21 @@
     <string name="autofill_picker_no_suggestions" msgid="1076022650427481509">"Nessun suggerimento di Compilazione automatica"</string>
     <string name="autofill_picker_some_suggestions" msgid="5560549696296202701">"{count,plural, =1{Un suggerimento di compilazione automatica}many{# suggerimenti di compilazione automatica}other{# suggerimenti di compilazione automatica}}"</string>
     <string name="autofill_save_title" msgid="7719802414283739775">"Vuoi salvare su "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_expressive" msgid="2665408870424848558">"Salva le informazioni in "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_type" msgid="3002460014579799605">"Vuoi salvare la <xliff:g id="TYPE">%1$s</xliff:g> su "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_with_type_expressive" msgid="6063660551496235255">"Salva <xliff:g id="TYPE">%1$s</xliff:g> su "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_2types" msgid="3783270967447869241">"Vuoi salvare <xliff:g id="TYPE_0">%1$s</xliff:g> e <xliff:g id="TYPE_1">%2$s</xliff:g> su "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_with_2types_expressive" msgid="2996687022212666293">"Salva <xliff:g id="TYPE_0">%1$s</xliff:g> e <xliff:g id="TYPE_1">%2$s</xliff:g> su "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_3types" msgid="6598228952100102578">"Vuoi salvare <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> e <xliff:g id="TYPE_2">%3$s</xliff:g> su "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_save_title_with_3types_expressive" msgid="3301676215501214049">"Salva <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> e <xliff:g id="TYPE_2">%3$s</xliff:g> su "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b></string>
     <string name="autofill_update_title" msgid="3630695947047069136">"Vuoi aggiornare su "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_update_title_expressive" msgid="7660582214109012920">"Aggiorna le informazioni in "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_type" msgid="5264152633488495704">"Vuoi aggiornare <xliff:g id="TYPE">%1$s</xliff:g> su "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_update_title_with_type_expressive" msgid="6162413585161767846">"Aggiorna <xliff:g id="TYPE">%1$s</xliff:g> su "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_2types" msgid="1797514386321086273">"Vuoi aggiornare <xliff:g id="TYPE_0">%1$s</xliff:g> e <xliff:g id="TYPE_1">%2$s</xliff:g> su "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>"?"</string>
+    <string name="autofill_update_title_with_2types_expressive" msgid="1911825941498393471">"Aggiorna <xliff:g id="TYPE_0">%1$s</xliff:g> e <xliff:g id="TYPE_1">%2$s</xliff:g> su "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_3types" msgid="8285767070604652626">"Vuoi aggiornare i seguenti dati in "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>": <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> e <xliff:g id="TYPE_2">%3$s</xliff:g>?"</string>
+    <string name="autofill_update_title_with_3types_expressive" msgid="6040725201378429027">"Aggiorna i seguenti elementi in "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>": <xliff:g id="TYPE_0">%1$s</xliff:g>, <xliff:g id="TYPE_1">%2$s</xliff:g> e <xliff:g id="TYPE_2">%3$s</xliff:g>"</string>
     <string name="autofill_save_yes" msgid="8035743017382012850">"Salva"</string>
     <string name="autofill_save_no" msgid="9212826374207023544">"No, grazie"</string>
     <string name="autofill_save_notnow" msgid="2853932672029024195">"Non ora"</string>
@@ -2276,9 +2382,9 @@
     <string name="accessibility_system_action_lock_screen_label" msgid="5484190691945563838">"Schermata di blocco"</string>
     <string name="accessibility_system_action_screenshot_label" msgid="3581566515062741676">"Screenshot"</string>
     <string name="accessibility_system_action_headset_hook_label" msgid="8524691721287425468">"Hook cuffie"</string>
-    <string name="accessibility_system_action_on_screen_a11y_shortcut_label" msgid="8488701469459210309">"Scorciatoia Accessibilità sullo schermo"</string>
-    <string name="accessibility_system_action_on_screen_a11y_shortcut_chooser_label" msgid="1057878690209817886">"Selettore scorciatoia Accessibilità sullo schermo"</string>
-    <string name="accessibility_system_action_hardware_a11y_shortcut_label" msgid="5764644187715255107">"Scorciatoia Accessibilità"</string>
+    <string name="accessibility_system_action_on_screen_a11y_shortcut_label" msgid="8488701469459210309">"Scorciatoia di accessibilità su schermo"</string>
+    <string name="accessibility_system_action_on_screen_a11y_shortcut_chooser_label" msgid="1057878690209817886">"Selettore scorciatoia di accessibilità su schermo"</string>
+    <string name="accessibility_system_action_hardware_a11y_shortcut_label" msgid="5764644187715255107">"Scorciatoia di accessibilità"</string>
     <string name="accessibility_system_action_dismiss_notification_shade" msgid="8931637495533770352">"Ignora area notifiche"</string>
     <string name="accessibility_system_action_menu_label" msgid="3385283204496447040">"Menu"</string>
     <string name="accessibility_system_action_media_play_pause_label" msgid="1905647491347119748">"Play/Pausa contenuti multimediali"</string>
@@ -2363,8 +2469,8 @@
     <string name="PERSOSUBSTATE_SIM_IMPI_ENTRY" msgid="7043865376145617024">"PIN di sblocco IMPI"</string>
     <string name="PERSOSUBSTATE_SIM_NS_SP_ENTRY" msgid="6144227308185112176">"PIN di sblocco fornitore di servizi sottoinsieme rete"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_IN_PROGRESS" msgid="4233355366318061180">"Richiesta di sblocco rete SIM…"</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="6742563947637715645">"Richiesta di sblocco sottoinsieme rete SIM…"</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="2033399698172403560">"Richiesta di sblocco fornitore di servizi SIM…"</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="2917242135129860371">"Richiesta di sblocco sottoinsieme rete SIM in corso…"</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="4435641041692795695">"Richiesta di sblocco fornitore di servizi SIM in corso…"</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_IN_PROGRESS" msgid="4795977251920732254">"Richiesta di sblocco aziendale SIM…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_IN_PROGRESS" msgid="1090425878157254446">"Richiesta di sblocco tramite PUK…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_IN_PROGRESS" msgid="6476898876518094438">"Richiesta di sblocco tramite PUK…"</string>
@@ -2390,15 +2496,15 @@
     <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_PUK_IN_PROGRESS" msgid="2695678959963807782">"Richiesta di sblocco tramite PUK…"</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_PUK_IN_PROGRESS" msgid="1230605365926493599">"Richiesta di sblocco tramite PUK…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_ERROR" msgid="1924844017037151535">"Richiesta di sblocco rete SIM non riuscita."</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="3372797822292089708">"Richiesta di sblocco sottoinsieme rete SIM non riuscita."</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="1878443146720411381">"Richiesta di sblocco fornitore di servizi SIM non riuscita."</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="7136658591279283417">"Richiesta di sblocco sottoinsieme rete SIM non riuscita."</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="8344463467085504202">"Richiesta di sblocco fornitore di servizi SIM non riuscita."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_ERROR" msgid="7664778312218023192">"Richiesta di sblocco aziendale SIM non riuscita."</string>
     <string name="PERSOSUBSTATE_SIM_SIM_ERROR" msgid="2472944311643350302">"Richiesta di sblocco SIM non riuscita."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_ERROR" msgid="828089694480999120">"Richiesta di sblocco rete1 RUIM non riuscita."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_ERROR" msgid="17619001007092511">"Richiesta di sblocco rete2 RUIM non riuscita."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_ERROR" msgid="807214229604353614">"Richiesta di sblocco HRPD RUIM non riuscita."</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_ERROR" msgid="8644184447744175747">"Richiesta di sblocco aziendale RUIM non riuscita."</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="3801002648649640407">"Richiesta di sblocco fornitore di servizi RUIM non riuscita."</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="1882547895012628428">"Richiesta di sblocco fornitore di servizi RUIM non riuscita."</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_ERROR" msgid="707397021218680753">"Richiesta di sblocco RUIM non riuscita."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_ERROR" msgid="894358680773257820">"Sblocco tramite PUK non riuscito."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_ERROR" msgid="352466878146726991">"Sblocco tramite PUK non riuscito."</string>
@@ -2418,13 +2524,13 @@
     <string name="PERSOSUBSTATE_SIM_NS_SP_ERROR" msgid="1890493954453456758">"Richiesta di sblocco fornitore di servizi sottoinsieme rete non riuscita."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUCCESS" msgid="4886243367747126325">"Sblocco rete SIM riuscito."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_SUCCESS" msgid="4053809277733513987">"Sblocco sottoinsieme rete SIM riuscito."</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="8249342930499801740">"Sblocco fornitore di servizi SIM riuscito."</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="6233653087159353652">"Sblocco fornitore di servizi SIM riuscito."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_SUCCESS" msgid="2339794542560381270">"Sblocco aziendale SIM riuscito."</string>
     <string name="PERSOSUBSTATE_SIM_SIM_SUCCESS" msgid="6975608174152828954">"Sblocco SIM riuscito."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_SUCCESS" msgid="2846699261330463192">"Sblocco rete1 RUIM riuscito."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_SUCCESS" msgid="5335414726057102801">"Sblocco rete2 RUIM riuscito."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_SUCCESS" msgid="8868100318474971969">"Sblocco HRPD RUIM riuscito."</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6020936629725666932">"Sblocco fornitore di servizi RUIM riuscito."</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6724555357287036238">"Sblocco fornitore di servizi RUIM riuscito."</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_SUCCESS" msgid="6944873647584595489">"Sblocco aziendale RUIM riuscito."</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_SUCCESS" msgid="2526483514124121988">"Sblocco RUIM riuscito."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_SUCCESS" msgid="7662200333621664621">"Sblocco tramite PUK riuscito."</string>
@@ -2516,6 +2622,8 @@
     <string name="accessibility_label_clone_profile" msgid="7579118375042398784">"Clone"</string>
     <string name="accessibility_label_communal_profile" msgid="1437173163111334791">"Condiviso"</string>
     <string name="private_space_biometric_prompt_title" msgid="5777592909271728154">"Spazio privato"</string>
+    <string name="app_locked_new_notification" msgid="4409730436247596215">"Nuova notifica"</string>
+    <string name="app_locked_notification_message" msgid="4576179600328065280">"Nuovo messaggio"</string>
     <string name="redacted_notification_message" msgid="1520587845842228816">"Contenuti sensibili della notifica nascosti"</string>
     <string name="redacted_notification_action_title" msgid="6942924973335920935"></string>
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Contenuti dell\'app nascosti dalla condivisione schermo per sicurezza"</string>
@@ -2555,13 +2663,16 @@
     <string name="satellite_messaging_unsupported_default_sms_app_notification_summary" msgid="17084124893763593">"Per inviare messaggi via satellite, imposta Google Messaggi come app di messaggistica predefinita"</string>
     <string name="satellite_messaging_location_disabled_notification_title" msgid="7270641894250928494">"Messaggi via satellite non disponibili"</string>
     <string name="satellite_messaging_location_disabled_notification_summary" msgid="1450824950686221810">"Per verificare se i messaggi via satellite sono disponibili in questo paese o in questa regione, attiva le impostazioni di localizzazione"</string>
+    <string name="satellite_indicator" msgid="6846063647532086110">"SAT"</string>
     <string name="fingerprint_dangling_notification_title" msgid="7362075195588639989">"Riconfigura lo Sblocco con l\'Impronta"</string>
     <string name="fingerprint_dangling_notification_msg_1" msgid="5851784577768803510">"<xliff:g id="FINGERPRINT">%s</xliff:g> non può più essere riconosciuto."</string>
     <string name="fingerprint_dangling_notification_msg_2" msgid="7925203589860744456">"<xliff:g id="FINGERPRINT_0">%1$s</xliff:g> e <xliff:g id="FINGERPRINT_1">%2$s</xliff:g> non possono più essere riconosciuti."</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_1" msgid="1824812666549916586">"<xliff:g id="FINGERPRINT">%s</xliff:g> non può più essere riconosciuto. Riconfigura lo Sblocco con l\'Impronta."</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_2" msgid="5974657382960155099">"<xliff:g id="FINGERPRINT_0">%1$s</xliff:g> e <xliff:g id="FINGERPRINT_1">%2$s</xliff:g> non possono più essere riconosciuti. Riconfigura lo Sblocco con l\'Impronta."</string>
-    <string name="face_dangling_notification_title" msgid="947852541060975473">"Riconfigura lo Sblocco con il Volto"</string>
-    <string name="face_dangling_notification_msg" msgid="746235263598985384">"Il tuo modello del volto non può più essere riconosciuto. Riconfigura lo Sblocco con il Volto."</string>
+    <string name="face_dangling_notification_title" product="default" msgid="947852541060975473">"Riconfigura lo Sblocco con il Volto"</string>
+    <string name="face_dangling_notification_title" product="desktop" msgid="4632690536207343589">"Riconfigura lo sblocco con il volto"</string>
+    <string name="face_dangling_notification_msg" product="default" msgid="746235263598985384">"Il tuo modello del volto non può più essere riconosciuto. Riconfigura lo Sblocco con il Volto."</string>
+    <string name="face_dangling_notification_msg" product="desktop" msgid="5982979430103820891">"Il tuo modello del volto non può più essere riconosciuto. Riconfigura lo sblocco con il volto."</string>
     <string name="biometric_dangling_notification_action_set_up" msgid="8246885009807817961">"Configura"</string>
     <string name="biometric_dangling_notification_action_not_now" msgid="8095249216864443491">"Non ora"</string>
     <string name="bg_user_sound_notification_title_alarm" msgid="5251678483393143527">"Sveglia per <xliff:g id="USER_NAME">%s</xliff:g>"</string>
@@ -2595,7 +2706,17 @@
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Tocca per esaminare i suggerimenti per migliorare l\'esperienza di sblocco"</string>
     <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Nessuna intermittenza"</string>
     <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Tieni premuto il tasto di accensione per spegnere la TV"</string>
-    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Avvisi sulle risorse di sistema"</string>
-    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Utilizzo eccessivo delle risorse"</string>
-    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"L\'app \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" sta utilizzando troppe risorse."</string>
+    <string name="supervision_blocked_app_title" msgid="5546803865875383588">"Aggiornamento da un genitore"</string>
+    <string name="supervision_blocked_app_content" msgid="4125452996088641559">"L\'app <xliff:g id="APP_NAME">%1$s</xliff:g> è stata temporaneamente rimossa"</string>
+    <string name="supervision_unblocked_app_content" msgid="8282985265957852278">"L\'app <xliff:g id="APP_NAME">%1$s</xliff:g> è ora disponibile"</string>
+    <string name="media_route_chooser_share_cast_others" msgid="8797886650999355673">"Trasmetti ad altri"</string>
+    <string name="activity_embedding_divider_drag_handle_description" msgid="4922243158119077780">"divisore trascinabile"</string>
+    <string name="brightness_unable_adjust_msg" msgid="739363986705194491">"Impossibile regolare la luminosità perché è controllata dall\'app in primo piano"</string>
+    <string name="airplane_mode_sync_notification_channel_name" msgid="474278137226432576">"Sincronizzazione modalità aereo"</string>
+    <string name="airplane_mode_sync_notification_title" msgid="1093374489486832486">"Modalità aereo"</string>
+    <string name="airplane_mode_sync_notification_content" msgid="300807352375759726">"La modalità aereo verrà ora sincronizzata tra smartphone e smartwatch.\n\nGestisci le preferenze di sincronizzazione della modalità nelle impostazioni dello smartwatch e dello smartphone."</string>
+    <string name="apm_sync_notification_settings_action" msgid="3453490777165524861">"Gestisci Impostazioni"</string>
+    <string name="do_not_disturb_sync_notification_channel_name" msgid="8652220979613037381">"Sincronizzazione di Non disturbare"</string>
+    <string name="do_not_disturb_sync_notification_title" msgid="6732475150089465528">"Non disturbare"</string>
+    <string name="do_not_disturb_sync_notification_content" msgid="2755604717509797896">"Sincronizzato dal tuo dispositivo nelle vicinanze"</string>
 </resources>

@@ -45,8 +45,12 @@ public class MetricsTimeZoneDetectorStateTest {
     private static final @UserIdInt int ARBITRARY_USER_ID = 1;
     private static final @ElapsedRealtimeLong long ARBITRARY_ELAPSED_REALTIME_MILLIS = 1234L;
     private static final LocationTimeZoneAlgorithmStatus ARBITRARY_CERTAIN_STATUS =
-            new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                    PROVIDER_STATUS_IS_CERTAIN, null, PROVIDER_STATUS_NOT_PRESENT, null);
+            new LocationTimeZoneAlgorithmStatus(
+                    DETECTION_ALGORITHM_STATUS_RUNNING,
+                    PROVIDER_STATUS_IS_CERTAIN,
+                    null,
+                    PROVIDER_STATUS_NOT_PRESENT,
+                    null);
     private static final String DEVICE_TIME_ZONE_ID = "DeviceTimeZoneId";
 
     private static final ManualTimeZoneSuggestion MANUAL_TIME_ZONE_SUGGESTION =
@@ -78,9 +82,13 @@ public class MetricsTimeZoneDetectorStateTest {
 
         // Create the object.
         MetricsTimeZoneDetectorState metricsTimeZoneDetectorState =
-                MetricsTimeZoneDetectorState.create(mOrdinalGenerator, configurationInternal,
-                        DEVICE_TIME_ZONE_ID, MANUAL_TIME_ZONE_SUGGESTION,
-                        TELEPHONY_TIME_ZONE_SUGGESTION, LOCATION_ALGORITHM_EVENT);
+                MetricsTimeZoneDetectorState.create(
+                        mOrdinalGenerator,
+                        configurationInternal,
+                        DEVICE_TIME_ZONE_ID,
+                        MANUAL_TIME_ZONE_SUGGESTION,
+                        TELEPHONY_TIME_ZONE_SUGGESTION,
+                        LOCATION_ALGORITHM_EVENT);
 
         // Assert the content.
         assertCommonConfiguration(configurationInternal, metricsTimeZoneDetectorState);
@@ -88,24 +96,23 @@ public class MetricsTimeZoneDetectorStateTest {
         assertEquals(DEVICE_TIME_ZONE_ID, metricsTimeZoneDetectorState.getDeviceTimeZoneId());
         MetricsTimeZoneSuggestion expectedManualSuggestion =
                 MetricsTimeZoneSuggestion.createCertain(
-                        new String[] { MANUAL_TIME_ZONE_SUGGESTION.getZoneId() },
-                        new int[] { 1 });
-        assertEquals(expectedManualSuggestion,
-                metricsTimeZoneDetectorState.getLatestManualSuggestion());
+                        new String[] {MANUAL_TIME_ZONE_SUGGESTION.getZoneId()}, new int[] {1});
+        assertEquals(
+                expectedManualSuggestion, metricsTimeZoneDetectorState.getLatestManualSuggestion());
 
         MetricsTimeZoneSuggestion expectedTelephonySuggestion =
                 MetricsTimeZoneSuggestion.createCertain(
-                        new String[] { TELEPHONY_TIME_ZONE_SUGGESTION.getZoneId() },
-                        new int[] { 2 });
-        assertEquals(expectedTelephonySuggestion,
+                        new String[] {TELEPHONY_TIME_ZONE_SUGGESTION.getZoneId()}, new int[] {2});
+        assertEquals(
+                expectedTelephonySuggestion,
                 metricsTimeZoneDetectorState.getLatestTelephonySuggestion());
 
         List<String> expectedZoneIds = LOCATION_ALGORITHM_EVENT.getSuggestion().getZoneIds();
         MetricsTimeZoneSuggestion expectedGeoSuggestion =
                 MetricsTimeZoneSuggestion.createCertain(
-                        expectedZoneIds.toArray(new String[0]),
-                        new int[] { 3, 4 });
-        assertEquals(expectedGeoSuggestion,
+                        expectedZoneIds.toArray(new String[0]), new int[] {3, 4});
+        assertEquals(
+                expectedGeoSuggestion,
                 metricsTimeZoneDetectorState.getLatestGeolocationSuggestion());
     }
 
@@ -117,9 +124,13 @@ public class MetricsTimeZoneDetectorStateTest {
 
         // Create the object.
         MetricsTimeZoneDetectorState metricsTimeZoneDetectorState =
-                MetricsTimeZoneDetectorState.create(mOrdinalGenerator, configurationInternal,
-                        DEVICE_TIME_ZONE_ID, MANUAL_TIME_ZONE_SUGGESTION,
-                        TELEPHONY_TIME_ZONE_SUGGESTION, LOCATION_ALGORITHM_EVENT);
+                MetricsTimeZoneDetectorState.create(
+                        mOrdinalGenerator,
+                        configurationInternal,
+                        DEVICE_TIME_ZONE_ID,
+                        MANUAL_TIME_ZONE_SUGGESTION,
+                        TELEPHONY_TIME_ZONE_SUGGESTION,
+                        LOCATION_ALGORITHM_EVENT);
 
         // Assert the content.
         assertCommonConfiguration(configurationInternal, metricsTimeZoneDetectorState);
@@ -129,44 +140,49 @@ public class MetricsTimeZoneDetectorStateTest {
         final String[] omittedZoneIds = null;
 
         MetricsTimeZoneSuggestion expectedManualSuggestion =
-                MetricsTimeZoneSuggestion.createCertain(
-                        omittedZoneIds,
-                        new int[] { 1 });
-        assertEquals(expectedManualSuggestion,
-                metricsTimeZoneDetectorState.getLatestManualSuggestion());
+                MetricsTimeZoneSuggestion.createCertain(omittedZoneIds, new int[] {1});
+        assertEquals(
+                expectedManualSuggestion, metricsTimeZoneDetectorState.getLatestManualSuggestion());
 
         MetricsTimeZoneSuggestion expectedTelephonySuggestion =
-                MetricsTimeZoneSuggestion.createCertain(
-                        omittedZoneIds,
-                        new int[] { 2 });
-        assertEquals(expectedTelephonySuggestion,
+                MetricsTimeZoneSuggestion.createCertain(omittedZoneIds, new int[] {2});
+        assertEquals(
+                expectedTelephonySuggestion,
                 metricsTimeZoneDetectorState.getLatestTelephonySuggestion());
 
         MetricsTimeZoneSuggestion expectedGeoSuggestion =
-                MetricsTimeZoneSuggestion.createCertain(
-                        omittedZoneIds,
-                        new int[] { 3, 4 });
-        assertEquals(expectedGeoSuggestion,
+                MetricsTimeZoneSuggestion.createCertain(omittedZoneIds, new int[] {3, 4});
+        assertEquals(
+                expectedGeoSuggestion,
                 metricsTimeZoneDetectorState.getLatestGeolocationSuggestion());
     }
 
-    private static void assertCommonConfiguration(ConfigurationInternal configurationInternal,
+    private static void assertCommonConfiguration(
+            ConfigurationInternal configurationInternal,
             MetricsTimeZoneDetectorState metricsTimeZoneDetectorState) {
-        assertEquals(configurationInternal.isTelephonyDetectionSupported(),
+        assertEquals(
+                configurationInternal.isTelephonyDetectionSupported(),
                 metricsTimeZoneDetectorState.isTelephonyDetectionSupported());
-        assertEquals(configurationInternal.isGeoDetectionSupported(),
+        assertEquals(
+                configurationInternal.isGeoDetectionSupported(),
                 metricsTimeZoneDetectorState.isGeoDetectionSupported());
-        assertEquals(configurationInternal.isTelephonyFallbackSupported(),
+        assertEquals(
+                configurationInternal.isTelephonyFallbackSupported(),
                 metricsTimeZoneDetectorState.isTelephonyTimeZoneFallbackSupported());
-        assertEquals(configurationInternal.getGeoDetectionRunInBackgroundEnabledSetting(),
+        assertEquals(
+                configurationInternal.getGeoDetectionRunInBackgroundEnabledSetting(),
                 metricsTimeZoneDetectorState.getGeoDetectionRunInBackgroundEnabled());
-        assertEquals(configurationInternal.isEnhancedMetricsCollectionEnabled(),
+        assertEquals(
+                configurationInternal.isEnhancedMetricsCollectionEnabled(),
                 metricsTimeZoneDetectorState.isEnhancedMetricsCollectionEnabled());
-        assertEquals(configurationInternal.getAutoDetectionEnabledSetting(),
+        assertEquals(
+                configurationInternal.getAutoDetectionEnabledSetting(),
                 metricsTimeZoneDetectorState.getAutoDetectionEnabledSetting());
-        assertEquals(configurationInternal.getLocationEnabledSetting(),
+        assertEquals(
+                configurationInternal.getLocationEnabledSetting(),
                 metricsTimeZoneDetectorState.getUserLocationEnabledSetting());
-        assertEquals(configurationInternal.getGeoDetectionEnabledSetting(),
+        assertEquals(
+                configurationInternal.getGeoDetectionEnabledSetting(),
                 metricsTimeZoneDetectorState.getGeoDetectionEnabledSetting());
         assertEquals(0, metricsTimeZoneDetectorState.getDeviceTimeZoneIdOrdinal());
         assertEquals(DETECTION_MODE_GEO, metricsTimeZoneDetectorState.getDetectionMode());

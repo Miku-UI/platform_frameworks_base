@@ -17,6 +17,7 @@
 package android.provider;
 
 import static android.app.Flags.systemTermsOfAddressEnabled;
+import static android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
@@ -88,6 +89,8 @@ import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.os.UserHandle;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.service.voice.VisualQueryDetectedResult;
 import android.speech.tts.TextToSpeech;
 import android.telephony.TelephonyManager;
@@ -129,6 +132,11 @@ import java.util.function.Consumer;
 /**
  * The Settings provider contains global system-level device preferences.
  */
+@RavenwoodKeepWholeClass(comment = """
+With the default ContentResolver instance, all the get methods will just return the default values.
+All the put methods will throw an exception. If you want to simulate writing to the settings
+provider, consider using TestableSettingsProvider, which is configured by TestableContext.
+        """, conditional = true, bug = 457840588)
 public final class Settings {
     /** @hide */
     public static final boolean DEFAULT_OVERRIDEABLE_BY_RESTORE = false;
@@ -809,6 +817,28 @@ public final class Settings {
             "android.settings.VPN_SETTINGS";
 
     /**
+     * Activity Action: Show a settings screen to configure application exclusions for the
+     * calling package's {@link android.net.VpnManager} VPN.
+     * <p>
+     * Invoking this Intent with {@link Activity#startActivity} displays a screen allowing
+     * the user to select applications that will be excluded from the calling package's
+     * {@link android.net.VpnManager} VPN. Exclusion changes will take effect immediately if the
+     * VPN is already running, or the next time the VPN is started.
+     * <p>
+     * The presence of this activity is not guaranteed on all devices; accordingly callers
+     * should verify {@link Intent#resolveActivity} prior to {@link Activity#startActivity}
+     * or catch {@link android.content.ActivityNotFoundException}.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     */
+    @FlaggedApi(Flags.FLAG_EXPOSE_VPN_APP_EXCLUSION_SETTINGS)
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_VPN_APP_EXCLUSION_SETTINGS =
+            "android.settings.VPN_APP_EXCLUSION_SETTINGS";
+
+    /**
      * Activity Action: Show settings to allow configuration of Wi-Fi.
      * <p>
      * In some cases, a matching Activity may not exist, so ensure you
@@ -1437,6 +1467,22 @@ public final class Settings {
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_HARD_KEYBOARD_SETTINGS =
             "android.settings.HARD_KEYBOARD_SETTINGS";
+
+    /**
+     * Activity Action: Show settings to configure the game controllers.
+     * <p>
+     * In some cases, a matching Activity may not exist, so ensure you
+     * safeguard against this.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_GAME_CONTROLLER_SETTINGS =
+            "android.settings.GAME_CONTROLLER_SETTINGS";
 
     /**
      * Activity Action: Adds a word to the user dictionary.
@@ -2490,7 +2536,6 @@ public final class Settings {
      * <p>
      * Output: Nothing.
      */
-    @FlaggedApi(android.app.Flags.FLAG_API_RICH_ONGOING)
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS
             = "android.settings.APP_NOTIFICATION_PROMOTION_SETTINGS";
@@ -2654,12 +2699,27 @@ public final class Settings {
             "android.settings.SHOW_ADMIN_SUPPORT_DETAILS";
 
     /**
+     * Activity Action: Show a dialog with disabled by policy message.
+     * <p> If a package is suspended by policy, this dialog can be triggered to let
+     * the user know about this.
+     * <p>
+     * Input: {@link Intent#EXTRA_USER_ID}: The user that the package is suspended for.
+     * <p>
+     * Output: Nothing.
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_SHOW_SUSPENDED_PACKAGE_ADMIN_SUPPORT_DETAILS =
+            "android.settings.SHOW_SUSPENDED_PACKAGE_ADMIN_SUPPORT_DETAILS";
+
+    /**
      * Intent extra: The id of a setting restricted by supervisors.
      * <p>
      * Type: Integer with a value from the one of the SUPERVISOR_VERIFICATION_* constants below.
      * <ul>
-     * <li>{@see #SUPERVISOR_VERIFICATION_SETTING_UNKNOWN}
-     * <li>{@see #SUPERVISOR_VERIFICATION_SETTING_BIOMETRICS}
+     * <li>{@link #SUPERVISOR_VERIFICATION_SETTING_UNKNOWN}
+     * <li>{@link #SUPERVISOR_VERIFICATION_SETTING_BIOMETRICS}
      * </ul>
      * </p>
      */
@@ -2948,6 +3008,21 @@ public final class Settings {
             "com.android.settings.WIFI_TETHER_SETTINGS";
 
     /**
+     * Activity Action: Show settings to manage a supervision app.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES)
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String MANAGE_SUPERVISION_APP_SETTINGS =
+            "android.settings.MANAGE_SUPERVISION_APP_SETTINGS";
+
+    /**
      * Broadcast to trigger notification of asking user to enable MMS.
      * Need to specify {@link #EXTRA_ENABLE_MMS_DATA_REQUEST_REASON} and {@link #EXTRA_SUB_ID}.
      *
@@ -3045,6 +3120,49 @@ public final class Settings {
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_APP_PERMISSIONS_SETTINGS =
             "android.settings.APP_PERMISSIONS_SETTINGS";
+
+    /**
+     * Activity Action: Show screen to manage supervision settings.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     */
+    @FlaggedApi(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES)
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_SUPERVISION_SETTINGS =
+            "android.settings.SUPERVISION_SETTINGS";
+
+    /**
+     * Activity Action: Show settings to allow configuration of personal context.
+     * <p>
+     * In some cases, a matching Activity may not exist, so ensure you
+     * safeguard against this.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     *
+     * @hide
+     */
+    @FlaggedApi("android.service.personalcontext.enable_personal_context_service")
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_PERSONAL_CONTEXT_SETTINGS =
+            "android.settings.PERSONAL_CONTEXT_SETTINGS";
+
+    /**
+     * Activity Action: Show a dialog with a restricted content message.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     *
+     * @hide
+     */
+    @FlaggedApi("android.app.contentrestriction.flags.enable_content_restriction_api")
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_SHOW_RESTRICTED_CONTENT =
+            "android.settings.SHOW_RESTRICTED_CONTENT";
 
     // End of Intent actions for Settings
 
@@ -3434,6 +3552,7 @@ public final class Settings {
         }
     }
 
+    @RavenwoodKeepPartialClass(comment = "GenerationTracker not used on Ravenwood")
     private static final class GenerationTracker {
         @NonNull private final Key mKey;
         @NonNull private final MemoryIntArray mArray;
@@ -3489,6 +3608,7 @@ public final class Settings {
             }
         }
 
+        @RavenwoodKeepWholeClass(comment = "GenerationTracker not used, but we still generate keys")
         private static final class Key {
             private final String mName;
             private final int mDeviceId;
@@ -3592,6 +3712,7 @@ public final class Settings {
         private final ArraySet<String> mReadableFields;
         private final ArraySet<String> mAllFields;
         private final ArrayMap<String, Integer> mReadableFieldsWithMaxTargetSdk;
+        private final ArrayMap<String, String> mReadableFieldsWithRedactedValue;
 
         // Mapping of key to generation trackers for queried settings.
         // Key is composed by the setting's name and deviceId, value is the generation tracker.
@@ -3632,8 +3753,9 @@ public final class Settings {
             mReadableFields = new ArraySet<>();
             mAllFields = new ArraySet<>();
             mReadableFieldsWithMaxTargetSdk = new ArrayMap<>();
+            mReadableFieldsWithRedactedValue = new ArrayMap<>();
             getPublicSettingsForClass(callerClass, mAllFields, mReadableFields,
-                    mReadableFieldsWithMaxTargetSdk);
+                    mReadableFieldsWithMaxTargetSdk, mReadableFieldsWithRedactedValue);
         }
 
         public boolean putStringForUser(ContentResolver cr, String name, String value,
@@ -3714,14 +3836,28 @@ public final class Settings {
                 final @CanBeCURRENT @UserIdInt int userId) {
             final boolean isSelf = (userId == UserHandle.myUserId());
             final AttributionSource attributionSource = cr.getAttributionSource();
-            final int deviceId =
-                    android.companion.virtualdevice.flags.Flags.deviceAwareSettingsOverride()
-                            && android.permission.flags.Flags.deviceAwarePermissionApisEnabled()
-                            && attributionSource != null
-                            ? attributionSource.getDeviceId() : Context.DEVICE_ID_DEFAULT;
+            final int deviceId = android.permission.flags.Flags.deviceAwarePermissionApisEnabled()
+                    && attributionSource != null
+                    ? attributionSource.getDeviceId() : Context.DEVICE_ID_DEFAULT;
             final GenerationTracker.Key key = new GenerationTracker.Key(name, deviceId);
             final boolean useCache = isSelf && !isInSystemServer();
             boolean needsGenerationTracker = false;
+
+            // Check if there is a redacted value for this setting
+            if (!mReadableFieldsWithRedactedValue.isEmpty()) {
+                boolean isSystemCaller =
+                        Settings.isInSystemServer()
+                                || UserHandle.getAppId(Binder.getCallingUid())
+                                    < Process.FIRST_APPLICATION_UID;
+                if (!isSystemCaller) {
+                    String redactedValue = mReadableFieldsWithRedactedValue.get(name);
+                    if (redactedValue != null && !redactedValue.isEmpty()
+                            && Flags.enableRedactedValueForReadable()) {
+                        return redactedValue;
+                    }
+                }
+            }
+
             if (useCache) {
                 synchronized (NameValueCache.this) {
                     final GenerationTracker generationTracker = mGenerationTrackers.get(key);
@@ -4172,11 +4308,13 @@ public final class Settings {
     @Retention(RetentionPolicy.RUNTIME)
     private @interface Readable {
         int maxTargetSdk() default 0;
+        String redactedValue() default "";
     }
 
     private static <T extends NameValueTable> void getPublicSettingsForClass(
             Class<T> callerClass, Set<String> allKeys, Set<String> readableKeys,
-            ArrayMap<String, Integer> keysWithMaxTargetSdk) {
+            ArrayMap<String, Integer> keysWithMaxTargetSdk,
+            ArrayMap<String, String> keysWithRedactedValue) {
         final Field[] allFields = callerClass.getDeclaredFields();
         try {
             for (int i = 0; i < allFields.length; i++) {
@@ -4194,9 +4332,13 @@ public final class Settings {
                 if (annotation != null) {
                     final String key = (String) value;
                     final int maxTargetSdk = annotation.maxTargetSdk();
+                    final String redactedValue = annotation.redactedValue();
                     readableKeys.add(key);
                     if (maxTargetSdk != 0) {
                         keysWithMaxTargetSdk.put(key, maxTargetSdk);
+                    }
+                    if (redactedValue != null && !redactedValue.isEmpty()) {
+                        keysWithRedactedValue.put(key, redactedValue);
                     }
                 }
             }
@@ -4421,9 +4563,10 @@ public final class Settings {
 
         /** @hide */
         public static void getPublicSettings(Set<String> allKeys, Set<String> readableKeys,
-                ArrayMap<String, Integer> readableKeysWithMaxTargetSdk) {
+                ArrayMap<String, Integer> readableKeysWithMaxTargetSdk,
+                ArrayMap<String, String> readableKeysWithRedactedValue) {
             getPublicSettingsForClass(System.class, allKeys, readableKeys,
-                    readableKeysWithMaxTargetSdk);
+                    readableKeysWithMaxTargetSdk, readableKeysWithRedactedValue);
         }
 
         /**
@@ -5608,6 +5751,24 @@ public final class Settings {
          */
         public static final String HARDWARE_HAPTIC_FEEDBACK_INTENSITY =
                 "hardware_haptic_feedback_intensity";
+
+        /**
+         * The intensity of keyboard vibrations, if configurable.
+         *
+         * Not all devices are capable of changing their feedback intensity; on these devices
+         * there will likely be no difference between the various vibration intensities except for
+         * intensity 0 (off) and the rest.
+         *
+         * <b>Values:</b><br/>
+         * 0 - Vibration is disabled<br/>
+         * 1 - Weak vibrations<br/>
+         * 2 - Medium vibrations<br/>
+         * 3 - Strong vibrations
+         * @hide
+         */
+        @Readable
+        public static final String KEYBOARD_VIBRATION_INTENSITY =
+                "keyboard_vibration_intensity";
 
         /**
          * The intensity of gesture input vibrations if configurable. See {@link
@@ -6969,6 +7130,16 @@ public final class Settings {
         public static final String CLOCKWORK_BLUETOOTH_SETTINGS_PREF = "cw_bt_settings_pref";
 
         /**
+         * Controls whether alerting notifications should be displayed without a tap or tilt.
+         *
+         * <p>The valid values for this key are: 0 (disabled) or 1 (enabled).
+         *
+         * @hide
+         */
+        public static final String ENABLE_NOTIFICATION_WITHOUT_TAP_OR_TILT =
+                "enable_notification_without_tap_or_tilt";
+
+        /**
          * Controls whether the unread notification dot indicator is shown on wearable devices.
          *
          * <p>The valid values for this key are: 0 (disabled) or 1 (enabled).
@@ -7411,9 +7582,10 @@ public final class Settings {
 
         /** @hide */
         public static void getPublicSettings(Set<String> allKeys, Set<String> readableKeys,
-                ArrayMap<String, Integer> readableKeysWithMaxTargetSdk) {
+                ArrayMap<String, Integer> readableKeysWithMaxTargetSdk,
+                ArrayMap<String, String> readableKeysWithRedactedValue) {
             getPublicSettingsForClass(Secure.class, allKeys, readableKeys,
-                    readableKeysWithMaxTargetSdk);
+                    readableKeysWithMaxTargetSdk, readableKeysWithRedactedValue);
         }
 
         /**
@@ -8021,6 +8193,12 @@ public final class Settings {
                 "bluetooth_le_broadcast_fallback_active_device_address";
 
         /**
+         * User preference for enabling contextual mode sync.
+         * @hide
+         */
+        public static final String CONTEXTUAL_MODE_SYNC_ENABLED = "contextual_mode_sync_enabled";
+
+        /**
          * Ringtone routing value for hearing aid. It routes ringtone to hearing aid or device
          * speaker.
          * <ul>
@@ -8222,6 +8400,16 @@ public final class Settings {
         public static final String STYLUS_HANDWRITING_ENABLED = "stylus_handwriting_enabled";
 
         /**
+         * Toggle for enabling the IME Switcher Button in the navigation bar. This does not
+         * automatically make it visible, but allows it to become visible when needed.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String IME_SWITCHER_BUTTON_IN_NAVBAR_ENABLED =
+                "ime_switcher_in_navbar_enabled";
+
+        /**
          * Default value for {@link #STYLUS_HANDWRITING_ENABLED}.
          *
          * @hide
@@ -8238,6 +8426,13 @@ public final class Settings {
         @TestApi
         @Readable
         public static final String VOICE_INTERACTION_SERVICE = "voice_interaction_service";
+
+        /**
+         * The count of denied read screen context requests by the current assistant.
+         * @hide
+         */
+        public static final String READ_SCREEN_CONTEXT_REQUEST_DENIED_COUNT =
+                "read_screen_context_request_denied_count";
 
 
         /**
@@ -9168,6 +9363,32 @@ public final class Settings {
                 "accessibility_key_gesture_targets";
 
         /**
+         * Setting specifying the accessibility services, accessibility shortcut targets,
+         * or features to be toggled via a top row keyboard key.
+         *
+         * <p> This is a colon-separated string list which contains the flattened
+         * {@link ComponentName} and the class name of a system class implementing a supported
+         * accessibility feature.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_TOP_ROW_KEY_TARGETS =
+                "accessibility_top_row_key_targets";
+
+        /**
+         * Setting specifying the accessibility services, accessibility shortcut targets,
+         * or features to be toggled via the accessibility quick access dialog.
+         *
+         * <p> This is a colon-separated string list which contains the flattened
+         * {@link ComponentName} and the class name of a system class implementing a supported
+         * accessibility feature.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_QUICK_ACCESS_TARGETS =
+                "accessibility_quick_access_targets";
+
+        /**
          * The system class name of magnification controller which is a target to be toggled via
          * accessibility shortcut or accessibility button.
          *
@@ -9445,6 +9666,7 @@ public final class Settings {
          * the following settings:
          * <ul>
          * <li>{@link #ACCESSIBILITY_CAPTIONING_LOCALE}
+         * <li>{@link #ACCESSIBILITY_CAPTIONING_EASY_READER_ENABLED}
          * <li>{@link #ACCESSIBILITY_CAPTIONING_BACKGROUND_COLOR}
          * <li>{@link #ACCESSIBILITY_CAPTIONING_FOREGROUND_COLOR}
          * <li>{@link #ACCESSIBILITY_CAPTIONING_EDGE_COLOR}
@@ -9471,6 +9693,16 @@ public final class Settings {
                 "accessibility_captioning_locale";
 
         /**
+         * Setting that specifies whether simplified language captions should be shown if possible,
+         * i.e. Easy Reader is enabled.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String ACCESSIBILITY_CAPTIONING_EASY_READER_ENABLED =
+                "accessibility_captioning_easy_reader_enabled";
+
+        /**
          * Integer property that specifies the preset style for captions, one
          * of:
          * <ul>
@@ -9478,7 +9710,6 @@ public final class Settings {
          * <li>a valid index of {@link android.view.accessibility.CaptioningManager.CaptionStyle#PRESETS}
          * </ul>
          *
-         * @see java.util.Locale#toString
          * @hide
          */
         @Readable
@@ -9804,6 +10035,7 @@ public final class Settings {
          *
          * @hide
          */
+        @Readable
         public static final String ACCESSIBILITY_TEXT_CURSOR_BLINK_INTERVAL_MS =
                 "accessibility_text_cursor_blink_interval_ms";
 
@@ -10518,6 +10750,9 @@ public final class Settings {
          * Note that this value is used for projected mode.
          * @hide
          */
+        @TestApi
+        @Readable
+        @SuppressLint({"UnflaggedApi", "NoSettingsProvider"}) // @TestApi purely for CTS support.
         public static final String INCLUDE_DEFAULT_DISPLAY_IN_TOPOLOGY =
                 "include_default_display_in_topology";
 
@@ -10650,6 +10885,16 @@ public final class Settings {
          */
         public static final String DOZE_ALWAYS_ON_WALLPAPER_ENABLED =
                 "doze_always_on_wallpaper_enabled";
+
+        /**
+         * Whether to power down the display when no user activity is detected.
+         * <p>
+         * Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        public static final String DOZE_ALWAYS_ON_INACTIVITY_DETECTION =
+                "doze_always_on_inactivity_detection";
 
         /**
          * Whether the device should pulse on pick up gesture.
@@ -10903,12 +11148,28 @@ public final class Settings {
         /**
          * The user's chosen screensaver components.
          *
-         * These will be launched by the PhoneWindowManager after a timeout when not on
-         * battery, or upon dock insertion (if SCREENSAVER_ACTIVATE_ON_DOCK is set to 1).
+         * <p>These are the screensaver components that the user has chosen to be used.
+         *
          * @hide
          */
         @Readable
         public static final String SCREENSAVER_COMPONENTS = "screensaver_components";
+
+        /**
+         * The user's currently active screensaver component.
+         *
+         * <p>This will be launched by the PhoneWindowManager after a timeout when not on battery,
+         * or upon dock insertion (if SCREENSAVER_ACTIVATE_ON_DOCK is set to 1).
+         *
+         * <p>We will first try to start {@code SCREENSAVER_ACTIVE_COMPONENT}. If that isn't
+         * available or cannot be started, we will fallback to the first eligible item in
+         * {@link #SCREENSAVER_COMPONENTS}. If none of those are available, we will fallback to the
+         * default screensaver on the device, if one exists.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String SCREENSAVER_ACTIVE_COMPONENT = "screensaver_active_component";
 
         /**
          * If screensavers are enabled, whether the screensaver should be automatically launched
@@ -11027,13 +11288,6 @@ public final class Settings {
         public static final int LOW_LIGHT_DISPLAY_BEHAVIOR_NONE = 0;
 
         /**
-         * The screen should turn completely off in low light.
-         *
-         * @hide
-         */
-        public static final int LOW_LIGHT_DISPLAY_BEHAVIOR_SCREEN_OFF = 1;
-
-        /**
          * The screen should switch to a low light clock dream if dreaming is enabled in low light.
          *
          * @hide
@@ -11051,7 +11305,6 @@ public final class Settings {
         @Retention(RetentionPolicy.SOURCE)
         @IntDef({
                 LOW_LIGHT_DISPLAY_BEHAVIOR_NONE,
-                LOW_LIGHT_DISPLAY_BEHAVIOR_SCREEN_OFF,
                 LOW_LIGHT_DISPLAY_BEHAVIOR_LOW_LIGHT_CLOCK_DREAM,
                 LOW_LIGHT_DISPLAY_BEHAVIOR_NO_DREAM,
         })
@@ -11645,7 +11898,9 @@ public final class Settings {
          * @hide
          */
         @UnsupportedAppUsage
+        @TestApi
         @Readable
+        @SuppressLint({"UnflaggedApi", "NoSettingsProvider"}) // @TestApi without associated feature
         public static final String ASSISTANT = "assistant";
 
         /**
@@ -11981,6 +12236,19 @@ public final class Settings {
                 "mandatory_biometrics_requirements_satisfied";
 
         /**
+         * The current default component to use the Raise Trigger feature.
+         * @hide
+         */
+        public static final String RAISE_TRIGGER_DEFAULT_ASSISTANT =
+                "raise_trigger_default_assistant";
+
+        /**
+         * Number of trusted locations added by the user.
+         * @hide
+         */
+        public static final String TRUSTED_LOCATIONS_COUNT = "trusted_locations_count";
+
+        /**
          * Whether or not active unlock triggers on wake.
          * @hide
          */
@@ -12151,6 +12419,15 @@ public final class Settings {
         public static final String ON_DEVICE_INTELLIGENCE_UNBIND_TIMEOUT_MS =
                 "on_device_intelligence_unbind_timeout_ms";
 
+        /**
+         * The Epoch Millisecond time of the first deployment of on-device models (via network
+         * download or copy from pre-installed model(s)).
+         * This value might be used to decide when to reclaim storage for pre-installed model(s).
+         *
+         * @hide
+         */
+        public static final String FIRST_ON_DEVICE_MODELS_DOWNLOADED_TIME =
+                "first_on_device_models_downloaded_time";
 
         /**
          * Timeout that represents maximum idle time before which a callback should be populated.
@@ -12169,6 +12446,63 @@ public final class Settings {
          */
         public static final String ON_DEVICE_INFERENCE_UNBIND_TIMEOUT_MS =
                 "on_device_inference_unbind_timeout_ms";
+
+        /**
+         * Timeout to be used for unbinding to the configured remote
+         * {@link android.service.contentsafety.ContentSafetyService} if there are no
+         * requests in the queue. A value of -1 represents to never unbind.
+         *
+         * @hide
+         */
+        public static final String CONTENT_SAFETY_UNBIND_TIMEOUT_MS =
+                "content_safety_unbind_timeout_ms";
+
+
+        /**
+         * Timeout that represents maximum idle time before which a callback should be populated.
+         *
+         * @hide
+         */
+        public static final String CONTENT_SAFETY_IDLE_TIMEOUT_MS =
+                "content_safety_idle_timeout_ms";
+
+
+        /**
+         * Timeout that represents maximum idle time before which a callback should be populated.
+         *
+         * @hide
+         */
+        public static final String CONTENT_SAFETY_SETTINGS_IDLE_TIMEOUT_MS =
+                "content_safety_settings_idle_timeout_ms";
+
+
+        /**
+         * Timeout that represents maximum idle time before which a callback should be populated.
+         *
+         * @hide
+         */
+        public static final String CONTENT_SAFETY_SANDBOXED_IDLE_TIMEOUT_MS =
+                "content_safety_sandboxed_idle_timeout_ms";
+
+        /**
+         * Timeout to be used for unbinding to the configured remote
+         * {@link android.service.contentsafety.ContentSafetySandboxedService} if there
+         * are no requests in the queue. A value of -1 represents to never unbind.
+         *
+         * @hide
+         */
+        public static final String CONTENT_SAFETY_SANDBOXED_UNBIND_TIMEOUT_MS =
+                "content_safety_sandboxed_unbind_timeout_ms";
+
+        /**
+         * Timeout to be used for unbinding to the configured remote
+         * {@link android.service.contentsafety.ContentSafetySettingsService} if there
+         * are no requests in the queue. A value of -1 represents to never unbind.
+         *
+         * @hide
+         */
+        public static final String CONTENT_SAFETY_SETTINGS_UNBIND_TIMEOUT_MS =
+                "content_safety_settings_unbind_timeout_ms";
 
         /**
          * Control whether Night display is currently activated.
@@ -12867,6 +13201,33 @@ public final class Settings {
         public static final String NEARBY_SHARING_COMPONENT = "nearby_sharing_component";
 
         /**
+         * Current provider of the component that manages the gesture lifecycle while the share
+         * sheet is active.
+         * Default value in @string/config_defaultTapEventServiceComponent.
+         * No VALIDATOR as this setting will not be backed up.
+         * @hide
+         */
+        @FlaggedApi(android.service.chooser.Flags.FLAG_TAP_TO_SHARE)
+        @TestApi
+        @Readable
+        @SuppressLint("NoSettingsProvider")
+        public static final String TAP_EVENT_SERVICE_COMPONENT = "tap_event_service_component";
+
+        /**
+         * Current provider of the component that receives the finalized intent after a successful
+         * tap is detected.
+         * Default value in @string/config_defaultTapShareFulfillmentActivityComponent.
+         * No VALIDATOR as this setting will not be backed up.
+         * @hide
+         */
+        @FlaggedApi(android.service.chooser.Flags.FLAG_TAP_TO_SHARE)
+        @TestApi
+        @Readable
+        @SuppressLint("NoSettingsProvider")
+        public static final String TAP_SHARE_FULFILLMENT_ACTIVITY_COMPONENT =
+                "tap_share_fulfillment_activity_component";
+
+        /**
          * Nearby Sharing Slice URI for the SliceProvider to
          * read Nearby Sharing scan results and then draw the UI.
          * @hide
@@ -12959,6 +13320,7 @@ public final class Settings {
          * Whether to enable camera extensions software fallback.
          * @hide
          */
+        @TestApi
         @Readable
         public static final String CAMERA_EXTENSIONS_FALLBACK = "camera_extensions_fallback";
 
@@ -13076,17 +13438,8 @@ public final class Settings {
                 "accessibility_magnification_joystick_enabled";
 
         /**
-         * Setting that specifies whether the display magnification is enabled via a system-wide
-         * two fingers triple tap gesture.
-         *
-         * @hide
-         */
-        public static final String ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED =
-                "accessibility_magnification_two_finger_triple_tap_enabled";
-
-        /**
          * Whether to always expand notification bundles in the notification shade.
-         * 1 = expand, 0 = collapse.
+         * 1 = always expand, 0 = auto, -1 always collapse.
          * @hide
          */
         public static final String NOTIFICATION_BUNDLES_ALWAYS_EXPAND =
@@ -13475,6 +13828,10 @@ public final class Settings {
         public static final int ACTION_CORNER_ACTION_QUICK_SETTINGS = 4;
         /** @hide */
         public static final int ACTION_CORNER_ACTION_LOCKSCREEN = 5;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_NOTE = 6;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_PEEK = 7;
 
         /**
          * The different actions that can be used for action corners
@@ -13487,6 +13844,8 @@ public final class Settings {
                 ACTION_CORNER_ACTION_NOTIFICATIONS,
                 ACTION_CORNER_ACTION_QUICK_SETTINGS,
                 ACTION_CORNER_ACTION_LOCKSCREEN,
+                ACTION_CORNER_ACTION_NOTE,
+                ACTION_CORNER_ACTION_PEEK,
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface ActionCornerActionType {
@@ -13902,12 +14261,87 @@ public final class Settings {
                 "identity_check_promo_card_shown";
 
         /**
+         * Tracks if the user has seen the promo card for Identity Check x MTL.
+         * The promo card should only appear once per user via Safety Center.
+         *
+         * @hide
+         */
+        public static final String IDENTITY_CHECK_WATCH_PROMO_CARD_SHOWN =
+                "identity_check_watch_promo_card_shown";
+
+        /**
          * Tracks if the user has interacted with the Identity Check promo notification.
          * The notification should only appear once per user via Safety Center.
          * @hide
          */
         public static final String IDENTITY_CHECK_NOTIFICATION_VIEW_DETAILS_CLICKED =
                 "identity_check_notification_view_details_clicked";
+
+        /**
+         * Tracks if the user has interacted with the Identity Check x MTL promo notification.
+         * The notification should only appear once per user via Safety Center.
+         * @hide
+         */
+        public static final String IDENTITY_CHECK_WATCH_NOTIFICATION_VIEW_DETAILS_CLICKED =
+                "identity_check_watch_notification_view_details_clicked";
+
+        /**
+         * Setting to showing password characters from touch inputs in text editors.
+         * 1 = On, 0 = Off
+         * @hide
+         */
+        @Readable
+        @FlaggedApi(com.android.text.flags.Flags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+        public static final String TEXT_SHOW_PASSWORD_TOUCH = "show_password_touch";
+
+        /**
+         * Setting to showing password characters from physical inputs in text editors.
+         * 1 = On, 0 = Off
+         * @hide
+         */
+        @Readable
+        @FlaggedApi(com.android.text.flags.Flags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+        public static final String TEXT_SHOW_PASSWORD_PHYSICAL = "show_password_physical";
+
+        /**
+         * Whether personal context is enabled.
+         * 1 = On, 0 = Off
+         * @hide
+         */
+        @Readable
+        @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE)
+        public static final String PERSONAL_CONTEXT_ENABLED = "personal_context_enabled";
+
+        /**
+         * Default value for whether or not per-app personal context capture is enabled. This value
+         * is used as the default for any application for which the setting is unset.
+         * 1 = On, 0 = Off
+         *
+         * @see android.service.personalcontext.PersonalContextManager#isPersonalContextModeEnabled
+         * @hide
+         */
+        @Readable
+        @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE)
+        public static final String PERSONAL_CONTEXT_MODE_ENABLED_DEFAULT =
+                "personal_context_mode_enabled_default";
+
+       /**
+         * Setting to determine if the wallet service is available.
+         * 1 = available, 0 = unavailable
+         * @hide
+         */
+        public static final String IS_WALLET_SERVICE_AVAILABLE = "is_wallet_service_available";
+
+        /**
+         * Whether to show led light animation on incoming call from favorite contact.
+         *
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @FlaggedApi("com.android.server.notification.favorites_incoming_call_lights")
+        public static final String LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED =
+                "light_animation_favorite_calls_enabled";
     }
 
     /**
@@ -13981,6 +14415,14 @@ public final class Settings {
          */
         @Readable
         public static final String AIRPLANE_MODE_ON = "airplane_mode_on";
+
+        /**
+         * Whether Airplane Mode should be synced across devices.
+         * (0 disabled, 1 - enabled)
+         * @hide
+         */
+        @Readable
+        public static final String AIRPLANE_MODE_SYNC = "airplane_mode_sync";
 
         /**
          * Whether Theater Mode is on.
@@ -14196,6 +14638,33 @@ public final class Settings {
         public static final String TIME_ZONE_NOTIFICATIONS = "time_zone_notifications";
 
         /**
+         * Value to specify if the device should send notifications when the device's time zone
+         * offset changes (e.g. for daylight saving time).
+         *
+         * <p>1=yes, 0=no.
+         *
+         * @hide
+         */
+        public static final String TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS =
+                "time_zone_offset_change_notifications";
+
+        /**
+         * The user's home time zone ID.
+         *
+         * <p>This value can be used to display a specific "home" time zone in UI elements when the
+         * user's current time zone differs from this value.
+         *
+         * <p>This setting is independent of the system time zone; it does not affect the
+         * device's system clock or the behavior of {@link #AUTO_TIME_ZONE}.
+         *
+         * <p>The value is a standard time zone ID string (e.g. "America/Los_Angeles").
+         * It may be {@code null} if no preference is set.
+         *
+         * @hide
+         */
+        public static final String HOME_TIME_ZONE_ID = "home_time_zone_id";
+
+        /**
          * URI for the car dock "in" event sound.
          * @hide
          */
@@ -14359,9 +14828,10 @@ public final class Settings {
         public static final String CUSTOM_BUGREPORT_HANDLER_USER = "custom_bugreport_handler_user";
 
         /**
-         * Whether ADB over USB is enabled.
+         * Whether ADB over USB is enabled. (0 = false, 1 = true).
+         * This will always return 0 for all third-party apps.
          */
-        @Readable
+        @Readable(redactedValue = "0")
         public static final String ADB_ENABLED = "adb_enabled";
 
         /**
@@ -14644,9 +15114,10 @@ public final class Settings {
                 "wm_display_settings_path";
 
         /**
-        * Whether user has enabled development settings.
+        * Whether user has enabled development settings. (0 = false, 1 = true).
+        * This will always return 0 for all third-party apps.
         */
-        @Readable
+        @Readable(redactedValue = "0")
         public static final String DEVELOPMENT_SETTINGS_ENABLED = "development_settings_enabled";
 
         /**
@@ -14669,6 +15140,13 @@ public final class Settings {
         @Readable
         @SuppressLint("NoSettingsProvider")
         public static final String SECURE_FRP_MODE = "secure_frp_mode";
+
+        /**
+         * Whether to enable the WebApp minter in webapp mainline module.
+         * @hide
+         */
+        @Readable
+        public static final String ENABLE_WEBAPP_MINTER = "enable_webapp_minter";
 
         /**
          * Whether bypassing the device policy management role holder qualification is allowed,
@@ -17580,6 +18058,16 @@ public final class Settings {
         public static final String ANGLE_DEBUG_PACKAGE = "angle_debug_package";
 
         /**
+         * List of package names that should not use ANGLE unless explicitly opted in by users.
+         * This is not a list of installed packages on the device, but a dynamic list of denied
+         * names set through adb commands or server config push.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String ANGLE_DYNAMIC_DENYLIST = "angle_dynamic_denylist";
+
+        /**
          * Force all PKGs to use ANGLE, regardless of any other settings
          * The value is a boolean (1 or 0).
          * @hide
@@ -18304,7 +18792,6 @@ public final class Settings {
          * @hide
          */
         @Readable
-        @FlaggedApi(android.app.admin.flags.Flags.FLAG_BACKUP_CONNECTED_APPS_SETTINGS)
         public static final String CONNECTED_APPS_ALLOWED_PACKAGES =
                 "connected_apps_allowed_packages";
 
@@ -18315,7 +18802,6 @@ public final class Settings {
          * @hide
          */
         @Readable
-        @FlaggedApi(android.app.admin.flags.Flags.FLAG_BACKUP_CONNECTED_APPS_SETTINGS)
         public static final String CONNECTED_APPS_DISALLOWED_PACKAGES =
                 "connected_apps_disallowed_packages";
 
@@ -19152,17 +19638,6 @@ public final class Settings {
                 "hearing_device_local_notification";
 
         /**
-         * This defines the order in which the 3-button navigation bar's buttons are displayed.
-         * 0 = left-to-right (back, home, recent)
-         * 1 = right-to-left (recent, home, back)
-         * @hide
-         * @deprecated Use
-         * {@link Secure#NAVIGATIONBAR_KEY_ORDER} instead.
-         */
-        @Deprecated
-        public static final String NAVIGATIONBAR_KEY_ORDER = "navigationbar_key_order";
-
-        /**
          * Global settings that shouldn't be persisted.
          *
          * @hide
@@ -19210,7 +19685,6 @@ public final class Settings {
             MOVED_TO_SECURE.add(Global.BUGREPORT_IN_POWER_MENU);
             MOVED_TO_SECURE.add(Global.CUSTOM_BUGREPORT_HANDLER_APP);
             MOVED_TO_SECURE.add(Global.CUSTOM_BUGREPORT_HANDLER_USER);
-            MOVED_TO_SECURE.add(Global.NAVIGATIONBAR_KEY_ORDER);
         }
 
         // Certain settings have been moved from global to the per-user system namespace
@@ -19238,14 +19712,15 @@ public final class Settings {
 
         /** @hide */
         public static void getPublicSettings(Set<String> allKeys, Set<String> readableKeys,
-                ArrayMap<String, Integer> readableKeysWithMaxTargetSdk) {
+                ArrayMap<String, Integer> readableKeysWithMaxTargetSdk,
+                ArrayMap<String, String> readableKeysWithRedactedValue) {
             getPublicSettingsForClass(Global.class, allKeys, readableKeys,
-                    readableKeysWithMaxTargetSdk);
+                    readableKeysWithMaxTargetSdk, readableKeysWithRedactedValue);
             // Add Global.Wearable keys on watches.
             if (ActivityThread.currentApplication().getApplicationContext().getPackageManager()
                     .hasSystemFeature(PackageManager.FEATURE_WATCH)) {
                 getPublicSettingsForClass(Global.Wearable.class, allKeys, readableKeys,
-                        readableKeysWithMaxTargetSdk);
+                        readableKeysWithMaxTargetSdk, readableKeysWithRedactedValue);
             }
         }
 
@@ -19837,16 +20312,6 @@ public final class Settings {
                 "notification_snooze_options";
 
         /**
-         * When enabled, notifications the notification assistant service has modified will show an
-         * indicator. When tapped, this indicator will describe the adjustment made and solicit
-         * feedback. This flag will also add a "automatic" option to the long press menu.
-         *
-         * The value 1 - enable, 0 - disable
-         * @hide
-         */
-        public static final String NOTIFICATION_FEEDBACK_ENABLED = "notification_feedback_enabled";
-
-        /**
          * Configuration flags for SQLite Compatibility WAL. Encoded as a key-value list, separated
          * by commas. E.g.: compatibility_wal_supported=true, wal_syncmode=OFF
          *
@@ -19927,30 +20392,6 @@ public final class Settings {
          */
         @Readable
         public static final String CACHED_APPS_FREEZER_ENABLED = "cached_apps_freezer";
-
-        /**
-         * Configuration flags for smart replies in notifications.
-         * This is encoded as a key=value list, separated by commas. Ex:
-         *
-         * "enabled=1,max_squeeze_remeasure_count=3"
-         *
-         * The following keys are supported:
-         *
-         * <pre>
-         * enabled                           (boolean)
-         * requires_targeting_p              (boolean)
-         * max_squeeze_remeasure_attempts    (int)
-         * edit_choices_before_sending       (boolean)
-         * show_in_heads_up                  (boolean)
-         * min_num_system_generated_replies  (int)
-         * max_num_actions                   (int)
-         * </pre>
-         * @see com.android.systemui.statusbar.policy.SmartReplyConstants
-         * @hide
-         */
-        @Readable
-        public static final String SMART_REPLIES_IN_NOTIFICATIONS_FLAGS =
-                "smart_replies_in_notifications_flags";
 
         /**
          * If nonzero, crashes in foreground processes will bring up a dialog.
@@ -20403,12 +20844,22 @@ public final class Settings {
         public static final String MINMODE_ACTIVE = "minmode_active";
 
         /**
-          * Indicates if watch ranging is available for the device.
+         * Indicates if watch ranging is available for the device.
          *
          * @hide
          */
         public static final String WATCH_RANGING_AVAILABLE =
                 "watch_ranging_available";
+
+        /**
+         * Indicates if scene container flag is enabled. This is only a temporary addition that will
+         * be removed for Android 17.1 release.
+         *
+         * TODO (b/427071498): Remove this once SLD is integrated with Flexiglass
+         *
+         * @hide
+         */
+        public static final String SCENE_CONTAINER_ENABLED = "scene_container_enabled";
 
         /**
          * Settings migrated from Wear OS settings provider.
@@ -20752,6 +21203,14 @@ public final class Settings {
             public static final String BEDTIME_HARD_MODE = "bedtime_hard_mode";
 
             /**
+             * Whether the Wear-specific charging experience is enabled, which applies a
+             * dedicated brightness curve and timeout.
+             * @hide
+             */
+            public static final String WEAR_CHARGING_EXPERIENCE_ENABLED =
+                    "wear_charging_experience_enabled";
+
+            /**
              * Whether the current watchface is decomposable.
              * @hide
              */
@@ -20773,11 +21232,25 @@ public final class Settings {
             public static final String AMBIENT_LOW_BIT_ENABLED = "ambient_low_bit_enabled";
 
             /**
-             * The timeout duration in minutes of ambient mode when plugged in.
+             * The timeout duration in minutes of ambient mode when plugged in with Wear Charging
+             * Experience enabled. This remaining time in this timeout will be reset only when the
+             * device is unplugged. If the remaining time is less than AMBIENT_PLUGGED_TIMEOUT_MIN
+             * when entering ambient mode, AMBIENT_OFFWRIST_TIMEOUT_MIN will be used instead.
              * @hide
              */
             @Readable
             public static final String AMBIENT_PLUGGED_TIMEOUT_MIN = "ambient_plugged_timeout_min";
+
+            /**
+             * The timeout duration in minutes of ambient mode when offwrist. It fallbacks to
+             * AMBIENT_PLUGGED_TIMEOUT_MIN if undefined or negative. This timeout will also be used
+             * when the plugged device enters ambient mode with Wear Charging Experience disabled,
+             * or plugged remaining time is less than this timeout.
+             * @hide
+             */
+            @Readable
+            public static final String AMBIENT_OFFWRIST_TIMEOUT_MIN =
+                    "ambient_offwrist_timeout_min";
 
             /**
              * What OS does paired device has.
@@ -21436,6 +21909,14 @@ public final class Settings {
                     "gesture_primary_action_user_preference";
 
             /**
+             * Whether the "always on media" gesture is enabled.
+             *
+             * @hide
+             */
+            public static final String GESTURE_ALWAYS_ON_MEDIA_ENABLED =
+                    "gesture_always_on_media_enabled";
+
+            /**
              * Setting indicating whether the dismiss gesture input action has been enabled by the
              * user.
              *
@@ -21453,6 +21934,93 @@ public final class Settings {
              * @hide
              */
             public static final String GESTURE_HINT_PERIOD_DAYS = "gesture_hint_period_days";
+
+            /**
+             * Gesture primary action customization for media controls.
+             *
+             * @hide
+             */
+            public static final String GESTURE_CUSTOMIZE_MEDIA_CONTROLS_PRIMARY_ACTION =
+                    "gesture_customize_media_controls_primary_action";
+
+            /**
+             * Indicates that the primary gesture for media controls should be the play or pause
+             * action.
+             *
+             * @hide
+             */
+            public static final int GESTURE_CUSTOMIZE_MEDIA_CONTROLS_PRIMARY_ACTION_PLAY_PAUSE = 0;
+
+            /**
+             * Indicates that the primary gesture for media controls should be the skip action.
+             *
+             * @hide
+             */
+            public static final int GESTURE_CUSTOMIZE_MEDIA_CONTROLS_PRIMARY_ACTION_SKIP = 1;
+
+            /**
+             * Gesture primary action customization for workout controls.
+             *
+             * @hide
+             */
+            public static final String GESTURE_CUSTOMIZE_WORKOUT_CONTROLS_PRIMARY_ACTION =
+                    "gesture_customize_workout_controls_primary_action";
+
+            /**
+             * Indicates that the primary gesture for workout controls should be a workout specific
+             * action.
+             *
+             * @hide
+             */
+            public static final int
+                    GESTURE_CUSTOMIZE_WORKOUT_CONTROLS_PRIMARY_ACTION_WORKOUT_SPECIFIC = 0;
+
+            /**
+             * Indicates that the primary gesture for workout controls should be the play or pause
+             * all workouts action.
+             *
+             * @hide
+             */
+            public static final int
+                    GESTURE_CUSTOMIZE_WORKOUT_CONTROLS_PRIMARY_ACTION_PLAY_PAUSE_ALL_WORKOUTS = 1;
+
+            /**
+             * Gesture primary action customization for alarm.
+             *
+             * @hide
+             */
+            public static final String GESTURE_CUSTOMIZE_ALARM_PRIMARY_ACTION =
+                    "gesture_customize_alarm_primary_action";
+
+            /**
+             * Indicates that the primary gesture for alarm should snooze the alarm.
+             *
+             * @hide
+             */
+            public static final int GESTURE_CUSTOMIZE_ALARM_PRIMARY_ACTION_SNOOZE = 0;
+
+            /**
+             * Indicates that the primary gesture for alarm should dismiss the alarm.
+             *
+             * @hide
+             */
+            public static final int GESTURE_CUSTOMIZE_ALARM_PRIMARY_ACTION_DISMISS = 1;
+
+            /**
+             * A boolean that tracks whether remote gestures are enabled.
+             *
+             * @hide
+             */
+            public static final String REMOTE_GESTURES_ENABLED = "remote_gestures_enabled";
+
+            /**
+             * A boolean that tracks whether all gestures are routed to remote clients when remote
+             * clients are connected.
+             *
+             * @hide
+             */
+            public static final String ALWAYS_ROUTE_GESTURES_TO_REMOTE_CLIENTS =
+                    "always_route_gestures_to_remote_clients";
 
             /** Whether Wear Power Anomaly Service is enabled.
              *
@@ -21488,6 +22056,13 @@ public final class Settings {
             public static final String AUTO_BEDTIME_MODE = "auto_bedtime_mode";
 
             /**
+             * Whether the Bedtime Mode watchface should be shown when Bedtime Mode is activated.
+             *
+             * @hide
+             */
+            public static final String BEDTIME_MODE_WATCHFACE = "bedtime_mode_watchface";
+
+            /**
              * Indicates that all elements of the system status tray on wear should be rendered
              * by default wear system.
              *
@@ -21503,12 +22078,155 @@ public final class Settings {
             public static final int STATUS_TRAY_CONFIGURATION_SYSTEM_HIDDEN = 1;
 
             /**
+             * Indicates that all elements of the system status tray should be rendered by the home
+             * application.
+             *
+             * @hide
+             */
+            public static final int STATUS_TRAY_CONFIGURATION_HOME_HOSTED = 2;
+
+            /**
+             * Indicates that all elements of the system status tray should be shown within system
+             * UI.
+             *
+             * @hide
+             */
+            public static final int STATUS_TRAY_CONFIGURATION_SYSTEM_UI_HOSTED = 3;
+
+            /**
              * Configuration of system status tray in wear.
              *
              * @hide
              */
             public static final String WEAR_SYSTEM_STATUS_TRAY_CONFIGURATION =
                     "wear_system_status_tray_configuration";
+
+            /**
+             * Whether the show warning message, on bug report notification's confirmation screen.
+             *
+             * @hide
+             */
+            public static final String WEAR_BUG_REPORT_WARNING_VISIBILITY_STATE =
+                    "wear_bug_report_warning_visibility_state";
+
+            /**
+             * Whether Raise-to-Talk is enabled by the user
+             *
+             * @hide
+             */
+            @Readable
+            public static final String RAISE_TO_TALK_ENABLED = "raise_to_talk_enabled";
+
+
+            /**
+             * Whether Raise-to-Talk is actually enabled based on both the user setting and the
+             * device's mode.
+             *
+             * @hide
+             */
+            @Readable
+            public static final String RAISE_TO_TALK_MEDIATED_ENABLED =
+                    "raise_to_talk_mediated_enabled";
+
+            /**
+             * Whether the Raise-to-Talk visual indicator is enabled
+             */
+            @Readable
+            public static final String RAISE_TO_TALK_VISUAL_INDICATOR_ENABLED =
+                    "raise_to_talk_visual_indicator_enabled";
+
+            /**
+             * Raise-to-Talk gesture sensitivity setting, which can be one of the following:
+             * - {@link #RAISE_TO_TALK_GESTURE_SENSITIVITY_LOW}
+             * - {@link #RAISE_TO_TALK_GESTURE_SENSITIVITY_MEDIUM}
+             * - {@link #RAISE_TO_TALK_GESTURE_SENSITIVITY_HIGH}
+             */
+            @Readable
+            public static final String RAISE_TO_TALK_GESTURE_SENSITIVITY =
+                    "raise_to_talk_gesture_sensitivity";
+
+            /**
+             * Indicates that the gesture sensitivity for Raise-to-Talk is set to low.
+             * A more pronounced raise gesture is required to trigger.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_GESTURE_SENSITIVITY_LOW = 0;
+
+            /**
+             * Indicates that the gesture sensitivity for Raise-to-Talk is set to medium.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_GESTURE_SENSITIVITY_MEDIUM = 1;
+
+            /**
+             * Indicates that the gesture sensitivity for Raise-to-Talk is set to high.
+             * A less pronounced raise gesture is sufficient to trigger.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_GESTURE_SENSITIVITY_HIGH = 2;
+
+
+            /**
+             * Raise-to-Talk voice sensitivity setting, which can be one of the following:
+             * - {@link #RAISE_TO_TALK_VOICE_SENSITIVITY_VERY_LOW}
+             * - {@link #RAISE_TO_TALK_VOICE_SENSITIVITY_LOW}
+             * - {@link #RAISE_TO_TALK_VOICE_SENSITIVITY_MEDIUM}
+             * - {@link #RAISE_TO_TALK_VOICE_SENSITIVITY_HIGH}
+             * - {@link #RAISE_TO_TALK_VOICE_SENSITIVITY_VERY_HIGH}
+             */
+            @Readable
+            public static final String RAISE_TO_TALK_VOICE_SENSITIVITY =
+                    "raise_to_talk_voice_sensitivity";
+
+            /**
+             * Indicates that the voice sensitivity for Raise-to-Talk is set to very low.
+             * A higher speaking volume is required to trigger.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_VOICE_SENSITIVITY_VERY_LOW = 0;
+
+            /**
+             * Indicates that the voice sensitivity for Raise-to-Talk is set to low.
+             * A higher speaking volume is required to trigger.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_VOICE_SENSITIVITY_LOW = 1;
+
+            /**
+             * Indicates that the voice sensitivity for Raise-to-Talk is set to medium.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_VOICE_SENSITIVITY_MEDIUM = 2;
+
+            /**
+             * Indicates that the voice sensitivity for Raise-to-Talk is set to high.
+             * A lower speaking volume is sufficient to trigger.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_VOICE_SENSITIVITY_HIGH = 3;
+
+            /**
+             * Indicates that the voice sensitivity for Raise-to-Talk is set to very high.
+             * A lower speaking volume is sufficient to trigger.
+             *
+             * @hide
+             */
+            public static final int RAISE_TO_TALK_VOICE_SENSITIVITY_VERY_HIGH = 4;
+
+            /**
+             * Whether satellite mode is enabled on the watch.
+             *
+             * @hide
+             */
+            @Readable
+            public static final String WEAR_SATELLITE_MODE_ENABLED = "wear_satellite_mode_enabled";
         }
     }
 
@@ -22501,6 +23219,19 @@ public final class Settings {
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT =
             "android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT";
+
+    /**
+     * Broadcast Action: A request to have the system feedback handler app collect and send
+     * feedback. This is a protected intent that can only be sent by the system.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    public static final String ACTION_REQUEST_FEEDBACK =
+            "com.android.internal.intent.action.REQUEST_FEEDBACK";
 
     /**
      * Activity Action: For system or preinstalled apps to show their {@link Activity} embedded

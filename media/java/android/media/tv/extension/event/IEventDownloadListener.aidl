@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.media.tv.extension.event;
 
-import android.os.Bundle;
 
 /**
  * @hide
  */
 oneway interface IEventDownloadListener {
-    void onCompleted(in Bundle status);
+    /**
+     * Callback notifying that the event download process has completed.
+     *
+     * @param status {@link EventConstants.EventResult} The final status of the download operation.
+     */
+    void onCompleted(int status);
 }

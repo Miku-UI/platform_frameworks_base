@@ -24,4 +24,7 @@ interface CommunalRepositoryModule {
     @Binds fun communalRepository(impl: CommunalSceneRepositoryImpl): CommunalSceneRepository
 
     @Binds fun carProjectionRepository(impl: CarProjectionRepositoryImpl): CarProjectionRepository
+
+    @Binds
+    fun contextualSetupRepository(impl: ContextualSetupRepositoryImpl): ContextualSetupRepository
 }

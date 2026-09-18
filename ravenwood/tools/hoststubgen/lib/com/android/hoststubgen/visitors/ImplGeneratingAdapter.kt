@@ -21,6 +21,7 @@ import com.android.hoststubgen.asm.CLASS_INITIALIZER_DESC
 import com.android.hoststubgen.asm.CLASS_INITIALIZER_NAME
 import com.android.hoststubgen.asm.CTOR_NAME
 import com.android.hoststubgen.asm.ClassNodes
+import com.android.hoststubgen.asm.NameValue
 import com.android.hoststubgen.asm.UnifiedVisitor
 import com.android.hoststubgen.asm.UnifiedVisitor.Companion.addParams
 import com.android.hoststubgen.asm.adjustStackForConstructorRedirection
@@ -39,6 +40,7 @@ import com.android.hoststubgen.filters.OutputFilter
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsExperimental
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsIgnore
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep
+import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsThrow
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsThrowButSupported
@@ -191,6 +193,17 @@ class ImplGeneratingAdapter(
         // force it to be "runtime-visible" aka RUNTIME.
         return super.visitAnnotation(descriptor,
             visible || options.annotationsToMakeVisible.contains(descriptor))
+    }
+
+    private var redirectAnnotationAdded = false
+
+    private fun addRedirectAnnotation() {
+        if (redirectAnnotationAdded) {
+            return
+        }
+        redirectAnnotationAdded = true
+        this.visitAnnotation(HostStubGenProcessedAsRedirect.CLASS_DESCRIPTOR, true)
+            ?.visitEnd()
     }
 
     var skipMemberModificationNestCount = 0
@@ -404,8 +417,14 @@ class ImplGeneratingAdapter(
             innerVisitor = ClassLoadHookInjectingMethodAdapter(innerVisitor)
         }
 
-        fun MethodVisitor.withAnnotation(descriptor: String, reason: String): MethodVisitor {
-            this.visitAnnotation(descriptor, true).addParams(reasonParam(reason))
+        fun MethodVisitor.withAnnotation(
+            descriptor: String,
+            reason: String,
+            modifier: (AnnotationVisitor) -> Unit = {},
+        ): MethodVisitor {
+            val annotationVisitor = this.visitAnnotation(descriptor, true)
+                .addParams(reasonParam(reason))
+            modifier(annotationVisitor)
             return this
         }
 
@@ -435,10 +454,25 @@ class ImplGeneratingAdapter(
                 }
                 FilterPolicy.Redirect -> {
                     log.v("Redirecting method...")
-                    return RedirectMethodAdapter(
+
+                    val mvis = RedirectMethodAdapter(
                         access, name, descriptor,
                         forceCreateBody, innerVisitor
-                    ).withAnnotation(HostStubGenProcessedAsSubstitute.CLASS_DESCRIPTOR, policy.reason)
+                    )
+                    addRedirectAnnotation()
+                    return mvis.withAnnotation(
+                        HostStubGenProcessedAsRedirect.CLASS_DESCRIPTOR,
+                        policy.reason,
+                        ) { avis ->
+                        avis.addParams(listOf(
+                            NameValue(HostStubGenProcessedAsRedirect.TARGET_CLASS_FIELD,
+                                mvis.targetClass),
+                            NameValue(HostStubGenProcessedAsRedirect.TARGET_METHOD_FIELD,
+                                mvis.targetMethod),
+                            NameValue(HostStubGenProcessedAsRedirect.TARGET_DESC_FIELD,
+                                mvis.targetDesc),
+                        ))
+                    }
                 }
                 FilterPolicy.Experimental -> {
                     if (options.experimentalMethodCallHook == null) {
@@ -512,7 +546,7 @@ class ImplGeneratingAdapter(
      */
     private inner class RedirectMethodAdapter(
         access: Int,
-        private val name: String,
+        name: String,
         private val descriptor: String,
         createBody: Boolean,
         next: MethodVisitor?
@@ -520,21 +554,33 @@ class ImplGeneratingAdapter(
 
         private val isStatic = (access and Opcodes.ACC_STATIC) != 0
 
+        val targetClass: String
+        val targetMethod: String
+        val targetDesc: String
+
+        init {
+            targetClass = redirectionClass!!
+            targetMethod = name
+            targetDesc = if (isStatic) {
+                // Static method: no need to change the descriptor
+                descriptor
+            } else {
+                // Non-static method: we pass "this" instance as the first argument,
+                // so prepend the current class name.
+                prependArgTypeToMethodDescriptor(
+                    descriptor,
+                    currentClassName,
+                )
+            }
+        }
+
         override fun emitNewCode() {
-            var targetDescriptor = descriptor
             var argOffset = 0
 
             // For non-static method, we need to tweak it a bit.
             if (!isStatic) {
                 // Push `this` as the first argument.
                 this.visitVarInsn(Opcodes.ALOAD, 0)
-
-                // Update the descriptor -- add this class's type as the first argument
-                // to the method descriptor.
-                targetDescriptor = prependArgTypeToMethodDescriptor(
-                    descriptor,
-                    currentClassName,
-                )
 
                 // Shift the original arguments by one.
                 argOffset = 1
@@ -544,9 +590,9 @@ class ImplGeneratingAdapter(
 
             visitMethodInsn(
                 INVOKESTATIC,
-                redirectionClass,
-                name,
-                targetDescriptor,
+                targetClass,
+                targetMethod,
+                targetDesc,
                 false
             )
 

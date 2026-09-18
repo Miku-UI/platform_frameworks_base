@@ -39,7 +39,7 @@ import java.util.Set;
 import javax.inject.Named;
 
 /** Dagger Module for Falsing. */
-@Module(includes = {FalsingStartModule.class})
+@Module(includes = {FalsingStartModule.class, FalsingIndicationMessageStartableModule.class})
 public interface FalsingModule {
     String BRIGHT_LINE_GESTURE_CLASSIFERS = "bright_line_gesture_classifiers";
     String SINGLE_TAP_TOUCH_SLOP = "falsing_single_tap_touch_slop";

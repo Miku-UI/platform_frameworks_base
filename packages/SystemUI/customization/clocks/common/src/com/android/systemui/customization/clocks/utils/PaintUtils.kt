@@ -18,7 +18,6 @@ package com.android.systemui.customization.clocks.utils
 
 import android.graphics.Paint
 import android.graphics.Rect
-import com.android.systemui.customization.clocks.utils.FontUtils.set
 import com.android.systemui.plugins.keyguard.VRectF
 
 object PaintUtils {

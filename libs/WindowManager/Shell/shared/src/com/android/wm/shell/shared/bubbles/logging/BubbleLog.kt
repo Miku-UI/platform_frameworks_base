@@ -18,7 +18,10 @@ package com.android.wm.shell.shared.bubbles.logging
 
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog.addLogger
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog.dump
 import java.io.PrintWriter
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Logs debug events related to bubbles.
@@ -34,8 +37,9 @@ object BubbleLog {
 
     const val TAG = "BubbleLog"
 
-    private val bubbleEventHistoryLogger = BubbleEventHistoryLogger()
-    @VisibleForTesting val loggers = mutableListOf<DebugLogger>(bubbleEventHistoryLogger)
+    @VisibleForTesting val bubbleEventHistoryLogger = BubbleEventHistoryLogger()
+    @VisibleForTesting
+    var loggers = CopyOnWriteArrayList<DebugLogger>().apply { add(bubbleEventHistoryLogger) }
 
     /**
      * Adds a new [DebugLogger] to the list of loggers used by this class.
@@ -44,59 +48,84 @@ object BubbleLog {
      * loggers, including any added through this method.
      *
      * @param debugLogger The [DebugLogger] instance to add.
+     * @return true if the logger was added successfully, false otherwise.
      */
     @JvmStatic
-    fun addLogger(debugLogger: DebugLogger) {
+    fun addLogger(debugLogger: DebugLogger): Boolean {
+        if (loggers.any { it.javaClass == debugLogger.javaClass }) {
+            Log.w(TAG, "Logger of type  ${debugLogger.javaClass}  already registered.")
+            return false
+        }
         loggers.add(debugLogger)
+        return true
     }
 
     /** Logs a DEBUG level message for all registered [DebugLogger]s. */
     @JvmOverloads
     @JvmStatic
-    fun d(message: String, vararg parameters: Any = emptyArray(), eventData: String? = null) {
+    fun d(message: String, vararg parameters: Any? = emptyArray(), eventData: String? = null) {
         logSafelyForAllLoggers { logger -> logger.d(message, *parameters, eventData = eventData) }
     }
 
     /** Logs a VERBOSE level message for all registered [DebugLogger]s. */
     @JvmOverloads
     @JvmStatic
-    fun v(message: String, vararg parameters: Any = emptyArray(), eventData: String? = null) {
+    fun v(message: String, vararg parameters: Any? = emptyArray(), eventData: String? = null) {
         logSafelyForAllLoggers { logger -> logger.v(message, *parameters, eventData = eventData) }
     }
 
     /** Logs an INFO level message for all registered [DebugLogger]s. */
     @JvmOverloads
     @JvmStatic
-    fun i(message: String, vararg parameters: Any = emptyArray(), eventData: String? = null) {
+    fun i(message: String, vararg parameters: Any? = emptyArray(), eventData: String? = null) {
         logSafelyForAllLoggers { logger -> logger.i(message, *parameters, eventData = eventData) }
     }
 
     /** Logs a WARNING level message for all registered [DebugLogger]s. */
     @JvmOverloads
     @JvmStatic
-    fun w(message: String, vararg parameters: Any = emptyArray(), eventData: String? = null) {
+    fun w(message: String, vararg parameters: Any? = emptyArray(), eventData: String? = null) {
         logSafelyForAllLoggers { logger -> logger.w(message, *parameters, eventData = eventData) }
     }
 
     /** Logs an ERROR level message for all registered [DebugLogger]s. */
     @JvmOverloads
     @JvmStatic
-    fun e(message: String, vararg parameters: Any = emptyArray(), eventData: String? = null) {
+    fun e(message: String, vararg parameters: Any? = emptyArray(), eventData: String? = null) {
         logSafelyForAllLoggers { logger -> logger.e(message, *parameters, eventData = eventData) }
+    }
+
+    /** Logs a record to be printed on the [dump] only */
+    @JvmOverloads
+    @JvmStatic
+    fun record(message: String, vararg parameters: Any? = emptyArray(), eventData: String? = null) {
+        performSafely("Exception while logging for history logger") {
+            bubbleEventHistoryLogger.record(message, *parameters, eventData = eventData)
+        }
     }
 
     private inline fun logSafelyForAllLoggers(logFunction: (DebugLogger) -> Unit) {
         for (logger in loggers) {
-            try {
-                logFunction.invoke(logger)
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception while logging for $logger", e)
-            }
+            performSafely("Exception while logging for $logger") { logFunction.invoke(logger) }
+        }
+    }
+
+    private inline fun performSafely(errorMessage: String, action: () -> Unit) {
+        try {
+            action.invoke()
+        } catch (e: Exception) {
+            Log.e(TAG, errorMessage, e)
         }
     }
 
     @JvmStatic
+    @JvmOverloads
     fun dump(pw: PrintWriter, prefix: String = "") {
         bubbleEventHistoryLogger.dump(pw, prefix)
+    }
+
+    /** Flushes all stored logs. */
+    fun flush() {
+        bubbleEventHistoryLogger.flush()
     }
 }

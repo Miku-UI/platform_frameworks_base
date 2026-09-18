@@ -40,7 +40,7 @@ import java.util.Map;
  * OEMs who wish to provide a phone account suggestion service on their device should implement this
  * service in an app that resides in the /system/priv-app/ directory on their device. For security
  * reasons, the service's entry {@code AndroidManifest.xml} file must declare the
- * {@link android.Manifest.permission.BIND_PHONE_ACCOUNT_SUGGESTION_SERVICE} permission:
+ * {@link android.Manifest.permission#BIND_PHONE_ACCOUNT_SUGGESTION_SERVICE} permission:
  * <pre>
  * {@code
  * <service android:name="your.package.YourServiceName"

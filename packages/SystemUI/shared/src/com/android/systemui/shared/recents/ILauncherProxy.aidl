@@ -21,9 +21,10 @@ import android.graphics.Region;
 import android.os.Bundle;
 import android.os.IRemoteCallback;
 import android.view.MotionEvent;
+import android.app.contextualsearch.ContextualSearchConfig;
 import com.android.systemui.shared.recents.ISystemUiProxy;
 
-// Next ID: 40
+// Next ID: 41
 oneway interface ILauncherProxy {
 
     void onActiveNavBarRegionChanges(in Region activeRegion) = 11;
@@ -165,4 +166,9 @@ oneway interface ILauncherProxy {
      * {@link ActionCornerConstants.Action} for all possible actions.
      */
     void onActionCornerActivated(int action, int displayId) = 39;
+
+    /**
+     * Sent when contextual search has been invoked with the given entrypoint and config.
+     */
+    void invokeContextualSearch(int entryPoint, in ContextualSearchConfig config) = 40;
 }

@@ -6,6 +6,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
+import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,6 +57,10 @@ class RoundableTest : SysuiTestCase() {
 
         assertEquals(1f, roundable.roundableState.topRoundness)
         assertEquals(1f, roundable.roundableState.bottomRoundness)
+        assertThat(roundable.hasRoundedTopCorners()).isTrue()
+        assertThat(roundable.hasRoundedBottomCorners()).isTrue()
+        assertThat(roundable.getTopRoundnessSources()).containsExactly(SOURCE1)
+        assertThat(roundable.getBottomRoundnessSources()).containsExactly(SOURCE1)
         verify(targetView, atLeastOnce()).invalidate()
     }
 
@@ -76,15 +81,23 @@ class RoundableTest : SysuiTestCase() {
     fun hasRoundedCorner_return_true_ifRoundnessIsGreaterThenZero() {
         roundable.requestRoundness(top = 1f, bottom = 1f, sourceType = SOURCE1)
         assertEquals(true, roundable.hasRoundedCorner())
+        assertThat(roundable.hasRoundedTopCorners()).isTrue()
+        assertThat(roundable.hasRoundedBottomCorners()).isTrue()
 
         roundable.requestRoundness(top = 1f, bottom = 0f, sourceType = SOURCE1)
         assertEquals(true, roundable.hasRoundedCorner())
+        assertThat(roundable.hasRoundedTopCorners()).isTrue()
+        assertThat(roundable.hasRoundedBottomCorners()).isFalse()
 
         roundable.requestRoundness(top = 0f, bottom = 1f, sourceType = SOURCE1)
         assertEquals(true, roundable.hasRoundedCorner())
+        assertThat(roundable.hasRoundedTopCorners()).isFalse()
+        assertThat(roundable.hasRoundedBottomCorners()).isTrue()
 
         roundable.requestRoundness(top = 0f, bottom = 0f, sourceType = SOURCE1)
         assertEquals(false, roundable.hasRoundedCorner())
+        assertThat(roundable.hasRoundedTopCorners()).isFalse()
+        assertThat(roundable.hasRoundedBottomCorners()).isFalse()
     }
 
     @Test
@@ -109,6 +122,9 @@ class RoundableTest : SysuiTestCase() {
         // SOURCE1 has 0.5f - SOURCE2 has 0.1f
         assertEquals(0.5f, roundable.roundableState.topRoundness)
         assertEquals(0.5f, roundable.roundableState.bottomRoundness)
+
+        assertThat(roundable.getTopRoundnessSources()).containsExactly(SOURCE1)
+        assertThat(roundable.getBottomRoundnessSources()).containsExactly(SOURCE1)
     }
 
     @Test
@@ -117,15 +133,35 @@ class RoundableTest : SysuiTestCase() {
         assertEquals(0.1f, roundable.roundableState.topRoundness)
         assertEquals(0.1f, roundable.roundableState.bottomRoundness)
 
-        roundable.requestRoundness(0.2f, 0.2f, SOURCE2)
-        // SOURCE1 has 0.1f - SOURCE2 has 0.2f
-        assertEquals(0.2f, roundable.roundableState.topRoundness)
-        assertEquals(0.2f, roundable.roundableState.bottomRoundness)
+        roundable.requestRoundness(0.5f, 0.5f, SOURCE2)
+        // SOURCE1 has 0.1f - SOURCE2 has 0.5f
+        assertEquals(0.5f, roundable.roundableState.topRoundness)
+        assertEquals(0.5f, roundable.roundableState.bottomRoundness)
 
-        roundable.requestRoundness(0.3f, 0.3f, SOURCE1)
-        // SOURCE1 has 0.3f - SOURCE2 has 0.2f
-        assertEquals(0.3f, roundable.roundableState.topRoundness)
-        assertEquals(0.3f, roundable.roundableState.bottomRoundness)
+        assertThat(roundable.getTopRoundnessSources()).containsExactly(SOURCE2)
+        assertThat(roundable.getBottomRoundnessSources()).containsExactly(SOURCE2)
+
+        roundable.requestRoundness(0.6f, 0.6f, SOURCE1)
+        // SOURCE1 has 0.6f - SOURCE2 has 0.5f
+        assertEquals(0.6f, roundable.roundableState.topRoundness)
+        assertEquals(0.6f, roundable.roundableState.bottomRoundness)
+
+        assertThat(roundable.getTopRoundnessSources()).containsExactly(SOURCE1, SOURCE2)
+        assertThat(roundable.getBottomRoundnessSources()).containsExactly(SOURCE1, SOURCE2)
+    }
+
+    @Test
+    fun roundness_take_maxValue_onMultipleSources_different_edges() {
+        roundable.requestRoundness(1f, 0f, SOURCE1)
+        assertEquals(1f, roundable.roundableState.topRoundness)
+        assertEquals(0f, roundable.roundableState.bottomRoundness)
+
+        roundable.requestRoundness(0f, 1f, SOURCE2)
+        assertEquals(1f, roundable.roundableState.topRoundness)
+        assertEquals(1f, roundable.roundableState.bottomRoundness)
+
+        assertThat(roundable.getTopRoundnessSources()).containsExactly(SOURCE1)
+        assertThat(roundable.getBottomRoundnessSources()).containsExactly(SOURCE2)
     }
 
     @Test

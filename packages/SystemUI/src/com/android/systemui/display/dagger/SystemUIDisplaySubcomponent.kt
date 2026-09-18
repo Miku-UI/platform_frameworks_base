@@ -18,13 +18,23 @@ package com.android.systemui.display.dagger
 
 import com.android.systemui.SysUICutoutProvider
 import com.android.systemui.common.ui.ConfigurationState
+import com.android.systemui.decor.dagger.PerDisplaySystemDecorationsModule
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.display.data.repository.DisplayStateRepository
 import com.android.systemui.display.domain.interactor.DisplayStateInteractor
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsViewModel
+import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController
+import com.android.systemui.statusbar.data.repository.StatusBarModePerDisplayRepository
+import com.android.systemui.statusbar.disableflags.domain.interactor.DisableFlagsInteractor
 import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractor
+import com.android.systemui.statusbar.events.SystemStatusAnimationScheduler
+import com.android.systemui.statusbar.events.domain.interactor.SystemStatusEventAnimationInteractor
+import com.android.systemui.statusbar.gesture.SwipeStatusBarAwayGestureHandler
+import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
 import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher
+import com.android.systemui.statusbar.pipeline.shared.domain.interactor.StatusBarVisibilityInteractor
+import com.android.systemui.statusbar.quickactions.av.domain.interactor.AvControlsChipInteractor
 import com.android.systemui.statusbar.ui.SystemBarUtilsState
 import com.android.systemui.statusbar.window.StatusBarWindowStateController
 import dagger.BindsInstance
@@ -43,8 +53,10 @@ import kotlinx.coroutines.CoroutineScope
  * thread is not feasible as it would cause jank.
  */
 @PerDisplaySingleton
-@Subcomponent(modules = [PerDisplaySystemUIModule::class])
+@Subcomponent(modules = [PerDisplaySystemUIModule::class, PerDisplaySystemDecorationsModule::class])
 interface SystemUIDisplaySubcomponent {
+
+    @get:DisplayAware val avControlsChipInteractor: AvControlsChipInteractor
 
     @get:DisplayAware val displayCoroutineScope: CoroutineScope
 
@@ -60,15 +72,31 @@ interface SystemUIDisplaySubcomponent {
 
     @get:DisplayAware val ongoingActivityChipsViewModel: OngoingActivityChipsViewModel
 
+    @get:DisplayAware val statusBarVisibilityInteractor: StatusBarVisibilityInteractor
+
+    @get:DisplayAware val statusBarContentInsetsProvider: StatusBarContentInsetsProvider
+
+    @get:DisplayAware val systemStatusAnimationScheduler: SystemStatusAnimationScheduler
+
     @get:DisplayAware val darkIconDispatcher: DarkIconDispatcher
 
     @get:DisplayAware val sysuiDarkIconDispatcher: SysuiDarkIconDispatcher
 
     @get:DisplayAware val systemBarUtilsState: SystemBarUtilsState
 
+    @get:DisplayAware val statusBarModeRepo: StatusBarModePerDisplayRepository
+
+    @get:DisplayAware val statusBarConfigurationController: StatusBarConfigurationController
+
     @get:DisplayAware val configurationState: ConfigurationState
 
     @get:DisplayAware val sysUICutoutProvider: SysUICutoutProvider
+
+    @get:DisplayAware val disableFlagsInteractor: DisableFlagsInteractor
+
+    @get:DisplayAware val swipeStatusBarAwayGestureHandler: SwipeStatusBarAwayGestureHandler
+
+    @get:DisplayAware val systemStatusEventAnimationInteractor: SystemStatusEventAnimationInteractor
 
     @Subcomponent.Factory
     interface Factory {
@@ -83,6 +111,9 @@ interface SystemUIDisplaySubcomponent {
 
     /** Qualifier used to represent that the object is provided/bound with the proper display. */
     @Qualifier @Retention(AnnotationRetention.RUNTIME) annotation class DisplayAware
+
+    /** Same as [DisplayAware] but specific to status bar. */
+    @Qualifier @Retention(AnnotationRetention.RUNTIME) annotation class DisplayAwareStatusBar
 
     /** Annotates the display id inside the subcomponent. */
     @Qualifier @Retention(AnnotationRetention.RUNTIME) annotation class DisplayId

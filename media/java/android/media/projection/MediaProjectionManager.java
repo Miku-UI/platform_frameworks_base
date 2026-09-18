@@ -19,6 +19,7 @@ package android.media.projection;
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
@@ -43,6 +44,7 @@ import android.util.Log;
 import android.view.ContentRecordingSession;
 import android.view.Surface;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.media.projection.flags.Flags;
 
 import java.util.Map;
@@ -121,9 +123,13 @@ public final class MediaProjectionManager {
     /** @hide */
     public static final int TYPE_PRESENTATION = 2;
 
-    private Context mContext;
-    private Map<Callback, CallbackDelegate> mCallbacks;
-    private IMediaProjectionManager mService;
+    /** @hide */
+    public static final int TYPE_APP_CONTENT = 3;
+
+    private final Context mContext;
+    @GuardedBy("mCallbacks")
+    private final Map<Callback, CallbackDelegate> mCallbacks;
+    private final IMediaProjectionManager mService;
 
     /** @hide */
     public MediaProjectionManager(Context context) {
@@ -254,6 +260,28 @@ public final class MediaProjectionManager {
     }
 
     /**
+     * Creates a new projection for app content, by setting the callback and notifying it that
+     * the projection has started.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.MANAGE_MEDIA_PROJECTION)
+    public IMediaProjection createProjectionForAppContent(
+            int uid,
+            @NonNull String packageName,
+            @NonNull IAppContentProjectionSession session,
+            int contentId,
+            boolean isAudioRequested,
+            @NonNull IAppContentProjectionCallback callback) {
+        try {
+            IMediaProjection projection = mService.createProjectionForAppContent(
+                    uid, packageName, session, contentId, isAudioRequested, callback);
+            return projection;
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Retrieves the {@link MediaProjection} obtained from a successful screen
      * capture request. The result code and data from the request are provided by overriding
      * {@link Activity#onActivityResult(int, int, Intent) onActivityResult(int, int, Intent)},
@@ -360,7 +388,9 @@ public final class MediaProjectionManager {
             throw new IllegalArgumentException("callback must not be null");
         }
         CallbackDelegate delegate = new CallbackDelegate(callback, handler);
-        mCallbacks.put(callback, delegate);
+        synchronized (mCallbacks) {
+            mCallbacks.put(callback, delegate);
+        }
         try {
             mService.addCallback(delegate);
         } catch (RemoteException e) {
@@ -377,7 +407,10 @@ public final class MediaProjectionManager {
             Log.w(TAG, "ContentRecording: cannot remove null callback");
             throw new IllegalArgumentException("callback must not be null");
         }
-        CallbackDelegate delegate = mCallbacks.remove(callback);
+        CallbackDelegate delegate;
+        synchronized (mCallbacks) {
+            delegate = mCallbacks.remove(callback);
+        }
         try {
             if (delegate != null) {
                 mService.removeCallback(delegate);

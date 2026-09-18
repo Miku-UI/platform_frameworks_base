@@ -38,6 +38,7 @@ val Kosmos.tileServices: TileServices by
             qsHost,
             { fakeExecutorHandler },
             broadcastDispatcher,
+            mock<PackageManagerAdapter>(),
             userTracker,
             keyguardStateController,
             commandQueue,

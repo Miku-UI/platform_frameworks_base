@@ -16,10 +16,15 @@
 
 package com.android.systemui.accessibility.data.repository
 
+import android.content.applicationContext
+import android.os.fakeExecutorHandler
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 
 val Kosmos.fakeAccessibilityShortcutsRepository by Fixture {
-    FakeAccessibilityShortcutsRepository()
+    FakeAccessibilityShortcutsRepository(applicationContext, fakeExecutorHandler)
 }
-val Kosmos.accessibilityShortcutsRepository by Fixture { fakeAccessibilityShortcutsRepository }
+
+var Kosmos.accessibilityShortcutsRepository: AccessibilityShortcutsRepository by Fixture {
+    fakeAccessibilityShortcutsRepository
+}

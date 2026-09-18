@@ -307,6 +307,7 @@ class PackageManagerComponentLabelIconOverrideTest {
                 this.flags = this.flags or ApplicationInfo.FLAG_SYSTEM
             }
             this.pkgState.isUpdatedSystemApp = params.isUpdatedSystemApp
+            this.appId = pkg.uid
             setPkg(pkg)
         }
 
@@ -338,7 +339,14 @@ class PackageManagerComponentLabelIconOverrideTest {
         var mockActivity: ParsedActivity? = null
         if (mockedPkgSettings.containsKey(params.pkgName)) {
             // Add pkgSetting under test so its attributes override the defaults added above
-            mockedPkgSettings.put(params.pkgName, mockPkgSetting)
+            mockedPkgSettings[params.pkgName] = mockPkgSetting.apply {
+                appId = when (params.pkgName) {
+                    VALID_PKG -> Binder.getCallingUid()
+                    SHARED_PKG -> Binder.getCallingUid()
+                    INVALID_PKG -> Binder.getCallingUid() + 1
+                    else -> -1
+                }
+            }
 
             mockActivity = mock<ParsedActivity> {
                 whenever(this.packageName) { params.pkgName }

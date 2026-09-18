@@ -211,6 +211,13 @@ public class DozeLog implements Dumpable {
     }
 
     /**
+     * Logged when a time was scheduled incorrectly.
+     */
+    public void traceTimeTickIgnored(DozeMachine.State state) {
+        mLogger.logTimeTickIgnored(state);
+    }
+
+    /**
      * Logs cancelation requests for time ticks
      * @param isPending is an unschedule request pending?
      * @param isTimeTickScheduled is a time tick request scheduled

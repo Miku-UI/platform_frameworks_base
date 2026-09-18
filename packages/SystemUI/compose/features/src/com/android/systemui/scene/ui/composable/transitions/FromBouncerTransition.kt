@@ -18,13 +18,15 @@ package com.android.systemui.scene.ui.composable.transitions
 
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.times
+import com.android.compose.animation.Easings
 import com.android.compose.animation.scene.TransitionBuilder
 import com.android.compose.animation.scene.UserActionDistance
 import com.android.systemui.bouncer.ui.composable.Bouncer
 
 val BOUNCER_INITIAL_TRANSLATION = 48.dp
 
-fun TransitionBuilder.fromBouncerTransition() {
+fun TransitionBuilder.fromBouncerTransition(translateUpwards: Boolean = false) {
     spec = tween(durationMillis = 500)
 
     distance = UserActionDistance { fromContent, _, _ ->
@@ -32,7 +34,14 @@ fun TransitionBuilder.fromBouncerTransition() {
         fromContentSize.height * TO_BOUNCER_SWIPE_DISTANCE_FRACTION
     }
 
-    translate(Bouncer.Elements.Content, y = -BOUNCER_INITIAL_TRANSLATION)
-    fractionRange(end = TO_BOUNCER_FADE_FRACTION) { fade(Bouncer.Elements.Background) }
-    fractionRange(start = TO_BOUNCER_FADE_FRACTION) { fade(Bouncer.Elements.Content) }
+    val translateDirection = if (translateUpwards) -1 else 1
+    translate(Bouncer.Elements.Content, y = translateDirection * BOUNCER_INITIAL_TRANSLATION)
+    fractionRange(end = TO_BOUNCER_FADE_FRACTION) { fade(Bouncer.Elements.Content) }
+    fractionRange(start = TO_BOUNCER_FADE_FRACTION) { fade(Bouncer.Elements.Background) }
+}
+
+fun TransitionBuilder.fromBouncerPreview() {
+    fractionRange(easing = Easings.PredictiveBack) {
+        scaleDraw(Bouncer.Elements.Content, scaleY = 0.8f, scaleX = 0.8f)
+    }
 }

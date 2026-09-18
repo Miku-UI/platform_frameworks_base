@@ -22,6 +22,7 @@ import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 
@@ -40,11 +41,21 @@ public class LaunchNewTaskActivity extends Activity {
                 findViewById(R.id.launch_new_task_with_recycle_if_possible);
         newTaskWithRecycleIfPossibleButton.setOnClickListener(
                 v -> launchNewTask(FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_NEW_TASK));
+
+        final Button newBrowserButton = findViewById(R.id.launch_new_browser);
+        newBrowserButton.setOnClickListener(v -> launchNewBrowser(FLAG_ACTIVITY_NEW_TASK));
     }
 
     private void launchNewTask(int flags) {
         final Intent intent = new Intent(LaunchNewTaskActivity.this, SimpleActivity.class);
         intent.setFlags(flags);
+        startActivity(intent);
+    }
+
+    private void launchNewBrowser(int flags) {
+        final Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setData(Uri.parse("https://www.google.com"));
+        intent.addFlags(flags);
         startActivity(intent);
     }
 }

@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.irecording.domain.interactor
 
 import android.os.UserHandle
-import com.android.systemui.Flags
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
@@ -54,5 +53,5 @@ constructor(
             .flowOn(bgCoroutineContext)
 
     override fun availability(user: UserHandle): Flow<Boolean> =
-        flowOf(android.os.Build.IS_DEBUGGABLE && Flags.recordIssueQsTile())
+        flowOf(android.os.Build.IS_DEBUGGABLE)
 }

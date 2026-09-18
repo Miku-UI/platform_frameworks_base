@@ -25,7 +25,8 @@ import com.android.systemui.res.R.string
 
 class BundleHeaderGutsViewModel(
     @StringRes val titleText: Int,
-    @StringRes val summaryText: Int,
+    @StringRes val summaryTextRes: Int? = 0,
+    val summaryText: String? = null,
     @DrawableRes val bundleIcon: Int,
 
     /** Opens the settings page for this bundle. */

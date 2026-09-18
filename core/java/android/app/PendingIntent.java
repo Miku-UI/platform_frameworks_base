@@ -1400,7 +1400,8 @@ public final class PendingIntent implements Parcelable {
      * Use {@link android.content.pm.ApplicationInfo#uid} of the resulting
      * {@link android.content.pm.ComponentInfo} with
      * {@link android.os.UserHandle#getUserHandleForUid(int)} to see which user will receive
-     * the intent.
+     * the intent. If the PendingIntent is of a broadcast, and the intent target is USER_ALL,
+     * this API will _not_ return any components.
      *
      * @param flags MATCH_* flags from {@link android.content.pm.PackageManager}.
      * @hide

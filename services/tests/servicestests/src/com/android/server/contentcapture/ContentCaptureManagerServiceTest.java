@@ -16,25 +16,45 @@
 
 package com.android.server.contentcapture;
 
+import static android.Manifest.permission.SET_CONTENT_PROTECTION_ALLOWLIST;
+import static android.view.contentprotection.flags.Flags.FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED;
+import static android.view.contentprotection.flags.Flags.FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED;
+
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertThrows;
 
 import android.annotation.NonNull;
+import android.annotation.SuppressLint;
+import android.annotation.UserIdInt;
 import android.content.ComponentName;
 import android.content.ContentCaptureOptions;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.UserInfo;
+import android.os.IBinder;
+import android.os.Process;
+import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.contentcapture.ContentCaptureServiceInfo;
 import android.view.contentcapture.ContentCaptureEvent;
+import android.view.contentcapture.ContentCaptureManager;
+import android.view.contentcapture.IContentCaptureOptionsCallback;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -58,6 +78,7 @@ import org.mockito.junit.MockitoRule;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Test for {@link ContentCaptureManagerService}.
@@ -68,11 +89,18 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 @SuppressWarnings("GuardedBy") // Service not really running, no need to expose locks
+@SuppressLint({"VisibleForTests", "MissingPermission"}) // Unit test
 public class ContentCaptureManagerServiceTest {
 
     private static final int USER_ID = 1234;
 
-    private static final String PACKAGE_NAME = "com.test.package";
+    private static final int SECOND_USER_ID = 9876;
+
+    private static final String PACKAGE_NAME = "com.test.package.1";
+
+    private static final String SECOND_PACKAGE_NAME = "com.test.package.2";
+
+    private static final String THIRD_PACKAGE_NAME = "com.test.package.3";
 
     private static final ComponentName COMPONENT_NAME =
             new ComponentName(PACKAGE_NAME, "TestClass");
@@ -82,6 +110,9 @@ public class ContentCaptureManagerServiceTest {
 
     private static final ParceledListSlice<ContentCaptureEvent> PARCELED_EVENTS =
             new ParceledListSlice<>(ImmutableList.of(EVENT));
+
+    private static final ContentCaptureOptions CONTENT_CAPTURE_OPTIONS =
+            new ContentCaptureOptions(ContentCaptureManager.LOGGING_LEVEL_OFF);
 
     private static final Context sContext = ApplicationProvider.getApplicationContext();
 
@@ -98,6 +129,14 @@ public class ContentCaptureManagerServiceTest {
     @Mock private RemoteContentProtectionService mMockRemoteContentProtectionService;
 
     @Mock private ContentProtectionConsentManager mMockContentProtectionConsentManager;
+
+    @Mock private IContentCaptureOptionsCallback mMockContentCaptureOptionsCallback;
+
+    @Mock private IBinder mMockBinder;
+
+    @Mock private Context mMockContext;
+
+    @Mock private PackageManager mMockPackageManager;
 
     private boolean mDevCfgEnableContentProtectionReceiver;
 
@@ -118,6 +157,10 @@ public class ContentCaptureManagerServiceTest {
     private boolean mContentProtectionServiceInfoConstructorShouldThrow;
 
     private ContentCaptureManagerService mContentCaptureManagerService;
+
+    @UserIdInt private int mFakeCallingUserId = UserHandle.USER_SYSTEM;
+
+    private int mGetCallingUserIdCallCount = 0;
 
     @Before
     public void setup() {
@@ -336,6 +379,55 @@ public class ContentCaptureManagerServiceTest {
     }
 
     @Test
+    @DisableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void getOptions_liteModeForContentProtection_flagDisabled_samePackage() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContentProtectionConsentManager.isConsentGranted(USER_ID)).thenReturn(true);
+        mContentCaptureManagerService = new TestContentCaptureManagerService();
+
+        ContentCaptureOptions actual =
+                mContentCaptureManagerService.mGlobalContentCaptureOptions.getOptions(
+                        USER_ID, COMPONENT_NAME.getPackageName());
+
+        assertThat(actual).isNull();
+        verify(mMockContentProtectionAllowlistManager).isAllowed(COMPONENT_NAME.getPackageName());
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void getOptions_liteModeForContentProtection_flagEnabled_samePackage() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContentProtectionConsentManager.isConsentGranted(USER_ID)).thenReturn(true);
+        mContentCaptureManagerService = new TestContentCaptureManagerService();
+
+        ContentCaptureOptions actual =
+                mContentCaptureManagerService.mGlobalContentCaptureOptions.getOptions(
+                        USER_ID, COMPONENT_NAME.getPackageName());
+
+        assertThat(actual).isNotNull();
+        assertThat(actual.enableReceiver).isFalse();
+        assertThat(actual.contentProtectionOptions).isNotNull();
+        assertThat(actual.contentProtectionOptions.enableReceiver).isFalse();
+        assertThat(actual.whitelistedComponents).isNull();
+        verify(mMockContentProtectionAllowlistManager).isAllowed(COMPONENT_NAME.getPackageName());
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void getOptions_liteModeForContentProtection_flagEnabled_differentPackage() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContentProtectionConsentManager.isConsentGranted(USER_ID)).thenReturn(true);
+        mContentCaptureManagerService = new TestContentCaptureManagerService();
+
+        ContentCaptureOptions actual =
+                mContentCaptureManagerService.mGlobalContentCaptureOptions.getOptions(
+                        USER_ID, SECOND_PACKAGE_NAME);
+
+        assertThat(actual).isNull();
+        verify(mMockContentProtectionAllowlistManager).isAllowed(SECOND_PACKAGE_NAME);
+    }
+
+    @Test
     public void isWhitelisted_packageName_contentCaptureDisabled_contentProtectionDisabled() {
         boolean actual =
                 mContentCaptureManagerService.mGlobalContentCaptureOptions.isWhitelisted(
@@ -502,7 +594,8 @@ public class ContentCaptureManagerServiceTest {
     }
 
     @Test
-    public void onLoginDetected_disabledAfterConstructor() {
+    @DisableFlags(FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED)
+    public void onLoginDetected_disabledAfterConstructor_userFlagDisabled() {
         mDevCfgEnableContentProtectionReceiver = true;
         mContentCaptureManagerService = new TestContentCaptureManagerService();
         mContentCaptureManagerService.mDevCfgEnableContentProtectionReceiver = false;
@@ -517,7 +610,24 @@ public class ContentCaptureManagerServiceTest {
     }
 
     @Test
-    public void onLoginDetected_invalidPermissions() {
+    @EnableFlags(FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED)
+    public void onLoginDetected_disabledAfterConstructor_userFlagEnabled() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        mContentCaptureManagerService = new TestContentCaptureManagerService();
+        mContentCaptureManagerService.mDevCfgEnableContentProtectionReceiver = false;
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .onLoginDetected(PARCELED_EVENTS);
+
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+    }
+
+    @Test
+    @DisableFlags(FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED)
+    public void onLoginDetected_invalidPermissions_userFlagDisabled() {
         mDevCfgEnableContentProtectionReceiver = true;
         mContentProtectionServiceInfoConstructorShouldThrow = true;
         mContentCaptureManagerService = new TestContentCaptureManagerService();
@@ -532,7 +642,24 @@ public class ContentCaptureManagerServiceTest {
     }
 
     @Test
-    public void onLoginDetected_enabled() {
+    @EnableFlags(FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED)
+    public void onLoginDetected_invalidPermissions_userFlagEnabled() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        mContentProtectionServiceInfoConstructorShouldThrow = true;
+        mContentCaptureManagerService = new TestContentCaptureManagerService();
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .onLoginDetected(PARCELED_EVENTS);
+
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(1);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+    }
+
+    @Test
+    @DisableFlags(FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED)
+    public void onLoginDetected_running_userFlagDisabled() {
         mDevCfgEnableContentProtectionReceiver = true;
         mContentCaptureManagerService = new TestContentCaptureManagerService();
 
@@ -543,6 +670,279 @@ public class ContentCaptureManagerServiceTest {
         assertThat(mContentProtectionServiceInfosCreated).isEqualTo(1);
         assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(1);
         verify(mMockRemoteContentProtectionService).onLoginDetected(PARCELED_EVENTS);
+    }
+
+    @Test
+    @EnableFlags(FLAG_TRY_CALLBACK_ON_CALLING_USER_ENABLED)
+    public void onLoginDetected_running_userFlagEnabled() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        mContentCaptureManagerService = new TestContentCaptureManagerService();
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .onLoginDetected(PARCELED_EVENTS);
+
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(1);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(1);
+        verify(mMockRemoteContentProtectionService).onLoginDetected(PARCELED_EVENTS);
+    }
+
+    @Test
+    @DisableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_flagDisabled() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+
+        assertThrows(UnsupportedOperationException.class, () ->
+                mContentCaptureManagerService
+                        .getContentCaptureManagerServiceStub()
+                        .setContentProtectionAllowlist(List.of()));
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext, never()).enforceCallingPermission(anyString(), anyString());
+        verifyNoInteractions(mMockPackageManager);
+        verifyNoInteractions(mMockContentCaptureOptionsCallback);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_invalidPermissions() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        doThrow(SecurityException.class).when(mMockContext)
+                .enforceCallingPermission(eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+
+        assertThrows(SecurityException.class, () ->
+                mContentCaptureManagerService
+                        .getContentCaptureManagerServiceStub()
+                        .setContentProtectionAllowlist(List.of()));
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verifyNoInteractions(mMockPackageManager);
+        verifyNoInteractions(mMockContentCaptureOptionsCallback);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_receiverDisabled() {
+        mDevCfgEnableContentProtectionReceiver = false;
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .setContentProtectionAllowlist(List.of());
+
+        verifyNoInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verifyNoInteractions(mMockPackageManager);
+        verifyNoInteractions(mMockContentCaptureOptionsCallback);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_noReceiver() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        mConfigDefaultContentProtectionService = "";
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .setContentProtectionAllowlist(List.of());
+
+        verifyNoInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verifyNoInteractions(mMockPackageManager);
+        verifyNoInteractions(mMockContentCaptureOptionsCallback);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_invalidCaller() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        when(mMockPackageManager.getNameForUid(Process.myUid())).thenReturn(SECOND_PACKAGE_NAME);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+
+        assertThrows(SecurityException.class, () ->
+                mContentCaptureManagerService
+                        .getContentCaptureManagerServiceStub()
+                        .setContentProtectionAllowlist(List.of()));
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verify(mMockPackageManager).getNameForUid(Process.myUid());
+        verify(mMockPackageManager).registerPackageMonitorCallback(any(), anyInt());
+        verifyNoMoreInteractions(mMockPackageManager);
+        verifyNoInteractions(mMockContentCaptureOptionsCallback);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_withoutCallback() {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        when(mMockPackageManager.getNameForUid(Process.myUid())).thenReturn(PACKAGE_NAME);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+        List<String> packages = List.of(SECOND_PACKAGE_NAME);
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .setContentProtectionAllowlist(packages);
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verify(mMockContentProtectionAllowlistManager).setContentProtectionAllowlist(packages);
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verify(mMockPackageManager).getNameForUid(Process.myUid());
+        verify(mMockPackageManager).registerPackageMonitorCallback(any(), anyInt());
+        verifyNoMoreInteractions(mMockPackageManager);
+        verifyNoInteractions(mMockContentCaptureOptionsCallback);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_withCallback_samePackage() throws Exception {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        when(mMockPackageManager.getNameForUid(Process.myUid())).thenReturn(PACKAGE_NAME);
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        List<String> packages = List.of(SECOND_PACKAGE_NAME, THIRD_PACKAGE_NAME);
+        when(mMockContentProtectionAllowlistManager.setContentProtectionAllowlist(packages))
+                .thenReturn(Set.of(PACKAGE_NAME, SECOND_PACKAGE_NAME));
+        verify(mMockContentProtectionConsentManager).isConsentGranted(mFakeCallingUserId);
+        verify(mMockContentCaptureOptionsCallback).setContentCaptureOptions(any());
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .setContentProtectionAllowlist(packages);
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verify(mMockContentProtectionAllowlistManager).setContentProtectionAllowlist(packages);
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verify(mMockContentProtectionConsentManager, times(2)).isConsentGranted(mFakeCallingUserId);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verify(mMockPackageManager).getNameForUid(Process.myUid());
+        verify(mMockPackageManager).registerPackageMonitorCallback(any(), anyInt());
+        verifyNoMoreInteractions(mMockPackageManager);
+        verify(mMockContentCaptureOptionsCallback, times(2)).setContentCaptureOptions(any());
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_withCallback_differentPackage() throws Exception {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        when(mMockPackageManager.getNameForUid(Process.myUid())).thenReturn(PACKAGE_NAME);
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        List<String> packages = List.of(SECOND_PACKAGE_NAME, THIRD_PACKAGE_NAME);
+        when(mMockContentProtectionAllowlistManager.setContentProtectionAllowlist(packages))
+                .thenReturn(Set.of(SECOND_PACKAGE_NAME));
+        verify(mMockContentProtectionConsentManager).isConsentGranted(mFakeCallingUserId);
+        verify(mMockContentCaptureOptionsCallback).setContentCaptureOptions(any());
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .setContentProtectionAllowlist(packages);
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verify(mMockContentProtectionAllowlistManager).setContentProtectionAllowlist(packages);
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoMoreInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verify(mMockPackageManager).getNameForUid(Process.myUid());
+        verify(mMockPackageManager).registerPackageMonitorCallback(any(), anyInt());
+        verifyNoMoreInteractions(mMockPackageManager);
+        verify(mMockContentCaptureOptionsCallback).setContentCaptureOptions(any());
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist_withCallback_noChanges() throws Exception {
+        mDevCfgEnableContentProtectionReceiver = true;
+        when(mMockContext.checkCallingPermission(SET_CONTENT_PROTECTION_ALLOWLIST))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        when(mMockPackageManager.getNameForUid(Process.myUid())).thenReturn(PACKAGE_NAME);
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService = new TestContentCaptureManagerService(mMockContext);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        List<String> packages = List.of(PACKAGE_NAME, SECOND_PACKAGE_NAME);
+        when(mMockContentProtectionAllowlistManager.setContentProtectionAllowlist(packages))
+                .thenReturn(Set.of());
+        verify(mMockContentProtectionConsentManager).isConsentGranted(mFakeCallingUserId);
+        verify(mMockContentCaptureOptionsCallback).setContentCaptureOptions(any());
+
+        mContentCaptureManagerService
+                .getContentCaptureManagerServiceStub()
+                .setContentProtectionAllowlist(packages);
+
+        verify(mMockContentProtectionAllowlistManager).start(anyLong());
+        verify(mMockContentProtectionAllowlistManager).setContentProtectionAllowlist(packages);
+        verifyNoMoreInteractions(mMockContentProtectionAllowlistManager);
+        verifyNoMoreInteractions(mMockContentProtectionConsentManager);
+        assertThat(mContentProtectionServiceInfosCreated).isEqualTo(0);
+        assertThat(mRemoteContentProtectionServicesCreated).isEqualTo(0);
+        verify(mMockContext).enforceCallingPermission(
+                eq(SET_CONTENT_PROTECTION_ALLOWLIST), anyString());
+        verify(mMockPackageManager).getNameForUid(Process.myUid());
+        verify(mMockPackageManager).registerPackageMonitorCallback(any(), anyInt());
+        verifyNoMoreInteractions(mMockPackageManager);
+        verify(mMockContentCaptureOptionsCallback).setContentCaptureOptions(any());
     }
 
     @Test
@@ -591,10 +991,149 @@ public class ContentCaptureManagerServiceTest {
                 .isEqualTo(List.of(List.of("a"), List.of("b"), List.of("c"), List.of("d", "e")));
     }
 
+    @Test
+    @DisableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagDisabled_samePackage_sameUser()
+            throws Exception {
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+
+        mContentCaptureManagerService.updateOptions(PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback)
+                .setContentCaptureOptions(CONTENT_CAPTURE_OPTIONS);
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @DisableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagDisabled_samePackage_differentUser()
+            throws Exception {
+        mFakeCallingUserId = SECOND_USER_ID;
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+        mFakeCallingUserId = USER_ID;
+
+        mContentCaptureManagerService.updateOptions(PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback)
+                .setContentCaptureOptions(CONTENT_CAPTURE_OPTIONS);
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @DisableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagDisabled_differentPackage_sameUser()
+            throws Exception {
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+
+        mContentCaptureManagerService.updateOptions(SECOND_PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @DisableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagDisabled_differentPackage_differentUser()
+            throws Exception {
+        mFakeCallingUserId = SECOND_USER_ID;
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        mFakeCallingUserId = USER_ID;
+
+        mContentCaptureManagerService.updateOptions(SECOND_PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagEnabled_samePackage_sameUser() throws Exception {
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+
+        mContentCaptureManagerService.updateOptions(PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback)
+                .setContentCaptureOptions(CONTENT_CAPTURE_OPTIONS);
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagEnabled_samePackage_differentUser()
+            throws Exception {
+        mFakeCallingUserId = SECOND_USER_ID;
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+        mFakeCallingUserId = USER_ID;
+
+        mContentCaptureManagerService.updateOptions(PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback)
+                .setContentCaptureOptions(CONTENT_CAPTURE_OPTIONS);
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagEnabled_differentPackage_sameUser()
+            throws Exception {
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+
+        mContentCaptureManagerService.updateOptions(SECOND_PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void updateOptions_callbackCookie_flagEnabled_differentPackage_differentUser()
+            throws Exception {
+        mFakeCallingUserId = SECOND_USER_ID;
+        when(mMockContentCaptureOptionsCallback.asBinder()).thenReturn(mMockBinder);
+        mContentCaptureManagerService.getContentCaptureManagerServiceStub()
+                .registerContentCaptureOptionsCallback(PACKAGE_NAME,
+                        mMockContentCaptureOptionsCallback);
+        mFakeCallingUserId = USER_ID;
+
+        mContentCaptureManagerService.updateOptions(SECOND_PACKAGE_NAME, CONTENT_CAPTURE_OPTIONS);
+
+        verify(mMockContentCaptureOptionsCallback, never()).setContentCaptureOptions(any());
+        assertThat(mGetCallingUserIdCallCount).isEqualTo(1);
+    }
+
     private class TestContentCaptureManagerService extends ContentCaptureManagerService {
 
         TestContentCaptureManagerService() {
-            super(sContext);
+            this(sContext);
+        }
+
+        TestContentCaptureManagerService(@NonNull Context context) {
+            super(context);
             this.mDevCfgContentProtectionRequiredGroups =
                     ContentCaptureManagerServiceTest.this.mDevCfgContentProtectionRequiredGroups;
             this.mDevCfgContentProtectionOptionalGroups =
@@ -630,7 +1169,10 @@ public class ContentCaptureManagerServiceTest {
 
         @Override
         protected RemoteContentProtectionService createRemoteContentProtectionService(
-                @NonNull ComponentName componentName, long autoDisconnectTimeoutMs) {
+                @NonNull ComponentName componentName,
+                long autoDisconnectTimeoutMs,
+                @UserIdInt int userId) {
+            assertThat(userId).isEqualTo(mFakeCallingUserId);
             mRemoteContentProtectionServicesCreated++;
             return mMockRemoteContentProtectionService;
         }
@@ -639,6 +1181,19 @@ public class ContentCaptureManagerServiceTest {
         protected ContentProtectionConsentManager createContentProtectionConsentManager() {
             mContentProtectionConsentManagersCreated++;
             return mMockContentProtectionConsentManager;
+        }
+
+        @Override
+        protected void assertCalledByPackageOwner(@NonNull String packageName) {
+            assertThat(packageName).isEqualTo(PACKAGE_NAME);
+        }
+
+        @Override
+        @UserIdInt
+        protected int getCallingUserId() {
+            assertThat(super.getCallingUserId()).isEqualTo(UserHandle.USER_SYSTEM);
+            mGetCallingUserIdCallCount++;
+            return mFakeCallingUserId;
         }
     }
 }

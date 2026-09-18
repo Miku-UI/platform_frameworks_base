@@ -16,23 +16,44 @@
 
 package com.android.server.display;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
+
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.hardware.display.DisplayManagerInternal;
+import android.util.StatsEvent;
+import android.util.StatsLog;
+import android.view.Display;
+
+import com.android.internal.util.FrameworkStatsLog;
+import com.android.modules.utils.testing.ExtendedMockitoRule;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.lang.reflect.Method;
+
 public class DisplayOffloadSessionImplTest {
+
+    @Rule
+    public final ExtendedMockitoRule mExtendedMockitoRule =
+            new ExtendedMockitoRule.Builder(this).mockStatic(StatsLog.class).build();
 
     @Mock
     private DisplayManagerInternal.DisplayOffloader mDisplayOffloader;
@@ -40,35 +61,49 @@ public class DisplayOffloadSessionImplTest {
     @Mock
     private DisplayPowerController mDisplayPowerController;
 
+    @Captor
+    private ArgumentCaptor<StatsEvent> mStatsEventCaptor;
+
     private DisplayOffloadSessionImpl mSession;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        when(mDisplayOffloader.startOffload()).thenReturn(true);
+        when(mDisplayOffloader.startOffload(anyInt())).thenReturn(true);
         mSession = new DisplayOffloadSessionImpl(mDisplayOffloader, mDisplayPowerController);
     }
 
     @Test
     public void testStartOffload() {
-        mSession.startOffload();
+        mSession.startOffload(Display.STATE_DOZE_SUSPEND);
         assertTrue(mSession.isActive());
 
         // An active session shouldn't be started again
-        mSession.startOffload();
-        verify(mDisplayOffloader, times(1)).startOffload();
+        mSession.startOffload(Display.STATE_DOZE_SUSPEND);
+        verify(mDisplayOffloader, times(1)).startOffload(Display.STATE_DOZE_SUSPEND);
     }
 
     @Test
-    public void testStopOffload() {
-        mSession.startOffload();
-        mSession.stopOffload();
+    public void testStopOffload() throws Exception {
+        mSession.startOffload(Display.STATE_DOZE_SUSPEND);
+        mSession.stopOffload(Display.STATE_ON);
 
         assertFalse(mSession.isActive());
 
+        verify(() -> StatsLog.write(mStatsEventCaptor.capture()), atLeast(1));
+        StatsEvent statsEvent = mStatsEventCaptor.getValue();
+
+        // Use reflection to access hidden API on StatsEvent.
+        // Normally we would use StatsEventTestUtils however this doesn't
+        // work for empty atoms b/287773614.
+        Class<?> statsEventClass = Class.forName("android.util.StatsEvent");
+        Method getAtomIdMethod = statsEventClass.getMethod("getAtomId");
+        int atomId = (int) getAtomIdMethod.invoke(statsEvent);
+        assertThat(atomId).isEqualTo(FrameworkStatsLog.DISPLAY_SWITCH_TO_AP_ISSUED);
+
         // An inactive session shouldn't be stopped again
-        mSession.stopOffload();
-        verify(mDisplayOffloader, times(1)).stopOffload();
+        mSession.stopOffload(Display.STATE_ON);
+        verify(mDisplayOffloader, times(1)).stopOffload(Display.STATE_ON);
     }
 
     @Test
@@ -81,7 +116,7 @@ public class DisplayOffloadSessionImplTest {
     public void testUpdateBrightness_sessionActive() {
         float brightness = 0.3f;
 
-        mSession.startOffload();
+        mSession.startOffload(Display.STATE_DOZE_SUSPEND);
         mSession.updateBrightness(brightness);
 
         verify(mDisplayPowerController).setBrightnessFromOffload(brightness);

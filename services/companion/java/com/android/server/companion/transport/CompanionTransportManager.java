@@ -17,6 +17,7 @@
 package com.android.server.companion.transport;
 
 import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_PERMISSION_RESTORE;
+import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_TRUSTED_DEVICE;
 
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
@@ -46,7 +47,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-@SuppressLint("LongLogTag")
+@SuppressLint({"LongLogTag", "EmptyCatch"})
 public class CompanionTransportManager {
     private static final String TAG = "CDM_CompanionTransportManager";
 
@@ -90,16 +91,16 @@ public class CompanionTransportManager {
     /**
      * Add a listener to receive callbacks when a message is received for the message type
      */
-    public void addListener(int message, @NonNull IOnMessageReceivedListener listener) {
+    public void addListener(int messageType, @NonNull IOnMessageReceivedListener listener) {
         synchronized (mMessageListeners) {
-            if (!mMessageListeners.contains(message)) {
-                mMessageListeners.put(message, new HashSet<IOnMessageReceivedListener>());
+            if (!mMessageListeners.contains(messageType)) {
+                mMessageListeners.put(messageType, new HashSet<IOnMessageReceivedListener>());
             }
-            mMessageListeners.get(message).add(listener);
+            mMessageListeners.get(messageType).add(listener);
         }
         synchronized (mTransports) {
             for (int i = 0; i < mTransports.size(); i++) {
-                mTransports.valueAt(i).addListener(message, listener);
+                mTransports.valueAt(i).addListener(messageType, listener);
             }
         }
     }
@@ -115,10 +116,20 @@ public class CompanionTransportManager {
             mEventListeners.get(associationId).add(listener);
         }
         synchronized (mTransports) {
-            if (!mTransports.contains(associationId)) {
+            Transport transport = mTransports.get(associationId);
+            if (transport == null) {
                 return;
             }
-            mTransports.get(associationId).addListener(listener);
+
+            transport.addListener(listener);
+
+            // Immediately callback the successful connection if already connected.
+            if (transport.getSessionKey() != null) {
+                try {
+                    listener.onTransportEvent(Transport.SUCCESSFUL_CONNECTION);
+                } catch (RemoteException ignored) {
+                }
+            }
         }
     }
 
@@ -193,16 +204,17 @@ public class CompanionTransportManager {
     /**
      * Send a message to remote devices through the transports
      */
-    public SparseArray<Future<byte[]>> sendMessage(int message, byte[] data, int[] associationIds) {
-        Slog.d(TAG, "Sending message 0x" + Integer.toHexString(message)
+    public SparseArray<CompletableFuture<byte[]>> sendMessage(int messageType, byte[] data,
+            int[] associationIds) {
+        Slog.d(TAG, "Sending message 0x" + Integer.toHexString(messageType)
                 + " data length " + data.length);
-        SparseArray<Future<byte[]>> futures = new SparseArray<>();
+        SparseArray<CompletableFuture<byte[]>> futures = new SparseArray<>();
         synchronized (mTransports) {
             for (int i = 0; i < associationIds.length; i++) {
                 int associationId = associationIds[i];
                 if (mTransports.contains(associationId)) {
                     futures.put(associationId,
-                            mTransports.get(associationId).sendMessage(message, data));
+                            mTransports.get(associationId).sendMessage(messageType, data));
                 }
             }
         }
@@ -238,7 +250,8 @@ public class CompanionTransportManager {
     public void detachSystemDataTransport(int associationId) {
         Slog.i(TAG, "Detaching transport for association id=[" + associationId + "]...");
 
-        mAssociationStore.getAssociationWithCallerChecks(associationId);
+        AssociationInfo association =
+                mAssociationStore.getAssociationWithCallerChecks(associationId);
 
         synchronized (mTransports) {
             final Transport transport = mTransports.removeReturnOld(associationId);
@@ -247,10 +260,20 @@ public class CompanionTransportManager {
             }
 
             transport.close();
+
             notifyOnTransportsChanged();
         }
 
         Slog.i(TAG, "Transport detached.");
+    }
+
+    /**
+     * Returns the transport instance for the given association id.
+     */
+    public Transport getTransport(int associationId) {
+        synchronized (mTransports) {
+            return mTransports.get(associationId);
+        }
     }
 
     /**
@@ -343,6 +366,25 @@ public class CompanionTransportManager {
     }
 
     /**
+     * Send HKDF-computed MAC token derived from the previously verified session key and the
+     * current session key. The receiving device will mark this device as trusted if it matches the
+     * locally computed value.
+     *
+     * @param associationId Association to request verification from.
+     * @param mac HKDF-computed MAC token for the remote device to verify.
+     */
+    public CompletableFuture<byte[]> requestTrustedDeviceVerification(int associationId,
+            byte[] mac) {
+        synchronized (mTransports) {
+            Transport transport = mTransports.get(associationId);
+            if (transport == null) {
+                return CompletableFuture.failedFuture(new IOException("Missing transport"));
+            }
+            return transport.sendMessage(MESSAGE_REQUEST_TRUSTED_DEVICE, mac);
+        }
+    }
+
+    /**
      * Dumps current list of active transports.
      */
     public void dump(@NonNull PrintWriter out) {
@@ -402,9 +444,9 @@ public class CompanionTransportManager {
         }
 
         @Override
-        protected void sendMessage(int messageType, int sequence, @NonNull byte[] data)
+        protected void enqueueMessage(int message, int sequence, @NonNull byte[] data)
                 throws IOException {
-            Slog.e(TAG, "Black-holing emulated message type 0x" + Integer.toHexString(messageType)
+            Slog.e(TAG, "Black-holing emulated message type 0x" + Integer.toHexString(message)
                     + " sequence " + sequence + " length " + data.length
                     + " to association " + mAssociationId);
         }

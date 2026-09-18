@@ -21,13 +21,6 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-// Sidecar
-android_library_import {
-    name: "window-sidecar",
-    aars: ["window-sidecar-release.aar"],
-    sdk_version: "current",
-}
-
 java_library {
     name: "androidx.window.sidecar",
     srcs: [
@@ -62,6 +55,7 @@ java_library {
     name: "androidx.window.extensions",
     srcs: [
         "src/androidx/window/extensions/**/*.java",
+        "src/androidx/window/extensions/**/*.aidl",
         "src/androidx/window/util/**/*.java",
         "src/androidx/window/common/**/*.java",
     ],

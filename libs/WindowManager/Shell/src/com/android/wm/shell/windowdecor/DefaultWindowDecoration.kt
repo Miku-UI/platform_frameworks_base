@@ -17,7 +17,13 @@
 package com.android.wm.shell.windowdecor
 
 import android.app.ActivityManager.RunningTaskInfo
+import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
+import android.app.compat.CompatChanges
 import android.content.Context
+import android.content.pm.ActivityInfo
+import android.content.pm.ActivityInfo.CONFIG_FONT_SCALE
+import android.content.pm.ActivityInfo.CONFIG_LOCALE
+import android.content.pm.ActivityInfo.CONFIG_UI_MODE
 import android.content.res.Configuration
 import android.content.res.Resources.ID_NULL
 import android.graphics.Point
@@ -32,10 +38,8 @@ import android.view.InsetsSource.FLAG_FORCE_CONSUMING
 import android.view.InsetsSource.FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR
 import android.view.MotionEvent
 import android.view.SurfaceControl
-import android.view.View.OnClickListener
 import android.view.View.OnGenericMotionListener
 import android.view.View.OnLongClickListener
-import android.view.View.OnTouchListener
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams.INPUT_FEATURE_SPY
@@ -44,6 +48,7 @@ import android.view.WindowManagerGlobal
 import android.window.DesktopExperienceFlags
 import android.window.DesktopModeFlags
 import android.window.WindowContainerTransaction
+import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.traceSection
 import com.android.internal.policy.DesktopModeCompatPolicy
 import com.android.window.flags.Flags
@@ -51,21 +56,28 @@ import com.android.wm.shell.R
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.apptoweb.AppToWebRepository
+import com.android.wm.shell.apptoweb.DialogLifecycleListener
+import com.android.wm.shell.apptoweb.OpenByDefaultFirstRunPrompt
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.LockTaskChangeListener
 import com.android.wm.shell.common.MultiInstanceHelper
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.common.SyncTransactionQueue
-import com.android.wm.shell.desktopmode.DesktopModeEventLogger
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger
+import com.android.wm.shell.desktopmode.DesktopTasksController
 import com.android.wm.shell.desktopmode.DesktopUserRepositories
 import com.android.wm.shell.desktopmode.WindowDecorCaptionRepository
+import com.android.wm.shell.desktopmode.desktopfirst.isDisplayDesktopFirst
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
+import com.android.wm.shell.recents.PerDisplayRecentsTransitionStateListener
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import com.android.wm.shell.shared.annotations.ShellMainThreadImmediate
 import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT
 import com.android.wm.shell.splitscreen.SplitScreenController
+import com.android.wm.shell.transition.FocusTransitionObserver
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.windowdecor.DragPositioningCallbackUtility.DragEventListener
 import com.android.wm.shell.windowdecor.DragResizeWindowGeometry.DisabledEdge
@@ -75,7 +87,10 @@ import com.android.wm.shell.windowdecor.DragResizeWindowGeometry.getResizeEdgeHa
 import com.android.wm.shell.windowdecor.DragResizeWindowGeometry.getResizeHandleEdgeInset
 import com.android.wm.shell.windowdecor.caption.AppHandleController
 import com.android.wm.shell.windowdecor.caption.AppHeaderController
+import com.android.wm.shell.windowdecor.caption.AppPinnedController
 import com.android.wm.shell.windowdecor.caption.CaptionController
+import com.android.wm.shell.windowdecor.caption.FullscreenHeaderController
+import com.android.wm.shell.windowdecor.common.CaptionVisibilityHelper
 import com.android.wm.shell.windowdecor.common.DecorThemeUtil
 import com.android.wm.shell.windowdecor.common.ExclusionRegionListener
 import com.android.wm.shell.windowdecor.common.Theme
@@ -84,9 +99,13 @@ import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSupplier
 import com.android.wm.shell.windowdecor.extension.getDimensionPixelSize
 import com.android.wm.shell.windowdecor.extension.isDragResizable
+import com.android.wm.shell.windowdecor.extension.isFullscreen
 import com.android.wm.shell.windowdecor.extension.isTransparentCaptionBarAppearance
+import com.android.wm.shell.windowdecor.viewholder.AppHeaderViewHolder
+import com.android.wm.shell.windowdecor.viewholder.FullscreenHeaderViewHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainCoroutineDispatcher
+import kotlinx.coroutines.launch
 
 /**
  * Default window decoration implementation that controls both the app handle and the app header
@@ -97,7 +116,7 @@ class DefaultWindowDecoration
 constructor(
     taskInfo: RunningTaskInfo,
     taskSurface: SurfaceControl,
-    val context: Context,
+    context: Context,
     private val userContext: Context,
     private val displayController: DisplayController,
     private val taskResourceLoader: WindowDecorTaskResourceLoader,
@@ -108,7 +127,9 @@ constructor(
     @ShellMainThread private val mainExecutor: ShellExecutor,
     @ShellMainThread private val mainDispatcher: MainCoroutineDispatcher,
     @ShellMainThread private val mainScope: CoroutineScope,
+    @ShellMainThreadImmediate private val mainImmediateScope: CoroutineScope,
     @ShellBackgroundThread private val bgExecutor: ShellExecutor,
+    @ShellBackgroundThread private val bgScope: CoroutineScope,
     private val transitions: Transitions,
     private val choreographer: Choreographer,
     private val syncQueue: SyncTransactionQueue,
@@ -116,13 +137,15 @@ constructor(
     private val windowDecorViewHostSupplier: WindowDecorViewHostSupplier<WindowDecorViewHost>,
     private val multiInstanceHelper: MultiInstanceHelper,
     private val windowDecorCaptionRepository: WindowDecorCaptionRepository,
-    private val desktopModeEventLogger: DesktopModeEventLogger,
     private val desktopModeUiEventLogger: DesktopModeUiEventLogger,
     private val desktopModeCompatPolicy: DesktopModeCompatPolicy,
     private val desktopState: DesktopState,
     private val desktopConfig: DesktopConfig,
     private val windowDecorationActions: WindowDecorationActions,
     private val appToWebRepository: AppToWebRepository,
+    private val captionVisibilityHelper: CaptionVisibilityHelper,
+    private val focusTransitionObserver: FocusTransitionObserver,
+    private val recentsTransitionStateListener: PerDisplayRecentsTransitionStateListener,
     private val windowManagerWrapper: WindowManagerWrapper =
         WindowManagerWrapper(context.getSystemService(WindowManager::class.java)),
     private val surfaceControlBuilderSupplier: () -> SurfaceControl.Builder = {
@@ -136,6 +159,13 @@ constructor(
     },
     surfaceControlSupplier: () -> SurfaceControl = { SurfaceControl() },
     private val lockTaskChangeListener: LockTaskChangeListener,
+    private val appHeaderViewHolderFactory: AppHeaderViewHolder.Factory =
+        AppHeaderViewHolder.DefaultFactory(),
+    private val fullscreenHeaderViewHolderFactory: FullscreenHeaderViewHolder.Factory =
+        FullscreenHeaderViewHolder.DefaultFactory(),
+    val pinnedLayerController: PinnedLayerController?,
+    private val desktopTasksController: DesktopTasksController,
+    private val decorThemeUtilFactory: DecorThemeUtil.Factory,
 ) :
     WindowDecoration2<WindowDecorLinearLayout>(
         taskInfo,
@@ -148,8 +178,7 @@ constructor(
         mainScope,
         transitions,
     ) {
-    private lateinit var onClickListener: OnClickListener
-    private lateinit var onTouchListener: OnTouchListener
+    private lateinit var gestureInterceptor: WindowDecorLinearLayout.GestureInterceptor
     private lateinit var onLongClickListener: OnLongClickListener
     private lateinit var onGenericMotionListener: OnGenericMotionListener
     private lateinit var exclusionRegionListener: ExclusionRegionListener
@@ -159,9 +188,15 @@ constructor(
     private val taskPositionInParent = Point()
     private var dragResizeListener: DragResizeInputListener? = null
     private var resizeVeil: ResizeVeil? = null
+    private var openByDefaultFirstRunPrompt: OpenByDefaultFirstRunPrompt? = null
+    private val isOpenByDefaultFirstRunPromptActive
+        get() = openByDefaultFirstRunPrompt != null
+
     private val positionInParent
         get() = taskInfo.positionInParent
 
+    // True if task is in desktop windowing with fullscreen bounds while app is requesting
+    // immersive mode.
     private val inFullImmersive
         get() = desktopUserRepositories.current.isTaskInFullImmersiveState(taskInfo.taskId)
 
@@ -181,8 +216,8 @@ constructor(
     private val captionType
         get() = captionController?.captionType ?: CaptionController.CaptionType.NO_CAPTION
 
-    val maximizeMenuController: MaximizeMenuController?
-        get() = captionController?.maximizeMenuController
+    val layoutMenuController: LayoutMenuController?
+        get() = captionController?.layoutMenuController
 
     val handleMenuController: HandleMenuController?
         get() = captionController?.handleMenuController
@@ -190,12 +225,23 @@ constructor(
     val manageWindowsMenuController: ManageWindowsMenuController?
         get() = captionController?.manageWindowsMenuController
 
+    private val appTheme = { taskInfo: RunningTaskInfo ->
+        decorThemeUtilFactory.create(context).getAppTheme(taskInfo)
+    }
+
     init {
         taskResourceLoader.onWindowDecorCreated(taskInfo)
     }
 
     /** Declares whether the window decoration is being dragged. */
     var isDragging = false
+        set(value) {
+            field = value
+            // If we are dragging, close the layout menu if it's open
+            if (value) {
+                layoutMenuController?.closeLayoutMenu()
+            }
+        }
 
     /**
      * Declares whether a Recents transition is currently active.
@@ -204,11 +250,10 @@ constructor(
      * corner radius of its task surfaces, so each window decoration should stop updating the corner
      * radius of its task surface during that time.
      */
-    var isRecentsTransitionRunning = false
-        set(running) {
-            field = running
-            captionController?.isRecentsTransitionRunning = running
-        }
+    private val isRecentsTransitionRunning
+        get() =
+            display?.let { recentsTransitionStateListener.isRecentsAnimationActive(it.displayId) }
+                ?: false
 
     /** Adds the [dragResizeListener] which gets notified on the task being drag resized. */
     fun addDragResizeListener(dragResizeListener: DragEventListener?) {
@@ -222,13 +267,11 @@ constructor(
 
     /** Set the listeners for the decorations. */
     fun setListeners(
-        onClickListener: OnClickListener,
-        onTouchListener: OnTouchListener,
+        gestureInterceptor: WindowDecorLinearLayout.GestureInterceptor,
         onLongClickListener: OnLongClickListener,
         onGenericMotionListener: OnGenericMotionListener,
     ) {
-        this.onClickListener = onClickListener
-        this.onTouchListener = onTouchListener
+        this.gestureInterceptor = gestureInterceptor
         this.onLongClickListener = onLongClickListener
         this.onGenericMotionListener = onGenericMotionListener
     }
@@ -250,10 +293,7 @@ constructor(
      * To be called when exclusion region is changed to allow [relayout] to be called if necessary.
      */
     override fun onExclusionRegionChanged(exclusionRegion: Region) {
-        if (
-            Flags.appHandleNoRelayoutOnExclusionChange() &&
-                captionType == CaptionController.CaptionType.APP_HANDLE
-        ) {
+        if (captionType == CaptionController.CaptionType.APP_HANDLE) {
             // Avoid unnecessary relayouts for app handle. See b/383672263
             return
         }
@@ -268,6 +308,21 @@ constructor(
         this.disabledResizingEdge = disabledResizingEdge
         if (shouldDelayUpdate) return
         decorationContainerSurface?.let { updateDragResizeListenerIfNeeded(it) }
+    }
+
+    private fun isFluidResizingApp(): Boolean {
+        if (!desktopConfig.isVeiledResizeEnabled) {
+            return true
+        }
+        if (!Flags.enableFluidResizingForListedApps()) {
+            return false
+        }
+        val baseActivity = taskInfo.baseActivity ?: return false
+        return CompatChanges.isChangeEnabled(
+            ActivityInfo.ENABLE_FLUID_RESIZING,
+            baseActivity.getPackageName(),
+            userContext.getUser(),
+        )
     }
 
     /** Updates all window decorations, including any existing caption. */
@@ -288,7 +343,7 @@ constructor(
         // transitions to resize the task, so onTaskInfoChanged relayouts is the only way to make
         // sure the crop is set correctly.
         val shouldSetTaskVisibilityPositionAndCrop =
-            !desktopConfig.isVeiledResizeEnabled && taskDragResizer?.isResizingOrAnimating() == true
+            isFluidResizingApp() && taskDragResizer?.isResizingOrAnimating() == true
 
         // For headers only (i.e. in freeform): use |applyStartTransactionOnDraw| so that the
         // transaction (that applies task crop) is synced with the buffer transaction (that draws
@@ -324,14 +379,12 @@ constructor(
         taskSurface: SurfaceControl?,
     ) =
         traceSection("DefaultWindowDecoration#relayout") {
-            if (DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_APP_TO_WEB.isTrue) {
-                taskInfo.capturedLink?.let {
-                    appToWebRepository.setCapturedLink(
-                        taskInfo.taskId,
-                        it,
-                        taskInfo.capturedLinkTimestamp,
-                    )
-                }
+            taskInfo.capturedLink?.let {
+                appToWebRepository.setCapturedLink(
+                    taskInfo.taskId,
+                    it,
+                    taskInfo.capturedLinkTimestamp,
+                )
             }
 
             if (DesktopExperienceFlags.ENABLE_BUG_FIXES_FOR_SECONDARY_DISPLAY.isTrue) {
@@ -344,15 +397,13 @@ constructor(
 
             val relayoutParams =
                 getRelayoutParams(
-                    context,
                     taskInfo,
                     splitScreenController,
                     applyStartTransactionOnDraw,
                     shouldSetTaskVisibilityPositionAndCrop,
                     hasGlobalFocus,
                     displayExclusionRegion,
-                    /* shouldIgnoreCornerRadius= */ isRecentsTransitionRunning &&
-                        DesktopModeFlags.ENABLE_DESKTOP_RECENTS_TRANSITIONS_CORNERS_BUGFIX.isTrue,
+                    /* shouldIgnoreCornerRadius= */ isRecentsTransitionRunning,
                     desktopModeCompatPolicy.shouldExcludeCaptionFromAppBounds(taskInfo),
                     desktopConfig,
                     inSyncWithTransition,
@@ -360,15 +411,19 @@ constructor(
 
             val wct = windowContainerTransactionSupplier.invoke()
             val oldDecorationSurface = decorationContainerSurface
+            // Check for relevant configuration changes
+            val oldConfig = this.taskInfo.configuration
+            val newConfig = relayoutParams.runningTaskInfo.configuration
+            val diff = newConfig.diff(oldConfig)
+            // Check for UI mode (dark/light), locale, or font scale changes
+            val configChanged =
+                (diff and (CONFIG_UI_MODE or CONFIG_LOCALE or CONFIG_FONT_SCALE)) != 0
             relayout(relayoutParams, startT, finishT, wct, taskSurface)
 
             // After this line, [WindowDecoration2.taskInfo] is up-to-date and should be
             // used instead of the taskInfo passed to the relayout method.
             if (!wct.isEmpty) {
-                if (
-                    DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_PIP.isTrue &&
-                        relayoutParams.shouldSetAppBounds
-                ) {
+                if (relayoutParams.shouldSetAppBounds) {
                     // When expanding from PiP to freeform, we need to start a Transition for
                     // applying
                     // the inset changes so that PiP receives the insets for the final bounds. This
@@ -389,13 +444,32 @@ constructor(
                 Trace.endSection()
             }
 
-            decorationContainerSurface?.let {
+            if (DesktopExperienceFlags.ENABLE_ADD_WINDOW_DECORATION_TO_ALL_TASKS.isTrue) {
                 updateDragResizeListenerIfNeeded(oldDecorationSurface)
+            } else {
+                decorationContainerSurface?.let {
+                    updateDragResizeListenerIfNeeded(oldDecorationSurface)
+                }
             }
+            updateOpenByDefaultFirstRunPromptIfNeeded(configChanged, taskInfo)
         }
 
-    private fun getRelayoutParams(
-        context: Context,
+    /**
+     * Returns `true` if the task is in desktop windowing mode and is currently in fullscreen.
+     *
+     * This is distinct from an app requesting immersive mode while in freeform.
+     */
+    private fun isFullscreenDesktop(taskInfo: RunningTaskInfo): Boolean =
+        if (DesktopExperienceFlags.ENABLE_FULLSCREEN_WINDOW_CONTROLS.isTrue()) {
+            taskInfo.configuration.windowConfiguration.getWindowingMode() ==
+                WINDOWING_MODE_FULLSCREEN &&
+                rootTaskDisplayAreaOrganizer.isDisplayDesktopFirst(taskInfo.displayId)
+        } else {
+            false
+        }
+
+    @VisibleForTesting
+    fun getRelayoutParams(
         taskInfo: RunningTaskInfo,
         splitScreenController: SplitScreenController,
         applyStartTransactionOnDraw: Boolean,
@@ -407,11 +481,17 @@ constructor(
         desktopConfig: DesktopConfig,
         inSyncWithTransition: Boolean,
     ): RelayoutParams {
+        val shouldCreateCaption =
+            !DesktopExperienceFlags.ENABLE_ADD_WINDOW_DECORATION_TO_ALL_TASKS.isTrue ||
+                captionVisibilityHelper.shouldCreateCaption(taskInfo, isKeyguardVisibleAndOccluded)
+        val isPinnedLayer = pinnedLayerController?.isPinned(taskInfo.taskId) ?: false
         val captionType =
-            if (taskInfo.isFreeform) {
-                CaptionController.CaptionType.APP_HEADER
-            } else {
-                CaptionController.CaptionType.APP_HANDLE
+            when {
+                !shouldCreateCaption -> CaptionController.CaptionType.NO_CAPTION
+                isPinnedLayer -> CaptionController.CaptionType.APP_PINNED
+                taskInfo.isFreeform -> CaptionController.CaptionType.APP_HEADER
+                isFullscreenDesktop(taskInfo) -> CaptionController.CaptionType.FULLSCREEN_HEADER
+                else -> CaptionController.CaptionType.APP_HANDLE
             }
         val isAppHeader = captionType == CaptionController.CaptionType.APP_HEADER
         val isAppHandle = captionType == CaptionController.CaptionType.APP_HANDLE
@@ -425,11 +505,11 @@ constructor(
             !splitScreenController.isLeftRightSplit &&
                 (splitScreenController.getSplitPosition(taskInfo.taskId) ==
                     SPLIT_POSITION_BOTTOM_OR_RIGHT)
-        val isInsetSource = (isAppHeader && !inFullImmersive) || isBottomSplit
+        val isInsetSource = (isAppHeader && !inFullImmersive) || isPinnedLayer || isBottomSplit
         var inputFeatures = 0
         var insetSourceFlags = 0
         var shouldSetAppBounds = false
-        if (isAppHeader) {
+        if (isAppHeader || isPinnedLayer) {
             if (taskInfo.isTransparentCaptionBarAppearance) {
                 // The app is requesting to customize the caption bar, which means input on
                 // customizable/exclusion regions must go to the app instead of to the system.
@@ -450,7 +530,7 @@ constructor(
                 // through and dismiss the modal, even when the caption touchable region is not
                 // being limited.
                 inputFeatures = inputFeatures or WindowManager.LayoutParams.INPUT_FEATURE_SPY
-            } else if (DesktopModeFlags.ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION.isTrue) {
+            } else {
                 if (shouldExcludeCaptionFromAppBounds) {
                     shouldSetAppBounds = true
                 } else {
@@ -459,20 +539,16 @@ constructor(
                     insetSourceFlags = insetSourceFlags or FLAG_FORCE_CONSUMING
                 }
             }
-            if (DesktopModeFlags.ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS.isTrue) {
-                if (shouldExcludeCaptionFromAppBounds) {
-                    shouldSetAppBounds = true
-                } else {
-                    // Always force-consume the caption bar insets for maximum app compatibility,
-                    // including non-immersive apps that just don't handle caption insets properly.
-                    insetSourceFlags = insetSourceFlags or FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR
-                }
+            if (shouldExcludeCaptionFromAppBounds) {
+                shouldSetAppBounds = true
+            } else {
+                // Always force-consume the caption bar insets for maximum app compatibility,
+                // including non-immersive apps that just don't handle caption insets properly.
+                insetSourceFlags = insetSourceFlags or FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR
             }
             inputFeatures =
                 inputFeatures or WindowManager.LayoutParams.INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE
-        } else if (
-            isAppHandle && DesktopExperienceFlags.ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER.isTrue
-        ) {
+        } else if (isAppHandle) {
             // Add input feature spy flag if caption is an app handle so that input is not stolen
             // when motion event exits caption view.
             inputFeatures = inputFeatures or INPUT_FEATURE_SPY
@@ -485,7 +561,7 @@ constructor(
         // TODO: b/301119301 - consider moving the config data needed for diffs to relayout params
         // instead of using a whole Configuration as a parameter.
         val windowDecorConfig =
-            if (DesktopModeFlags.ENABLE_APP_HEADER_WITH_TASK_DENSITY.isTrue && isAppHeader) {
+            if (isAppHeader) {
                 // Should match the density of the task. The task may have had its density
                 // overridden
                 // to be different that SysUI's.
@@ -493,7 +569,12 @@ constructor(
             } else if (desktopConfig.useDesktopOverrideDensity) {
                 // The task has had its density overridden, but keep using the system's density to
                 // layout the header.
-                Configuration(context.resources.configuration)
+                val config =
+                    displayController
+                        .getDisplayContext(taskInfo.displayId)
+                        ?.resources
+                        ?.configuration ?: taskInfo.configuration
+                Configuration(config)
             } else {
                 Configuration(taskInfo.configuration)
             }
@@ -503,6 +584,27 @@ constructor(
         // Otherwise if fluid resize is enabled, add a background to freeform tasks.
         val shouldSetBackground = desktopConfig.shouldSetBackground(taskInfo)
 
+        val isCaptionVisible =
+            if (DesktopExperienceFlags.ENABLE_ADD_WINDOW_DECORATION_TO_ALL_TASKS.isTrue) {
+                shouldShowCaption(taskInfo, captionType)
+            } else {
+                shouldShowCaption(taskInfo, lockTaskChangeListener.isTaskLocked)
+            }
+
+        // Task outline (i.e. corner radius and shadows) should update when a task is in desktop
+        // windowing with non-fullscreen bounds
+        val shouldUpdateTaskSurfaceOutline = taskInfo.isFreeform && !inFullImmersive
+
+        // Decoration container surface is needed if (1) caption should be attached to task or
+        // (2) task is drag resizable, requiring a DragResizeInputListener
+        val isDecorationSurfaceNeeded =
+            if (DesktopExperienceFlags.ENABLE_ADD_WINDOW_DECORATION_TO_ALL_TASKS.isTrue) {
+                captionType != CaptionController.CaptionType.NO_CAPTION ||
+                    taskInfo.isDragResizable(inFullImmersive)
+            } else {
+                true
+            }
+
         return RelayoutParams(
             runningTaskInfo = taskInfo,
             captionType = captionType,
@@ -510,13 +612,11 @@ constructor(
             isInsetSource = isInsetSource,
             insetSourceFlags = insetSourceFlags,
             displayExclusionRegion = Region.obtain(displayExclusionRegion),
-            shadowRadius = getShadowRadius(captionType, hasGlobalFocus),
-            cornerRadius = getCornerRadius(captionType, shouldIgnoreCornerRadius),
             shadowRadiusId = getShadowRadiusId(captionType, hasGlobalFocus),
             cornerRadiusId = getCornerRadiusId(captionType, shouldIgnoreCornerRadius),
             borderSettingsId = getBorderSettingsId(captionType, taskInfo, hasGlobalFocus),
             boxShadowSettingsIds = getShadowSettingsIds(captionType, hasGlobalFocus),
-            isCaptionVisible = shouldShowCaption(taskInfo, lockTaskChangeListener.isTaskLocked),
+            isCaptionVisible = isCaptionVisible,
             windowDecorConfig = windowDecorConfig,
             asyncViewHost = asyncViewHost,
             applyStartTransactionOnDraw = applyStartTransactionOnDraw,
@@ -524,7 +624,9 @@ constructor(
             hasGlobalFocus = hasGlobalFocus,
             shouldSetAppBounds = shouldSetAppBounds,
             shouldSetBackground = shouldSetBackground,
+            shouldUpdateTaskSurfaceOutline = shouldUpdateTaskSurfaceOutline,
             inSyncWithTransition = inSyncWithTransition,
+            isDecorationSurfaceNeeded = isDecorationSurfaceNeeded,
         )
     }
 
@@ -533,8 +635,8 @@ constructor(
         hasGlobalFocus: Boolean,
     ): IntArray? =
         if (
-            !DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS.isTrue ||
-                captionType != CaptionController.CaptionType.APP_HEADER ||
+            !DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS_V2.isTrue ||
+                !shouldDecorateBorders(captionType) ||
                 !desktopConfig.useWindowShadow(isFocusedWindow = hasGlobalFocus)
         ) {
             null
@@ -550,12 +652,12 @@ constructor(
         hasGlobalFocus: Boolean,
     ): Int =
         if (
-            !DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS.isTrue ||
-                captionType != CaptionController.CaptionType.APP_HEADER ||
+            !DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS_V2.isTrue ||
+                !shouldDecorateBorders(captionType) ||
                 !desktopConfig.useWindowShadow(isFocusedWindow = hasGlobalFocus)
         ) {
             ID_NULL
-        } else if (DecorThemeUtil(context).getAppTheme(taskInfo) == Theme.DARK) {
+        } else if (appTheme(taskInfo) == Theme.DARK) {
             if (hasGlobalFocus) {
                 R.style.BorderSettingsFocusedDark
             } else {
@@ -570,11 +672,10 @@ constructor(
         captionType: CaptionController.CaptionType,
         hasGlobalFocus: Boolean,
     ): Int =
-        if (DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS.isTrue) {
+        if (DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS_V2.isTrue) {
             ID_NULL
         } else if (
-            !DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue ||
-                captionType != CaptionController.CaptionType.APP_HEADER ||
+            !shouldDecorateBorders(captionType) ||
                 !desktopConfig.useWindowShadow(isFocusedWindow = hasGlobalFocus)
         ) {
             ID_NULL
@@ -584,52 +685,12 @@ constructor(
             R.dimen.freeform_decor_shadow_unfocused_thickness
         }
 
-    @Deprecated("")
-    private fun getShadowRadius(
-        captionType: CaptionController.CaptionType,
-        hasGlobalFocus: Boolean,
-    ): Int =
-        if (DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS.isTrue) {
-            INVALID_SHADOW_RADIUS
-        } else if (
-            DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue ||
-                captionType != CaptionController.CaptionType.APP_HEADER ||
-                !desktopConfig.useWindowShadow(isFocusedWindow = hasGlobalFocus)
-        ) {
-            INVALID_SHADOW_RADIUS
-        } else if (hasGlobalFocus) {
-            context.resources.getDimensionPixelSize(R.dimen.freeform_decor_shadow_focused_thickness)
-        } else {
-            context.resources.getDimensionPixelSize(
-                R.dimen.freeform_decor_shadow_unfocused_thickness
-            )
-        }
-
-    @Deprecated("")
-    private fun getCornerRadius(
-        captionType: CaptionController.CaptionType,
-        shouldIgnoreCornerRadius: Boolean,
-    ): Int =
-        if (
-            captionType != CaptionController.CaptionType.APP_HEADER ||
-                DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue ||
-                !desktopConfig.useRoundedCorners ||
-                shouldIgnoreCornerRadius
-        ) {
-            INVALID_CORNER_RADIUS
-        } else {
-            context.resources.getDimensionPixelSize(
-                com.android.wm.shell.shared.R.dimen.desktop_windowing_freeform_rounded_corner_radius
-            )
-        }
-
     private fun getCornerRadiusId(
         captionType: CaptionController.CaptionType,
         shouldIgnoreCornerRadius: Boolean,
     ): Int =
         if (
-            captionType != CaptionController.CaptionType.APP_HEADER ||
-                !DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue ||
+            !shouldDecorateBorders(captionType) ||
                 !desktopConfig.useRoundedCorners ||
                 shouldIgnoreCornerRadius
         ) {
@@ -638,26 +699,74 @@ constructor(
             com.android.wm.shell.shared.R.dimen.desktop_windowing_freeform_rounded_corner_radius
         }
 
+    private fun shouldDecorateBorders(captionType: CaptionController.CaptionType) =
+        when (captionType) {
+            CaptionController.CaptionType.APP_HEADER,
+            CaptionController.CaptionType.APP_PINNED -> true
+            else -> false
+        }
+
+    private fun shouldShowCaption(
+        taskInfo: RunningTaskInfo,
+        captionType: CaptionController.CaptionType,
+    ) =
+        when {
+            captionType == CaptionController.CaptionType.NO_CAPTION -> {
+                // If caption is not created for this task, return false
+                false
+            }
+            isDragging -> {
+                // If task is being dragged by caption, force caption to show to prevent loss of
+                // drag
+                // input
+                true
+            }
+            isStatusBarVisible -> {
+                // Always show the caption when status bar is visible, regardless of the mode
+                true
+            }
+            inFullImmersive || taskInfo.isFullscreen -> {
+                // The status bar is not visible, so fullscreen windows, whether due to a task being
+                // in
+                // WINDOWING_MODE_FULLSCREEN or full-immersive, should follow the status bar
+                false
+            }
+            taskInfo.isFreeform -> {
+                // Caption should always be visible in freeform mode.
+                //  TODO: b/447166117 - Investigate how it's possible for the status bar visibility
+                // to
+                //   be false while a freeform window is open if the status bar is always
+                //   forcibly-shown. It may be that the InsetsState (from which
+                // |mIsStatusBarVisible|
+                //   is set) still contains an invisible insets source in immersive cases even if
+                // the
+                //   status bar is shown?
+                true
+            }
+            else -> {
+                // Return true by default
+                true
+            }
+        }
+
+    @Deprecated("Use shouldShowCaption(taskInfo)")
     private fun shouldShowCaption(taskInfo: RunningTaskInfo, isTaskLocked: Boolean): Boolean {
         var showCaption: Boolean
-        if (DesktopModeFlags.ENABLE_DESKTOP_IMMERSIVE_DRAG_BUGFIX.isTrue && isDragging) {
+        if (isDragging) {
             // If the task is being dragged, the caption should not be hidden so that it continues
             // receiving input
             showCaption = true
-        } else if (DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue && inFullImmersive) {
+        } else if (inFullImmersive) {
             showCaption = isStatusBarVisible && !isKeyguardVisibleAndOccluded
 
-            if (
-                DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_ENTERPRISE_BUGFIX.isTrue() &&
-                    !taskInfo.isFreeform
-            ) {
+            if (!taskInfo.isFreeform) {
                 showCaption = showCaption && !isTaskLocked
             }
         } else {
             // Caption should always be visible in freeform mode. When not in freeform,
             // align with the status bar except when showing over keyguard (where it should not
             // shown).
-            //  TODO: b/356405803 - Investigate how it's possible for the status bar visibility to
+            //  TODO: b/447166117 - Investigate how it's possible for the status bar visibility to
             //   be false while a freeform window is open if the status bar is always
             //   forcibly-shown. It may be that the InsetsState (from which |mIsStatusBarVisible|
             //   is set) still contains an invisible insets source in immersive cases even if the
@@ -665,10 +774,7 @@ constructor(
             showCaption =
                 taskInfo.isFreeform || (isStatusBarVisible && !isKeyguardVisibleAndOccluded)
 
-            if (
-                DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_ENTERPRISE_BUGFIX.isTrue() &&
-                    !taskInfo.isFreeform
-            ) {
+            if (!taskInfo.isFreeform) {
                 showCaption = showCaption && !isTaskLocked
             }
         }
@@ -676,17 +782,17 @@ constructor(
         return showCaption
     }
 
-    private fun updateDragResizeListenerIfNeeded(containerSurface: SurfaceControl?) {
+    private fun updateDragResizeListenerIfNeeded(prevContainerSurface: SurfaceControl?) {
         val taskPositionChanged = !taskInfo.positionInParent.equals(taskPositionInParent)
         if (!taskInfo.isDragResizable(inFullImmersive)) {
+            closeDragResizeListener()
             if (taskPositionChanged) {
                 // We still want to track caption bar's exclusion region on a non-resizeable task.
                 updateExclusionRegion()
             }
-            closeDragResizeListener()
             return
         }
-        updateDragResizeListener(containerSurface) { geometryChanged ->
+        updateDragResizeListener(prevContainerSurface) { geometryChanged ->
             if (geometryChanged || taskPositionChanged) {
                 updateExclusionRegion()
             }
@@ -694,50 +800,39 @@ constructor(
     }
 
     private fun updateDragResizeListener(
-        containerSurface: SurfaceControl?,
+        prevContainerSurface: SurfaceControl?,
         onUpdateFinished: (Boolean) -> Unit,
     ) {
-        val containerSurfaceChanged = containerSurface != decorationContainerSurface
+        val containerSurfaceChanged = prevContainerSurface != decorationContainerSurface
         if (containerSurfaceChanged) {
             closeDragResizeListener()
         }
         val listener =
             dragResizeListener
                 ?: DragResizeInputListener(
-                    context,
+                    decorWindowContext,
                     WindowManagerGlobal.getWindowSession(),
                     mainExecutor,
-                    if (DesktopModeFlags.ENABLE_DRAG_RESIZE_SET_UP_IN_BG_THREAD.isTrue) {
-                        bgExecutor
-                    } else {
-                        mainExecutor
-                    },
+                    bgExecutor,
                     taskInfo,
                     handler,
                     choreographer,
                     checkNotNull(display?.displayId) { "expected non-null display" },
-                    checkNotNull(decorationContainerSurface),
+                    checkNotNull(decorationContainerSurface) {
+                        "Expected non-null decoration container surface"
+                    },
                     dragPositioningCallback,
                     surfaceControlBuilderSupplier,
                     surfaceControlTransactionSupplier,
                     displayController,
-                    desktopModeEventLogger,
-                )
+                ) {
+                    captionController?.injectMotionEvent(it)
+                }
         val touchSlop = ViewConfiguration.get(decorWindowContext).scaledTouchSlop
         val res = decorWindowContext.resources
-        val shouldIgnoreCornerRadius =
-            isRecentsTransitionRunning &&
-                DesktopModeFlags.ENABLE_DESKTOP_RECENTS_TRANSITIONS_CORNERS_BUGFIX.isTrue
         val newGeometry =
             DragResizeWindowGeometry(
-                if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue) {
-                    context.resources.getDimensionPixelSize(
-                        getCornerRadiusId(captionType, shouldIgnoreCornerRadius),
-                        defaultValue = 0,
-                    )
-                } else {
-                    getCornerRadius(captionType, shouldIgnoreCornerRadius)
-                },
+                getCornerRadius(),
                 Size(taskWidth, taskHeight),
                 getResizeEdgeHandleSize(res),
                 getResizeHandleEdgeInset(res),
@@ -749,6 +844,14 @@ constructor(
             onUpdateFinished.invoke(listener.setGeometry(newGeometry, touchSlop))
         }
         dragResizeListener = listener
+    }
+
+    private fun getCornerRadius(): Int {
+        val shouldIgnoreCornerRadius = isRecentsTransitionRunning
+        return decorWindowContext.resources.getDimensionPixelSize(
+            getCornerRadiusId(captionType, shouldIgnoreCornerRadius),
+            defaultValue = 0,
+        )
     }
 
     /**
@@ -769,12 +872,7 @@ constructor(
      * this task.
      */
     private fun getGlobalExclusionRegion(): Region {
-        val exclusionRegion =
-            if (taskInfo.isDragResizable(inFullImmersive)) {
-                dragResizeListener?.cornersRegion ?: Region()
-            } else {
-                Region()
-            }
+        val exclusionRegion = dragResizeListener?.cornersRegion ?: Region()
         if (inFullImmersive) {
             // Task can't be moved in full immersive, so skip excluding the caption region.
             return exclusionRegion
@@ -812,11 +910,11 @@ constructor(
         val veil =
             resizeVeil
                 ?: ResizeVeil(
-                    context = context,
+                    context = decorWindowContext,
                     displayController = displayController,
                     taskResourceLoader = taskResourceLoader,
                     mainDispatcher = mainDispatcher,
-                    mainScope = mainScope,
+                    mainImmediateScope = mainImmediateScope,
                     parentSurface = taskSurface,
                     surfaceControlTransactionSupplier = surfaceControlTransactionSupplier,
                     taskInfo = taskInfo,
@@ -884,23 +982,74 @@ constructor(
     }
 
     /**
-     * Announces that the app window is now being focused for accessibility. This is used after a
-     * window is minimized/closed, and a new app window gains focus.
-     */
-    fun a11yAnnounceNewFocusedWindow() {
-        (captionController as? AppHeaderController)?.a11yAnnounceFocused()
-    }
-
-    /**
      * Request direct a11y focus on the maximize button. This is used after a maximize/restore to
      * ensure that focus always goes back to the button.
      */
     fun a11yFocusMaximizeButton() {
-        (captionController as? AppHeaderController)?.a11yFocusMaximizeButton()
+        when (captionController) {
+            is AppHeaderController ->
+                (captionController as AppHeaderController).a11yFocusMaximizeButton()
+            is FullscreenHeaderController ->
+                (captionController as FullscreenHeaderController).a11yFocusExitFullscreenButton()
+        }
+    }
+
+    private fun createOpenByDefaultFirstRunPrompt() {
+        if (isOpenByDefaultFirstRunPromptActive) return
+        openByDefaultFirstRunPrompt =
+            OpenByDefaultFirstRunPrompt(
+                decorWindowContext,
+                userContext,
+                transitions,
+                taskInfo,
+                taskSurface,
+                displayController,
+                taskResourceLoader,
+                surfaceControlTransactionSupplier,
+                mainScope,
+                object : DialogLifecycleListener {
+                    override fun onDialogDismissed() {
+                        openByDefaultFirstRunPrompt = null
+                    }
+
+                    override fun onDialogCreated() {
+                        appToWebRepository.onFirstRunPromptShown(taskInfo)
+                    }
+                },
+                { appToWebRepository.onFirstRunPromptAcked(taskInfo) },
+                {
+                    mainScope.launch {
+                        val intent =
+                            appToWebRepository.getAppToWebIntent(taskInfo, isBrowserApp = false)
+                                ?: return@launch
+                        windowDecorationActions.onSwitchToBrowser(taskInfo, intent)
+                    }
+                },
+            )
+    }
+
+    private fun updateOpenByDefaultFirstRunPromptIfNeeded(
+        configChanged: Boolean,
+        taskInfo: RunningTaskInfo,
+    ) {
+        if (configChanged && isOpenByDefaultFirstRunPromptActive) {
+            // Config changed, so destroy the old dialog and create a new one.
+            // The new one will inflate with the correct resources.
+            openByDefaultFirstRunPrompt?.dismiss()
+            createOpenByDefaultFirstRunPrompt()
+        } else {
+            // No config change, just relayout the existing dialog for size/position changes.
+            openByDefaultFirstRunPrompt?.relayout(taskInfo)
+        }
+
+        if (appToWebRepository.shouldShowFirstRunPrompt(taskInfo)) {
+            createOpenByDefaultFirstRunPrompt()
+        }
     }
 
     /** Closes the window decoration. */
     override fun close() {
+        openByDefaultFirstRunPrompt?.dismiss()
         taskResourceLoader.onWindowDecorClosed(taskInfo)
         closeDragResizeListener()
         disposeResizeVeil()
@@ -914,38 +1063,40 @@ constructor(
         when (captionType) {
             CaptionController.CaptionType.APP_HEADER -> {
                 AppHeaderController(
-                    taskInfo,
-                    windowDecorViewHostSupplier,
-                    context,
-                    userContext,
-                    displayController,
-                    taskResourceLoader,
-                    splitScreenController,
-                    desktopUserRepositories,
-                    transitions,
-                    taskSurface,
-                    checkNotNull(decorationContainerSurface) {
-                        "Expected non-null decoration container surface"
-                    },
-                    handler,
-                    mainExecutor,
-                    mainDispatcher,
-                    mainScope,
-                    bgExecutor,
-                    syncQueue,
-                    rootTaskDisplayAreaOrganizer,
-                    windowManagerWrapper,
-                    multiInstanceHelper,
-                    windowDecorCaptionRepository,
-                    desktopModeUiEventLogger,
-                    desktopState,
-                    windowDecorationActions,
-                    decorWindowContext,
-                    onTouchListener,
-                    onClickListener,
-                    onLongClickListener,
-                    onGenericMotionListener,
-                    appToWebRepository,
+                    taskInfo = taskInfo,
+                    windowDecorViewHostSupplier = windowDecorViewHostSupplier,
+                    userContext = userContext,
+                    displayController = displayController,
+                    taskResourceLoader = taskResourceLoader,
+                    splitScreenController = splitScreenController,
+                    desktopUserRepositories = desktopUserRepositories,
+                    transitions = transitions,
+                    taskSurface = taskSurface,
+                    decorationSurface =
+                        checkNotNull(decorationContainerSurface) {
+                            "Expected non-null decoration container surface"
+                        },
+                    taskOrganizer = taskOrganizer,
+                    mainHandler = handler,
+                    mainDispatcher = mainDispatcher,
+                    mainScope = mainScope,
+                    bgScope = bgScope,
+                    syncQueue = syncQueue,
+                    rootTaskDisplayAreaOrganizer = rootTaskDisplayAreaOrganizer,
+                    windowManagerWrapper = windowManagerWrapper,
+                    multiInstanceHelper = multiInstanceHelper,
+                    windowDecorCaptionRepository = windowDecorCaptionRepository,
+                    desktopModeUiEventLogger = desktopModeUiEventLogger,
+                    desktopState = desktopState,
+                    windowDecorationActions = windowDecorationActions,
+                    decorWindowContext = decorWindowContext,
+                    gestureInterceptor = gestureInterceptor,
+                    onLongClickListener = onLongClickListener,
+                    onCaptionGenericMotionListener = onGenericMotionListener,
+                    appToWebRepository = appToWebRepository,
+                    focusTransitionObserver = focusTransitionObserver,
+                    appHeaderViewHolderFactory = appHeaderViewHolderFactory,
+                    decorThemeUtilFactory = decorThemeUtilFactory,
                 )
             }
 
@@ -953,7 +1104,6 @@ constructor(
                 AppHandleController(
                     taskInfo,
                     windowDecorViewHostSupplier,
-                    context,
                     userContext,
                     transitions,
                     displayController,
@@ -968,6 +1118,7 @@ constructor(
                     handler,
                     mainDispatcher,
                     mainScope,
+                    bgScope,
                     windowManagerWrapper,
                     multiInstanceHelper,
                     windowDecorCaptionRepository,
@@ -975,9 +1126,67 @@ constructor(
                     desktopState,
                     windowDecorationActions,
                     decorWindowContext,
-                    onTouchListener,
-                    onClickListener,
+                    gestureInterceptor,
                     appToWebRepository,
+                    recentsTransitionStateListener,
+                    focusTransitionObserver,
+                    pinnedLayerController,
+                    desktopTasksController,
+                    decorThemeUtilFactory,
+                )
+            }
+
+            CaptionController.CaptionType.APP_PINNED -> {
+                AppPinnedController(
+                    taskInfo,
+                    windowDecorViewHostSupplier,
+                    decorWindowContext,
+                    displayController,
+                    onTouchListener = gestureInterceptor,
+                    onGenericMotionEventListener = onGenericMotionListener,
+                    windowDecorationActions,
+                    taskResourceLoader,
+                    taskOrganizer,
+                    bgScope,
+                )
+            }
+
+            CaptionController.CaptionType.FULLSCREEN_HEADER -> {
+                FullscreenHeaderController(
+                    taskInfo = taskInfo,
+                    windowDecorViewHostSupplier = windowDecorViewHostSupplier,
+                    userContext = userContext,
+                    displayController = displayController,
+                    taskResourceLoader = taskResourceLoader,
+                    splitScreenController = splitScreenController,
+                    desktopUserRepositories = desktopUserRepositories,
+                    transitions = transitions,
+                    taskSurface = taskSurface,
+                    decorationSurface =
+                        checkNotNull(decorationContainerSurface) {
+                            "Expected non-null decoration container surface"
+                        },
+                    taskOrganizer = taskOrganizer,
+                    mainHandler = handler,
+                    mainDispatcher = mainDispatcher,
+                    mainScope = mainScope,
+                    bgScope = bgScope,
+                    syncQueue = syncQueue,
+                    rootTaskDisplayAreaOrganizer = rootTaskDisplayAreaOrganizer,
+                    windowManagerWrapper = windowManagerWrapper,
+                    multiInstanceHelper = multiInstanceHelper,
+                    windowDecorCaptionRepository = windowDecorCaptionRepository,
+                    desktopModeUiEventLogger = desktopModeUiEventLogger,
+                    desktopState = desktopState,
+                    windowDecorationActions = windowDecorationActions,
+                    decorWindowContext = decorWindowContext,
+                    gestureInterceptor = gestureInterceptor,
+                    onLongClickListener = onLongClickListener,
+                    onCaptionGenericMotionListener = onGenericMotionListener,
+                    appToWebRepository = appToWebRepository,
+                    focusTransitionObserver = focusTransitionObserver,
+                    fullscreenHeaderViewHolderFactory = fullscreenHeaderViewHolderFactory,
+                    decorThemeUtilFactory = decorThemeUtilFactory,
                 )
             }
 

@@ -18,6 +18,7 @@ package com.android.systemui.model
 
 import android.view.Display
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.log.table.TableLogBufferFactory
 import com.android.systemui.shared.system.QuickStepContract.SystemUiStateFlags
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -39,7 +40,15 @@ constructor(
     dumpManager: DumpManager,
     private val defaultDisplayState: SysUiState,
     private val stateDispatcher: SysUIStateDispatcher,
-) : SysUiStateImpl(displayId, sceneContainerPlugin, dumpManager, stateDispatcher) {
+    logBufferFactory: TableLogBufferFactory,
+) :
+    SysUiStateImpl(
+        displayId,
+        sceneContainerPlugin,
+        dumpManager,
+        stateDispatcher,
+        logBufferFactory,
+    ) {
 
     private val override = StateChange()
     private var lastSentFlags = defaultDisplayState.flags

@@ -26,7 +26,13 @@ interface PreferenceScreenBindingKeyProvider {
     fun getPreferenceScreenBindingKey(context: Context): String?
 
     /** Returns the arguments to build preference screen. */
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use getPreferenceScreenBindingKeyParameters instead.")
     fun getPreferenceScreenBindingArgs(context: Context): Bundle?
+
+    /** Returns the parameters to build a parameterized preference screen.
+     * This parameters must match the parameterized screen's parameters schema.
+     */
+    fun getPreferenceScreenBindingKeyParameters(context: Context): ValidatedKeyParameters?
 }
 
 /** Extra key to provide the preference screen key for binding. */

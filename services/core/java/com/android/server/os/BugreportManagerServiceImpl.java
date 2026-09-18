@@ -112,7 +112,6 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
     private final TelephonyManager mTelephonyManager;
     private final ArraySet<String> mBugreportAllowlistedPackages;
     private final BugreportFileManager mBugreportFileManager;
-    private static final FeatureFlags sFeatureFlags = new FeatureFlagsImpl();
 
 
     @GuardedBy("mLock")
@@ -458,6 +457,41 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
         RoleManagerWrapper getRoleManagerWrapper() {
             return mRoleManagerWrapper;
         }
+
+        /** Whether to treat the given user as an Admin regardless of its Admin status. */
+        boolean treatAsAdminAnyway(int userId) {
+            // TODO(b/457559134): On most devices, the SYSTEM is already an Admin. But for HSUM
+            //  devices, the HSU is no longer an Admin. Currently, that breaks stuff on HSUM,
+            //  so - for now - treat the SYSTEM user as if it were an Admin regardless in these
+            //  otherwise-broken areas. See b/457559134.
+            return android.multiuser.Flags.hsuNotAdmin()
+                    && !android.multiuser.Flags.hsuNotAdminNoExemptions()
+                    && userId == UserHandle.USER_SYSTEM;
+        }
+
+        boolean isInitiateBugreportAsNonAdminEnabled() {
+            return android.os.Flags.initiateBugreportAsNonAdmin();
+        }
+
+        PackageManager getPackageManager() {
+            return mContext.getPackageManager();
+        }
+
+        AppOpsManager getAppOpsManager() {
+            return mContext.getSystemService(AppOpsManager.class);
+        }
+
+        @SuppressWarnings("AndroidFrameworkRequiresPermission")
+        int checkCallingOrSelfPermission(String permission) {
+            // This method is a wrapper for testability. The actual permission
+            // needed depends on the 'permission' argument, which is enforced
+            // by the Context method itself.
+            return mContext.checkCallingOrSelfPermission(permission);
+        }
+
+        SystemConfig getSystemConfig() {
+            return SystemConfig.getInstance();
+        }
     }
 
     BugreportManagerServiceImpl(Context context) {
@@ -506,7 +540,7 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
 
         Slogf.i(TAG, "Starting bugreport for %s / %d", callingPackage, callingUid);
         final MutableBoolean handoffLock = new MutableBoolean(false);
-        if (sFeatureFlags.asyncStartBugreport()) {
+        if (Flags.asyncStartBugreport()) {
             synchronized (handoffLock) {
                 new Thread(()-> {
                     try {
@@ -746,13 +780,26 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
+        if (!android.multiuser.Flags.hsuNotAdminForBugreports() && !isAdminUser
+                && mInjector.treatAsAdminAnyway(effectiveCallingUserId)) {
+            // If the hsuNotAdminForBugreports flag is false, simply treat user 0 as an Admin;
+            // but if the flag is true, only do so for REMOTE bugreports, below.
+            isAdminUser = true;
+        }
         if (!isAdminUser) {
             if (bugreportMode == BugreportParams.BUGREPORT_MODE_REMOTE
-                    && isUserAffiliated(effectiveCallingUserId)) {
+                    && (mInjector.treatAsAdminAnyway(effectiveCallingUserId)
+                            || isUserAffiliated(effectiveCallingUserId))) {
                 return;
             }
-            logAndThrow(TextUtils.formatSimple("Calling user %s is not an admin user."
-                    + " Only admin users and their profiles are allowed to take bugreport.",
+            if ( mInjector.isInitiateBugreportAsNonAdminEnabled()
+                    && mInjector.checkCallingOrSelfPermission(
+                            android.Manifest.permission.INITIATE_BUGREPORT_AS_NON_ADMIN)
+                    == PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            logAndThrow(TextUtils.formatSimple("Calling user %s is not an admin user"
+                    + " and lacks required permissions to take a bugreport.",
                     effectiveCallingUserId));
         }
     }

@@ -110,7 +110,7 @@ public class PathMeasure {
     }
 
     /**
-     * Given a start and stop distance, return in dst the intervening
+     * Given a start and stop distance, append to dst the intervening
      * segment(s). If the segment is zero-length, return false, else return
      * true. startD and stopD are pinned to legal values (0..getLength()).
      * If startD >= stopD then return false (and leave dst untouched).

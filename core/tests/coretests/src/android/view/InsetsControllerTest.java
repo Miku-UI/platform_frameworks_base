@@ -203,6 +203,29 @@ public class InsetsControllerTest {
     }
 
     @Test
+    public void testOnControllableInsetsChangedListener() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            mController.addOnControllableInsetsChangedListener(
+                    new WindowInsetsController.OnControllableInsetsChangedListener() {
+                        @Override
+                        public void onControllableInsetsChanged(
+                                @NonNull WindowInsetsController controller, int typeMask) {
+                            if ((typeMask & statusBars()) != 0) {
+                                // This removes the listener while invoking listeners to test if
+                                // there won't be any exception.
+                                mController.removeOnControllableInsetsChangedListener(this);
+                            }
+                        }
+                    });
+            final int[] controlledTypes = new int[1];
+            mController.addOnControllableInsetsChangedListener(
+                    (controller, typeMask) -> controlledTypes[0] = typeMask);
+            mController.onControlsChanged(createSingletonControl(ID_STATUS_BAR, statusBars()));
+            assertEquals(statusBars(), controlledTypes[0]);
+        });
+    }
+
+    @Test
     public void testFrameDoesntOverlapWithInsets() {
         WindowInsetsAnimationControlListener controlListener =
                 mock(WindowInsetsAnimationControlListener.class);

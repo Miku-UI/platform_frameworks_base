@@ -32,5 +32,6 @@ val Kosmos.inWindowLauncherUnlockAnimationInteractor by
             transitionInteractor = keyguardTransitionInteractor,
             surfaceBehindRepository = Lazy { keyguardSurfaceBehindRepository },
             activityManager = activityManagerWrapper,
+            wakeDirectlyToGoneInteractor = keyguardWakeDirectlyToGoneInteractor,
         )
     }

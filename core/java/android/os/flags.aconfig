@@ -3,13 +3,11 @@ container: "system"
 
 # keep-sorted start block=yes newline_separated=yes
 flag {
-    name: "adpf_25q2_metrics"
-    namespace: "game"
-    description: "Add missing metrics for ADPF 25Q2 features."
-    bug: "367803904"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    name: "adpf_audio_performance"
+    is_exported: false
+    namespace: "media_audio"
+    description: "Guards the ADPF audio performance API"
+    bug: "466441536"
 }
 
 flag {
@@ -32,35 +30,10 @@ flag {
 }
 
 flag {
-    name: "adpf_graphics_pipeline"
-    is_exported: true
-    namespace: "game"
-    description: "Guards use of SessionCreationConfig and Graphics Pipeline mode"
-    is_fixed_read_only: true
-    bug: "367803904"
-}
-
-flag {
-    name: "adpf_hwui_gpu"
-    namespace: "game"
-    description: "Guards use of the FMQ channel for ADPF"
-    is_fixed_read_only: true
-    bug: "330922490"
-}
-
-flag {
     name: "adpf_measure_during_input_event_boost"
     namespace: "game"
     description: "Guards use of a boost when view measures during input events"
     bug: "256549451"
-}
-
-flag {
-    name: "adpf_obtainview_boost"
-    namespace: "game"
-    description: "Guards use of a boost in response to HWUI obtainView"
-    is_fixed_read_only: true
-    bug: "328238660"
 }
 
 flag {
@@ -80,29 +53,6 @@ flag {
 }
 
 flag {
-    name: "adpf_use_fmq_channel"
-    namespace: "game"
-    description: "Guards use of the FMQ channel for ADPF"
-    bug: "315894228"
-}
-
-flag {
-    name: "adpf_use_fmq_channel_fixed"
-    namespace: "game"
-    description: "Guards use of the FMQ channel for ADPF with a readonly flag"
-    is_fixed_read_only: true
-    bug: "315894228"
-}
-
-flag {
-    name: "adpf_use_load_hints"
-    namespace: "game"
-    description: "Guards use of the ADPF public load hints behind a readonly flag"
-    is_fixed_read_only: true
-    bug: "367803904"
-}
-
-flag {
     name: "allow_consentless_bugreport_delegated_consent"
     namespace: "crumpet"
     description: "Allow privileged apps to call bugreport generation without enforcing user consent and delegate it to the calling app instead"
@@ -110,14 +60,13 @@ flag {
     is_exported: true
 }
 
-# This flag guards the private space feature, its APIs, and some of the feature implementations. The flag android.multiuser.Flags.enable_private_space_features exclusively guards all the implementations.
+# This flag guards the private space feature, its APIs, and some of the feature implementations.
 flag {
     name: "allow_private_profile"
     is_exported: true
     namespace: "profile_experiences"
     description: "Guards a new Private Profile type in UserManager - everything from its setup to config to deletion."
     bug: "299069460"
-    is_exported: true
 }
 
 flag {
@@ -169,6 +118,22 @@ flag {
 }
 
 flag {
+    name: "battery_charging_info_api"
+    is_exported: true
+    namespace: "system_sw_battery"
+    description: "Feature flag for adding Health Hal v5 APIs."
+    bug: "446695799"
+}
+
+flag {
+    name: "battery_manufacturer_diagnostics_api"
+    is_exported: true
+    namespace: "system_sw_battery"
+    description: "Feature flag for adding Health Hal battery manufacturer diagnostics APIs."
+    bug: "425196435"
+}
+
+flag {
     name: "battery_part_status_api"
     is_exported: true
     namespace: "phoenix"
@@ -186,19 +151,26 @@ flag {
 }
 
 flag {
-    name: "battery_service_support_current_adb_command"
-    namespace: "backstage_power"
-    description: "Whether or not BatteryService supports adb commands for Current values."
-    is_fixed_read_only: true
-    bug: "315037695"
-}
-
-flag {
     name: "binder_frozen_state_change_callback"
     is_exported: true
     namespace: "system_performance"
     description: "Guards the frozen state change callback API."
     bug: "361157077"
+}
+
+flag {
+     name: "binder_netlink_enabled"
+     is_exported: false
+     namespace: "system_performance"
+     description: "Enables use of netlink for binder error reporting"
+     bug: "332610283"
+}
+
+flag {
+    name: "binder_proxy_use_executor_map"
+    namespace: "system_performance"
+    description: "Whether to use mFrozenStateChangeCallbackExecutors in BinderProxy."
+    bug: "454431919"
 }
 
 flag {
@@ -214,6 +186,7 @@ flag {
     namespace: "crumpet"
     description: "Enable a flag taking screenshots of all displays in bugreport."
     bug: "364767133"
+    is_exported: true
 }
 
 flag {
@@ -221,6 +194,7 @@ flag {
     namespace: "system_performance"
     description: "Guards the new count instances of classes api"
     bug: "337354084"
+    is_exported: true
 }
 
 flag {
@@ -232,10 +206,10 @@ flag {
 }
 
 flag {
-     name: "disable_madvise_artfile_default"
-     namespace: "system_performance"
-     description: "Disables madvise of .art files by default during app start."
-     bug: "382110550"
+    name: "disallow_add_guest"
+    namespace: "security"
+    description: "Introduces the ability to restrict other users from adding a guest."
+    bug: "394218707"
 }
 
 flag {
@@ -253,10 +227,10 @@ flag {
 }
 
 flag {
-    name: "enforce_strict_file_mode_check"
-    namespace: "backstage_power"
-    description: "Throw an IllegalArgumentException if the file mode passed to ParcelFileDescriptor#parseMode is unknown."
-    bug: "414387646"
+    name: "fix_main_thread_blocking_on_first_unlock"
+    namespace: "system_performance"
+    description: "Fix main thread blocking on first unlock"
+    bug: "491497495"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -267,6 +241,14 @@ flag {
     namespace: "profile_experiences"
     description: "Guards a new Private Profile API in LauncherApps"
     bug: "346294653"
+    is_exported: true
+}
+
+flag {
+    name: "initiate_bugreport_as_non_admin"
+    namespace: "feedback"
+    description: "Allow non-admin users with the INITIATE_BUGREPORT_AS_NON_ADMIN permission to generate a bug report."
+    bug: "450735514"
     is_exported: true
 }
 
@@ -315,10 +297,10 @@ flag {
 }
 
 flag {
-    name: "material_colors_2025_03"
+    name: "material_colors_2026_03"
     namespace: "systemui"
-    description: "Adding new Material Tokens as of March 2025"
-    bug: "394371316"
+    description: "Adding new Fixed Color Tokens as of March 2026"
+    bug: "487965330"
     is_exported: true
     metadata {
         purpose: PURPOSE_FEATURE
@@ -349,6 +331,13 @@ flag {
 }
 
 flag {
+    name: "message_queue_monitoring_enabled"
+    namespace: "system_performance"
+    description: "Enables MessageQueue monitoring via LooperDoctor."
+    bug: "483709211"
+}
+
+flag {
      name: "message_queue_testability"
      namespace: "system_performance"
      is_exported: true
@@ -358,10 +347,19 @@ flag {
 }
 
 flag {
+    name: "native_app_zygote"
+    namespace: "system_performance"
+    description: "Enable support for the native-only variant of App Zygote"
+    bug: "442732151"
+    is_exported: true
+}
+
+flag {
     name: "native_framework_prototype"
     namespace: "system_performance"
     description: "Enable support for the native framework prototype"
     bug: "406925781"
+    is_exported: true
 }
 
 flag {
@@ -378,13 +376,6 @@ flag {
     namespace: "bluetooth"
     description: "Guards the Context.sendOrderedBroadcastMultiplePermissions API"
     bug: "345802719"
-}
-
-flag {
-    name: "parcel_string_cache_enabled"
-    namespace: "system_performance"
-    description: "Enable JNIStringCache in Parcel"
-    bug: "442140362"
 }
 
 flag {
@@ -428,6 +419,22 @@ flag {
 }
 
 flag {
+    name: "strongbox_properties_api"
+    namespace: "hardware_backed_security"
+    description: "Public API app developers use to check a device's Strongbox manufacturer and model."
+    is_exported: true
+    bug: "432311620"
+}
+
+flag {
+    name: "supplemental_security_patches"
+    is_exported: true
+    namespace: "dynamic_spl"
+    description: "access supplemental security files of CVEs patched beyond the SPL"
+    bug: "446032302"
+}
+
+flag {
     name: "update_engine_api"
     namespace: "art_mainline"
     description: "Update Engine APIs for ART"
@@ -448,16 +455,6 @@ flag {
     namespace: "gpu"
     description: "Use new query for ANGLE choice"
     bug: "408439360"
-}
-
-flag {
-    namespace: "system_performance"
-    name: "binder_cache_transaction_trace_names"
-    description: "Reuse transaction names caches across binder instances of the same interface."
-    bug: "330738126"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -486,17 +483,17 @@ flag {
 }
 
 flag {
-     namespace: "system_performance"
-     name: "perfetto_sdk_tracing"
-     description: "Tracing using Perfetto SDK."
-     bug: "303199244"
+    namespace: "system_performance"
+    name: "perfetto_sdk_tracing_disable_app_registration_sharding"
+    description: "Disables sharding for Perfetto SDK tracing app registration, allowing all apps to register. This flag is intended for local debugging only and will never be enabled in the field."
+    bug: "303199244"
 }
 
 flag {
-     namespace: "system_performance"
-     name: "perfetto_sdk_tracing_v2"
-     description: "Tracing using Perfetto SDK API."
-     bug: "303199244"
+    namespace: "system_performance"
+    name: "perfetto_sdk_tracing_enable_app_registration"
+    description: "Enables applications to register with Perfetto SDK tracing."
+    bug: "303199244"
 }
 
 flag {
@@ -516,10 +513,10 @@ flag {
 }
 
 flag {
-    namespace: "wear_services"
-    name: "bugreport_deferred_consent_screenshot_fix"
-    description: "Stops always taking a screenshot when consent is deferred."
-    bug: "385709501"
+    namespace: "users_and_accounts"
+    name: "login_add_user_enforcement"
+    description: "Enables a cross-user restriction check to prevent users from bypassing DISALLOW_ADD_USER by adding new users from the Login screen."
+    bug: "433361306"
 }
 
 # keep-sorted end

@@ -18,14 +18,16 @@ package android.view;
 
 import static android.Manifest.permission.CONFIGURE_DISPLAY_COLOR_MODE;
 import static android.Manifest.permission.CONTROL_DISPLAY_BRIGHTNESS;
+import static android.hardware.flags.Flags.FLAG_DISPLAY_HDR_26Q2;
 import static android.hardware.flags.Flags.FLAG_OVERLAYPROPERTIES_CLASS_API;
 import static android.util.TypedValue.COMPLEX_UNIT_DIP;
 
 import static com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY_API;
-import static com.android.server.display.feature.flags.Flags.FLAG_ENABLE_GET_SUPPORTED_REFRESH_RATES;
-import static com.android.server.display.feature.flags.Flags.FLAG_HIGHEST_HDR_SDR_RATIO_API;
-import static com.android.server.display.feature.flags.Flags.FLAG_ENABLE_HAS_ARR_SUPPORT;
 import static com.android.server.display.feature.flags.Flags.FLAG_ENABLE_GET_SUGGESTED_FRAME_RATE;
+import static com.android.server.display.feature.flags.Flags.FLAG_ENABLE_GET_SUPPORTED_REFRESH_RATES;
+import static com.android.server.display.feature.flags.Flags.FLAG_ENABLE_HAS_ARR_SUPPORT;
+import static com.android.server.display.feature.flags.Flags.FLAG_FRAME_RATE_MAPPING_API;
+import static com.android.server.display.feature.flags.Flags.FLAG_HIGHEST_HDR_SDR_RATIO_API;
 
 import android.Manifest;
 import android.annotation.FlaggedApi;
@@ -66,6 +68,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -104,7 +107,6 @@ public final class Display {
     private final DisplayManagerGlobal mGlobal;
     private final int mDisplayId;
     private final int mFlags;
-    private final int mType;
     private final int mOwnerUid;
     private final String mOwnerPackageName;
     private final Resources mResources;
@@ -114,6 +116,9 @@ public final class Display {
     @UnsupportedAppUsage
     private DisplayInfo mDisplayInfo; // never null
     private boolean mIsValid;
+
+    private List<FrameRateVelocityPoint> mCachedFrameRateVelocityMapping;
+    private DisplayInfo mLastCachedDisplayInfo;
 
     // Temporary display metrics structure used for compatibility mode.
     private final DisplayMetrics mTempMetrics = new DisplayMetrics();
@@ -342,7 +347,7 @@ public final class Display {
     /**
      * Flag: Indicates that the display maintains its own focus and touch mode.
      *
-     * This flag is similar to {@link com.android.internal.R.bool.config_perDisplayFocusEnabled} in
+     * This flag is similar to {@link com.android.internal.R.bool#config_perDisplayFocusEnabled} in
      * behavior, but only applies to the specific display instead of system-wide to all displays.
      *
      * Note: The display must be trusted in order to have its own focus.
@@ -411,6 +416,9 @@ public final class Display {
      *
      * @hide
      */
+    @TestApi
+    @FlaggedApi(com.android.server.display.feature.flags.Flags
+            .FLAG_VIRTUAL_DISPLAYS_SUPPORT_DESKTOP_MODE)
     public static final int FLAG_ALLOWS_CONTENT_MODE_SWITCH = 1 << 15;
 
     /**
@@ -538,6 +546,19 @@ public final class Display {
      */
     public static final int STATE_ON_SUSPEND = ViewProtoEnums.DISPLAY_STATE_ON_SUSPEND; // 6
 
+    /** @hide */
+    @IntDef(prefix = {"STATE_"}, value = {
+            STATE_UNKNOWN,
+            STATE_OFF,
+            STATE_ON,
+            STATE_DOZE,
+            STATE_DOZE_SUSPEND,
+            STATE_VR,
+            STATE_ON_SUSPEND
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface DisplayState {}
+
     /**
      * The cause of the display state change is unknown.
      *
@@ -597,6 +618,14 @@ public final class Display {
      */
     public static final int STATE_REASON_MOTION = ViewProtoEnums.DISPLAY_STATE_REASON_MOTION;
 
+    /**
+     * The display state was changed due to an accessibility event.
+     *
+     * @hide
+     */
+    public static final int STATE_REASON_ACCESSIBILITY =
+            ViewProtoEnums.DISPLAY_STATE_REASON_ACCESSIBILITY;
+
     /** @hide */
     @IntDef(prefix = {"STATE_REASON_"}, value = {
         STATE_REASON_UNKNOWN,
@@ -607,6 +636,7 @@ public final class Display {
         STATE_REASON_DREAM_MANAGER,
         STATE_REASON_KEY,
         STATE_REASON_MOTION,
+        STATE_REASON_ACCESSIBILITY,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface StateReason {}
@@ -709,11 +739,13 @@ public final class Display {
      *
      * @hide
      */
+    @android.ravenwood.annotation.RavenwoodKeep
     public Display(DisplayManagerGlobal global, int displayId, /*@NotNull*/ DisplayInfo displayInfo,
             Resources res) {
         this(global, displayId, displayInfo, null /*daj*/, res);
     }
 
+    @android.ravenwood.annotation.RavenwoodKeep
     private Display(DisplayManagerGlobal global, int displayId,
             /*@NotNull*/ DisplayInfo displayInfo, DisplayAdjustments daj, Resources res) {
         mGlobal = global;
@@ -727,7 +759,6 @@ public final class Display {
 
         // Cache properties that cannot change as long as the display is valid.
         mFlags = displayInfo.flags;
-        mType = displayInfo.type;
         mOwnerUid = displayInfo.ownerUid;
         mOwnerPackageName = displayInfo.ownerPackageName;
     }
@@ -739,6 +770,7 @@ public final class Display {
      * The default display has id {@link #DEFAULT_DISPLAY}.
      * </p>
      */
+    @android.ravenwood.annotation.RavenwoodKeep
     public int getDisplayId() {
         return mDisplayId;
     }
@@ -749,7 +781,7 @@ public final class Display {
      * Unique id is different from display id because physical displays have stable unique id across
      * reboots.
      *
-     * @see com.android.service.display.DisplayDevice#hasStableUniqueId().
+     * @see com.android.service.display.DisplayDevice#hasStableUniqueId()
      * @hide
      */
     @TestApi
@@ -839,16 +871,19 @@ public final class Display {
     @UnsupportedAppUsage
     @TestApi
     public int getType() {
-        return mType;
+        synchronized (mLock) {
+            updateDisplayInfoLocked();
+            return mDisplayInfo.type;
+        }
     }
 
     /**
-     * Check if this is a built-in display, i.e. one that is physically part of the device rather
-     * than one connected via an external cable, or a Wi-Fi/Overlay/Virtual one.
+     * Check if this is a built-in display. A built-in display is physically part of the device;
+     * it's not connected via an external cable, or a Wi-Fi/Overlay/Virtual display.
      */
     @FlaggedApi(FLAG_DISPLAY_TOPOLOGY_API)
     public boolean isInternal() {
-        return mType == TYPE_INTERNAL;
+        return getType() == TYPE_INTERNAL;
     }
 
 
@@ -859,6 +894,9 @@ public final class Display {
      * @return The display address.
      * @hide
      */
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @TestApi
+    @Nullable
     public DisplayAddress getAddress() {
         synchronized (mLock) {
             updateDisplayInfoLocked();
@@ -1087,7 +1125,7 @@ public final class Display {
     }
 
     /**
-     * @deprecated Use {@link WindowMetrics#getBounds#width()} instead.
+     * @deprecated Use width from {@link WindowMetrics#getBounds()} instead.
      */
     @Deprecated
     public int getWidth() {
@@ -1098,7 +1136,7 @@ public final class Display {
     }
 
     /**
-     * @deprecated Use {@link WindowMetrics#getBounds()#height()} instead.
+     * @deprecated Use height from {@link WindowMetrics#getBounds()} instead.
      */
     @Deprecated
     public int getHeight() {
@@ -1313,7 +1351,7 @@ public final class Display {
     public Mode[] getSupportedModes() {
         synchronized (mLock) {
             updateDisplayInfoLocked();
-            final Display.Mode[] modes = mDisplayInfo.appsSupportedModes;
+            final Display.Mode[] modes = mDisplayInfo.supportedModes;
             return Arrays.copyOf(modes, modes.length);
         }
     }
@@ -1406,6 +1444,59 @@ public final class Display {
             } else {
                 throw new IllegalArgumentException("Invalid FrameRateCategory provided");
             }
+        }
+    }
+
+    /**
+     * Retrieves the View frame rate / velocity mapping specifications
+     * defined in the framework configuration.
+     * For example, 120 frame per second / 300 dp (density-independent pixels) per second
+     *
+     * <p>
+     * This is primarily for flinging use cases in components like RecyclerView,
+     * ScrollView, AbsListView, and NestedScrollView. When the content's velocity is high,
+     * a higher frame rate is required to ensure smoothness,
+     * and conversely, a lower frame rate can be used when the velocity is low.
+     * </p>
+     *
+     * <p>
+     * These values are specific to this {@link Display} instance. If your application
+     * moves to a different display (for example, transitioning between the inner and
+     * outer screens of a foldable device), you must query these values from the
+     * {@link Display} object associated with the window where the content is currently
+     * being rendered.
+     * </p>
+     *
+     * <p>
+     * Mapping values needs to be re-queried whenever DisplayListener#onDisplayChanged
+     * is invoked to ensure data consistency.
+     * This corresponds to the DisplayManager#EVENT_FLAG_DISPLAY_CHANGED event.
+     * </p>
+     *
+     * @return A read-only and nonempty List of
+     *          FrameRateVelocityPoint objects representing the mapping.
+     * @see FrameRateVelocityPoint
+     */
+    @NonNull
+    @FlaggedApi(FLAG_FRAME_RATE_MAPPING_API)
+    public List<FrameRateVelocityPoint> getFrameRateVelocityMapping() {
+        synchronized (mLock) {
+            updateDisplayInfoLocked();
+            if (mCachedFrameRateVelocityMapping != null
+                    && mLastCachedDisplayInfo == mDisplayInfo) {
+                return mCachedFrameRateVelocityMapping;
+            }
+
+            // 1. check the value from the display info
+            if (!mDisplayInfo.frameRateVelocityMapping.isEmpty()) {
+                mCachedFrameRateVelocityMapping = Collections.unmodifiableList(
+                        mDisplayInfo.frameRateVelocityMapping);
+            } else {
+                // Should not happen as FrameRateVelocityData ensures a default is always present
+                mCachedFrameRateVelocityMapping = Collections.emptyList();
+            }
+            mLastCachedDisplayInfo = mDisplayInfo;
+            return mCachedFrameRateVelocityMapping;
         }
     }
 
@@ -2089,6 +2180,7 @@ public final class Display {
      * {@link #STATE_DOZE}, {@link #STATE_DOZE_SUSPEND}, {@link #STATE_ON_SUSPEND}, or
      * {@link #STATE_UNKNOWN}.
      */
+    @DisplayState
     public int getState() {
         synchronized (mLock) {
             updateDisplayInfoLocked();
@@ -2331,6 +2423,8 @@ public final class Display {
                 return "KEY";
             case STATE_REASON_MOTION:
                 return "MOTION";
+            case STATE_REASON_ACCESSIBILITY:
+                return "ACCESSIBILITY";
             default:
                 return Integer.toString(reason);
         }
@@ -2468,6 +2562,11 @@ public final class Display {
 
         private final int mModeId;
         private final int mParentModeId;
+
+        /**
+         * Mode ID that could be used to communicate with SurfaceFlinger
+         */
+        private final int mSfModeId;
         @ModeFlags
         private final int mFlags;
         private final int mWidth;
@@ -2512,18 +2611,19 @@ public final class Display {
          */
         public Mode(int modeId, int width, int height, float refreshRate, float vsyncRate,
                 float[] alternativeRefreshRates, @HdrCapabilities.HdrType int[] supportedHdrTypes) {
-            this(modeId, INVALID_MODE_ID, 0, width, height, refreshRate, vsyncRate,
-                    alternativeRefreshRates, supportedHdrTypes);
+            this(modeId, INVALID_MODE_ID, INVALID_MODE_ID, 0, width, height, refreshRate,
+                    vsyncRate, alternativeRefreshRates, supportedHdrTypes);
         }
 
         /**
          * @hide
          */
-        public Mode(int modeId, int parentModeId, @ModeFlags int flags,
+        public Mode(int modeId, int parentModeId, int sfModeId, @ModeFlags int flags,
                 int width, int height, float refreshRate, float vsyncRate,
                 float[] alternativeRefreshRates, @HdrCapabilities.HdrType int[] supportedHdrTypes) {
             mModeId = modeId;
             mParentModeId = parentModeId;
+            mSfModeId = sfModeId;
             mFlags = flags;
             mWidth = width;
             mHeight = height;
@@ -2544,6 +2644,15 @@ public final class Display {
         }
 
         /**
+         * Returns matching SurfaceFlinger mode ID or {@link Display.Mode.INVALID_MODE_ID}
+         * if it is not present (for example for synthetic modes)
+         * @hide
+         */
+        public int getSfModeId() {
+            return mSfModeId;
+        }
+
+        /**
          * Returns parent mode's id if the mode is derived from other Display.Mode.
          * Returns INVALID_MODE_ID in other cases.
          * @hide
@@ -2556,6 +2665,9 @@ public final class Display {
          * Returns flags associated with this mode.
          * @hide
          */
+
+        @SuppressWarnings("UnflaggedApi") // For testing only
+        @TestApi
         @ModeFlags
         public int getFlags() {
             return mFlags;
@@ -2670,6 +2782,15 @@ public final class Display {
         }
 
         /**
+         * Returns {@code true} if this mode matches the given parameters.
+         *
+         * @hide
+         */
+        public boolean matches(int width, int height) {
+            return mWidth == width && mHeight == height;
+        }
+
+        /**
          * Returns {@code true} if this mode matches the given parameters, if those parameters are
          * valid.<p>
          * If resolution (width and height) is valid and refresh-rate is not, the method matches
@@ -2733,6 +2854,7 @@ public final class Display {
             }
             Mode that = (Mode) other;
             return mModeId == that.mModeId
+                    && mSfModeId == that.mSfModeId
                     && matches(that.mWidth, that.mHeight, that.mPeakRefreshRate)
                     && Arrays.equals(mAlternativeRefreshRates, that.mAlternativeRefreshRates)
                     && Arrays.equals(mSupportedHdrTypes, that.mSupportedHdrTypes);
@@ -2743,6 +2865,7 @@ public final class Display {
             int hash = 1;
             hash = hash * 17 + mModeId;
             hash = hash * 17 + mParentModeId;
+            hash = hash * 17 + mSfModeId;
             hash = hash * 17 + mFlags;
             hash = hash * 17 + mWidth;
             hash = hash * 17 + mHeight;
@@ -2758,6 +2881,7 @@ public final class Display {
             return new StringBuilder("{")
                     .append("id=").append(mModeId)
                     .append(", parentModeId=").append(mParentModeId)
+                    .append(", sfModeId=").append(mSfModeId)
                     .append(", flags=").append(flagsToString(mFlags))
                     .append(", width=").append(mWidth)
                     .append(", height=").append(mHeight)
@@ -2779,6 +2903,9 @@ public final class Display {
             if ((flags & FLAG_SIZE_OVERRIDE) != 0) {
                 msg.append(", FLAG_SIZE_OVERRIDE");
             }
+            if ((flags & FLAG_ANISOTROPY_CORRECTION) != 0) {
+                msg.append(", FLAG_ANISOTROPY_CORRECTION");
+            }
             return msg.toString();
         }
 
@@ -2789,13 +2916,15 @@ public final class Display {
 
         private Mode(Parcel in) {
             this(in.readInt(), in.readInt(), in.readInt(), in.readInt(), in.readInt(),
-                    in.readFloat(), in.readFloat(), in.createFloatArray(), in.createIntArray());
+                    in.readInt(), in.readFloat(), in.readFloat(), in.createFloatArray(),
+                    in.createIntArray());
         }
 
         @Override
         public void writeToParcel(Parcel out, int parcelableFlags) {
             out.writeInt(mModeId);
             out.writeInt(mParentModeId);
+            out.writeInt(mSfModeId);
             out.writeInt(mFlags);
             out.writeInt(mWidth);
             out.writeInt(mHeight);
@@ -2928,12 +3057,19 @@ public final class Display {
          */
         public static final int HDR_TYPE_HDR10_PLUS = 4;
 
+        /**
+         * HLG+ display.
+         */
+        @FlaggedApi(FLAG_DISPLAY_HDR_26Q2)
+        public static final int HDR_TYPE_HLG_PLUS = 6;
+
         /** @hide */
         public static final int[] HDR_TYPES = {
                 HDR_TYPE_DOLBY_VISION,
                 HDR_TYPE_HDR10,
                 HDR_TYPE_HLG,
-                HDR_TYPE_HDR10_PLUS
+                HDR_TYPE_HDR10_PLUS,
+                HDR_TYPE_HLG_PLUS
         };
 
         /** @hide */
@@ -2943,6 +3079,7 @@ public final class Display {
                 HDR_TYPE_HDR10,
                 HDR_TYPE_HLG,
                 HDR_TYPE_HDR10_PLUS,
+                HDR_TYPE_HLG_PLUS,
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface HdrType {}
@@ -3098,6 +3235,8 @@ public final class Display {
                     return "HDR_TYPE_HLG";
                 case HDR_TYPE_HDR10_PLUS:
                     return "HDR_TYPE_HDR10_PLUS";
+                case HDR_TYPE_HLG_PLUS:
+                    return "HDR_TYPE_HLG_PLUS";
                 default:
                     return "HDR_TYPE_INVALID";
             }

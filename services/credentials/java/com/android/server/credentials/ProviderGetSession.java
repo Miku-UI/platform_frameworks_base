@@ -183,15 +183,13 @@ public final class ProviderGetSession extends ProviderSession<BeginGetCredential
             CredentialProviderInfo info,
             String hybridService) {
         Slog.i(TAG, "Filtering request options for: " + info.getComponentName());
-        if (android.credentials.flags.Flags.hybridFilterOptFixEnabled()) {
-            ComponentName hybridComponentName = ComponentName.unflattenFromString(hybridService);
-            if (hybridComponentName != null && hybridComponentName
-                    .equals(info.getComponentName())) {
-                Slog.i(TAG, "Skipping filtering of options for hybrid service");
-                return clientRequest;
-            }
-            Slog.w(TAG, "Could not parse hybrid service while filtering options");
+        ComponentName hybridComponentName = ComponentName.unflattenFromString(hybridService);
+        if (hybridComponentName != null && hybridComponentName
+                .equals(info.getComponentName())) {
+            Slog.i(TAG, "Skipping filtering of options for hybrid service");
+            return clientRequest;
         }
+        Slog.w(TAG, "Could not parse hybrid service while filtering options");
 
         List<CredentialOption> filteredOptions = new ArrayList<>();
         for (CredentialOption option : clientRequest.getCredentialOptions()) {
@@ -267,7 +265,6 @@ public final class ProviderGetSession extends ProviderSession<BeginGetCredential
     public void onProviderResponseFailure(int errorCode, Exception exception) {
         if (exception instanceof GetCredentialException) {
             mProviderException = (GetCredentialException) exception;
-            // TODO(b/271135048) : Decide on exception type length
             mProviderSessionMetric.collectCandidateFrameworkException(mProviderException.getType());
         }
         mProviderSessionMetric.collectCandidateExceptionStatus(/*hasException=*/true);
@@ -478,7 +475,6 @@ public final class ProviderGetSession extends ProviderSession<BeginGetCredential
         GetCredentialException exception = maybeGetPendingIntentException(
                 providerPendingIntentResponse);
         if (exception != null) {
-            // TODO (b/271135048), for AuthenticationEntry callback selection, set error
             mProviderSessionMetric.collectAuthenticationExceptionStatus(/*hasException*/true);
             invokeCallbackWithError(exception.getType(),
                     exception.getMessage());

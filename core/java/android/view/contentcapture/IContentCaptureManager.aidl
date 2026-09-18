@@ -114,4 +114,9 @@ oneway interface IContentCaptureManager {
      * Notifies the system server that a login was detected.
      */
     void onLoginDetected(in ParceledListSlice<ContentCaptureEvent> events);
+
+    /**
+     * Sets the allowlist for content protection.
+     */
+    void setContentProtectionAllowlist(in List<String> packageNames);
 }

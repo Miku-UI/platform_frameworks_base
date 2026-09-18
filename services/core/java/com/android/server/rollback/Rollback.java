@@ -16,8 +16,6 @@
 
 package com.android.server.rollback;
 
-import static android.crashrecovery.flags.Flags.deprecateFlagsAndSettingsResets;
-
 import static com.android.server.rollback.RollbackManagerServiceImpl.sendFailure;
 
 import android.Manifest;
@@ -53,7 +51,6 @@ import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.Preconditions;
 import com.android.server.LocalServices;
-import com.android.server.crashrecovery.CrashRecoveryAdaptor;
 import com.android.server.pm.pkg.AndroidPackage;
 
 import java.io.File;
@@ -624,11 +621,6 @@ class Rollback {
                 parentSession.addChildSessionId(sessionId);
             }
 
-            if (!deprecateFlagsAndSettingsResets()) {
-                // Clear flags.
-                CrashRecoveryAdaptor.rescuePartyResetDeviceConfigForPackages(packageNames);
-            }
-
             Consumer<Intent> onResult = result -> {
                 mHandler.post(() -> {
                     assertInWorkerThread();
@@ -706,7 +698,7 @@ class Rollback {
      */
     @WorkerThread
     boolean restoreUserDataForPackageIfInProgress(String packageName, int[] userIds, int appId,
-            String seInfo, AppDataRollbackHelper dataHelper) {
+            int pccId, String seInfo, AppDataRollbackHelper dataHelper) {
         assertInWorkerThread();
         if (!isRestoreUserDataInProgress()) {
             return false;
@@ -719,7 +711,7 @@ class Rollback {
                 boolean changedRollback = false;
                 for (int userId : userIds) {
                     changedRollback |= dataHelper.restoreAppData(
-                            info.getRollbackId(), pkgRollbackInfo, userId, appId, seInfo);
+                            info.getRollbackId(), pkgRollbackInfo, userId, appId, pccId, seInfo);
                 }
                 // We've updated metadata about this rollback, so save it to flash.
                 if (changedRollback) {

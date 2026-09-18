@@ -18,8 +18,15 @@ package com.android.systemui.statusbar.disableflags.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.statusbar.disableflags.data.repository.DisableFlagsRepository
 import com.android.systemui.statusbar.disableflags.data.repository.disableFlagsRepository
 
+fun Kosmos.createDisableFlagsInteractor(
+    disableFlagsRepository: DisableFlagsRepository
+): DisableFlagsInteractor {
+    return DisableFlagsInteractor(disableFlagsRepository)
+}
+
 val Kosmos.disableFlagsInteractor by Fixture {
-    DisableFlagsInteractor(repository = disableFlagsRepository)
+    createDisableFlagsInteractor(disableFlagsRepository)
 }

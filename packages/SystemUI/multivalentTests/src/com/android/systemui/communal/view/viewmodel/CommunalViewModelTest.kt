@@ -30,7 +30,6 @@ import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.Flags.FLAG_COMMUNAL_RESPONSIVE_GRID
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_DIRECT_EDIT_MODE
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
-import com.android.systemui.Flags.FLAG_HUB_EDIT_MODE_TRANSITION
 import com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE
 import com.android.systemui.Flags.FLAG_NOTIFICATION_SHADE_BLUR
 import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
@@ -99,6 +98,7 @@ import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.Transition
 import com.android.systemui.scene.data.repository.setTransition
+import com.android.systemui.scene.domain.interactor.SceneInteractor.HideOverlayCommand
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
@@ -744,7 +744,7 @@ class CommunalViewModelTest(flags: FlagsParameterization) : SysuiTestCase() {
 
             // And transitioning to occluded
             kosmos.setTransition(
-                sceneTransition = Transition(from = Scenes.Communal, to = Scenes.Lockscreen),
+                sceneTransition = Transition(from = Scenes.Communal, to = Scenes.Occluded),
                 stateTransition =
                     TransitionStep(
                         from = KeyguardState.GLANCEABLE_HUB,
@@ -971,7 +971,7 @@ class CommunalViewModelTest(flags: FlagsParameterization) : SysuiTestCase() {
             kosmos.sceneInteractor.changeScene(
                 Scenes.Lockscreen,
                 "go to lockscreen",
-                hideAllOverlays = false,
+                hideOverlays = HideOverlayCommand.HideNone,
             )
             kosmos.sceneInteractor.instantlyShowOverlay(Overlays.Bouncer, "go to bouncer")
             kosmos.sceneInteractor.setTransitionState(
@@ -1083,8 +1083,7 @@ class CommunalViewModelTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
-    fun showBackgroundForEditModeTransition_flagEnabled() =
+    fun showBackgroundForEditModeTransition() =
         kosmos.runTest {
             val showBackground by collectLastValue(underTest.showBackgroundForEditModeTransition)
 
@@ -1107,25 +1106,6 @@ class CommunalViewModelTest(flags: FlagsParameterization) : SysuiTestCase() {
             // background hides the edit mode activity finish animation below.
             communalSceneInteractor.setEditModeState(EditModeState.SHOWING)
             assertThat(showBackground).isTrue()
-        }
-
-    @Test
-    @DisableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
-    fun showBackgroundForEditModeTransition_flagDisabled_alwaysFalse() =
-        kosmos.runTest {
-            val showBackground by collectLastValue(underTest.showBackgroundForEditModeTransition)
-
-            communalSceneInteractor.setEditModeState(null)
-            assertThat(showBackground).isFalse()
-
-            communalSceneInteractor.setEditModeState(EditModeState.STARTING)
-            assertThat(showBackground).isFalse()
-
-            communalSceneInteractor.setEditModeState(EditModeState.CREATED)
-            assertThat(showBackground).isFalse()
-
-            communalSceneInteractor.setEditModeState(EditModeState.SHOWING)
-            assertThat(showBackground).isFalse()
         }
 
     private suspend fun setIsMainUser(isMainUser: Boolean) {

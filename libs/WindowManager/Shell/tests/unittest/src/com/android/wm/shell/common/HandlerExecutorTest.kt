@@ -34,8 +34,7 @@ import org.mockito.kotlin.whenever
 /**
  * Tests for HandlerExecutor.
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:HandlerExecutorTest
+ * Build/Install/Run: atest WMShellUnitTests:HandlerExecutorTest
  */
 @SmallTest
 @RunWith(AndroidTestingRunner::class)
@@ -44,6 +43,7 @@ class HandlerExecutorTest : ShellTestCase() {
     class TestSetThreadPriorityFn : BiConsumer<Int, Int> {
         var lastSetPriority = UNSET_THREAD_PRIORITY
             private set
+
         var callCount = 0
             private set
 
@@ -72,9 +72,10 @@ class HandlerExecutorTest : ShellTestCase() {
     @Test
     fun boostExecutor_resetWhenNotSet_expectNoOp() {
         val executor = createTestHandlerExecutor(DEFAULT_THREAD_PRIORITY, BOOSTED_THREAD_PRIORITY)
-        val mockSession: MockitoSession = ExtendedMockito.mockitoSession()
-            .mockStatic(android.os.Process::class.java)
-            .startMocking()
+        val mockSession: MockitoSession =
+            ExtendedMockito.mockitoSession()
+                .mockStatic(android.os.Process::class.java)
+                .startMocking()
 
         try {
             // Try to reset and ensure we never try to set the thread priority
@@ -90,9 +91,10 @@ class HandlerExecutorTest : ShellTestCase() {
     @Test
     fun boostExecutor_setResetBoost_expectThreadPriorityUpdated() {
         val executor = createTestHandlerExecutor(DEFAULT_THREAD_PRIORITY, BOOSTED_THREAD_PRIORITY)
-        val mockSession: MockitoSession = ExtendedMockito.mockitoSession()
-            .mockStatic(android.os.Process::class.java)
-            .startMocking()
+        val mockSession: MockitoSession =
+            ExtendedMockito.mockitoSession()
+                .mockStatic(android.os.Process::class.java)
+                .startMocking()
 
         try {
             // Boost and ensure the boosted thread priority is requested
@@ -116,9 +118,10 @@ class HandlerExecutorTest : ShellTestCase() {
     @Test
     fun boostExecutor_overlappingBoost_expectResetOnlyWhenNotOverlapping() {
         val executor = createTestHandlerExecutor(DEFAULT_THREAD_PRIORITY, BOOSTED_THREAD_PRIORITY)
-        val mockSession: MockitoSession = ExtendedMockito.mockitoSession()
-            .mockStatic(android.os.Process::class.java)
-            .startMocking()
+        val mockSession: MockitoSession =
+            ExtendedMockito.mockitoSession()
+                .mockStatic(android.os.Process::class.java)
+                .startMocking()
 
         try {
             // Set and ensure we only update the thread priority once
@@ -147,13 +150,11 @@ class HandlerExecutorTest : ShellTestCase() {
         }
     }
 
-    /**
-     * Creates a test handler executor backed by a mocked handler thread.
-     */
+    /** Creates a test handler executor backed by a mocked handler thread. */
     private fun createTestHandlerExecutor(
         defaultThreadPriority: Int = DEFAULT_THREAD_PRIORITY,
-        boostedThreadPriority: Int = DEFAULT_THREAD_PRIORITY
-    ) : HandlerExecutor {
+        boostedThreadPriority: Int = DEFAULT_THREAD_PRIORITY,
+    ): HandlerExecutor {
         val handler = mock(Handler::class.java)
         val looper = mock(Looper::class.java)
         val thread = mock(HandlerThread::class.java)

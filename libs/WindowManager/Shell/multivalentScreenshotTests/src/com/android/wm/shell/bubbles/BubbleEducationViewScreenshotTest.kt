@@ -43,7 +43,7 @@ class BubbleEducationViewScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     val screenshotRule =
         ViewScreenshotTestRule(
             emulationSpec,
-            WMShellGoldenPathManager(getEmulatedDevicePathConfig(emulationSpec))
+            WMShellGoldenPathManager(getEmulatedDevicePathConfig(emulationSpec)),
         )
 
     @Test
@@ -55,8 +55,8 @@ class BubbleEducationViewScreenshotTest(emulationSpec: DeviceEmulationSpec) {
             val rootView = activity.window.decorView.findViewById(android.R.id.content) as ViewGroup
             rootView.setBackgroundColor(Color.RED)
             val view =
-                LayoutInflater.from(activity)
-                    .inflate(R.layout.bubble_bar_stack_education, null) as BubblePopupView
+                LayoutInflater.from(activity).inflate(R.layout.bubble_bar_stack_education, null)
+                    as BubblePopupView
             view.setup()
             view
         }

@@ -27,8 +27,7 @@ import com.android.systemui.classifier.domain.interactor.FalsingInteractor
 import com.android.systemui.classifier.domain.interactor.runIfNotFalseTap
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.globalactions.GlobalActionsDialogLite
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.qs.footer.domain.interactor.FooterActionsInteractor
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsButtonViewModel.PowerActionViewModel
@@ -36,9 +35,11 @@ import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsButtonViewModel.
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsSecurityButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.securityButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.userSwitcherViewModel
+import com.android.systemui.qs.panels.LargeScreenQSInlinePowerMenu
 import com.android.systemui.qs.panels.ui.viewmodel.TextFeedbackContentViewModel
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.user.domain.interactor.HeadlessSystemUserMode
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import dagger.assisted.AssistedFactory
@@ -46,7 +47,6 @@ import dagger.assisted.AssistedInject
 import javax.inject.Provider
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -59,6 +59,8 @@ class ToolbarViewModel
 constructor(
     val editModeButtonViewModelFactory: EditModeButtonViewModel.Factory,
     val textFeedbackContentViewModelFactory: TextFeedbackContentViewModel.Factory,
+    val powerMenuViewModelFactory: PowerMenuViewModel.Factory,
+    private val shadeInteractor: ShadeInteractor,
     private val footerActionsInteractor: FooterActionsInteractor,
     private val globalActionsDialogLiteProvider: Provider<GlobalActionsDialogLite>,
     private val falsingInteractor: FalsingInteractor,
@@ -66,37 +68,47 @@ constructor(
     private val hsum: HeadlessSystemUserMode,
     @ShadeDisplayAware appContext: Context,
     @Main private val mainDispatcher: CoroutineDispatcher,
-) : ExclusiveActivatable() {
+) : HydratedActivatable() {
     private val qsThemedContext =
         ContextThemeWrapper(appContext, R.style.Theme_SystemUI_QuickSettings)
-    private val hydrator = Hydrator("ToolbarViewModel.hydrator")
-
     val powerButtonViewModel: FooterActionsButtonViewModel =
         PowerActionViewModel(context = qsThemedContext, onClick = ::onPowerButtonClicked)
 
+    val powerMenuToggleButtonUiState
+        get() =
+            PowerMenuToggleButtonUiState(
+                onClick = onPowerMenuToggleButtonClicked,
+                isSelected = isInlinePowerMenuVisible,
+            )
+
     val userSwitcherViewModel: FooterActionsButtonViewModel? by
-        hydrator.hydratedStateOf(
-            traceName = "userSwitcherViewModel",
-            initialValue = null,
-            source =
-                userSwitcherViewModel(
-                    qsThemedContext,
-                    footerActionsInteractor,
-                    ::onUserSwitcherClicked,
-                ),
-        )
+        userSwitcherViewModel(qsThemedContext, footerActionsInteractor, ::onUserSwitcherClicked)
+            .hydratedStateOf(initialValue = null)
 
     val settingsButtonViewModel: FooterActionsButtonViewModel? by
-        hydrator.hydratedStateOf(
-            traceName = "settingsButtonViewModel",
-            initialValue = null,
-            source =
-                selectedUserInteractor.selectedUser.map { selectedUserId ->
-                    SettingsActionViewModel(qsThemedContext, ::onSettingsButtonClicked).takeUnless {
-                        hsuQsChanges() && hsum.isHeadlessSystemUser(selectedUserId)
-                    }
-                },
-        )
+        selectedUserInteractor.selectedUser
+            .map { selectedUserId ->
+                SettingsActionViewModel(qsThemedContext, ::onSettingsButtonClicked).takeUnless {
+                    hsuQsChanges() && hsum.isHeadlessSystemUser(selectedUserId)
+                }
+            }
+            .hydratedStateOf(initialValue = null)
+
+    /**
+     * Whether the inline power menu is visible on top of the QS panel.
+     *
+     * This state is only relevant when [useInlinePowerMenu] is true.
+     */
+    var isInlinePowerMenuVisible by mutableStateOf(false)
+        private set
+
+    /**
+     * Whether the QS inline power menu should replace the Global Actions Dialog when the power
+     * button is clicked.
+     */
+    val useInlinePowerMenu =
+        LargeScreenQSInlinePowerMenu.isEnabled &&
+            appContext.resources.getBoolean(R.bool.config_qsInlinePowerMenu)
 
     var securityInfoViewModel: FooterActionsSecurityButtonViewModel? by mutableStateOf(null)
         private set
@@ -110,17 +122,24 @@ constructor(
     var securityInfoShowCollapsed: Boolean by mutableStateOf(true)
         private set
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         coroutineScope {
             launch(context = mainDispatcher) {
-                try {
-                    globalActionsDialogLite = globalActionsDialogLiteProvider.get()
-                    awaitCancellation()
-                } finally {
-                    globalActionsDialogLite?.destroy()
+                globalActionsDialogLite = globalActionsDialogLiteProvider.get()
+            }
+            if (useInlinePowerMenu) {
+                launch {
+                    shadeInteractor.qsExpansion
+                        .map { it == 1.0f }
+                        .distinctUntilChanged()
+                        .collect { fullyExpanded ->
+                            if (!fullyExpanded) {
+                                isInlinePowerMenuVisible = false
+                            }
+                        }
                 }
             }
-            launch { hydrator.activate() }
+
             launch {
                 footerActionsInteractor.securityButtonConfig
                     .map { it?.let { securityButtonViewModel(it, ::onSecurityButtonClicked) } }
@@ -132,8 +151,11 @@ constructor(
                         securityInfoShowCollapsed = true
                     }
             }
-            awaitCancellation()
         }
+    }
+
+    override suspend fun onDeactivated() {
+        globalActionsDialogLite?.destroy()
     }
 
     private var globalActionsDialogLite: GlobalActionsDialogLite? by mutableStateOf(null)
@@ -144,6 +166,11 @@ constructor(
                 footerActionsInteractor.showPowerMenuDialog(it, expandable)
             }
         }
+    }
+
+    private val onPowerMenuToggleButtonClicked = {
+        LargeScreenQSInlinePowerMenu.expectInNewMode()
+        isInlinePowerMenuVisible = !isInlinePowerMenuVisible
     }
 
     private fun onUserSwitcherClicked(expandable: Expandable) {
@@ -158,6 +185,16 @@ constructor(
         falsingInteractor.runIfNotFalseTap {
             footerActionsInteractor.showDeviceMonitoringDialog(quickSettingsContext, expandable)
         }
+    }
+
+    /**
+     * Resets the power menu visibility state when it is dismissed by the user (e.g., clicking
+     * outside, pressing back).
+     */
+    fun onPowerMenuDismissed() {
+        LargeScreenQSInlinePowerMenu.expectInNewMode()
+        assert(useInlinePowerMenu)
+        isInlinePowerMenuVisible = false
     }
 
     @AssistedFactory

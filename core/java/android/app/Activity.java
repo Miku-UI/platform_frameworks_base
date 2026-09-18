@@ -26,8 +26,6 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.inMultiWindowMode;
 import static android.os.Process.myUid;
 
-import static com.android.window.flags.Flags.predictiveBackStopKeycodeBackForwarding;
-
 import static java.lang.Character.MIN_VALUE;
 
 import android.Manifest;
@@ -199,7 +197,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-
 
 /**
  * An activity is a single, focused thing that the user can do.  Almost all
@@ -917,6 +914,7 @@ public class Activity extends ContextThemeWrapper
     private boolean mDestroyed;
     private boolean mDoReportFullyDrawn = true;
     private boolean mRestoredFromBundle;
+    private boolean mIsHandoffEnabled;
 
     /** {@code true} if the activity lifecycle is in a state which supports picture-in-picture.
      * This only affects the client-side exception, the actual state check still happens in AMS. */
@@ -1928,27 +1926,25 @@ public class Activity extends ContextThemeWrapper
             mDefaultBackCallback = this::onBackInvoked;
             getOnBackInvokedDispatcher().registerSystemOnBackInvokedCallback(mDefaultBackCallback);
         }
-        if (predictiveBackStopKeycodeBackForwarding()) {
-            mObserverBackCallback = new ObserverOnBackAnimationCallback() {
-                    @Override
-                    public void onBackStarted(@NonNull BackEvent backEvent) {
-                        onUserInteraction();
-                    }
+        mObserverBackCallback = new ObserverOnBackAnimationCallback() {
+                @Override
+                public void onBackStarted(@NonNull BackEvent backEvent) {
+                    onUserInteraction();
+                }
 
-                    @Override
-                    public void onBackInvoked() {
-                        onUserInteraction();
-                    }
+                @Override
+                public void onBackInvoked() {
+                    onUserInteraction();
+                }
 
-                    @Override
-                    public void onBackCancelled() {}
-                };
-            // Register a ObserverOnBackAnimationCallback with PRIORITY_SYSTEM_NAVIGATION_OBSERVER
-            // to get notified on every back navigation so that onUserInteraction can be called.
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                    OnBackInvokedDispatcher.PRIORITY_SYSTEM_NAVIGATION_OBSERVER,
-                    mObserverBackCallback);
-        }
+                @Override
+                public void onBackCancelled() {}
+            };
+        // Register a ObserverOnBackAnimationCallback with PRIORITY_SYSTEM_NAVIGATION_OBSERVER
+        // to get notified on every back navigation so that onUserInteraction can be called.
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_SYSTEM_NAVIGATION_OBSERVER,
+                mObserverBackCallback);
     }
 
     /**
@@ -1978,8 +1974,11 @@ public class Activity extends ContextThemeWrapper
      *     recently supplied in {@link #onSaveInstanceState}.
      *     <b><i>Note: Otherwise it is null.</i></b>
      * @param persistentState if the activity is being re-initialized after
-     *     previously being shut down or powered off then this Bundle contains the data it most
-     *     recently supplied to outPersistentState in {@link #onSaveInstanceState}.
+     *     previously being shut down{@if (flag
+     *     (com.android.window.flags.Flags.FLAG_ENABLE_APP_RESTART_AFTER_UPDATE))
+     *     {, powered off or updated to a new version} else { or powered off}} then this Bundle
+     *     contains the data it most recently supplied to outPersistentState in
+     *     {@link #onSaveInstanceState}.
      *     <b><i>Note: Otherwise it is null.</i></b>
      *
      * @see #onCreate(android.os.Bundle)
@@ -2627,10 +2626,13 @@ public class Activity extends ContextThemeWrapper
      * created with the attribute {@link android.R.attr#persistableMode} set to
      * <code>persistAcrossReboots</code>. The {@link android.os.PersistableBundle} passed
      * in will be saved and presented in {@link #onCreate(Bundle, PersistableBundle)}
-     * the first time that this activity is restarted following the next device reboot.
+     * the first time that this activity is restarted following the next device reboot{@if
+     * (flag(com.android.window.flags.Flags.FLAG_ENABLE_APP_RESTART_AFTER_UPDATE)){ or after an
+     * update}}.
      *
      * @param outState Bundle in which to place your saved state.
-     * @param outPersistentState State which will be saved across reboots.
+     * @param outPersistentState State which will be saved across reboots{@if (
+ flag(com.android.window.flags.Flags.FLAG_ENABLE_APP_RESTART_AFTER_UPDATE)){ and updates}}.
      *
      * @see #onSaveInstanceState(Bundle)
      * @see #onCreate
@@ -3091,7 +3093,7 @@ public class Activity extends ContextThemeWrapper
      *
      * @param isInMultiWindowMode True if the activity is in multi-window mode.
      * @param newConfig The new configuration of the activity with the state
-     *                  {@param isInMultiWindowMode}.
+     *                  {@code isInMultiWindowMode}.
      */
     public void onMultiWindowModeChanged(boolean isInMultiWindowMode, Configuration newConfig) {
         // Left deliberately empty. There should be no side effects if a direct
@@ -3117,6 +3119,11 @@ public class Activity extends ContextThemeWrapper
 
     /**
      * Returns true if the activity is currently in multi-window mode.
+     *
+     * <p>See <a href="{@docRoot}develop/ui/compose/layouts/adaptive/support-multi-window-mode">
+     * Support multi-window mode</a> for recommendations on how to handle different multi-window
+     * scenarios such as split-screen.</p>
+     *
      * @see android.R.attr#resizeableActivity
      *
      * @return True if the activity is in multi-window mode.
@@ -3134,7 +3141,7 @@ public class Activity extends ContextThemeWrapper
      *
      * @param isInPictureInPictureMode True if the activity is in picture-in-picture mode.
      * @param newConfig The new configuration of the activity with the state
-     *                  {@param isInPictureInPictureMode}.
+     *                  {@code isInPictureInPictureMode}.
      */
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
             Configuration newConfig) {
@@ -3206,14 +3213,14 @@ public class Activity extends ContextThemeWrapper
 
     /**
      * Puts the activity in picture-in-picture mode if possible in the current system state. The
-     * set parameters in {@param params} will be combined with the parameters from prior calls to
+     * set parameters in {@code params} will be combined with the parameters from prior calls to
      * {@link #setPictureInPictureParams(PictureInPictureParams)}.
      *
      * The system may disallow entering picture-in-picture in various cases, including when the
      * activity is not visible, if the screen is locked or if the user has an activity pinned.
      *
      * <p>By default, system calculates the dimension of picture-in-picture window based on the
-     * given {@param params}.
+     * given {@code params}.
      * See <a href="{@docRoot}guide/topics/ui/picture-in-picture">Picture-in-picture Support</a>
      * on how to override this behavior.</p>
      *
@@ -3335,14 +3342,16 @@ public class Activity extends ContextThemeWrapper
      * @param approvalCallback Optional callback, use {@code null} when not necessary. When the
      *                         request is approved or rejected, the callback will be triggered. This
      *                         will happen before any configuration change. The callback will be
-     *                         dispatched on the main thread. If the request is rejected, the
-     *                         Throwable provided will be an {@link IllegalStateException} with a
-     *                         detailed message can be retrieved by {@link Throwable#getMessage()}.
+     *                         dispatched on the main thread except on devices with API level 36.1
+     *                         or lower, where the behavior is undefined. If the request is
+     *                         rejected, the Throwable provided will be an
+     *                         {@link IllegalStateException} with a detailed message can be
+     *                         retrieved by {@link Throwable#getMessage()}.
      */
     public void requestFullscreenMode(@FullscreenModeRequest int request,
             @Nullable OutcomeReceiver<Void, Throwable> approvalCallback) {
-        FullscreenRequestHandler.requestFullscreenMode(
-                request, approvalCallback, mCurrentConfig, getActivityToken());
+        FullscreenRequestHandler.getInstance().requestFullscreenMode(
+                request, approvalCallback, getActivityToken(), getMainExecutor());
     }
 
     /**
@@ -5967,12 +5976,15 @@ public class Activity extends ContextThemeWrapper
      *
      * @param permission A permission your app wants to request.
      * @return Whether you should show permission rationale UI.
-     *
      * @see #checkSelfPermission
      * @see #requestPermissions
      * @see #onRequestPermissionsResult
      */
+    @Override
     public boolean shouldShowRequestPermissionRationale(@NonNull String permission) {
+        if (Flags.shouldShowPermissionRationaleInContextEnabled()) {
+            return super.shouldShowRequestPermissionRationale(permission);
+        }
         return getPackageManager().shouldShowRequestPermissionRationale(permission);
     }
 
@@ -6737,6 +6749,11 @@ public class Activity extends ContextThemeWrapper
      * to the next Activity that can handle it.  You typically call this in
      * {@link #onCreate} with the Intent returned by {@link #getIntent}.
      *
+     * Note: For security reasons, the caller identity propagated to the next activity
+     * will reflect this intermediary app's identity unless it shares the same UID
+     * as the original caller. The receiving activity should validate the immediate
+     * caller rather than assuming the original intent sender is preserved.
+     *
      * @param intent The intent to dispatch to the next activity.  For
      * correct behavior, this must be the same as the Intent that started
      * your own activity; the only changes you can make are to the extras
@@ -7321,14 +7338,22 @@ public class Activity extends ContextThemeWrapper
      *     <li>The launched activity is running in a package that is signed with the same key
      *     used to sign the platform (typically only system packages such as Settings will
      *     meet this requirement).
+     *     <li>Starting in {@link Build.VERSION_CODES#CINNAMON_BUN}, the activity was launched
+     *     directly with {@link Activity#startActivityForResult(Intent, int)}.
      * </ul>.
      * These are the same requirements for {@link #getLaunchedFromPackage()}; if any of these are
      * met, then these methods can be used to obtain the uid and package name of the launching
      * app. If none are met, then {@link Process#INVALID_UID} is returned.
      *
-     * <p>Note, even if the above conditions are not met, the launching app's identity may
-     * still be available from {@link #getCallingPackage()} if this activity was started with
-     * {@code Activity#startActivityForResult} to allow validation of the result's recipient.
+     * <p>Note, if an activity is launched via {@link #startActivityForResult(Intent, int)} but the
+     * launch is intercepted and forwarded by an intermediate app using {@link
+     * Intent#FLAG_ACTIVITY_FORWARD_RESULT}, the identity of the intermediate app will not be
+     * implicitly shared. In this forwarding scenario, the intermediate app must explicitly
+     * opt-in using {@link ActivityOptions#setShareIdentityEnabled(boolean)}.
+     *
+     * <p>Prior to {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, the launching app's identity
+     * was not implicitly shared for any result-based launches and could only be retrieved via
+     * {@link #getCallingPackage()}
      *
      * @return the uid of the launching app or {@link Process#INVALID_UID} if the current
      * activity cannot access the identity of the launching app
@@ -7353,14 +7378,22 @@ public class Activity extends ContextThemeWrapper
      *     <li>The launched activity is running in a package that is signed with the same key
      *     used to sign the platform (typically only system packages such as Settings will
      *     meet this requirement).
+     *     <li>Starting in {@link Build.VERSION_CODES#CINNAMON_BUN}, the activity was launched
+     *     directly with {@link Activity#startActivityForResult(Intent, int)}.
      * </ul>.
      * These are the same requirements for {@link #getLaunchedFromUid()}; if any of these are
      * met, then these methods can be used to obtain the uid and package name of the launching
      * app. If none are met, then {@code null} is returned.
      *
-     * <p>Note, even if the above conditions are not met, the launching app's identity may
-     * still be available from {@link #getCallingPackage()} if this activity was started with
-     * {@code Activity#startActivityForResult} to allow validation of the result's recipient.
+     * <p>Note, if an activity is launched via {@link #startActivityForResult(Intent, int)} but the
+     * launch is intercepted and forwarded by an intermediate app using {@link
+     * Intent#FLAG_ACTIVITY_FORWARD_RESULT}, the identity of the intermediate app will not be
+     * implicitly shared. In this forwarding scenario, the intermediate app must explicitly
+     * opt-in using {@link ActivityOptions#setShareIdentityEnabled(boolean)}.
+     *
+     * <p>Prior to {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, the launching app's identity
+     * was not implicitly shared for any result-based launches and could only be retrieved via
+     * {@link #getCallingPackage()}
      *
      * @return the package name of the launching app or null if the current activity
      * cannot access the identity of the launching app
@@ -7734,27 +7767,9 @@ public class Activity extends ContextThemeWrapper
      *
      * @return Whether Handoff is enabled for the Activity
      */
-    @FlaggedApi(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @FlaggedApi(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public final boolean isHandoffEnabled() {
-        return ActivityClient.getInstance().isHandoffEnabled(mToken);
-    }
-
-    /**
-     * Returns {@code true} if handing off this activity should also hand off
-     * all activities in the task of this activity. If this is {@code false} for
-     * any activity in the task, only the topmost activity in the task will be
-     * handed off.
-     *
-     * This method will return {@code false} if {@link #isHandoffEnabled}
-     * is {@code false}.
-     *
-     * @return if full task recreation is allowed
-     */
-    @FlaggedApi(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
-    public final boolean isHandoffFullTaskRecreationAllowed() {
-        return ActivityClient
-            .getInstance()
-            .isHandoffFullTaskRecreationAllowed(mToken);
+        return mIsHandoffEnabled;
     }
 
     /**
@@ -7762,19 +7777,21 @@ public class Activity extends ContextThemeWrapper
      * {@link #isHandoffEnabled} to get if Handoff is currently enabled on this
      * Activity.
      *
-     * Note: if Handoff is disabled for the topmost Activity in a task, it will
-     * be disabled for all Activities in the task.
+     * If Handoff is enabled, this Activity will only be eligible to be handed off to other devices
+     * if it is the topmost Activity in its Task.
      *
-     * @param handoffEnabled Whether Handoff should be enabled for this Activity.
-     * @param allowFullTaskRecreation Whether activities below this one in the
-     *                                task should be handed off as well.
+     * Callers may specify optional parameters to specify when Handoff is appropriate for the
+     * current activity. See {@link HandoffActivityParams} for more details.
+     *
+     * @param handoffActivityParams Configuration parameters for Handoff.
      */
-    @FlaggedApi(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @FlaggedApi(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public final void setHandoffEnabled(
-            boolean handoffEnabled,
-            boolean allowFullTaskRecreation) {
+        boolean handoffEnabled,
+        @Nullable HandoffActivityParams handoffActivityParams) {
         ActivityClient.getInstance().setHandoffEnabled(
-                mToken, handoffEnabled, allowFullTaskRecreation);
+                mToken, handoffEnabled, handoffActivityParams);
+        mIsHandoffEnabled = handoffEnabled;
     }
 
     /**
@@ -8010,6 +8027,11 @@ public class Activity extends ContextThemeWrapper
      * notification associated with the activity when you open the activity, you might not want to
      * do that when you're bubbled as that would remove the bubble.
      *
+     * <aside class="note"><b>Note:</b> This method will return {@code false} for app
+     * Bubbles. See https://developer.android.com/develop/ui/compose/layouts/adaptive/support-bubbles
+     * and only applicable to chat bubbles.
+     * </aside>
+     *
      * @return {@code true} if the activity is launched from a bubble.
      *
      * @see Notification.Builder#setBubbleMetadata(Notification.BubbleMetadata)
@@ -8135,6 +8157,18 @@ public class Activity extends ContextThemeWrapper
                 final Bitmap icon = Bitmap.createScaledBitmap(taskDescription.getIcon(), size, size,
                         true);
                 mTaskDescription.setIcon(Icon.createWithBitmap(icon));
+            }
+            // Scale the badge down to something reasonable if it is provided
+            final Icon badge = taskDescription.getBadge();
+            if (badge != null) {
+                if (badge.getType() == Icon.TYPE_BITMAP) {
+                    final int size = ActivityManager.getLauncherLargeIconSizeInner(this);
+                    final Bitmap bitmap =
+                            Bitmap.createScaledBitmap(badge.getBitmap(), size, size, true);
+                    mTaskDescription.setBadge(Icon.createWithBitmap(bitmap));
+                } else {
+                    mTaskDescription.setBadge(badge);
+                }
             }
         }
         if (mLastTaskDescriptionHashCode == mTaskDescription.hashCode()) {
@@ -10201,7 +10235,7 @@ public class Activity extends ContextThemeWrapper
      * @param requestInfo the request info for the activity data.
      * @return the activity data for handoff.
      */
-    @FlaggedApi(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @FlaggedApi(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Nullable
     public HandoffActivityData onHandoffActivityDataRequested(
         @NonNull HandoffActivityDataRequestInfo requestInfo) {
@@ -10247,17 +10281,11 @@ public class Activity extends ContextThemeWrapper
         }
     }
 
-    /**
-     * Enabling jank tracking for this activity but only if certain conditions are met. The
-     * application must have an app category other than undefined and a visible view.
-     */
     private void startAppJankTracking() {
-        if (!android.app.jank.Flags.detailedAppJankMetricsLoggingEnabled()) {
+        if (!shouldStartAppJankTracking()) {
             return;
         }
-        if (mApplication.getApplicationInfo().category == ApplicationInfo.CATEGORY_UNDEFINED) {
-            return;
-        }
+
         if (getWindow() != null && getWindow().peekDecorView() != null) {
             DecorView decorView = (DecorView) getWindow().peekDecorView();
             if (decorView.getVisibility() == View.VISIBLE) {
@@ -10280,6 +10308,30 @@ public class Activity extends ContextThemeWrapper
                 mJankTracker.enableAppJankTracking();
             }
         }
+    }
+
+    /**
+     * Determines if jank tracking for this activity should be enabled. Jank tracking will be
+     * enabled if the following criteria are met:
+     *   1. The apps category is not undefined. {@link ApplicationInfo#category}. We are currently
+     *      limiting metric collection for apps categorized as undefined, which includes sensitive
+     *      categories like health and finance.
+     *   2. The device is currently reporting jank metrics. Jank tracking configuration is checked
+     *      to avoid unnecessary work on devices that won't report the metric (only 1% of devices
+     *      will report metrics).
+     */
+    private boolean shouldStartAppJankTracking() {
+        if (mApplication.getApplicationInfo().category == ApplicationInfo.CATEGORY_UNDEFINED) {
+            return false;
+        }
+
+        // Android feature flag, will be removed when feature rolled out.
+        if (!android.app.jank.Flags.detailedAppJankMetricsLoggingEnabled()) {
+            return false;
+        }
+
+        // Configuration flag, limits work only to devices reporting metrics.
+        return JankTracker.isJankTrackingSupported();
     }
 
     /**
@@ -10313,5 +10365,16 @@ public class Activity extends ContextThemeWrapper
                         }
                     }
                 });
+    }
+
+    /** @hide */
+    public static String fullscreenModeRequestToString(@FullscreenModeRequest int request) {
+        switch (request) {
+            case FULLSCREEN_MODE_REQUEST_ENTER:
+                return "FULLSCREEN_MODE_REQUEST_ENTER";
+            case FULLSCREEN_MODE_REQUEST_EXIT:
+                return "FULLSCREEN_MODE_REQUEST_EXIT";
+            default: return String.valueOf(request);
+        }
     }
 }

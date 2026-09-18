@@ -98,7 +98,6 @@ message SecureSettingsProto {
         // Settings for font scaling
         optional SettingProto accessibility_font_scaling_has_been_changed = 51 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto accessibility_force_invert_color_enabled = 52 [ (android.privacy).dest = DEST_AUTOMATIC ];
-        optional SettingProto accessibility_magnification_two_finger_triple_tap_enabled = 53 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto qs_targets = 54 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto accessibility_pinch_to_zoom_anywhere_enabled = 55 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto accessibility_single_finger_panning_enabled = 56 [ (android.privacy).dest = DEST_AUTOMATIC ];
@@ -116,6 +115,8 @@ message SecureSettingsProto {
         optional SettingProto accessibility_magnification_cursor_following_mode = 66 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto accessibility_magnification_magnify_nav_and_ime = 67 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto accessibility_magnification_follow_keyboard_enabled = 68 [ (android.privacy).dest = DEST_AUTOMATIC ];
+        optional SettingProto accessibility_top_row_key_targets = 69 [ (android.privacy).dest = DEST_AUTOMATIC ];
+        optional SettingProto accessibility_quick_access_targets = 70 [ (android.privacy).dest = DEST_AUTOMATIC ];
     }
     optional Accessibility accessibility = 2;
 
@@ -586,6 +587,7 @@ message SecureSettingsProto {
         optional SettingProto activate_on_sleep = 4 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto default_component = 5 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto activate_on_postured = 6 [ (android.privacy).dest = DEST_AUTOMATIC ];
+        optional SettingProto active_component = 7 [ (android.privacy).dest = DEST_AUTOMATIC ];
     }
     optional Screensaver screensaver = 47;
 

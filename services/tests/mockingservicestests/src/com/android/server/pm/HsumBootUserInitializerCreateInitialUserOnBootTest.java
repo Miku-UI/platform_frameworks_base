@@ -15,7 +15,7 @@
  */
 package com.android.server.pm;
 
-import static com.android.server.pm.HsumBootUserInitializer.createInitialUserOnBoot;
+import static com.android.server.pm.HsumBootUserInitializer.createInitialAdminUserOnBoot;
 
 import android.util.Log;
 
@@ -30,7 +30,7 @@ import java.util.Collection;
 public final class HsumBootUserInitializerCreateInitialUserOnBootTest
         extends AbstractHsumBootUserInitializerConstructorHelpersTestCase {
 
-    private final boolean mConfigCreateInitialUser;
+    private final boolean mConfigCreateInitialAdminUser;
     private final boolean mResult;
 
     /** Useless javadoc to make checkstyle happy... */
@@ -42,19 +42,19 @@ public final class HsumBootUserInitializerCreateInitialUserOnBootTest
         });
     }
 
-    public HsumBootUserInitializerCreateInitialUserOnBootTest(boolean configCreateInitialUser,
+    public HsumBootUserInitializerCreateInitialUserOnBootTest(boolean configCreateInitialAdminUser,
             boolean result) {
-        mConfigCreateInitialUser = configCreateInitialUser;
+        mConfigCreateInitialAdminUser = configCreateInitialAdminUser;
         mResult = result;
-        Log.v(mTag, "Constructor: configCreateInitialUser=" + configCreateInitialUser
+        Log.v(mTag, "Constructor: configCreateInitialAdminUser=" + configCreateInitialAdminUser
                 + ", result=" + result);
     }
 
     @Test
     public void testCreateInitialUserOnBoot() {
-        mockConfigCreateInitialUser(mConfigCreateInitialUser);
+        mockConfigCreateInitialAdminUserOnHsum(mConfigCreateInitialAdminUser);
 
-        boolean result = createInitialUserOnBoot(mMockContext);
+        boolean result = createInitialAdminUserOnBoot(mMockContext);
 
         expect.withMessage("createInitialUserOnBoot()").that(result).isEqualTo(mResult);
     }

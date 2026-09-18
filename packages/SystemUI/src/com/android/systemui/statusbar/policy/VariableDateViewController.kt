@@ -68,17 +68,18 @@ internal fun getFormatFromPattern(pattern: String?): DateFormat {
     return format
 }
 
-private val EMPTY_FORMAT: DateFormat = object : DateFormat() {
-    override fun format(
-        cal: Calendar,
-        toAppendTo: StringBuffer,
-        fieldPosition: FieldPosition
-    ): StringBuffer? {
-        return null
-    }
+private val EMPTY_FORMAT: DateFormat =
+    object : DateFormat() {
+        override fun format(
+            cal: Calendar,
+            toAppendTo: StringBuffer,
+            fieldPosition: FieldPosition,
+        ): StringBuffer? {
+            return null
+        }
 
-    override fun parse(text: String, cal: Calendar, pos: ParsePosition) {}
-}
+        override fun parse(text: String, cal: Calendar, pos: ParsePosition) {}
+    }
 
 private const val DEBUG = false
 private const val TAG = "VariableDateViewController"
@@ -89,7 +90,7 @@ class VariableDateViewController(
     private val shadeInteractor: ShadeInteractor,
     private val shadeLogger: ShadeLogger,
     private val timeTickHandler: Handler,
-    view: VariableDateView
+    view: VariableDateView,
 ) : ViewController<VariableDateView>(view) {
 
     private var dateFormat: DateFormat? = null
@@ -102,6 +103,7 @@ class VariableDateViewController(
                 post(::updateClock)
             }
         }
+
     private var isQsExpanded = false
     private var lastWidth = Integer.MAX_VALUE
     private var lastText = ""
@@ -110,53 +112,64 @@ class VariableDateViewController(
     // View class easy accessors
     private val longerPattern: String
         get() = mView.longerPattern
+
     private val shorterPattern: String
         get() = mView.shorterPattern
+
     private fun post(block: () -> Unit) = mView.handler?.post(block)
 
-    private val intentReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val action = intent.action
-            if (
+    private val intentReceiver: BroadcastReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val action = intent.action
+                if (
                     Intent.ACTION_LOCALE_CHANGED == action ||
-                    Intent.ACTION_TIMEZONE_CHANGED == action
-            ) {
-                // need to get a fresh date format
-                dateFormat = null
-                shadeLogger.d("VariableDateViewController received intent to refresh date format")
-            }
+                        Intent.ACTION_TIMEZONE_CHANGED == action
+                ) {
+                    // need to get a fresh date format
+                    dateFormat = null
+                    shadeLogger.d(
+                        "VariableDateViewController received intent to refresh date format"
+                    )
+                }
 
-            val handler = mView.handler
+                val handler = mView.handler
 
-            // If the handler is null, it means we received a broadcast while the view has not
-            // finished being attached or in the process of being detached.
-            // In that case, do not post anything.
-            if (handler == null) {
-                shadeLogger.d("VariableDateViewController received intent but handler was null")
-            } else if (
+                // If the handler is null, it means we received a broadcast while the view has not
+                // finished being attached or in the process of being detached.
+                // In that case, do not post anything.
+                if (handler == null) {
+                    shadeLogger.d("VariableDateViewController received intent but handler was null")
+                } else if (
                     Intent.ACTION_TIME_TICK == action ||
-                    Intent.ACTION_TIME_CHANGED == action ||
-                    Intent.ACTION_TIMEZONE_CHANGED == action ||
-                    Intent.ACTION_LOCALE_CHANGED == action
-            ) {
-                handler.post(::updateClock)
+                        Intent.ACTION_TIME_CHANGED == action ||
+                        Intent.ACTION_TIMEZONE_CHANGED == action ||
+                        Intent.ACTION_LOCALE_CHANGED == action
+                ) {
+                    handler.post(::updateClock)
+                }
             }
         }
-    }
 
-    private val onMeasureListener = object : VariableDateView.OnMeasureListener {
-        override fun onMeasureAction(availableWidth: Int, widthMeasureSpec: Int) {
-            if (!isQsExpanded && MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.AT_MOST) {
-                // ignore measured width from AT_MOST passes when in QQS (b/289489856)
-                return
-            }
-            if (availableWidth != lastWidth) {
-                // maybeChangeFormat will post if the pattern needs to change.
-                maybeChangeFormat(availableWidth)
-                lastWidth = availableWidth
+    private val onMeasureListener =
+        object : VariableDateView.OnMeasureListener {
+            override fun onMeasureAction(availableWidth: Int, widthMeasureSpec: Int) {
+                if (
+                    !isQsExpanded &&
+                        MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.AT_MOST &&
+                        // if expanding the shade and previous width was zero, update the format
+                        !(lastWidth == 0 && shadeInteractor.isAnyExpanded.value)
+                ) {
+                    // ignore measured width from AT_MOST passes when in QQS (b/289489856)
+                    return
+                }
+                if (availableWidth != lastWidth) {
+                    // maybeChangeFormat will post if the pattern needs to change.
+                    maybeChangeFormat(availableWidth)
+                    lastWidth = availableWidth
+                }
             }
         }
-    }
 
     private fun onQsExpansionFractionChanged(qsExpansionFraction: Float) {
         val newIsQsExpanded = qsExpansionFraction > 0.5
@@ -168,15 +181,20 @@ class VariableDateViewController(
     }
 
     override fun onViewAttached() {
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_TIME_TICK)
-            addAction(Intent.ACTION_TIME_CHANGED)
-            addAction(Intent.ACTION_TIMEZONE_CHANGED)
-            addAction(Intent.ACTION_LOCALE_CHANGED)
-        }
+        val filter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_TIME_TICK)
+                addAction(Intent.ACTION_TIME_CHANGED)
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+                addAction(Intent.ACTION_LOCALE_CHANGED)
+            }
 
-        broadcastDispatcher.registerReceiver(intentReceiver, filter,
-                HandlerExecutor(timeTickHandler), UserHandle.SYSTEM)
+        broadcastDispatcher.registerReceiver(
+            intentReceiver,
+            filter,
+            HandlerExecutor(timeTickHandler),
+            UserHandle.SYSTEM,
+        )
         mView.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 shadeInteractor.qsExpansion.collect(::onQsExpansionFractionChanged)
@@ -207,7 +225,8 @@ class VariableDateViewController(
     }
 
     private fun maybeChangeFormat(availableWidth: Int) {
-        if (mView.freezeSwitching ||
+        if (
+            mView.freezeSwitching ||
                 availableWidth > lastWidth && datePattern == longerPattern ||
                 availableWidth < lastWidth && datePattern == ""
         ) {
@@ -239,12 +258,14 @@ class VariableDateViewController(
         datePattern = newPattern
     }
 
-    class Factory @Inject constructor(
+    class Factory
+    @Inject
+    constructor(
         private val systemClock: SystemClock,
         private val broadcastDispatcher: BroadcastDispatcher,
         private val shadeInteractor: ShadeInteractor,
         private val shadeLogger: ShadeLogger,
-        @Named(Dependency.TIME_TICK_HANDLER_NAME) private val handler: Handler
+        @Named(Dependency.TIME_TICK_HANDLER_NAME) private val handler: Handler,
     ) {
         fun create(view: VariableDateView): VariableDateViewController {
             return VariableDateViewController(
@@ -253,7 +274,7 @@ class VariableDateViewController(
                 shadeInteractor,
                 shadeLogger,
                 handler,
-                view
+                view,
             )
         }
     }

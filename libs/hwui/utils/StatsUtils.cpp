@@ -15,6 +15,7 @@
  */
 
 #ifdef __ANDROID__
+#include <cutils/properties.h>
 #include <dlfcn.h>
 #include <log/log.h>
 #include <statslog_hwui.h>
@@ -73,6 +74,11 @@ void logBitmapDecode(const SkImageInfo& info, bool hasGainmap) {
 #ifdef __ANDROID__
 
     if (!statssocket::lazy::IsAvailable()) {
+        return;
+    }
+
+    // Don't log atoms until boot has completed
+    if (!property_get_bool("sys.boot_completed", false)) {
         return;
     }
 

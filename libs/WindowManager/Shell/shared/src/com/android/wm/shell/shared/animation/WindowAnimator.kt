@@ -42,7 +42,10 @@ object WindowAnimator {
         val interpolator: Interpolator,
         val animBounds: AnimationBounds = END,
     ) {
-        enum class AnimationBounds { START, END }
+        enum class AnimationBounds {
+            START,
+            END,
+        }
     }
 
     /**
@@ -59,10 +62,11 @@ object WindowAnimator {
         change: TransitionInfo.Change,
         transaction: SurfaceControl.Transaction,
     ): ValueAnimator {
-        val bounds = when (boundsAnimDef.animBounds) {
-            START -> change.startAbsBounds
-            END -> change.endAbsBounds
-        }
+        val bounds =
+            when (boundsAnimDef.animBounds) {
+                START -> change.startAbsBounds
+                END -> change.endAbsBounds
+            }
         val startPos =
             getPosition(
                 displayMetrics,
@@ -72,12 +76,7 @@ object WindowAnimator {
             )
         val leash = change.leash
         val endPos =
-            getPosition(
-                displayMetrics,
-                bounds,
-                boundsAnimDef.endScale,
-                boundsAnimDef.endOffsetYDp,
-            )
+            getPosition(displayMetrics, bounds, boundsAnimDef.endScale, boundsAnimDef.endOffsetYDp)
         return ValueAnimator.ofObject(PointFEvaluator(), startPos, endPos).apply {
             duration = boundsAnimDef.durationMs
             interpolator = boundsAnimDef.interpolator
@@ -87,7 +86,7 @@ object WindowAnimator {
                     interpolate(
                         boundsAnimDef.startScale,
                         boundsAnimDef.endScale,
-                        animation.animatedFraction
+                        animation.animatedFraction,
                     )
                 transaction
                     .setPosition(leash, animPos.x, animPos.y)
@@ -107,8 +106,9 @@ object WindowAnimator {
         displayMetrics: DisplayMetrics,
         bounds: Rect,
         scale: Float,
-        offsetYDp: Float
-    ) = PointF(bounds.left.toFloat(), bounds.top.toFloat()).apply {
+        offsetYDp: Float,
+    ) =
+        PointF(bounds.left.toFloat(), bounds.top.toFloat()).apply {
             check(scale in 0.0f..1.0f)
             // Scale the bounds down with an anchor in the center
             offset(
@@ -116,11 +116,7 @@ object WindowAnimator {
                 (bounds.height().toFloat() * (1 - scale) / 2),
             )
             val offsetYPx =
-                TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        offsetYDp,
-                        displayMetrics,
-                    )
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, offsetYDp, displayMetrics)
                     .toInt()
             offset(/* dx= */ 0f, offsetYPx.toFloat())
         }

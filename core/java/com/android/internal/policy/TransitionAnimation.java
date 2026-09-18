@@ -92,6 +92,12 @@ public class TransitionAnimation {
 
     public static final int DEFAULT_APP_TRANSITION_DURATION = 336;
 
+    /**
+     * Maximum allowed animation duration (in milliseconds).
+     * Used to guard against excessively long or malformed animations.
+     */
+    public static final int MAX_ANIMATION_DURATION = 1500;
+
     /** Fraction of animation at which the recents thumbnail stays completely transparent */
     private static final float RECENTS_THUMBNAIL_FADEIN_FRACTION = 0.5f;
     /** Fraction of animation at which the recents thumbnail becomes completely transparent */

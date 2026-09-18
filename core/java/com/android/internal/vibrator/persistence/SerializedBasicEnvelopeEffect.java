@@ -20,12 +20,14 @@ import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_D
 import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_INITIAL_SHARPNESS;
 import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_INTENSITY;
 import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_SHARPNESS;
+import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_START_TIME_MS;
 import static com.android.internal.vibrator.persistence.XmlConstants.NAMESPACE;
 import static com.android.internal.vibrator.persistence.XmlConstants.TAG_BASIC_ENVELOPE_EFFECT;
 import static com.android.internal.vibrator.persistence.XmlConstants.TAG_CONTROL_POINT;
 
 import android.annotation.NonNull;
 import android.os.VibrationEffect;
+import android.os.vibrator.VibrationEffectSegment;
 
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
@@ -42,13 +44,21 @@ import java.util.Locale;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 final class SerializedBasicEnvelopeEffect implements SerializedComposedEffect.SerializedSegment {
     private final BasicControlPoint[] mControlPoints;
     private final float mInitialSharpness;
+    private final long mStartTimeMillis;
 
     SerializedBasicEnvelopeEffect(BasicControlPoint[] controlPoints, float initialSharpness) {
+        this(controlPoints, initialSharpness, -1);
+    }
+
+    SerializedBasicEnvelopeEffect(BasicControlPoint[] controlPoints, float initialSharpness,
+            long startTimeMillis) {
         mControlPoints = controlPoints;
         mInitialSharpness = initialSharpness;
+        mStartTimeMillis = startTimeMillis;
     }
 
     @Override
@@ -57,6 +67,10 @@ final class SerializedBasicEnvelopeEffect implements SerializedComposedEffect.Se
 
         if (!Float.isNaN(mInitialSharpness)) {
             serializer.attributeFloat(NAMESPACE, ATTRIBUTE_INITIAL_SHARPNESS, mInitialSharpness);
+        }
+
+        if (mStartTimeMillis >= 0) {
+            serializer.attributeLong(NAMESPACE, ATTRIBUTE_START_TIME_MS, mStartTimeMillis);
         }
 
         for (BasicControlPoint point : mControlPoints) {
@@ -81,7 +95,15 @@ final class SerializedBasicEnvelopeEffect implements SerializedComposedEffect.Se
         for (BasicControlPoint point : mControlPoints) {
             builder.addControlPoint(point.mIntensity, point.mSharpness, point.mDurationMs);
         }
-        composition.addEffect(builder.build());
+        VibrationEffect effect = builder.build();
+        if (mStartTimeMillis >= 0 && effect instanceof VibrationEffect.Composed composed) {
+            List<VibrationEffectSegment> segments = new ArrayList<>(composed.getSegments());
+            if (!segments.isEmpty()) {
+                segments.set(0, segments.get(0).applyStartTime(mStartTimeMillis));
+                effect = new VibrationEffect.Composed(segments, composed.getRepeatIndex());
+            }
+        }
+        composition.addEffect(effect);
     }
 
     @Override
@@ -89,12 +111,14 @@ final class SerializedBasicEnvelopeEffect implements SerializedComposedEffect.Se
         return "SerializedBasicEnvelopeEffect{"
                 + "initialSharpness=" + (Float.isNaN(mInitialSharpness) ? "" : mInitialSharpness)
                 + ", controlPoints=" + Arrays.toString(mControlPoints)
+                + ", startTimeMillis=" + mStartTimeMillis
                 + '}';
     }
 
     static final class Builder {
         private final List<BasicControlPoint> mControlPoints;
         private float mInitialSharpness = Float.NaN;
+        private long mStartTimeMillis = -1;
 
         Builder() {
             mControlPoints = new ArrayList<>();
@@ -104,13 +128,18 @@ final class SerializedBasicEnvelopeEffect implements SerializedComposedEffect.Se
             mInitialSharpness = sharpness;
         }
 
+        void setStartTimeMillis(long startTimeMillis) {
+            mStartTimeMillis = startTimeMillis;
+        }
+
         void addControlPoint(float intensity, float sharpness, long durationMs) {
             mControlPoints.add(new BasicControlPoint(intensity, sharpness, durationMs));
         }
 
         SerializedBasicEnvelopeEffect build() {
             return new SerializedBasicEnvelopeEffect(
-                    mControlPoints.toArray(new BasicControlPoint[0]), mInitialSharpness);
+                    mControlPoints.toArray(new BasicControlPoint[0]), mInitialSharpness,
+                    mStartTimeMillis);
         }
     }
 
@@ -121,12 +150,18 @@ final class SerializedBasicEnvelopeEffect implements SerializedComposedEffect.Se
         static SerializedBasicEnvelopeEffect parseNext(@NonNull TypedXmlPullParser parser,
                 @XmlConstants.Flags int flags) throws XmlParserException, IOException {
             XmlValidator.checkStartTag(parser, TAG_BASIC_ENVELOPE_EFFECT);
-            XmlValidator.checkTagHasNoUnexpectedAttributes(parser, ATTRIBUTE_INITIAL_SHARPNESS);
+            XmlValidator.checkTagHasNoUnexpectedAttributes(parser, ATTRIBUTE_INITIAL_SHARPNESS,
+                    ATTRIBUTE_START_TIME_MS);
 
             Builder builder = new Builder();
             builder.setInitialSharpness(
                     XmlReader.readAttributeFloatInRange(parser, ATTRIBUTE_INITIAL_SHARPNESS, 0f, 1f,
                             Float.NaN));
+            if (parser.getAttributeIndex(NAMESPACE, ATTRIBUTE_START_TIME_MS) >= 0) {
+                builder.setStartTimeMillis(
+                        XmlReader.readAttributeIntInRange(parser, ATTRIBUTE_START_TIME_MS,
+                                0, Integer.MAX_VALUE));
+            }
 
             int outerDepth = parser.getDepth();
 

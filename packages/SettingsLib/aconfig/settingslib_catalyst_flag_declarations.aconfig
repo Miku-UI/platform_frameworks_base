@@ -1,0 +1,9 @@
+package: "com.android.settingslib.catalyst.flags"
+container: "system"
+
+flag {
+    name: "catalyst_use_key_parameters"
+    namespace: "android_settings"
+    description: "Flag using the key parameters in parameterized screens"
+    bug: "446923903"
+}

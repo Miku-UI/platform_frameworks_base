@@ -24,6 +24,7 @@ import android.widget.RemoteViews
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.util.InteractionHandlerDelegate
+import com.android.systemui.communal.widgets.CommunalTransitionAnimatorController
 import com.android.systemui.communal.widgets.SmartspaceAppWidgetHostView
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.Logger
@@ -38,6 +39,7 @@ constructor(
     private val activityStarter: ActivityStarter,
     communalSceneInteractor: CommunalSceneInteractor,
     @CommunalLog val logBuffer: LogBuffer,
+    controllerFactory: CommunalTransitionAnimatorController.Factory,
 ) : RemoteViews.InteractionHandler {
 
     private companion object {
@@ -47,6 +49,7 @@ constructor(
     private val delegate =
         InteractionHandlerDelegate(
             communalSceneInteractor,
+            controllerFactory,
             findViewToAnimate = { view -> view is SmartspaceAppWidgetHostView },
             intentStarter =
                 object : InteractionHandlerDelegate.IntentStarter {
@@ -54,7 +57,7 @@ constructor(
                         intent: PendingIntent,
                         fillInIntent: Intent,
                         activityOptions: ActivityOptions,
-                        controller: ActivityTransitionAnimator.Controller?
+                        controller: ActivityTransitionAnimator.Controller?,
                     ): Boolean {
                         return startIntent(intent, fillInIntent, activityOptions, controller)
                     }
@@ -65,14 +68,14 @@ constructor(
     override fun onInteraction(
         view: View,
         pendingIntent: PendingIntent,
-        response: RemoteViews.RemoteResponse
+        response: RemoteViews.RemoteResponse,
     ): Boolean = delegate.onInteraction(view, pendingIntent, response)
 
     private fun startIntent(
         pendingIntent: PendingIntent,
         fillInIntent: Intent,
         extraOptions: ActivityOptions,
-        animationController: ActivityTransitionAnimator.Controller?
+        animationController: ActivityTransitionAnimator.Controller?,
     ): Boolean {
         activityStarter.startPendingIntentWithoutDismissing(
             pendingIntent,
@@ -80,7 +83,7 @@ constructor(
             /* intentSentUiThreadCallback = */ null,
             animationController,
             fillInIntent,
-            extraOptions.toBundle()
+            extraOptions.toBundle(),
         )
         return true
     }

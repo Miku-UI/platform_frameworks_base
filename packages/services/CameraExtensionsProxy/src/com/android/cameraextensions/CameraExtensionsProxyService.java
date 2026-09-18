@@ -101,6 +101,7 @@ import androidx.camera.extensions.impl.PreviewImageProcessorImpl;
 import androidx.camera.extensions.impl.ProcessResultImpl;
 import androidx.camera.extensions.impl.ProcessorImpl;
 import androidx.camera.extensions.impl.RequestUpdateProcessorImpl;
+import androidx.camera.extensions.impl.advanced.AdvancedExtenderCreator;
 import androidx.camera.extensions.impl.advanced.AdvancedExtenderImpl;
 import androidx.camera.extensions.impl.advanced.AutoAdvancedExtenderImpl;
 import androidx.camera.extensions.impl.advanced.BeautyAdvancedExtenderImpl;
@@ -147,30 +148,37 @@ public class CameraExtensionsProxyService extends Service {
     private static final String LATENCY_VERSION_PREFIX = "1.4";
     private static final String EFV_VERSION_PREFIX = "1.5";
     private static final String GET_VERSION_PREFIX = "1.5";
+    private static final String VENDOR_EXTENSIONS_PREFIX = "1.6";
     private static final String[] ADVANCED_VERSION_PREFIXES = {EFV_VERSION_PREFIX,
             LATENCY_VERSION_PREFIX, ADVANCED_VERSION_PREFIX, RESULTS_VERSION_PREFIX,
-            GET_VERSION_PREFIX};
+            GET_VERSION_PREFIX, VENDOR_EXTENSIONS_PREFIX};
     private static final String[] SUPPORTED_VERSION_PREFIXES = {EFV_VERSION_PREFIX,
             LATENCY_VERSION_PREFIX, RESULTS_VERSION_PREFIX, ADVANCED_VERSION_PREFIX, "1.1",
-            NON_INIT_VERSION_PREFIX, GET_VERSION_PREFIX};
+            NON_INIT_VERSION_PREFIX, GET_VERSION_PREFIX, VENDOR_EXTENSIONS_PREFIX};
     private static final boolean EXTENSIONS_PRESENT = checkForExtensions();
     private static final String EXTENSIONS_VERSION = EXTENSIONS_PRESENT ?
             (new ExtensionVersionImpl()).checkApiVersion(LATEST_VERSION) : null;
     private static final boolean ESTIMATED_LATENCY_API_SUPPORTED = checkForLatencyAPI();
     private static final boolean LATENCY_IMPROVEMENTS_SUPPORTED = EXTENSIONS_PRESENT &&
             (EXTENSIONS_VERSION.startsWith(LATENCY_VERSION_PREFIX) ||
-                    (EXTENSIONS_VERSION.startsWith(EFV_VERSION_PREFIX)));
+                    EXTENSIONS_VERSION.startsWith(VENDOR_EXTENSIONS_PREFIX ) ||
+                    EXTENSIONS_VERSION.startsWith(EFV_VERSION_PREFIX));
     private static final boolean EFV_SUPPORTED = EXTENSIONS_PRESENT &&
-            (EXTENSIONS_VERSION.startsWith(EFV_VERSION_PREFIX));
-    private static final boolean GET_API_SUPPORTED = EXTENSIONS_PRESENT
-            && (EXTENSIONS_VERSION.startsWith(GET_VERSION_PREFIX));
+            ((EXTENSIONS_VERSION.startsWith(VENDOR_EXTENSIONS_PREFIX) ||
+            (EXTENSIONS_VERSION.startsWith(EFV_VERSION_PREFIX))));
+    private static final boolean GET_API_SUPPORTED = EXTENSIONS_PRESENT &&
+            (EXTENSIONS_VERSION.startsWith(VENDOR_EXTENSIONS_PREFIX) ||
+            EXTENSIONS_VERSION.startsWith(GET_VERSION_PREFIX));
     private static final boolean ADVANCED_API_SUPPORTED = checkForAdvancedAPI();
     private static final boolean INIT_API_SUPPORTED = EXTENSIONS_PRESENT &&
             (!EXTENSIONS_VERSION.startsWith(NON_INIT_VERSION_PREFIX));
     private static final boolean RESULT_API_SUPPORTED = EXTENSIONS_PRESENT &&
             (EXTENSIONS_VERSION.startsWith(RESULTS_VERSION_PREFIX) ||
             EXTENSIONS_VERSION.startsWith(LATENCY_VERSION_PREFIX) ||
+            EXTENSIONS_VERSION.startsWith(VENDOR_EXTENSIONS_PREFIX) ||
             EXTENSIONS_VERSION.startsWith(EFV_VERSION_PREFIX));
+    private static final boolean VENDOR_EXTENSIONS_SUPPORTED = EXTENSIONS_PRESENT &&
+            EXTENSIONS_VERSION.startsWith(VENDOR_EXTENSIONS_PREFIX);
 
     private static HashMap<String, Long> mMetadataVendorIdMap = new HashMap<>();
     private CameraManager mCameraManager;
@@ -565,6 +573,13 @@ public class CameraExtensionsProxyService extends Service {
             case CameraExtensionCharacteristics.EXTENSION_NIGHT:
                 return new NightAdvancedExtenderImpl();
             default:
+                if (Flags.vendorDefinedCameraExtensions() && VENDOR_EXTENSIONS_SUPPORTED) {
+                    AdvancedExtenderCreator creator = AdvancedExtenderCreator.getInstance();
+                    AdvancedExtenderImpl extender = creator.createAdvancedExtender(extensionType);
+                    if (extender != null) {
+                        return extender;
+                    }
+                }
                 throw new IllegalArgumentException("Unknown extension: " + extensionType);
         }
     }
@@ -1334,7 +1349,8 @@ public class CameraExtensionsProxyService extends Service {
         @Override
         public CameraSessionConfig initSession(IBinder token, String cameraId,
                 Map<String, CameraMetadataNative> charsMapNative, OutputSurface previewSurface,
-                OutputSurface imageCaptureSurface, OutputSurface postviewSurface) {
+                OutputSurface imageCaptureSurface, OutputSurface postviewSurface,
+                CaptureRequest sessionParameters) {
             mOutputPreviewSurfaceImpl = new OutputSurfaceImplStub(previewSurface);
             mOutputImageCaptureSurfaceImpl = new OutputSurfaceImplStub(imageCaptureSurface);
             mOutputPostviewSurfaceImpl = new OutputSurfaceImplStub(postviewSurface);
@@ -1350,9 +1366,19 @@ public class CameraExtensionsProxyService extends Service {
                         mOutputImageCaptureSurfaceImpl, null /*imageAnalysisSurfaceConfig*/,
                         mOutputPostviewSurfaceImpl, outputsColorSpace);
 
-                sessionConfig = mSessionProcessor.initSession(cameraId,
-                        getCharacteristicsMap(charsMapNative),
-                        getApplicationContext(), outputSurfaceConfigs);
+                if (Flags.vendorDefinedCameraExtensions() && VENDOR_EXTENSIONS_SUPPORTED) {
+                    HashMap<CaptureRequest.Key<?>, Object> paramMap = new HashMap<>();
+                    for (CaptureRequest.Key captureRequestKey : sessionParameters.getKeys()) {
+                        paramMap.put(captureRequestKey, sessionParameters.get(captureRequestKey));
+                    }
+                    sessionConfig = mSessionProcessor.initSession(cameraId,
+                            getCharacteristicsMap(charsMapNative),
+                            getApplicationContext(), outputSurfaceConfigs, paramMap);
+                } else {
+                    sessionConfig = mSessionProcessor.initSession(cameraId,
+                            getCharacteristicsMap(charsMapNative),
+                            getApplicationContext(), outputSurfaceConfigs);
+                }
             } else {
                 sessionConfig = mSessionProcessor.initSession(cameraId,
                         getCharacteristicsMap(charsMapNative),

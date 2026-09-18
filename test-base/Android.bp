@@ -25,6 +25,9 @@ package {
 // Also contains the com.android.internal.util.Predicate[s] classes.
 java_sdk_library {
     name: "android.test.base",
+    defaults: [
+        "android-api-contributor-defaults",
+    ],
 
     srcs: [
         ":android-test-base-sources",

@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi sarearen hiru barra."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi sarearen seinalea osoa."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Gailura konektatuta."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Gailu honen erabiltzaile guztiek ikus ditzakete sareak, eta haietara konektatu."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Sare irekia"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Sare segurua"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android sistema eragilea"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Erabiltzaile honek ezin ditu APN ezarpenak atzitu"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB bidezko arazketa"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Gaitu arazketa modua USBa konektatzean"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Baliogabetu USB bidezko arazketarako baimenak"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Kendu ADB arazketa egiteko baimenak"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Hari gabeko arazketa"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Arazketa modua wifi-konexioa aktibatuta dagoenean"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Errorea"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Gailua parekatzen…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Ezin izan da parekatu gailua. QR kodea ez da zuzena edo gailua ez dago sare berera konektatuta."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP helbidea eta ataka"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Ez dago erabilgarri (ez da onartzen)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Ez dago erabilgarri (wifia deskonektatuta)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Eskaneatu QR kodea"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Parekatu gailua wifi-sare baten bidez QR kode bat eskaneatuta"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Konektatu wifi-sare batera"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB bidezko arazketa garapen-xedeetarako soilik dago diseinatuta. Erabil ezazu ordenagailuaren eta gailuaren artean datuak kopiatzeko, aplikazioak gailuan jakinarazi gabe instalatzeko eta erregistro-datuak irakurtzeko."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Hari gabeko arazketa baimendu nahi duzu?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Hari gabeko arazketa garapen-xedeetarako soilik dago diseinatuta. Erabil ezazu ordenagailuaren eta gailuaren artean datuak kopiatzeko, gailuan aplikazioak jakinarazi gabe instalatzeko eta erregistroko datuak irakurtzeko."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Aurretik baimendutako ordenagailu guztiei USB bidezko arazketarako sarbidea kendu nahi diezu?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Aurrez baimena eman diezun ordenagailu eta sare guztiei ADB arazketarako sarbidea kendu nahi diezu?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Baimendu garapenerako ezarpenak?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Ezarpen hauek garapen-xedeetarako pentsatu dira soilik. Baliteke ezarpenen eraginez gailua matxuratzea edo funtzionamendu okerra izatea."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Egiaztatu USB bidezko aplik."</string>
@@ -528,8 +531,8 @@
     <string name="power_charging_limited" msgid="4144004473976005214">"<xliff:g id="LEVEL">%1$s</xliff:g>: kargatze-prozesua zain dago bateria babesteko"</string>
     <string name="power_charging_future_paused" msgid="1809543660923642799">"<xliff:g id="LEVEL">%1$s</xliff:g> ‑ Kargatzen"</string>
     <string name="power_fast_charging_duration_v2" msgid="3797735998640359490">"<xliff:g id="LEVEL">%1$s</xliff:g> - <xliff:g id="STATUS">%2$s</xliff:g> - Ordu honetan kargatuko da guztiz: <xliff:g id="TIME">%3$s</xliff:g>"</string>
-    <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> - Ordu honetan kargatuko da guztiz: <xliff:g id="TIME">%2$s</xliff:g>"</string>
-    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Ordu honetan kargatuko da guztiz: <xliff:g id="TIME">%1$s</xliff:g>"</string>
+    <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> - Ordu honetan egongo da guztiz kargatuta: <xliff:g id="TIME">%2$s</xliff:g>"</string>
+    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Ordu honetan egongo da guztiz kargatuta: <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="power_remaining_fast_charging_duration_only_v2" msgid="6270950195810579563">"Ordu honetan kargatuko da guztiz: <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="battery_info_status_unknown" msgid="268625384868401114">"Ezezaguna"</string>
     <string name="battery_info_status_charging" msgid="4279958015430387405">"Kargatzen"</string>
@@ -552,7 +555,7 @@
     <string name="external_source_trusted" msgid="1146522036773132905">"Baimenduta"</string>
     <string name="external_source_untrusted" msgid="5037891688911672227">"Baimendu gabe"</string>
     <string name="install_other_apps" msgid="3232595082023199454">"Instalatu aplikazio ezezagunak"</string>
-    <string name="home" msgid="973834627243661438">"Ezarpenen hasierako pantaila"</string>
+    <string name="home" msgid="973834627243661438">"Ezarpenen orri nagusia"</string>
   <string-array name="battery_labels">
     <item msgid="7878690469765357158">"% 0"</item>
     <item msgid="8894873528875953317">"% 50"</item>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet bidezko konexioa eten da."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Deirik ez."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Teklatu fisikoa"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Aukeratu teklatuaren diseinua"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Lehenetsia"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Pantaila pizteko modua kontrolatzeko aukera"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Eman pantaila pizteko baimena"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Eman pantaila pizteko baimena aplikazioari. Baimena emanez gero, aplikazioak edonoiz piztu ahal izango du pantaila, zuk halako asmorik izan ez arren."</string>

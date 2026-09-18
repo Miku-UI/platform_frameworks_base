@@ -27,11 +27,13 @@ import android.os.Trace
 import android.provider.Settings.Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS
 import android.provider.Settings.Global.ZEN_MODE_OFF
 import android.util.TypedValue
+import android.view.Display
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
+import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -39,8 +41,8 @@ import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.customization.clocks.R as clocksR
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.dagger.qualifiers.DisplaySpecific
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepository
 import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.flags.Flags.REGION_SAMPLING
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
@@ -102,8 +104,7 @@ constructor(
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
     // TODO b/362719719 - We should use the configuration controller associated with the display.
     private val configurationController: ConfigurationController,
-    @DisplaySpecific private val resources: Resources,
-    @DisplaySpecific val context: Context,
+    val context: Context,
     @Main private val mainExecutor: DelayableExecutor,
     @Background private val bgExecutor: Executor,
     private val clockBuffers: ClockMessageBuffers,
@@ -112,9 +113,12 @@ constructor(
     private val zenModeInteractor: ZenModeInteractor,
     private val userTracker: UserTracker,
     private val dozingToLockscreenViewModel: Lazy<DozingToLockscreenTransitionViewModel>,
+    // TODO b/444332073 - We should move all clock classes to the display subcomponent instead.
+    private val displayWindowPropertiesRepository: DisplayWindowPropertiesRepository,
 ) {
     val logger = Logger(clockBuffers.infraMessageBuffer, TAG)
     var isPreview: Boolean = false
+    private val resources = context.resources
 
     var clock: ClockController? = null
         get() = field
@@ -244,7 +248,7 @@ constructor(
     private var isKeyguardVisible = false
     private var isRegistered = false
     private val regionSamplingEnabled = featureFlags.isEnabled(REGION_SAMPLING)
-    private var largeClockOnSecondaryDisplay = false
+    private var largeClockDisplayId = Display.DEFAULT_DISPLAY
 
     val dozeAmount = MutableStateFlow(0f)
     val smallClockBounds = MutableStateFlow<VRectF>(VRectF.ZERO)
@@ -459,6 +463,14 @@ constructor(
 
     fun bind(parent: View): DisposableHandle {
         logger.i({ "bind($str1)" }) { str1 = "$parent" }
+        if (SceneContainerFlag.isEnabled) {
+            val keyguardState = keyguardTransitionInteractor.getStartedState()
+            if (keyguardState == AOD || keyguardState == DOZING) {
+                handleDoze(1f)
+            } else {
+                handleDoze(0f)
+            }
+        }
         return parent.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 listenForDnd(this)
@@ -466,9 +478,7 @@ constructor(
                 listenForAnyStateToAodTransition(this)
                 listenForAnyStateToLockscreenTransition(this)
                 listenForAnyStateToDozingTransition(this)
-                if (com.android.systemui.Flags.newDozingKeyguardStates()) {
-                    listenForDozingToLockscreen(this)
-                }
+                listenForDozingToLockscreen(this)
             }
         }
     }
@@ -532,15 +542,13 @@ constructor(
     }
 
     /**
-     * Sets this clock as showing in a secondary display.
+     * Sets the display ID where the large clock is shown.
      *
-     * Not that this is not necessarily needed, as we could get the displayId from [Context]
-     * directly and infere [largeClockOnSecondaryDisplay] from the id being different than the
-     * default display one. However, if we do so, current screenshot tests would not work, as they
-     * pass an activity context always from the default display.
+     * This is needed to use the correct context/resources when the large clock is on another
+     * display.
      */
-    fun setLargeClockOnSecondaryDisplay(onSecondaryDisplay: Boolean) {
-        largeClockOnSecondaryDisplay = onSecondaryDisplay
+    fun setLargeClockDisplayId(displayId: Int) {
+        largeClockDisplayId = displayId
         updateFontSizes()
     }
 
@@ -571,8 +579,13 @@ constructor(
     }
 
     private fun getLargeClockSizePx(): Float {
-        return if (largeClockOnSecondaryDisplay) {
-            resources.getDimensionPixelSize(clocksR.dimen.presentation_clock_text_size).toFloat()
+        return if (largeClockDisplayId != Display.DEFAULT_DISPLAY) {
+            val context =
+                displayWindowPropertiesRepository.get(largeClockDisplayId, TYPE_STATUS_BAR)?.context
+                    ?: context
+            context.resources
+                .getDimensionPixelSize(clocksR.dimen.presentation_clock_text_size)
+                .toFloat()
         } else {
             resources.getDimensionPixelSize(clocksR.dimen.large_clock_text_size).toFloat()
         }
@@ -643,9 +656,7 @@ constructor(
                 .transition(Edge.create(to = LOCKSCREEN))
                 .filter { it.transitionState == TransitionState.STARTED }
                 .filter { it.from != AOD }
-                .filter {
-                    !com.android.systemui.Flags.newDozingKeyguardStates() || it.from != DOZING
-                }
+                .filter { it.from != DOZING }
                 .collect { handleDoze(0f) }
         }
     }

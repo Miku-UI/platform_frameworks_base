@@ -16,14 +16,10 @@
 
 package com.android.wm.shell.desktopmode
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Rect
 import android.view.Choreographer
 import android.view.SurfaceControl.Transaction
-import android.window.DesktopExperienceFlags
 import android.window.TransitionInfo.Change
 import androidx.core.util.Supplier
 import com.android.wm.shell.animation.FloatProperties
@@ -75,16 +71,12 @@ constructor(val context: Context, val transactionSupplier: Supplier<Transaction>
         }
         val animatorFinishedCallback: () -> Unit = { finishCallback.onTransitionFinished(null) }
 
-        return if (DesktopExperienceFlags.ENABLE_DESKTOP_TAB_TEARING_LAUNCH_ANIMATION.isTrue) {
-            createSpringAnimator(
-                change,
-                draggedTaskBounds,
-                animatorStartedCallback,
-                animatorFinishedCallback,
-            )
-        } else {
-            createAlphaAnimator(change, animatorStartedCallback, animatorFinishedCallback)
-        }
+        return createSpringAnimator(
+            change,
+            draggedTaskBounds,
+            animatorStartedCallback,
+            animatorFinishedCallback,
+        )
     }
 
     private fun createSpringAnimator(
@@ -135,40 +127,6 @@ constructor(val context: Context, val transactionSupplier: Supplier<Transaction>
                 .withEndActions({ onFinish.invoke() })
         )
     }
-
-    private fun createAlphaAnimator(
-        change: Change,
-        onStart: () -> Unit,
-        onFinish: () -> Unit,
-    ): DesktopModeDragAndDropAnimator {
-        val transaction = transactionSupplier.get()
-
-        val alphaAnimator = ValueAnimator()
-        alphaAnimator.setFloatValues(0f, 1f)
-        alphaAnimator.setDuration(FADE_IN_ANIMATION_DURATION)
-
-        alphaAnimator.addListener(
-            object : AnimatorListenerAdapter() {
-                override fun onAnimationStart(animation: Animator) {
-                    onStart.invoke()
-                }
-
-                override fun onAnimationEnd(animation: Animator) {
-                    onFinish.invoke()
-                }
-            }
-        )
-        alphaAnimator.addUpdateListener { animation: ValueAnimator ->
-            transaction.setAlpha(change.leash, animation.animatedFraction)
-            transaction.apply()
-        }
-
-        return DesktopModeDragAndDropAlphaAnimator(alphaAnimator)
-    }
-
-    companion object {
-        const val FADE_IN_ANIMATION_DURATION = 300L
-    }
 }
 
 /**
@@ -182,18 +140,6 @@ constructor(val context: Context, val transactionSupplier: Supplier<Transaction>
 abstract class DesktopModeDragAndDropAnimator {
     /** Starts the specific drag-and-drop animation sequence. */
     abstract fun start()
-}
-
-/**
- * A concrete implementation of [DesktopModeDragAndDropAnimator] specifically designed for animating
- * alpha of the window.
- *
- * @param animator The standard Android [Animator] instance that executes the launch animation.
- */
-class DesktopModeDragAndDropAlphaAnimator(val animator: Animator) :
-    DesktopModeDragAndDropAnimator() {
-
-    override fun start() = animator.start()
 }
 
 /**

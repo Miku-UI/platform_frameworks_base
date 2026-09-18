@@ -18,15 +18,20 @@ package android.security;
 import static android.security.Credentials.ACTION_MANAGE_CREDENTIALS;
 
 import android.Manifest;
+import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.IntDef;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.annotation.WorkerThread;
 import android.app.Activity;
+import android.app.admin.flags.Flags;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ComponentName;
@@ -48,8 +53,11 @@ import android.system.keystore2.Domain;
 import android.system.keystore2.KeyDescriptor;
 import android.util.Log;
 
+import com.android.internal.util.Preconditions;
 import com.android.org.conscrypt.TrustedCertificateStore;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.Serializable;
@@ -62,7 +70,10 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Collection;
+import java.util.concurrent.Executor;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
@@ -181,6 +192,14 @@ public final class KeyChain {
      * Action to bring up the CertInstaller.
      */
     private static final String ACTION_INSTALL = "android.credentials.INSTALL";
+
+    /**
+     * Optional extra to specify whether to suppress the certificate selection dialog.
+     *
+     * @hide
+     */
+    public static final String EXTRA_SUPPRESS_CERTIFICATE_SELECTION =
+            "android.security.extra.SUPPRESS_CERTIFICATE_SELECTION";
 
     /**
      * Optional extra to specify a {@code String} credential name on
@@ -377,6 +396,39 @@ public final class KeyChain {
      */
     public static final int KEY_ATTESTATION_FAILURE = 4;
 
+    /**
+     * Error code indicating that no error occurred during KeyChain selection.
+     * @hide
+     */
+    @FlaggedApi(android.app.admin.flags.Flags.FLAG_KEYCHAIN_SUPPRESS_CERTIFICATE_SELECTIONS)
+    public static final int SELECTION_ERROR_NONE = 0;
+
+    /**
+     * A generic catch-all error code for any KeyChain selection issues not covered by more specific
+     * codes. This ensures forward compatibility as new error types are introduced.
+     */
+    @FlaggedApi(android.app.admin.flags.Flags.FLAG_KEYCHAIN_SUPPRESS_CERTIFICATE_SELECTIONS)
+    public static final int SELECTION_ERROR_OTHER = 1;
+
+    /** Error code indicating that manual certificate selection was required—due to multiple
+     * suitable certificates and no admin policy—but the selection UI was suppressed by the caller.
+     */
+    @FlaggedApi(android.app.admin.flags.Flags.FLAG_KEYCHAIN_SUPPRESS_CERTIFICATE_SELECTIONS)
+    public static final int SELECTION_ERROR_CERTIFICATE_SELECTION_SUPPRESSED = 2;
+
+    /**
+     * Annotation for KeyChain selection error codes.
+     *
+     * @hide
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({
+        KeyChain.SELECTION_ERROR_NONE,
+        KeyChain.SELECTION_ERROR_OTHER,
+        KeyChain.SELECTION_ERROR_CERTIFICATE_SELECTION_SUPPRESSED
+    })
+    public @interface SelectionError {}
+
     private static final int BIND_KEY_CHAIN_SERVICE_TIMEOUT_MS = 30 * 1000;
 
     /**
@@ -448,106 +500,165 @@ public final class KeyChain {
     }
 
     /**
-     * Launches an {@code Activity} for the user to select the alias
-     * for a private key and certificate pair for authentication. The
-     * selected alias or null will be returned via the
+     * Launches an {@code Activity} for the user to select the alias for a private key and
+     * certificate pair for authentication. The selected alias or null will be returned via the
      * KeyChainAliasCallback callback.
      *
-     * <p>A device policy controller (as a device or profile owner) can
-     * intercept the request before the activity is shown, to pick a
-     * specific private key alias by implementing
-     * {@link android.app.admin.DeviceAdminReceiver#onChoosePrivateKeyAlias
-     * onChoosePrivateKeyAlias}.
+     * <p>A device policy controller (as a device or profile owner) can intercept the request before
+     * the activity is shown, to pick a specific private key alias by implementing {@link
+     * android.app.admin.DeviceAdminReceiver#onChoosePrivateKeyAlias onChoosePrivateKeyAlias}.
      *
-     * <p>{@code keyTypes} and {@code issuers} may be used to
-     * narrow down suggested choices to the user. If either {@code keyTypes}
-     * or {@code issuers} is specified and non-empty, and there are no
-     * matching certificates in the KeyChain, then the certificate
-     * selection prompt would be suppressed entirely.
+     * <p>{@code keyTypes} and {@code issuers} may be used to narrow down suggested choices to the
+     * user. If either {@code keyTypes} or {@code issuers} is specified and non-empty, and there are
+     * no matching certificates in the KeyChain, then the certificate selection prompt would be
+     * suppressed entirely.
      *
-     * <p>{@code host} and {@code port} may be used to give the user
-     * more context about the server requesting the credentials.
+     * <p>{@code host} and {@code port} may be used to give the user more context about the server
+     * requesting the credentials.
      *
-     * <p>{@code alias} allows the caller to preselect an existing
-     * alias which will still be subject to user confirmation.
+     * <p>{@code alias} allows the caller to preselect an existing alias which will still be subject
+     * to user confirmation.
      *
-     * @param activity The {@link Activity} context to use for
-     *     launching the new sub-Activity to prompt the user to select
-     *     a private key; used only to call startActivity(); must not
-     *     be null.
-     * @param response Callback to invoke when the request completes;
-     *     must not be null.
-     * @param keyTypes The acceptable types of asymmetric keys such as
-     *     "RSA", "EC" or null.
-     * @param issuers The acceptable certificate issuers for the
-     *     certificate matching the private key, or null.
-     * @param host The host name of the server requesting the
-     *     certificate, or null if unavailable.
-     * @param port The port number of the server requesting the
-     *     certificate, or -1 if unavailable.
-     * @param alias The alias to preselect if available, or null if
-     *     unavailable.
+     * @param activity The {@link Activity} context to use for launching the new sub-Activity to
+     *     prompt the user to select a private key; used only to call startActivity(); must not be
+     *     null.
+     * @param response Callback to invoke when the request completes; must not be null.
+     * @param keyTypes The acceptable types of asymmetric keys such as "RSA", "EC" or null.
+     * @param issuers The acceptable certificate issuers for the certificate matching the private
+     *     key, or null.
+     * @param host The host name of the server requesting the certificate, or null if unavailable.
+     * @param port The port number of the server requesting the certificate, or -1 if unavailable.
+     * @param alias The alias to preselect if available, or null if unavailable.
      */
-    public static void choosePrivateKeyAlias(@NonNull Activity activity,
+    public static void choosePrivateKeyAlias(
+            @NonNull Activity activity,
             @NonNull KeyChainAliasCallback response,
             @Nullable @KeyProperties.KeyAlgorithmEnum String[] keyTypes,
             @Nullable Principal[] issuers,
-            @Nullable String host, int port, @Nullable String alias) {
+            @Nullable String host,
+            int port,
+            @Nullable String alias) {
         Uri uri = null;
         if (host != null) {
-            uri = new Uri.Builder()
-                    .authority(host + (port != -1 ? ":" + port : ""))
-                    .build();
+            uri = new Uri.Builder().authority(host + (port != -1 ? ":" + port : "")).build();
         }
-        choosePrivateKeyAlias(activity, response, keyTypes, issuers, uri, alias);
+        List<String> keyTypesList =
+                (keyTypes != null) ? Arrays.asList(keyTypes) : null;
+        List<Principal> issuersList =
+                (issuers != null) ? Arrays.asList(issuers) : null;
+        choosePrivateKeyAlias(
+                activity,
+                keyTypesList,
+                issuersList,
+                uri,
+                alias,
+                /* suppressCertificateSelection= */ false,
+                Runnable::run,
+                response);
     }
 
     /**
-     * Launches an {@code Activity} for the user to select the alias
-     * for a private key and certificate pair for authentication. The
-     * selected alias or null will be returned via the
+     * Launches an {@code Activity} for the user to select the alias for a private key and
+     * certificate pair for authentication. The selected alias or null will be returned via the
      * KeyChainAliasCallback callback.
      *
-     * <p>A device policy controller (as a device or profile owner) can
-     * intercept the request before the activity is shown, to pick a
-     * specific private key alias by implementing
-     * {@link android.app.admin.DeviceAdminReceiver#onChoosePrivateKeyAlias
-     * onChoosePrivateKeyAlias}.
+     * <p>A device policy controller (as a device or profile owner) can intercept the request before
+     * the activity is shown, to pick a specific private key alias by implementing {@link
+     * android.app.admin.DeviceAdminReceiver#onChoosePrivateKeyAlias onChoosePrivateKeyAlias}.
      *
-     * <p>{@code keyTypes} and {@code issuers} may be used to
-     * narrow down suggested choices to the user. If either {@code keyTypes}
-     * or {@code issuers} is specified and non-empty, and there are no
-     * matching certificates in the KeyChain, then the certificate
-     * selection prompt would be suppressed entirely.
+     * <p>{@code keyTypes} and {@code issuers} may be used to narrow down suggested choices to the
+     * user. If either {@code keyTypes} or {@code issuers} is specified and non-empty, and there are
+     * no matching certificates in the KeyChain, then the certificate selection prompt would be
+     * suppressed entirely.
      *
-     * <p>{@code uri} may be used to give the user more context about
-     * the server requesting the credentials.
+     * <p>{@code uri} may be used to give the user more context about the server requesting the
+     * credentials.
      *
-     * <p>{@code alias} allows the caller to preselect an existing
-     * alias which will still be subject to user confirmation.
+     * <p>{@code alias} allows the caller to preselect an existing alias which will still be subject
+     * to user confirmation.
      *
-     * @param activity The {@link Activity} context to use for
-     *     launching the new sub-Activity to prompt the user to select
-     *     a private key; used only to call startActivity(); must not
-     *     be null.
-     * @param response Callback to invoke when the request completes;
-     *     must not be null.
-     * @param keyTypes The acceptable types of asymmetric keys such as
-     *     "RSA", "EC" or null.
-     * @param issuers The acceptable certificate issuers for the
-     *     certificate matching the private key, or null.
-     * @param uri The full URI the server is requesting the certificate
-     *     for, or null if unavailable.
-     * @param alias The alias to preselect if available, or null if
-     *     unavailable.
-     * @throws IllegalArgumentException if the specified issuers are not
-     *     of type {@code X500Principal}.
+     * @param activity The {@link Activity} context to use for launching the new sub-Activity to
+     *     prompt the user to select a private key; used only to call startActivity(); must not be
+     *     null.
+     * @param response Callback to invoke when the request completes; must not be null.
+     * @param keyTypes The acceptable types of asymmetric keys such as "RSA", "EC" or null.
+     * @param issuers The acceptable certificate issuers for the certificate matching the private
+     *     key, or null.
+     * @param uri The full URI the server is requesting the certificate for, or null if unavailable.
+     * @param alias The alias to preselect if available, or null if unavailable.
+     * @throws IllegalArgumentException if the specified issuers are not of type {@code
+     *     X500Principal}.
      */
-    public static void choosePrivateKeyAlias(@NonNull Activity activity,
+    public static void choosePrivateKeyAlias(
+            @NonNull Activity activity,
             @NonNull KeyChainAliasCallback response,
             @Nullable @KeyProperties.KeyAlgorithmEnum String[] keyTypes,
             @Nullable Principal[] issuers,
-            @Nullable Uri uri, @Nullable String alias) {
+            @Nullable Uri uri,
+            @Nullable String alias) {
+        List<String> keyTypesList =
+                (keyTypes != null) ? Arrays.asList(keyTypes) : null;
+        List<Principal> issuersList =
+                (issuers != null) ? Arrays.asList(issuers) : null;
+        choosePrivateKeyAlias(
+                activity,
+                keyTypesList,
+                issuersList,
+                uri,
+                alias,
+                /* suppressCertificateSelection= */ false,
+                Runnable::run,
+                response);
+    }
+
+    /**
+     * Launches an {@code Activity} for the user to select the alias for a private key and
+     * certificate pair for authentication. The selected alias or null will be returned via the
+     * KeyChainAliasCallback callback.
+     *
+     * <p>A device policy controller (as a device or profile owner) can intercept the request before
+     * the activity is shown, to pick a specific private key alias by implementing {@link
+     * android.app.admin.DeviceAdminReceiver#onChoosePrivateKeyAlias onChoosePrivateKeyAlias}.
+     *
+     * <p>{@code keyTypes} and {@code issuers} may be used to narrow down suggested choices to the
+     * user. If either {@code keyTypes} or {@code issuers} is specified and non-empty, and there are
+     * no matching certificates in the KeyChain, then the certificate selection prompt would be
+     * suppressed entirely.
+     *
+     * <p>{@code uri} may be used to give the user more context about the server requesting the
+     * credentials.
+     *
+     * <p>{@code alias} allows the caller to preselect an existing alias which will still be subject
+     * to user confirmation.
+     *
+     * @param activity The {@link Activity} context to use for launching the new sub-Activity to
+     *     prompt the user to select a private key; used only to call startActivity(); must not be
+     *     null.
+     * @param response Callback to invoke when the request completes; must not be null.
+     * @param keyTypes The acceptable types of asymmetric keys such as "RSA", "EC".
+     *     Pass {@code null} to not filter by key type.
+     * @param issuers The acceptable certificate issuers for the certificate matching the private
+     *     key. Pass {@code null} to not filter by issuer.
+     * @param uri The full URI the server is requesting the certificate for, or null if unavailable.
+     * @param alias The alias to preselect if available, or null if unavailable.
+     * @param suppressCertificateSelection Specifies whether to suppress the certificate selection
+     *     dialog. If {@code true}, the KeyChain will not display any UI during the request. In
+     *     scenarios where a user prompt would normally be required—such as when multiple matching
+     *     certificates exist—the request will instead terminate and trigger {@link
+     *     KeyChainAliasCallback#onError}.
+     * @throws IllegalArgumentException if the specified issuers are not of type {@code
+     *     X500Principal}.
+     */
+    @FlaggedApi(android.app.admin.flags.Flags.FLAG_KEYCHAIN_SUPPRESS_CERTIFICATE_SELECTIONS)
+    public static void choosePrivateKeyAlias(
+            @NonNull Activity activity,
+            @Nullable List<@KeyProperties.KeyAlgorithmEnum String> keyTypes,
+            @Nullable List<Principal> issuers,
+            @Nullable Uri uri,
+            @Nullable String alias,
+            boolean suppressCertificateSelection,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull KeyChainAliasCallback response) {
         /*
          * Specifying keyTypes excludes certificates with different key types
          * from the list of certificates presented to the user.
@@ -571,12 +682,25 @@ public final class KeyChain {
         if (response == null) {
             throw new NullPointerException("response == null");
         }
+        if (keyTypes == null) {
+            keyTypes = Collections.emptyList();
+        }
+        if (issuers == null) {
+            keyTypes = Collections.emptyList();
+        }
+        if (executor == null) {
+            throw new NullPointerException("executor == null");
+        }
         Intent intent = new Intent(ACTION_CHOOSER);
         intent.setPackage(KEYCHAIN_PACKAGE);
-        intent.putExtra(EXTRA_RESPONSE, new AliasResponse(response));
+        intent.putExtra(EXTRA_RESPONSE, new AliasResponse(response, executor));
         intent.putExtra(EXTRA_URI, uri);
         intent.putExtra(EXTRA_ALIAS, alias);
-        intent.putExtra(EXTRA_KEY_TYPES, keyTypes);
+        String[] keyTypesArray = keyTypes.toArray(new String[0]);
+        intent.putExtra(EXTRA_KEY_TYPES, keyTypesArray);
+        if (Flags.keychainSuppressCertificateSelections()) {
+            intent.putExtra(EXTRA_SUPPRESS_CERTIFICATE_SELECTION, suppressCertificateSelection);
+        }
         ArrayList<byte[]> issuersList = new ArrayList();
         if (issuers != null) {
             for (Principal issuer: issuers) {
@@ -713,11 +837,18 @@ public final class KeyChain {
 
     private static class AliasResponse extends IKeyChainAliasCallback.Stub {
         private final KeyChainAliasCallback keyChainAliasResponse;
-        private AliasResponse(KeyChainAliasCallback keyChainAliasResponse) {
+        private final @NonNull Executor mExecutor;
+        private AliasResponse(KeyChainAliasCallback keyChainAliasResponse,
+                @NonNull @CallbackExecutor Executor executor) {
             this.keyChainAliasResponse = keyChainAliasResponse;
+            this.mExecutor = executor;
         }
         @Override public void alias(String alias) {
-            keyChainAliasResponse.alias(alias);
+            mExecutor.execute(() -> keyChainAliasResponse.alias(alias));
+        }
+
+        @Override public void onError(int error) {
+            mExecutor.execute(() -> keyChainAliasResponse.onError(error));
         }
     }
 

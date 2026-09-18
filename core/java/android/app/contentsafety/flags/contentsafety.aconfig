@@ -1,0 +1,10 @@
+package: "android.app.contentsafety.flags"
+container: "system"
+
+flag {
+    name: "enable_contentsafety"
+    namespace: "ondevicesafety"
+    description: "Make methods on ContentSafety available for local inference."
+    bug: "432774294"
+    is_exported: true
+}

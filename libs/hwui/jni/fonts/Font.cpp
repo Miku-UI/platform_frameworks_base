@@ -168,7 +168,7 @@ static jfloat Font_getGlyphBounds(JNIEnv* env, jobject, jlong fontHandle, jint g
     uint16_t glyph16 = glyphId;
     SkRect skBounds;
     SkScalar skWidth;
-    skFont->getWidthsBounds(&glyph16, 1, &skWidth, &skBounds, nullptr);
+    skFont->getWidthsBounds({&glyph16, 1}, {&skWidth, 1}, {&skBounds, 1}, nullptr);
     GraphicsJNI::rect_to_jrectf(skBounds, env, rect);
     return SkScalarToFloat(skWidth);
 }

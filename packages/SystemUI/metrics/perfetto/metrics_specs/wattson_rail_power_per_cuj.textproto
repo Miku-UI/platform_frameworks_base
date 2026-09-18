@@ -1,0 +1,44 @@
+metric_template_spec {
+  id_prefix: "wattson_rail_cuj"
+
+  # ==========================================================
+  # Dimensions
+  # ==========================================================
+
+  dimensions: "period_id"
+  dimensions: "period_name"
+  dimensions: "subsystem"
+  dimensions: "breakdown_type"
+
+  # ==========================================================
+  # Values
+  # ==========================================================
+
+  value_columns: "period_dur"
+  value_columns: "estimated_mws"
+  value_columns: "estimated_mw"
+
+  # ==========================================================
+  # Query (Data Source)
+  # ==========================================================
+
+  query {
+    sql {
+      sql: "SELECT
+                metrics.period_id,
+                cuj.cuj_name AS period_name,
+                metrics.subsystem,
+                metrics.breakdown_type,
+                metrics.period_dur,
+                metrics.estimated_mw,
+                metrics.estimated_mws
+            FROM wattson_rails_aggregation!(wattson_window_atrace_apps) AS metrics
+            JOIN android_jank_cuj AS cuj
+            ON cuj.cuj_id = metrics.period_id
+            AND metrics.breakdown_type = 'TOTAL'"
+    }
+    referenced_modules: "wattson.aggregation"
+    referenced_modules: "wattson.windows"
+    referenced_modules: "android.cujs.base"
+  }
+}

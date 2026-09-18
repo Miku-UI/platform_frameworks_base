@@ -20,9 +20,11 @@ import android.content.Context
 import com.android.systemui.customization.clocks.R as clocksR
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardSmartspaceInteractor
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.lockscreen.LockscreenSmartspaceController
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -41,15 +43,13 @@ constructor(
     keyguardClockViewModel: KeyguardClockViewModel,
     smartspaceInteractor: KeyguardSmartspaceInteractor,
     shadeModeInteractor: ShadeModeInteractor,
+    keyguardInteractor: KeyguardInteractor,
 ) {
     /** Whether the smartspace section is available in the build. */
     val isSmartspaceEnabled: Boolean = smartspaceController.isEnabled
 
     /** Whether the weather area is available and enabled. */
     val isWeatherEnabled: Flow<Boolean> = smartspaceInteractor.isWeatherEnabled
-
-    /** Whether the data and weather areas are decoupled in the build. */
-    val isDateWeatherDecoupled: Boolean = smartspaceController.isDateWeatherDecoupled
 
     @Deprecated("Remove after flexiglass ships")
     /** Whether the date area should be visible. */
@@ -103,8 +103,12 @@ constructor(
         return (!clockIncludesCustomWeatherDisplay || !isLargeClockVisible) && isWeatherEnabled
     }
 
+    val isDozing: StateFlow<Boolean> = keyguardInteractor.isDozing
+
     /* trigger clock and smartspace constraints change when smartspace appears */
     val bcSmartspaceVisibility: StateFlow<Int> = smartspaceInteractor.bcSmartspaceVisibility
+
+    val shadeMode: StateFlow<ShadeMode> = shadeModeInteractor.shadeMode
 
     val isFullWidthShade: StateFlow<Boolean> = shadeModeInteractor.isFullWidthShade
 

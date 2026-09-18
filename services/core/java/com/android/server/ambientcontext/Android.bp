@@ -1,0 +1,11 @@
+aconfig_declarations {
+    name: "ambientcontext_flags",
+    package: "com.android.server.ambientcontext",
+    container: "system",
+    srcs: ["*.aconfig"],
+}
+
+java_aconfig_library {
+    name: "ambientcontext_flags_lib",
+    aconfig_declarations: "ambientcontext_flags",
+}

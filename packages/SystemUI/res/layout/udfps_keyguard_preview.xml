@@ -37,6 +37,6 @@
         app:lottie_autoPlay="false"
         app:lottie_loop="false"
         app:lottie_progress="1.0"
-        app:lottie_colorFilter="?android:attr/textColorPrimary"
+        app:lottie_colorFilter="@color/materialColorOnSurface"
         app:lottie_rawRes="@raw/udfps_lockscreen_fp" />
 </androidx.constraintlayout.widget.ConstraintLayout >

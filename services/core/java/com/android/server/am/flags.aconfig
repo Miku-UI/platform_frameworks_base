@@ -2,10 +2,13 @@ package: "com.android.server.am"
 container: "system"
 
 flag {
-    name: "fgs_abuse_detection"
-    namespace: "backstage_power"
-    description: "Detect abusive FGS behavior for certain types (camera, mic, media, location)."
-    bug: "295545575"
+    name: "fgs_wiu_qs_tile_clicked"
+    namespace: "responsible_apis"
+    description: "Whether to allow while-in-use permissions in FGS when QS tile is clicked"
+    bug: "299952896"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -46,27 +49,26 @@ flag {
     is_fixed_read_only: true
 }
 
+
 flag {
-    name: "enable_dropbox_watchdog_headers"
-    namespace: "stability"
-    description: "Add watchdog-specific dropbox headers"
-    bug: "330682397"
-    is_fixed_read_only: true
+    name: "memory_limiter_enable"
+    namespace: "system_performance"
+    description: "Enable the memory limiter"
+    bug: "461546255"
 }
 
 flag {
-    name: "logcat_longer_timeout"
-    namespace: "stability"
-    description: "Wait longer during the logcat gathering operation"
-    bug: "292533246"
-    is_fixed_read_only: true
+    name: "memory_limiter_default_app_limits"
+    namespace: "system_performance"
+    description: "Turn on default app limits"
+    bug: "467691174"
 }
 
 flag {
-    name: "push_global_state_to_oomadjuster"
-    namespace: "backstage_power"
-    description: "Migrate OomAdjuster pulled device state to a push model"
-    bug: "302575389"
+    name: "memory_limiter_trigger"
+    namespace: "system_performance"
+    description: "Generate a ProfileManager trigger on over-memory events"
+    bug: "471000543"
 }
 
 flag {
@@ -110,20 +112,30 @@ flag {
 }
 
 flag {
-    name: "cpu_time_capability_based_freeze_policy"
+    name: "prototype_aggressive_freezing"
     namespace: "backstage_power"
-    description: "Use PROCESS_CAPABILITY_CPU_TIME and PROCESS_CAPABILITY_IMPLICIT_CPU_TIME to control process freeze state."
-    bug: "370817323"
+    description: "Grant PROCESS_CAPABILITY_CPU_TIME to as many valid states and aggressively freeze other states"
+    bug: "370798593"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "prototype_aggressive_freezing"
+    name: "enable_capability_controller_computation"
     namespace: "backstage_power"
-    description: "Grant PROCESS_CAPABILITY_CPU_TIME to as many valid states and aggressively freeze other states"
-    bug: "370798593"
+    description: "Enable capability controller computation with no side-effect"
+    bug: "466961280"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_procstate_controller_computation"
+    namespace: "backstage_power"
+    description: "Enable ProcStateController computation with no side-effect"
+    bug: "479360024"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -147,17 +159,6 @@ flag {
 }
 
 flag {
-    name: "lower_sms_oom_importance"
-    namespace: "backstage_power"
-    description: "Lower messaging app process oom importance to PERCEPTIBLE_APP_ADJ + 1."
-    bug: "372511805"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "limit_logcat_collection"
     namespace: "stability"
     description: "Limit the number of logcat logs included to fit in dropbox entries"
@@ -169,36 +170,6 @@ flag {
     namespace: "backstage_power"
     description: "Consolidate collectReachable usage to one implementation."
     bug: "364936739"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "syncmanager_off_main_thread"
-    namespace: "backstage_power"
-    description: "Move broadcast receivers off the main thread to reduce ANR chances"
-    bug: "409177829"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "push_broadcast_state_to_oomadjuster"
-    namespace: "backstage_power"
-    description: "Migrate OomAdjuster pulled broadcast state to a push model"
-    bug: "401350498"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "push_activity_state_to_oomadjuster"
-    namespace: "backstage_power"
-    description: "Migrate OomAdjuster pulled activity state to a push model"
-    bug: "401350380"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -244,19 +215,44 @@ flag {
 }
 
 flag {
-    name: "psc_batch_update"
+    name: "set_initial_oom_score_adj"
     namespace: "backstage_power"
-    description: "Batch ProcessStateController updates triggered while a BatchSession is active."
-    bug: "399680824"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Set inital oom_score_adj for a process being started"
+    bug: "458135219"
 }
 
 flag {
-    name: "rollout_computer_control"
+    name: "set_initial_oom_score_adj_for_type_broadcast"
+    namespace: "backstage_power"
+    description: "Set inital oom_score_adj for a process being started for type broadcast"
+    bug: "458135219"
+}
+
+flag {
+    name: "set_initial_oom_score_adj_for_type_added_application"
+    namespace: "backstage_power"
+    description: "Set inital oom_score_adj for a process being started for type added application"
+    bug: "458135219"
+}
+
+flag {
+    name: "set_initial_oom_score_adj_for_type_link_failed"
+    namespace: "backstage_power"
+    description: "Set inital oom_score_adj for a process being started for type link failed"
+    bug: "458135219"
+}
+
+flag {
+    name: "set_initial_oom_score_adj_for_type_on_hold"
+    namespace: "backstage_power"
+    description: "Set inital oom_score_adj for a process being started for type on hold"
+    bug: "458135219"
+}
+
+flag {
+    name: "rollout_pixel_faceauth"
     namespace: "core_experiments_team_internal"
-    description: "Rolls out the computer_control namespace."
+    description: "Rolls out the pixel_faceauth namespace."
     bug: "436480687"
     metadata {
         purpose: PURPOSE_BUGFIX
@@ -267,18 +263,170 @@ flag {
     name: "psc_batch_service_updates"
     namespace: "backstage_power"
     description: "Batch Service related ProcessStateController updates and auto trigger the update on state changes."
-    bug: "399680824"
+    bug: "452726859"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "app_start_info_process_name_fix"
+    name: "unsampled_compact_atom_logging"
     namespace: "system_performance"
-    description: "Use process name to lookup ProcessRecord."
-    bug: "443136429"
+    description: "Whether to log 100% of APP_COMPACTED_V2 atoms."
+    bug: "450077375"
     metadata {
         purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "service_check_calling_pkg"
+    namespace: "backstage_power"
+    description: "Throw security exception on service APIs if calling package doesn't match calling uid."
+    bug: "308138385"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_zram_writeback"
+    namespace: "system_performance"
+    description: "Enable zram writeback after app compaction."
+    bug: "450670546"
+}
+
+flag {
+    name: "log_zram_writeback_events"
+    namespace: "system_performance"
+    description: "Whether to log zram writeback events, regardless of whether the writeback is enabled."
+    bug: "450670546"
+}
+
+flag {
+    name: "fgs_visibility_fix"
+    namespace: "backstage_power"
+    description: "Fix for foreground service visibility in Task Manager"
+    bug: "417784630"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fgs_delegate_system_api"
+    namespace: "backstage_power"
+    description: "Whether to use new System APIs to start and stop FGS delegation."
+    is_exported: true
+    bug: "303241170"
+}
+
+flag {
+    name: "get_package_names_for_pid_api"
+    namespace: "backstage_power"
+    description: "Enable getting package names for a PID."
+    is_exported: true
+    bug: "456466241"
+}
+
+flag {
+    name: "simplify_toast_importance"
+    namespace: "backstage_power"
+    description: "Simplifies the process importance mechanism for visible toasts"
+    bug: "473067328"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+
+flag {
+    name: "use_safesetid_uid_policy2"
+    namespace: "backstage_power"
+    description: "Use SafeSetID to enforce UID policies instead of SELinux filters"
+    bug: "414893665"
+}
+
+flag {
+    name: "error_dialog_for_visible_background_users"
+    namespace: "multiuser"
+    description: "Show Error dialog for visible background user on their assigned display"
+    bug: "442905483"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "batch_power_manager_calls"
+    namespace: "backstage_power"
+    description: "Batch PowerManagerInternal calls to reduce the lock contention."
+    bug: "470251713"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "psc_auto_update_broadcast_state"
+    namespace: "backstage_power"
+    description: "Automatically trigger OomAdjuster updates from ProcessStateController on Broadcast state changes."
+    bug: "450079190"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wear_use_default_max_cache_process"
+    namespace: "watch_software_performance"
+    description: "Use the default limit for max. number of cached apps (1024) instead of 32."
+    bug: "478278155"
+}
+
+flag {
+    name: "defer_service_restart_when_frozen"
+    namespace: "backstage_power"
+    description: "Defer service restart if all its binding clients are frozen."
+    bug: "478967958"
+}
+
+flag {
+    name: "incremental_has_above_client"
+    namespace: "backstage_power"
+    description: "Enable incremental reference counting (O(1)) for hasAboveClient state management for shadow-verification against existing connection scanning (O(N))."
+    bug: "434001398"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "encapsulate_cur_proc_state"
+    namespace: "backstage_power"
+    description: "Use setProcState instead of curProcState outside of psc package."
+    bug: "485394632"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "encapsulate_cur_oom_adj"
+    namespace: "backstage_power"
+    description: "Use setAdj instead of curAdj and curRawAdj outside of psc package."
+    bug: "489901078"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "explicit_cpu_capability_for_top_processes"
+    namespace: "backstage_power"
+    description: "Enables explicit handling of CPU capabilities for top processes, rather than granting by default."
+    bug: "483177131"
+    metadata {
+       purpose: PURPOSE_BUGFIX
     }
 }

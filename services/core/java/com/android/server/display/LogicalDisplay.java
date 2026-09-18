@@ -16,8 +16,11 @@
 
 package com.android.server.display;
 
+import static android.view.Display.Mode.FLAG_ANISOTROPY_CORRECTION;
+import static android.view.Display.Mode.FLAG_SIZE_OVERRIDE;
 import static android.view.Display.Mode.INVALID_MODE_ID;
 
+import static com.android.server.display.DisplayDeviceInfo.FLAG_ALLOWS_CONTENT_MODE_SWITCH;
 import static com.android.server.display.DisplayDeviceInfo.TOUCH_NONE;
 import static com.android.server.display.layout.Layout.Display.POSITION_REAR;
 import static com.android.server.wm.utils.DisplayInfoOverrides.WM_OVERRIDE_FIELDS;
@@ -31,7 +34,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManagerInternal;
 import android.util.ArraySet;
-import android.util.DisplayMetrics;
+import android.util.CopyOnWriteSparseArray;
 import android.util.IndentingPrintWriter;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -44,13 +47,16 @@ import android.view.SurfaceControl;
 import com.android.server.display.feature.flags.Flags;
 import com.android.server.display.layout.Layout;
 import com.android.server.display.mode.DisplayModeDirector;
-import com.android.server.display.mode.SyntheticModeManager;
+import com.android.server.display.utils.DebugTransactionDetails;
+import com.android.server.display.utils.DebugUtils;
 import com.android.server.wm.utils.InsetUtils;
+import com.android.settingslib.display.DisplayDensityConfiguration;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 
 /**
  * Describes how a logical display is configured.
@@ -80,18 +86,16 @@ import java.util.Objects;
  */
 final class LogicalDisplay {
     private static final String TAG = "LogicalDisplay";
+
+    // To enable these logs, run:
+    // 'adb shell setprop log.tag.LogicalDisplay DEBUG && adb reboot'
+    private static final boolean DEBUG = DebugUtils.isDebuggable(TAG);
+
     // The layer stack we use when the display has been blanked to prevent any
     // of its content from appearing.
     private static final int BLANK_LAYER_STACK = -1;
 
     private static final DisplayInfo EMPTY_DISPLAY_INFO = new DisplayInfo();
-
-    private static final double DEFAULT_DISPLAY_SIZE = 24.0;
-    // Touch target size 10.4mm in inches (divided by mm per inch 25.4)
-    private static final double EXTERNAL_DISPLAY_BASE_TOUCH_TARGET_SIZE_IN_INCHES = 10.4 / 25.4;
-    private static final int EXTERNAL_DISPLAY_MIN_DENSITY_DPI = 100;
-
-    private static final double BASE_TOUCH_TARGET_SIZE_DP = 48.0;
 
     private final DisplayInfo mBaseDisplayInfo = new DisplayInfo();
     private final int mDisplayId;
@@ -151,6 +155,14 @@ final class LogicalDisplay {
      * @see #setDisplayScalingDisabledLocked(boolean)
      */
     private boolean mDisplayScalingDisabled;
+
+    /**
+     * {@code true} provides a hint to the compositor that the display should be optimized for
+     * power.
+     * @see #isPowerOptimizationEnabledLocked()
+     * @see #setPowerOptimizationLocked(boolean)
+     */
+    private boolean mPowerOptimizationEnabled;
 
     // Temporary rectangle used when needed.
     private final Rect mTempLayerStackRect = new Rect();
@@ -220,27 +232,19 @@ final class LogicalDisplay {
     private SparseArray<SurfaceControl.RefreshRateRange> mThermalRefreshRateThrottling =
             new SparseArray<>();
 
-    /**
-     * Modes with corrected anisotropy are supplied by LocalDisplayAdapter, no anisotropy
-     * calculation is needed on LocalDisplay side. User selected resolution is scaled to fit
-     * physical resolution of the display.
-     */
-    private final boolean mIsAnisotropicModesEnabled;
-
     private final boolean mSyncedResolutionSwitchEnabled;
 
-    private final boolean mSyntheticModesV2Enabled;
-    private final boolean mSizeOverrideEnabled;
-
     private boolean mCanHostTasks;
+    private final CopyOnWriteSparseArray<CachedDisplayInfo> mDisplayInfoCache;
 
-    LogicalDisplay(int displayId, int layerStack, DisplayDevice primaryDisplayDevice) {
-        this(displayId, layerStack, primaryDisplayDevice, false, true, false);
+    LogicalDisplay(int displayId, int layerStack, DisplayDevice primaryDisplayDevice,
+            CopyOnWriteSparseArray<CachedDisplayInfo> displayInfoCache) {
+        this(displayId, layerStack, primaryDisplayDevice, false, displayInfoCache);
     }
 
     LogicalDisplay(int displayId, int layerStack, DisplayDevice primaryDisplayDevice,
-            boolean isSyncedResolutionSwitchEnabled, boolean syntheticModesV2Enabled,
-            boolean sizeOverrideEnabled) {
+            boolean isSyncedResolutionSwitchEnabled,
+            CopyOnWriteSparseArray<CachedDisplayInfo> displayInfoCache) {
         mDisplayId = displayId;
         mLayerStack = layerStack;
         mPrimaryDisplayDevice = primaryDisplayDevice;
@@ -252,10 +256,8 @@ final class LogicalDisplay {
         mPowerThrottlingDataId = DisplayDeviceConfig.DEFAULT_ID;
         mBaseDisplayInfo.thermalBrightnessThrottlingDataId = mThermalBrightnessThrottlingDataId;
         mSyncedResolutionSwitchEnabled = isSyncedResolutionSwitchEnabled;
-        mSyntheticModesV2Enabled = syntheticModesV2Enabled;
-        mSizeOverrideEnabled = sizeOverrideEnabled;
+        mDisplayInfoCache = displayInfoCache;
 
-        mIsAnisotropicModesEnabled = Flags.enableAnisotropyCorrectedModes();
         // No need to initialize mCanHostTasks here; it's handled in
         // DisplayManagerService#setupLogicalDisplay().
     }
@@ -277,6 +279,13 @@ final class LogicalDisplay {
      */
     public int getDisplayIdLocked() {
         return mDisplayId;
+    }
+
+    /**
+     * Gets the ID of the display group to which this logical display belongs.
+     */
+    public int getDisplayGroupIdLocked() {
+        return mDisplayGroupId;
     }
 
     /**
@@ -306,13 +315,17 @@ final class LogicalDisplay {
 
     /**
      * Computes the current display information based on the base and override info.
-     *
-     * Warning: this does not update the cache.
+     * <p>
+     * Warning: this updates cache on system server side.
      */
     private DisplayInfo computeCurrentDisplayInfoLocked() {
         DisplayInfo info = new DisplayInfo();
         copyDisplayInfoFields(info, mBaseDisplayInfo, mOverrideDisplayInfo,
                 WM_OVERRIDE_FIELDS);
+        if (info.supportedModes.length > 0) {
+            mDisplayInfoCache.put(info.displayId,
+                    new CachedDisplayInfo(mIsEnabled, info, mFrameRateOverrides));
+        }
         return info;
     }
 
@@ -320,7 +333,7 @@ final class LogicalDisplay {
         return mInfo.getDisplayInfoGroupsChanged();
     }
 
-    public DisplayInfo.DisplayInfoChangeSource getDisplayInfoChangeSource() {
+    public DisplayInfo.DisplayInfoChangeSource getDisplayInfoChangeSourceLocked() {
         return mInfo.getDisplayInfoChangeSource();
     }
 
@@ -445,8 +458,7 @@ final class LogicalDisplay {
      *
      * @param deviceRepo Repository of active {@link DisplayDevice}s.
      */
-    public void updateLocked(DisplayDeviceRepository deviceRepo,
-            SyntheticModeManager syntheticModeManager) {
+    public void updateLocked(DisplayDeviceRepository deviceRepo) {
         // Nothing to update if already invalid.
         if (mPrimaryDisplayDevice == null) {
             return;
@@ -531,7 +543,7 @@ final class LogicalDisplay {
             float currentYDpi = deviceInfo.yDpi;
 
             Display.Mode sizeOverrideMode = getUserPreferredModeForSizeOverrideLocked(deviceInfo);
-            if (sizeOverrideMode != null && mSizeOverrideEnabled) {
+            if (sizeOverrideMode != null) {
                 currentWidth = sizeOverrideMode.getPhysicalWidth();
                 currentHeight = sizeOverrideMode.getPhysicalHeight();
                 currentXDpi = currentXDpi * (currentWidth / (float) deviceInfo.width);
@@ -541,16 +553,6 @@ final class LogicalDisplay {
             Rect maskingInsets = getMaskingInsets(deviceInfo);
             int maskedWidth = currentWidth - maskingInsets.left - maskingInsets.right;
             int maskedHeight = currentHeight - maskingInsets.top - maskingInsets.bottom;
-
-            if (!mIsAnisotropicModesEnabled
-                    && deviceInfo.type == Display.TYPE_EXTERNAL
-                        && currentXDpi > 0 && currentYDpi > 0) {
-                if (currentXDpi > currentYDpi * DisplayDevice.MAX_ANISOTROPY) {
-                    maskedHeight = (int) (maskedHeight * currentXDpi / currentYDpi + 0.5);
-                } else if (currentXDpi * DisplayDevice.MAX_ANISOTROPY < currentYDpi) {
-                    maskedWidth = (int) (maskedWidth * currentYDpi / currentXDpi + 0.5);
-                }
-            }
 
             mBaseDisplayInfo.type = deviceInfo.type;
             mBaseDisplayInfo.address = deviceInfo.address;
@@ -568,14 +570,11 @@ final class LogicalDisplay {
             mBaseDisplayInfo.frameRateCategoryRate = deviceInfo.frameRateCategoryRate;
             mBaseDisplayInfo.supportedRefreshRates = Arrays.copyOf(
                     deviceInfo.supportedRefreshRates, deviceInfo.supportedRefreshRates.length);
+            mBaseDisplayInfo.frameRateVelocityMapping = config.getFrameRateVelocityMapping();
             mBaseDisplayInfo.defaultModeId = deviceInfo.defaultModeId;
             mBaseDisplayInfo.userPreferredModeId = deviceInfo.userPreferredModeId;
             mBaseDisplayInfo.supportedModes = Arrays.copyOf(
                     deviceInfo.supportedModes, deviceInfo.supportedModes.length);
-            mBaseDisplayInfo.appsSupportedModes = mSyntheticModesV2Enabled
-                    ? Arrays.copyOf(deviceInfo.supportedModes, deviceInfo.supportedModes.length)
-                    : syntheticModeManager.createAppSupportedModes(config,
-                            mBaseDisplayInfo.supportedModes, mBaseDisplayInfo.hasArrSupport);
             mBaseDisplayInfo.colorMode = deviceInfo.colorMode;
             mBaseDisplayInfo.supportedColorModes = Arrays.copyOf(
                     deviceInfo.supportedColorModes,
@@ -587,8 +586,8 @@ final class LogicalDisplay {
                     deviceInfo.allmSupported || deviceInfo.gameContentTypeSupported;
             mBaseDisplayInfo.logicalDensityDpi = deviceInfo.densityDpi > 0
                     ? deviceInfo.densityDpi
-                    : calculateBaseDensity(currentXDpi, currentYDpi, maskedWidth,
-                            maskedHeight);
+                    : DisplayDensityConfiguration.calculateBaseDensity(currentXDpi, currentYDpi,
+                            maskedWidth, maskedHeight);
             mBaseDisplayInfo.physicalXDpi = currentXDpi;
             mBaseDisplayInfo.physicalYDpi = currentYDpi;
             mBaseDisplayInfo.appVsyncOffsetNanos = deviceInfo.appVsyncOffsetNanos;
@@ -639,30 +638,22 @@ final class LogicalDisplay {
         }
     }
 
-    private int calculateBaseDensity(float xDpi, float yDpi, int width, int height) {
-        // physical pixel density of the display
-        double ppi;
-        if (xDpi > 0 && yDpi > 0) {
-            ppi = Math.sqrt((Math.pow(xDpi, 2)
-                    + Math.pow(yDpi, 2)) / 2);
-        } else {
-            // xDPI and yDPI is missing, calculate DPI from display resolution and
-            // default display size
-            ppi = Math.sqrt(Math.pow(width, 2) + Math.pow(height, 2))
-                    / DEFAULT_DISPLAY_SIZE;
-        }
-        // pixels needed to achieve target touch target size
-        double pixels = ppi * EXTERNAL_DISPLAY_BASE_TOUCH_TARGET_SIZE_IN_INCHES;
-        double dpi =
-                pixels * DisplayMetrics.DENSITY_DEFAULT / BASE_TOUCH_TARGET_SIZE_DP;
-        return Math.max((int) (dpi + 0.5), EXTERNAL_DISPLAY_MIN_DENSITY_DPI);
-    }
-
     @Nullable
     private Display.Mode getUserPreferredModeForSizeOverrideLocked(DisplayDeviceInfo deviceInfo) {
         Display.Mode[] modes = deviceInfo.supportedModes;
         int selectedModeId = deviceInfo.modeId;
         int userPreferredModeId = deviceInfo.userPreferredModeId;
+
+        // external display with no userPreferredMode selected
+        if (userPreferredModeId == INVALID_MODE_ID && deviceInfo.type == Display.TYPE_EXTERNAL) {
+            // we will try to find corresponding anisotropy corrected mode
+            for (Display.Mode mode : modes) {
+                if (selectedModeId == mode.getParentModeId()
+                        && (mode.getFlags() & FLAG_ANISOTROPY_CORRECTION) != 0) {
+                    return mode;
+                }
+            }
+        }
 
         if (userPreferredModeId == INVALID_MODE_ID) {
             return null;
@@ -672,20 +663,7 @@ final class LogicalDisplay {
             return null;
         }
 
-        Display.Mode userPreferredMode = null;
-        for (Display.Mode mode : modes) {
-            if (userPreferredModeId == mode.getModeId()) {
-                userPreferredMode = mode;
-                break;
-            }
-        }
-
-        if (userPreferredMode != null
-                && (userPreferredMode.getFlags() & Display.Mode.FLAG_SIZE_OVERRIDE) != 0) {
-            return userPreferredMode;
-        }
-
-        return null;
+        return deviceInfo.getDisplayModeForSizeOverride();
     }
 
     private void updateFrameRateOverrides(DisplayDeviceInfo deviceInfo) {
@@ -752,32 +730,37 @@ final class LogicalDisplay {
     /**
      * Applies the layer stack and transformation to the given display device
      * so that it shows the contents of this logical display.
-     *
+     * <p>
      * We know that the given display device is only ever showing the contents of
      * a single logical display, so this method is expected to blow away all of its
      * transformation properties to make it happen regardless of what the
      * display device was previously showing.
-     *
+     * <p>
      * The caller must have an open Surface transaction.
-     *
+     * <p>
      * The display device may not be the primary display device, in the case
      * where the display is being mirrored.
      *
-     * @param device The display device to modify.
+     * @param device    The display device to modify.
      * @param isBlanked True if the device is being blanked.
+     * @param executor  Enables callback execution
      */
     public void configureDisplayLocked(SurfaceControl.Transaction t,
-            DisplayDevice device,
-            boolean isBlanked) {
+                                       DisplayDevice device,
+                                       boolean isBlanked, Executor executor) {
         // Set the layer stack.
         device.setLayerStackLocked(t, isBlanked ? BLANK_LAYER_STACK : mLayerStack, mDisplayId);
         // Also inform whether the device is the same one sent to inputflinger for its layerstack.
         // Prevent displays that are disabled from receiving input.
         // TODO(b/188914255): Remove once input can dispatch against device vs layerstack.
-        device.setDisplayFlagsLocked(t,
-                (isEnabledLocked() && device.getDisplayDeviceInfoLocked().touch != TOUCH_NONE)
-                        ? SurfaceControl.DISPLAY_RECEIVES_INPUT
-                        : 0);
+        int displayFlags = 0;
+        if (isEnabledLocked() && device.getDisplayDeviceInfoLocked().touch != TOUCH_NONE) {
+            displayFlags |= SurfaceControl.DISPLAY_RECEIVES_INPUT;
+        }
+        if (mPowerOptimizationEnabled) {
+            displayFlags |= SurfaceControl.DISPLAY_OPTIMIZATION_POWER;
+        }
+        device.setDisplayFlagsLocked(t, displayFlags);
 
         // Set the color mode and allowed display mode.
         if (device == mPrimaryDisplayDevice) {
@@ -828,36 +811,16 @@ final class LogicalDisplay {
         var displayLogicalWidth = displayInfo.logicalWidth;
         var displayLogicalHeight = displayInfo.logicalHeight;
 
-        if (!mIsAnisotropicModesEnabled && displayDeviceInfo.type == Display.TYPE_EXTERNAL
-                    && displayDeviceInfo.xDpi > 0 && displayDeviceInfo.yDpi > 0) {
-            if (displayDeviceInfo.xDpi > displayDeviceInfo.yDpi * DisplayDevice.MAX_ANISOTROPY) {
-                var scalingFactor = displayDeviceInfo.yDpi / displayDeviceInfo.xDpi;
-                if (rotated) {
-                    displayLogicalWidth = (int) ((float) displayLogicalWidth * scalingFactor + 0.5);
-                } else {
-                    displayLogicalHeight = (int) ((float) displayLogicalHeight * scalingFactor
-                                                          + 0.5);
-                }
-            } else if (displayDeviceInfo.xDpi * DisplayDevice.MAX_ANISOTROPY
-                               < displayDeviceInfo.yDpi) {
-                var scalingFactor = displayDeviceInfo.xDpi / displayDeviceInfo.yDpi;
-                if (rotated) {
-                    displayLogicalHeight = (int) ((float) displayLogicalHeight * scalingFactor
-                                                          + 0.5);
-                } else {
-                    displayLogicalWidth = (int) ((float) displayLogicalWidth * scalingFactor + 0.5);
-                }
-            }
-        }
-
         // For size override modes we want to scale logical width and height to physical/user mode
         // width and height ratio
         Display.Mode userMode = getUserPreferredModeForSizeOverrideLocked(displayDeviceInfo);
-        if (mIsAnisotropicModesEnabled && displayDeviceInfo.type == Display.TYPE_EXTERNAL
-                && userMode != null
-                && (userMode.getFlags() & Display.Mode.FLAG_SIZE_OVERRIDE) != 0) {
-            displayLogicalWidth = displayLogicalWidth * physWidth / userMode.getPhysicalWidth();
-            displayLogicalHeight = displayLogicalHeight * physHeight / userMode.getPhysicalHeight();
+        int overrideSizeFlags = FLAG_SIZE_OVERRIDE | FLAG_ANISOTROPY_CORRECTION;
+        if (displayDeviceInfo.type == Display.TYPE_EXTERNAL && userMode != null
+                && (userMode.getFlags() & overrideSizeFlags) != 0) {
+            int userWidth = rotated ? userMode.getPhysicalHeight() : userMode.getPhysicalWidth();
+            int userHeight = rotated ? userMode.getPhysicalWidth() : userMode.getPhysicalHeight();
+            displayLogicalWidth = displayLogicalWidth * physWidth / userWidth;
+            displayLogicalHeight = displayLogicalHeight * physHeight / userHeight;
         }
 
         // Determine whether the width or height is more constrained to be scaled.
@@ -903,10 +866,30 @@ final class LogicalDisplay {
 
         mDisplayPosition.set(mTempDisplayRect.left, mTempDisplayRect.top);
 
+        final DebugTransactionDetails debugTransactionDetails = DEBUG ?
+                new DebugTransactionDetails() : null;
+
         if (mSyncedResolutionSwitchEnabled || displayDeviceInfo.type == Display.TYPE_VIRTUAL) {
-            device.configureDisplaySizeLocked(t);
+            device.configureDisplaySizeLocked(t, debugTransactionDetails);
         }
-        device.setProjectionLocked(t, orientation, mTempLayerStackRect, mTempDisplayRect);
+        device.setProjectionLocked(t, orientation, mTempLayerStackRect, mTempDisplayRect,
+                debugTransactionDetails);
+
+        if (DEBUG) {
+            final long transactionId = t.getId();
+            final String displayDescription = "[Display " + displayDeviceInfo.uniqueId + " " +
+                    Display.typeToString(displayInfo.type) + "]";
+
+            Slog.d(TAG, displayDescription + " configureDisplayLocked: "
+                    + "populated transaction " + debugTransactionDetails + ", "
+                    + "txId = " + transactionId);
+
+            t.addTransactionCommittedListener(executor, () -> {
+                Slog.d(TAG, displayDescription + " Committed transaction for "
+                        + "display configuration: " + debugTransactionDetails + ", "
+                        + "txId = " + transactionId);
+            });
+        }
         device.configureSurfaceLocked(t);
     }
 
@@ -1017,6 +1000,22 @@ final class LogicalDisplay {
         mDisplayScalingDisabled = disableScaling;
     }
 
+    /**
+     * @return {@code true} if power optimization is enabled.
+     */
+    public boolean isPowerOptimizationEnabledLocked() {
+        return mPowerOptimizationEnabled;
+    }
+
+    /**
+     * Sets whether power optimization is enabled.
+     *
+     * @param enabled {@code true} to enable power optimization.
+     */
+    public void setPowerOptimizationLocked(boolean enabled) {
+        mPowerOptimizationEnabled = enabled;
+    }
+
     public void setUserDisabledHdrTypes(@NonNull int[] userDisabledHdrTypes) {
         if (mUserDisabledHdrTypes != userDisabledHdrTypes) {
             mUserDisabledHdrTypes = userDisabledHdrTypes;
@@ -1118,6 +1117,14 @@ final class LogicalDisplay {
         // TODO(b/426331944): Change the behavior of VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR and returns
         // false for this
         if (mPrimaryDisplayDevice.shouldAutoMirror()) {
+            return true;
+        }
+
+        // The display doesn't allow dynamic content mode switch can always host tasks.
+        // TODO(b/466914512): Remove this once we have a better way to make sure activities can
+        // always be launched on the overlay displays used in WM CTS tests.
+        if ((mPrimaryDisplayDevice.getDisplayDeviceInfoLocked().flags
+                & FLAG_ALLOWS_CONTENT_MODE_SWITCH) == 0) {
             return true;
         }
 
@@ -1285,6 +1292,7 @@ final class LogicalDisplay {
         pw.println("mRequestedColorMode=" + mRequestedColorMode);
         pw.println("mDisplayOffset=(" + mDisplayOffsetX + ", " + mDisplayOffsetY + ")");
         pw.println("mDisplayScalingDisabled=" + mDisplayScalingDisabled);
+        pw.println("mPowerOptimizationEnabled=" + mPowerOptimizationEnabled);
         pw.println("mBaseDisplayInfo=" + mBaseDisplayInfo);
         pw.println("mOverrideDisplayInfo=" + mOverrideDisplayInfo);
         pw.println("mRequestedMinimalPostProcessing=" + mRequestedMinimalPostProcessing);
@@ -1311,4 +1319,15 @@ final class LogicalDisplay {
         dumpLocked(new PrintWriter(sw));
         return sw.toString();
     }
+
+
+    /**
+     * A class that holds the display info and the frame rate overrides for a display.
+     * @hide
+     */
+    @SuppressWarnings("ArrayRecordComponent")
+    public record CachedDisplayInfo(
+            boolean isEnabled,
+            DisplayInfo info,
+            DisplayEventReceiver.FrameRateOverride[] frameRateOverrides) { }
 }

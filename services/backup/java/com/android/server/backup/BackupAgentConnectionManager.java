@@ -154,7 +154,8 @@ public class BackupAgentConnectionManager {
                 Slog.w(TAG, mUserIdMsg + "bind request failed for " + app.packageName);
                 mCurrentConnection = null;
             } else {
-                Slog.d(TAG, mUserIdMsg + "awaiting agent for " + app.packageName);
+                Slog.d(TAG, mUserIdMsg + "awaiting agent for " + app.packageName
+                        + " agentRunsInPcc= " + app.shouldBackupAgentRunInPccProcess());
 
                 // Wait 10 seconds for the agent and then time out if we still haven't bound to it.
                 long timeoutMark = System.currentTimeMillis() + 10 * 1000;
@@ -220,7 +221,8 @@ public class BackupAgentConnectionManager {
 
                 if (willKill) {
                     Slog.i(TAG, mUserIdMsg + "Killing agent host process");
-                    mActivityManager.killApplicationProcess(app.processName, app.uid);
+                    mActivityManager.killApplicationProcess(
+                            app.processName, app.getBackupAgentUid());
                 }
             } catch (RemoteException e) {
                 // Can't happen - activity manager is local

@@ -17,13 +17,21 @@
 package com.android.server.display;
 
 import android.content.Context;
+import android.os.Binder;
 import android.os.Handler;
+import android.os.IBinder;
+import android.util.Slog;
 import android.view.Display;
 import android.view.SurfaceControl;
 
+import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.display.feature.DisplayManagerFlags;
+import com.android.server.display.mode.DisplayModeDirector;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A display adapter makes zero or more display devices available to the system
@@ -35,7 +43,7 @@ import java.io.PrintWriter;
  * Display adapters are guarded by the {@link DisplayManagerService.SyncRoot} lock.
  * </p>
  */
-abstract class DisplayAdapter {
+public abstract class DisplayAdapter {
     private final DisplayManagerService.SyncRoot mSyncRoot;
     private final Context mContext;
     private final Handler mHandler;
@@ -107,6 +115,8 @@ abstract class DisplayAdapter {
     public void dumpLocked(PrintWriter pw) {
     }
 
+    public void stop() {}
+
     /**
      * Sends a display device event to the display adapter listener asynchronously.
      */
@@ -134,6 +144,33 @@ abstract class DisplayAdapter {
                 return SurfaceControl.POWER_MODE_ON_SUSPEND;
             default:
                 return SurfaceControl.POWER_MODE_NORMAL;
+        }
+    }
+
+    public void applyBatchDisplayModeUpdatesLocked(
+            Map<DisplayDevice, DisplayModeDirector.DesiredDisplayModeSpecs> specs) {
+        List<SurfaceControl.DesiredDisplayModeSpecs> localSpecs = new ArrayList<>();
+        for (var entry : specs.entrySet()) {
+            DisplayDevice device = entry.getKey();
+            if (device.getAdapterLocked() != this) {
+                continue;
+            }
+            if (this instanceof LocalDisplayAdapter) {
+                LocalDisplayAdapter.LocalDisplayDevice localDevice =
+                        (LocalDisplayAdapter.LocalDisplayDevice) device;
+                localSpecs.add(localDevice.getDisplayModeSpecs(entry.getValue()));
+            } else if (this instanceof OverlayDisplayAdapter) {
+                ((OverlayDisplayAdapter.OverlayDisplayDevice) device)
+                        .applyDisplayModeUpdateLocked(entry.getValue().baseModeId);
+            }
+        }
+        IBinder applyToken = new Binder();
+        if ((this instanceof LocalDisplayAdapter) && (!localSpecs.isEmpty())) {
+            Slog.i(ModeRequestManager.TAG, "Applying batch display mode updates.");
+            getHandler().sendMessage(PooledLambda.obtainMessage(
+                    LocalDisplayAdapter::setDesiredDisplayModeSpecsAsync,
+                    (LocalDisplayAdapter) this, applyToken,
+                    localSpecs.toArray(new SurfaceControl.DesiredDisplayModeSpecs[0])));
         }
     }
 

@@ -22,12 +22,6 @@ import com.android.internal.widget.remotecompose.player.state.StateUpdater;
 
 /** An interface for handling named actions. */
 public interface NamedActionHandler {
-    /**
-     * Execute a named action
-     *
-     * @param name
-     * @param value
-     * @param stateUpdater
-     */
+    /** Execute a named action */
     void execute(@NonNull String name, @Nullable Object value, @NonNull StateUpdater stateUpdater);
 }

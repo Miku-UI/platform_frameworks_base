@@ -25,8 +25,6 @@
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="com.android.app.concurrent.benchmark" />
         <option name="runner" value="androidx.benchmark.junit4.AndroidBenchmarkRunner" />
-        <option name="device-listeners" value="com.android.app.concurrent.benchmark.util.CsvMetricCollector" />
-        <option name="instrumentation-arg" key="csv-metric-collector:per_run" value="true" />
         <option name="instrumentation-arg" key="androidx.benchmark.profiling.mode" value="None" />
         <option name="instrumentation-arg" key="androidx.benchmark.iterations" value="50" />
         <option name="instrumentation-arg" key="androidx.benchmark.zipTraceWithInMemoryEvents.enable" value="true" />

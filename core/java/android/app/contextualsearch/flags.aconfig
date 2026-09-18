@@ -34,16 +34,6 @@ flag {
 }
 
 flag {
-    name: "contextual_search_media_projection"
-    namespace: "sysui_integrations"
-    description: "Attach MediaProjection session to contextual search invocation intent."
-    bug: "395054309"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "include_audio_playing_status"
     namespace: "sysui_integrations"
     description: "Add audio playing status to the contextual search invocation intent."
@@ -56,9 +46,18 @@ flag {
     description: "Allow invocation parameters to be passed to Contextual Search, including from apps."
     bug: "371552433"
     is_exported: true
+    # This flag has been launched and code references have been cleaned up.
+    # It must be kept for client compatibility as it is an exported flag.
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "grant_system_alert_window_permission"
+    namespace: "sysui_integrations"
+    description: "Grant the SYSTEM_ALERT_WINDOW permission to the Contextual Search app."
+    bug: "474440047"
 }
 
 flag {

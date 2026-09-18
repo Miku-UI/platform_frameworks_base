@@ -42,7 +42,6 @@ import java.util.Objects;
  * @see NotificationProgressModel#toBundle
  * @see NotificationProgressModel#fromBundle
  */
-@FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
 public final class NotificationProgressModel {
     public static final int INVALID_COLOR = Color.TRANSPARENT;
     private static final String KEY_SEGMENTS = "segments";

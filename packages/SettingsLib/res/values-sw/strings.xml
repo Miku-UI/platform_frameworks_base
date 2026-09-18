@@ -132,7 +132,7 @@
     <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"Imeunganishwa (inaweza kutumia kipengele cha kusikiliza pamoja). Kulia: chaji ya betri imefika <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"Imeunganishwa (inaruhusu kusikiliza pamoja)"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"Kifaa kingeni (kinatumia kipengele cha kusikiliza pamoja). Chaji ya betri imefika <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"Kifaa kingeni (kinatumia kipengele cha kusikiliza pamoja). Kushoto: chaji ya betri imefika <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Kulia: chaji ya betri imefika <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
+    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"Kifaa kingeni (kinatumia kipengele cha kusikiliza pamoja). Kushoto: chaji ni <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Kulia: chaji ni <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"Kifaa kingeni (kinatumia kipengele cha kusikiliza pamoja)"</string>
     <string name="bluetooth_active_media_only_no_battery_level" msgid="71106861912593126">"Inatumika (maudhui pekee)"</string>
     <string name="bluetooth_guest_no_battery_level" msgid="9122974160381136920">"Kifaa kingeni"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Vipima mtandao vitatu vya Wifi."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Nguvu kamili ya mtandao wa Wifi."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Imeunganishwa kwenye kifaa chako."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Watumiaji wote kwenye kifaa hiki wanaweza kuangalia na kuunganisha."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Mtandao unaotumiwa na mtu yeyote"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Mtandao salama"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Mfumo wa Uendeshaji wa Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Mipangilio ya Jina la Lango la Mtandao (APN) haipatikani kwa mtumiaji huyu"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Utatuzi wa USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Muundo wa kurekebisha wakati USB imeunganishwa"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Batilisha idhini za kurekebisha USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Kubatilisha idhini za utatuzi wa ADB"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Utatuzi usiotumia waya"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Hali ya utatuzi wakati Wi-Fi imeunganishwa"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Hitilafu"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Inaoanisha kifaa…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Imeshindwa kuoanisha kifaa. Huenda msimbo wa QR haukuwa sahihi au kifaa hakijaunganishwa kwenye mtandao mmoja."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Anwani ya IP na Mlango"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Haipatikani (Hairuhusiwi)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Haipatikani (Wi-Fi Imetenganishwa)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Changanua msimbo wa QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Unganisha kifaa kupitia Wi-Fi kwa kuchanganua msimbo wa QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Tafadhali unganisha kwenye mtandao wa Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Ueuaji wa USB umekusudiwa kwa malengo ya utengenezaji tu. Itumi kunakili data kati ya kompyuta yako na kifaa chako, kusanidi programu kwa kifaa chako bila arifa, na kusoma data ya rajisi."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Ungependa kuruhusu utatuzi usiotumia waya?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Utatuzi usiotumia waya umekusudiwa kwa malengo ya usanidi tu. Utumie kunakili data kati ya kompyuta yako na kifaa chako, kusakinisha programu kwenye kifaa chako bila arifa na kusoma data ya kumbukumbu."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Unataka kubatilisha ufikiaji wa urekebishaji wa USB kutoka kwenye kompyuta zote ulizotangulia kuidhinisha?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Ungependa kubatilisha ufikiaji wa utatuzi wa adb kutoka kwenye kompyuta na mitandao yote uliyoidhinisha hapo awali?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Ruhusu mipangilio ya usanidi?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Mipangilio hii imekusudiwa kwa matumizi ya usanidi tu. Inaweza kusababisha kifaa chako na programu zilizoko kuvunjika au kutofanya kazi vizuri."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Thibitisha programu kupitia USB"</string>
@@ -645,9 +648,9 @@
     <string name="media_transfer_wired_device_name" msgid="4447880899964056007">"Kifaa cha sauti kinachotumia waya"</string>
     <string name="help_label" msgid="3528360748637781274">"Usaidizi na maoni"</string>
     <string name="storage_category" msgid="2287342585424631813">"Hifadhi"</string>
-    <string name="shared_data_title" msgid="1017034836800864953">"Data iliyoshirikiwa"</string>
+    <string name="shared_data_title" msgid="1017034836800864953">"Data inayofikiwa"</string>
     <string name="shared_data_summary" msgid="5516326713822885652">"Angalia na ubadilishe data iliyoshirikiwa"</string>
-    <string name="shared_data_no_blobs_text" msgid="3108114670341737434">"Hakuna data ya mtumiaji huyu iliyoshirikiwa."</string>
+    <string name="shared_data_no_blobs_text" msgid="3108114670341737434">"Hakuna data ya mtumiaji huyu inayofikiwa."</string>
     <string name="shared_data_query_failure_text" msgid="3489828881998773687">"Hitilafu imetokea wakati wa kuleta data iliyoshirikiwa. Jaribu tena."</string>
     <string name="blob_id_text" msgid="8680078988996308061">"Kitambulisho cha data iliyoshirikiwa: <xliff:g id="BLOB_ID">%d</xliff:g>"</string>
     <string name="blob_expires_text" msgid="7882727111491739331">"Muda wake utaisha<xliff:g id="DATE">%s</xliff:g>"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethaneti imeondolewa."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethaneti."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Huwezi kupiga wala kupokea simu."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Kibodi halisi"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Chagua mpangilio wa kibodi"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Chaguomsingi"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Kudhibiti mipangilio ya kuwasha skrini"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Ruhusu kuwasha skrini"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Ruhusu programu iwashe skrini. Ikiwa imepewa idhini, programu inaweza kuwasha skrini wakati wowote bila utaratibu wako dhahiri wa kuratibu."</string>

@@ -41,11 +41,18 @@ public interface ParsedUsesPermission {
     int FLAG_NEVER_FOR_LOCATION = PackageInfo.REQUESTED_PERMISSION_NEVER_FOR_LOCATION;
 
     /**
+     * Only applies to android.permission.ACCESS_FINE_LOCATION. It indicates a location button is
+     * required for a package to access precise location of the device.
+     */
+    int FLAG_ONLY_FOR_LOCATION_BUTTON = PackageInfo.REQUESTED_PERMISSION_ONLY_FOR_LOCATION_BUTTON;
+
+    /**
      * @hide
      */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true, prefix = { "FLAG_" }, value = {
-            FLAG_NEVER_FOR_LOCATION
+            FLAG_NEVER_FOR_LOCATION,
+            FLAG_ONLY_FOR_LOCATION_BUTTON
     })
     @interface UsesPermissionFlags {}
 
@@ -57,4 +64,9 @@ public interface ParsedUsesPermission {
 
     @NonNull
     Set<String> getPurposes();
+
+    @NonNull
+    Set<String> getGeneralPurposes();
+
+    int getPurposeStringResource();
 }

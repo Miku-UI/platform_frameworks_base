@@ -40,9 +40,9 @@ import org.junit.Test;
 public final class UserVisibilityMediatorMUPANDTest
         extends UserVisibilityMediatorVisibleBackgroundUserTestCase {
 
-    public UserVisibilityMediatorMUPANDTest() throws Exception {
+    public UserVisibilityMediatorMUPANDTest(boolean flagCacheEnabled) throws Exception {
         super(/* backgroundUsersOnDisplaysEnabled= */ true,
-                /* backgroundUserOnDefaultDisplayAllowed= */ true);
+                /* backgroundUserOnDefaultDisplayAllowed= */ true, flagCacheEnabled);
     }
 
     @Test
@@ -58,6 +58,7 @@ public final class UserVisibilityMediatorMUPANDTest
                 BG_VISIBLE, DEFAULT_DISPLAY, false);
         assertStartUserResult(result, USER_ASSIGNMENT_RESULT_SUCCESS_VISIBLE);
         expectVisibleUsers(currentUserId, visibleBgUserId);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, currentUserId, visibleBgUserId);
 
         // Assert bg user visibility
         expectUserIsVisible(visibleBgUserId);
@@ -80,7 +81,7 @@ public final class UserVisibilityMediatorMUPANDTest
         assertStartUserResult(result2, USER_ASSIGNMENT_RESULT_FAILURE,
                 "when user (%d) is starting on default display after it was started by user %d",
                 otherUserId, visibleBgUserId);
-        expectVisibleUsers(currentUserId, visibleBgUserId);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, currentUserId, visibleBgUserId);
 
         listener.verify();
     }
@@ -102,6 +103,7 @@ public final class UserVisibilityMediatorMUPANDTest
                 BG_VISIBLE, DEFAULT_DISPLAY, false);
         assertStartUserResult(result, USER_ASSIGNMENT_RESULT_SUCCESS_VISIBLE);
         expectVisibleUsers(currentUserId, visibleBgUserId);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, currentUserId, visibleBgUserId);
 
         // Assert bg user visibility
         expectUserIsVisible(visibleBgUserId);
@@ -124,7 +126,7 @@ public final class UserVisibilityMediatorMUPANDTest
         assertStartUserResult(result2, USER_ASSIGNMENT_RESULT_FAILURE,
                 "when user (%d) is starting on default display after it was started by user %d",
                 otherUserId, visibleBgUserId);
-        expectVisibleUsers(currentUserId, visibleBgUserId);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, currentUserId, visibleBgUserId);
 
         listener.verify();
     }

@@ -604,8 +604,7 @@ public class BroadcastOptions extends ComponentOptions {
 
     /**
      * Use this to configure a broadcast to be sent to apps that hold all permissions in
-     * the list. This is only for use with the {@link Context#sendBroadcast(Intent intent,
-     * @Nullable String receiverPermission, @Nullable Bundle options)}.
+     * the list. This is only for use with {@link Context#sendBroadcast(Intent, String, Bundle)}.
      *
      * <p> If both {@link #setRequireAllOfPermissions(String[])} and
      * {@link #setRequireNoneOfPermissions(String[])} are used, then receivers must have all of the
@@ -623,8 +622,7 @@ public class BroadcastOptions extends ComponentOptions {
 
     /**
      * Use this to configure a broadcast to be sent to apps that don't hold any permissions in
-     * list. This is only for use with the {@link Context#sendBroadcast(Intent intent,
-     * @Nullable String receiverPermission, @Nullable Bundle options)}.
+     * list. This is only for use with {@link Context#sendBroadcast(Intent, String, Bundle)}.
      *
      * <p> If both {@link #setRequireAllOfPermissions(String[])} and
      * {@link #setRequireNoneOfPermissions(String[])} are used, then receivers must have all of the

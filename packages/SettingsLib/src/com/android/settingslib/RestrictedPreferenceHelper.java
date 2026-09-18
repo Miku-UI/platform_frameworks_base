@@ -415,8 +415,7 @@ public class RestrictedPreferenceHelper {
         PolicyEnforcementInfo policyEnforcementInfo = dpm.getEnforcingAdminsForPolicy(
                 restriction.getDevicePolicyIdentifier(),
                 userId);
-        // Don't set it disabled by admin if only system is enforcing a restriction.
-        if (policyEnforcementInfo.isOnlyEnforcedBySystem()) {
+        if (!policyEnforcementInfo.shouldShowEnforcingAdminDetails()) {
             return null;
         }
         return policyEnforcementInfo.getMostImportantEnforcingAdmin();
@@ -429,7 +428,9 @@ public class RestrictedPreferenceHelper {
      *     this preference will be enabled. Otherwise, it will be disabled. Only gray out the
      *     preference which is not {@link RestrictedTopLevelPreference}.
      * @return true if the disabled state was changed.
+     * @deprecated Use {@link #setDisabledByEnforcingAdmin(EnforcingAdmin)} instead.
      */
+    @Deprecated
     public boolean setDisabledByAdmin(EnforcedAdmin admin) {
         if (Flags.policyTransparencyRefactorEnabled()) {
             EnforcingAdmin enforcingAdmin = getEnforcingAdminFromEnforcedAdmin(admin);
@@ -450,9 +451,7 @@ public class RestrictedPreferenceHelper {
             disabled = true;
             // Copy the received instance to prevent pass be reference being overwritten.
             mEnforcedAdmin = new EnforcedAdmin(admin);
-            if (android.security.Flags.aapmApi()) {
-                changed = previousAdmin == null || !previousAdmin.equals(admin);
-            }
+            changed = previousAdmin == null || !previousAdmin.equals(admin);
         }
 
         if (mDisabledByAdmin != disabled) {
@@ -537,7 +536,7 @@ public class RestrictedPreferenceHelper {
             ((PrimarySwitchPreference) mPreference).setSwitchEnabled(isEnabled);
         }
 
-        if (android.security.Flags.aapmApi() && mDisabledByAdmin) {
+        if (mDisabledByAdmin) {
             String summary = getDisabledByAdminSummaryString();
             if (summary != null) {
                 mPreference.setSummary(summary);

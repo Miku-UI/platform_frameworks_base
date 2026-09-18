@@ -28,25 +28,19 @@ import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepos
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel.ShareToAppChipViewModel
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.data.StatusBarDataLayerModule
 import com.android.systemui.statusbar.data.repository.LightBarControllerStore
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
-import com.android.systemui.statusbar.layout.StatusBarContentInsetsProviderImpl
 import com.android.systemui.statusbar.layout.ui.viewmodel.StatusBarContentInsetsViewModel
 import com.android.systemui.statusbar.phone.AutoHideController
 import com.android.systemui.statusbar.phone.AutoHideControllerImpl
 import com.android.systemui.statusbar.phone.LightBarController
 import com.android.systemui.statusbar.phone.StatusBarSignalPolicy
-import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallController
 import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallLog
-import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
-import com.android.systemui.statusbar.phone.ongoingcall.domain.interactor.OngoingCallInteractor
-import com.android.systemui.statusbar.policy.ConfigurationController
+import com.android.systemui.statusbar.quickactions.QuickActionsModule
 import com.android.systemui.statusbar.ui.StatusBarUiLayerModule
 import com.android.systemui.statusbar.ui.SystemBarUtilsProxyImpl
 import com.android.systemui.statusbar.window.MultiDisplayStatusBarWindowControllerStore
-import com.android.systemui.statusbar.window.SingleDisplayStatusBarWindowControllerStore
 import com.android.systemui.statusbar.window.StatusBarWindowController
 import com.android.systemui.statusbar.window.StatusBarWindowControllerImpl
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
@@ -69,6 +63,7 @@ import dagger.multibindings.IntoMap
 @Module(
     includes =
         [
+            QuickActionsModule::class,
             StatusBarDataLayerModule::class,
             StatusBarUiLayerModule::class,
             SystemBarUtilsProxyImpl.Module::class,
@@ -94,46 +89,26 @@ interface StatusBarModule {
 
     @Binds @SysUISingleton fun autoHideController(impl: AutoHideControllerImpl): AutoHideController
 
-    companion object {
-        @Provides
-        @SysUISingleton
-        @IntoMap
-        @ClassKey(OngoingCallController::class)
-        fun ongoingCallController(controller: OngoingCallController): CoreStartable =
-            if (StatusBarChipsModernization.isEnabled) {
-                CoreStartable.NOP
-            } else {
-                controller
-            }
+    @Binds
+    @SysUISingleton
+    fun windowControllerStore(
+        store: MultiDisplayStatusBarWindowControllerStore
+    ): StatusBarWindowControllerStore
 
-        @Provides
-        @SysUISingleton
-        @IntoMap
-        @ClassKey(OngoingCallInteractor::class)
-        fun ongoingCallInteractor(interactor: OngoingCallInteractor): CoreStartable =
-            if (StatusBarChipsModernization.isEnabled) {
-                interactor
-            } else {
-                CoreStartable.NOP
-            }
+    @Binds
+    @SysUISingleton
+    @IntoMap
+    @ClassKey(MultiDisplayStatusBarWindowControllerStore::class)
+    fun multiDisplayControllerStoreAsCoreStartable(
+        store: MultiDisplayStatusBarWindowControllerStore
+    ): CoreStartable
+
+    companion object {
 
         @Provides
         @SysUISingleton
         fun lightBarController(store: LightBarControllerStore): LightBarController {
             return store.defaultDisplay
-        }
-
-        @Provides
-        @SysUISingleton
-        fun windowControllerStore(
-            multiDisplayImplLazy: Lazy<MultiDisplayStatusBarWindowControllerStore>,
-            singleDisplayImplLazy: Lazy<SingleDisplayStatusBarWindowControllerStore>,
-        ): StatusBarWindowControllerStore {
-            return if (StatusBarConnectedDisplays.isEnabled) {
-                multiDisplayImplLazy.get()
-            } else {
-                singleDisplayImplLazy.get()
-            }
         }
 
         @Provides
@@ -145,20 +120,6 @@ interface StatusBarModule {
         ): CoreStartable {
             return if (com.android.media.projection.flags.Flags.showStopDialogPostCallEnd()) {
                 shareToAppChipViewModelLazy.get()
-            } else {
-                CoreStartable.NOP
-            }
-        }
-
-        @Provides
-        @SysUISingleton
-        @IntoMap
-        @ClassKey(MultiDisplayStatusBarWindowControllerStore::class)
-        fun multiDisplayControllerStoreAsCoreStartable(
-            storeLazy: Lazy<MultiDisplayStatusBarWindowControllerStore>
-        ): CoreStartable {
-            return if (StatusBarConnectedDisplays.isEnabled) {
-                storeLazy.get()
             } else {
                 CoreStartable.NOP
             }
@@ -181,17 +142,10 @@ interface StatusBarModule {
         @Provides
         @SysUISingleton
         fun contentInsetsProvider(
-            factory: StatusBarContentInsetsProviderImpl.Factory,
-            context: Context,
-            configurationController: ConfigurationController,
-            displaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>,
+            displaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>
         ): StatusBarContentInsetsProvider {
             val displaySubcomponent = displaySubcomponentRepo[Display.DEFAULT_DISPLAY]!!
-            return factory.create(
-                context,
-                configurationController,
-                displaySubcomponent.sysUICutoutProvider,
-            )
+            return displaySubcomponent.statusBarContentInsetsProvider
         }
 
         @Provides
@@ -205,15 +159,10 @@ interface StatusBarModule {
         @Provides
         @StatusBarMain
         fun provideDefaultStatusBarContext(
-            repoLazy: Lazy<DisplayWindowPropertiesRepositoryImpl>,
+            repo: DisplayWindowPropertiesRepositoryImpl,
             @Main appContext: Context,
         ): Context {
-            return if (StatusBarConnectedDisplays.isEnabled) {
-                return repoLazy.get().get(Display.DEFAULT_DISPLAY, TYPE_STATUS_BAR)?.context
-                    ?: appContext
-            } else {
-                appContext
-            }
+            return repo.get(Display.DEFAULT_DISPLAY, TYPE_STATUS_BAR)?.context ?: appContext
         }
     }
 }

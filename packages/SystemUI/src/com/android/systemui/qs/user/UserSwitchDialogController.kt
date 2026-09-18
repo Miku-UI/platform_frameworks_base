@@ -27,6 +27,7 @@ import com.android.internal.logging.UiEventLogger
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.FalsingManager
@@ -109,7 +110,15 @@ constructor(
                     DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN, INTERACTION_JANK_TAG)
                 )
             if (controller != null) {
-                dialogTransitionAnimator.show(this, controller)
+                if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                    dialogTransitionAnimator.show(
+                        this,
+                        expandable::dialogTransitionController,
+                        controller.cuj,
+                    )
+                } else {
+                    dialogTransitionAnimator.show(this, controller)
+                }
             } else {
                 show()
             }

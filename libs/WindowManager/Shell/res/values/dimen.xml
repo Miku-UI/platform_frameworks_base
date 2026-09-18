@@ -62,11 +62,6 @@
     <!-- The touchable/draggable edge size for PIP resize. -->
     <dimen name="pip_resize_edge_size">48dp</dimen>
 
-    <!-- PIP Resize handle size, margin and padding. -->
-    <dimen name="pip_resize_handle_size">12dp</dimen>
-    <dimen name="pip_resize_handle_margin">4dp</dimen>
-    <dimen name="pip_resize_handle_padding">0dp</dimen>
-
     <!-- PIP stash offset size, which is the width of visible PIP region when stashed. -->
     <dimen name="pip_stash_offset">32dp</dimen>
 
@@ -79,6 +74,9 @@
 
     <!-- Extra padding between picture-in-picture windows and any registered keep clear areas. -->
     <dimen name="pip_keep_clear_areas_padding">16dp</dimen>
+
+    <!-- Extra padding for the initial position of a pinned window. -->
+    <dimen name="pinned_window_init_padding">16dp</dimen>
 
     <dimen name="dismiss_target_x_size">24dp</dimen>
     <dimen name="floating_dismiss_bottom_margin">50dp</dimen>
@@ -101,6 +99,8 @@
     <!-- Divider handle size for split screen -->
     <dimen name="split_divider_handle_width">40dp</dimen>
     <dimen name="split_divider_handle_height">4dp</dimen>
+    <dimen name="split_divider_button_size">48dp</dimen>
+    <dimen name="split_divider_button_margin">16dp</dimen>
 
     <dimen name="split_divider_bar_width">10dp</dimen>
     <dimen name="split_divider_corner_size">42dp</dimen>
@@ -260,6 +260,8 @@
     <dimen name="bubble_popup_elevation">2dp</dimen>
     <!-- The size of the caption bar inset at the top of bubble bar expanded view. -->
     <dimen name="bubble_bar_expanded_view_caption_height">36dp</dimen>
+    <!-- The height of the handle view touch zone. -->
+    <dimen name="bubble_bar_expanded_view_handle_touch_height">48dp</dimen>
     <!-- The height of the handle shown for the caption menu in the bubble bar expanded view. -->
     <dimen name="bubble_bar_expanded_view_handle_height">4dp</dimen>
     <!-- The width of the handle shown for the caption menu in the bubble bar expanded view. -->
@@ -498,50 +500,65 @@
          customize. -->
     <dimen name="desktop_mode_customizable_caption_drag_only_width">48dp</dimen>
 
+    <!-- The width or the right-aligned region that is taken by caption elements + safe margin. -->
+    <dimen name="desktop_mode_pinned_header_margin_start">76dp</dimen>
+
+    <!-- The width or the right-aligned region that is taken by window controls buttons + safe margin. -->
+    <dimen name="desktop_mode_pinned_header_margin_end">76dp</dimen>
+
+    <!-- The height of the caption bar -->
+    <dimen name="desktop_mode_pinned_header_height">48dp</dimen>
+
+    <!-- Radius for rounding button corners -->
+    <dimen name="desktop_mode_pinned_header_button_corner_radius">16dp</dimen>
+
+    <!-- Inset for button ripples -->
+    <dimen name="desktop_mode_pinned_header_button_inset">8dp</dimen>
+
     <!-- The default minimum allowed window width when resizing a window in desktop mode. -->
     <dimen name="desktop_mode_minimum_window_width">386dp</dimen>
 
     <!-- The default minimum allowed window height when resizing a window in desktop mode. -->
     <dimen name="desktop_mode_minimum_window_height">352dp</dimen>
 
-    <!-- The padding of the maximize menu in desktop mode. -->
+    <!-- The padding of the layout menu in desktop mode. -->
     <dimen name="desktop_mode_menu_padding">16dp</dimen>
 
-    <!-- The height of the buttons in the maximize menu. -->
-    <dimen name="desktop_mode_maximize_menu_button_height">52dp</dimen>
+    <!-- The height of the buttons in the layout menu. -->
+    <dimen name="desktop_mode_layout_menu_button_height">52dp</dimen>
 
-    <!-- The radius of the maximize menu buttons. -->
-    <dimen name="desktop_mode_maximize_menu_buttons_radius">4dp</dimen>
+    <!-- The radius of the layout menu buttons. -->
+    <dimen name="desktop_mode_layout_menu_buttons_radius">4dp</dimen>
 
-    <!-- The radius of the layout outline around the maximize menu buttons. -->
-    <dimen name="desktop_mode_maximize_menu_buttons_outline_radius">6dp</dimen>
-    <!-- The stroke width of the outline around the maximize menu buttons. -->
-    <dimen name="desktop_mode_maximize_menu_buttons_outline_stroke">1dp</dimen>
-    <!-- The radius of the inner fill of the maximize menu buttons. -->
-    <dimen name="desktop_mode_maximize_menu_buttons_fill_radius">4dp</dimen>
-    <!-- The padding between the outline and fill of the maximize menu snap and maximize buttons. -->
-    <dimen name="desktop_mode_maximize_menu_snap_and_maximize_buttons_fill_padding">4dp</dimen>
-    <!-- The vertical padding between the outline and fill of the maximize menu restore button. -->
-    <dimen name="desktop_mode_maximize_menu_restore_button_fill_vertical_padding">13dp</dimen>
-    <!-- The horizontal padding between the outline and fill of the maximize menu restore button. -->
-    <dimen name="desktop_mode_maximize_menu_restore_button_fill_horizontal_padding">15dp</dimen>
-    <!-- The padding between the outline and fill of the maximize menu immersive button. -->
-    <dimen name="desktop_mode_maximize_menu_immersive_button_fill_padding">0dp</dimen>
+    <!-- The radius of the layout outline around the layout menu buttons. -->
+    <dimen name="desktop_mode_layout_menu_buttons_outline_radius">6dp</dimen>
+    <!-- The stroke width of the outline around the layout menu buttons. -->
+    <dimen name="desktop_mode_layout_menu_buttons_outline_stroke">1dp</dimen>
+    <!-- The radius of the inner fill of the layout menu buttons. -->
+    <dimen name="desktop_mode_layout_menu_buttons_fill_radius">4dp</dimen>
+    <!-- The padding between the outline and fill of the layout menu snap and maximize buttons. -->
+    <dimen name="desktop_mode_layout_menu_snap_and_maximize_buttons_fill_padding">4dp</dimen>
+    <!-- The vertical padding between the outline and fill of the layout menu restore button. -->
+    <dimen name="desktop_mode_layout_menu_restore_button_fill_vertical_padding">13dp</dimen>
+    <!-- The horizontal padding between the outline and fill of the layout menu restore button. -->
+    <dimen name="desktop_mode_layout_menu_restore_button_fill_horizontal_padding">15dp</dimen>
+    <!-- The padding between the outline and fill of the layout menu immersive button. -->
+    <dimen name="desktop_mode_layout_menu_immersive_button_fill_padding">0dp</dimen>
 
-    <!-- The corner radius of the maximize menu. -->
-    <dimen name="desktop_mode_maximize_menu_corner_radius">16dp</dimen>
+    <!-- The corner radius of the layout menu. -->
+    <dimen name="desktop_mode_layout_menu_corner_radius">16dp</dimen>
 
-    <!-- The radius of the Maximize menu shadow. -->
-    <dimen name="desktop_mode_maximize_menu_shadow_radius">8dp</dimen>
+    <!-- The radius of the layout menu shadow. -->
+    <dimen name="desktop_mode_layout_menu_shadow_radius">8dp</dimen>
 
     <!-- The width of the handle menu in desktop mode plus the 2dp added for padding to account for
          pill elevation. -->
     <dimen name="desktop_mode_handle_menu_width">218dp</dimen>
 
     <!-- The maximum height of the handle menu in desktop mode. Three pills at 52dp each,
-         additional actions pill 260dp, plus 2dp spacing between them plus 4dp top padding.
-         52*3 + 52*5 + (5-1)*2 + 4 = 428 -->
-    <dimen name="desktop_mode_handle_menu_height">428dp</dimen>
+         additional actions at 52dp each, plus 2dp spacing between them plus 4dp top padding.
+         52*3 + 52*6 + (6-1)*2 + 4 = 482 -->
+    <dimen name="desktop_mode_handle_menu_height">482dp</dimen>
 
     <!-- The elevation set on the handle menu pills. -->
     <dimen name="desktop_mode_handle_menu_pill_elevation">1dp</dimen>
@@ -563,6 +580,9 @@
 
     <!-- The maximum height of the handle menu's "Screenshot" button in desktop mode. -->
     <dimen name="desktop_mode_handle_menu_screenshot_height">52dp</dimen>
+
+    <!-- The maximum height of the handle menu's "Game Controls" button in desktop mode. -->
+    <dimen name="desktop_mode_handle_menu_game_controls_height">52dp</dimen>
 
     <!-- The height of the handle menu's "Open in browser" pill in desktop mode. -->
     <dimen name="desktop_mode_handle_menu_open_in_browser_pill_height">52dp</dimen>
@@ -597,17 +617,11 @@
     <!-- The size of the icon shown in the resize veil. -->
     <dimen name="desktop_mode_resize_veil_icon_size">96dp</dimen>
 
-    <!-- The width of the border outside the app task eligible for edge resizing, when
-         enable_windowing_edge_drag_resize is enabled. -->
+    <!-- The width of the border outside the app task eligible for edge resizing. -->
     <dimen name="freeform_edge_handle_outset">10dp</dimen>
 
-    <!-- The size of the border inside the app task eligible for edge resizing, when
-         enable_windowing_edge_drag_resize is enabled. -->
+    <!-- The size of the border inside the app task eligible for edge resizing. -->
     <dimen name="freeform_edge_handle_inset">2dp</dimen>
-
-    <!-- The original width of the border around the app task for edge resizing, when
-         enable_windowing_edge_drag_resize is disabled. -->
-    <dimen name="freeform_resize_handle">15dp</dimen>
 
     <!-- The size of the corner region for drag resizing with touch, when a larger touch region is
          appropriate. -->
@@ -727,4 +741,11 @@
     <dimen name="desktop_windowing_education_promo_height">352dp</dimen>
     <!-- The corner radius of the desktop windowing education promo. -->
     <dimen name="desktop_windowing_education_promo_corner_radius">28dp</dimen>
+
+    <!-- The height of the windowing pill on the layout menu. -->
+    <dimen name="desktop_mode_layout_menu_windowing_pill_height">52dp</dimen>
+    <!-- The margin between pills of the layout menu in desktop mode. -->
+    <dimen name="desktop_mode_layout_menu_pill_spacing_margin">2dp</dimen>
+    <!-- The radius of the layout menu pill menu corners. -->
+    <dimen name="desktop_mode_layout_menu_pill_corner_radius">26dp</dimen>
 </resources>

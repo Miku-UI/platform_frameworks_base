@@ -28,14 +28,23 @@ import static com.android.server.accessibility.AccessibilityInputFilter.FLAG_FEA
 import static com.android.server.accessibility.AccessibilityInputFilter.FLAG_FEATURE_TOUCH_EXPLORATION;
 import static com.android.server.accessibility.AccessibilityInputFilter.FLAG_FEATURE_TRIGGERED_SCREEN_MAGNIFIER;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -48,11 +57,13 @@ import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.input.IInputManager;
 import android.hardware.input.InputManager;
 import android.hardware.input.InputManagerGlobal;
-import android.os.Looper;
+import android.os.Handler;
 import android.os.SystemClock;
-import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.os.test.TestLooper;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.util.SparseArray;
 import android.view.Display;
@@ -81,6 +92,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -111,7 +123,8 @@ public class AccessibilityInputFilterTest {
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
-
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     // The expected order of EventStreamTransformations.
     private final Class[] mExpectedEventHandlerTypes =
             {MagnificationKeyHandler.class, KeyboardInterceptor.class, MotionEventInjector.class,
@@ -131,6 +144,7 @@ public class AccessibilityInputFilterTest {
     private EventCaptor mCaptor1;
     private EventCaptor mCaptor2;
     private long mLastDownTime = Integer.MIN_VALUE;
+    private TestLooper mTestLooper;
 
     private class EventCaptor implements EventStreamTransformation {
         List<InputEvent> mEvents = new ArrayList<>();
@@ -181,10 +195,11 @@ public class AccessibilityInputFilterTest {
         InputManager inputManager = new InputManager(context);
         when(context.getSystemService(eq(Context.INPUT_SERVICE))).thenReturn(inputManager);
 
+        mTestLooper = new TestLooper();
         setDisplayCount(1);
         mAms = spy(new AccessibilityManagerService(context));
-        mA11yInputFilter = new AccessibilityInputFilter(
-                context, mAms, mEventHandler, mMagnificationGestureHandler);
+        mA11yInputFilter = new AccessibilityInputFilter(context, mAms,
+                mEventHandler, mMagnificationGestureHandler, new Handler(mTestLooper.getLooper()));
         mA11yInputFilter.onInstalled();
 
         doReturn(mDisplayList).when(mAms).getValidDisplayList();
@@ -200,8 +215,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEventHandler_shouldChangeAfterSetUserAndEnabledFeatures() {
-        prepareLooper();
-
         // Check if there is no mEventHandler when no feature is set.
         assertEquals(0, mEventHandler.size());
 
@@ -215,8 +228,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEventHandler_shouldIncreaseAndHaveCorrectOrderAfterOnDisplayAdded() {
-        prepareLooper();
-
         // Check if there is only one mEventHandler when there is one default display.
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         assertEquals(1, mEventHandler.size());
@@ -239,8 +250,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEventHandler_shouldDecreaseAfterOnDisplayRemoved() {
-        prepareLooper();
-
         setDisplayCount(2);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         assertEquals(2, mEventHandler.size());
@@ -255,8 +264,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEventHandler_shouldNoChangedInOtherDisplayAfterOnDisplayRemoved() {
-        prepareLooper();
-
         setDisplayCount(2);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         EventStreamTransformation eventHandlerBeforeDisplayRemoved =
@@ -271,8 +278,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEventHandler_shouldHaveCorrectOrderForEventStreamTransformation() {
-        prepareLooper();
-
         setDisplayCount(2);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         assertEquals(2, mEventHandler.size());
@@ -296,8 +301,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testInputEvent_shouldDispatchToCorrespondingEventHandlers() {
-        prepareLooper();
-
         setDisplayCount(2);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         assertEquals(2, mEventHandler.size());
@@ -317,8 +320,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testInputEvent_shouldClearEventsForDisplayEventHandlers() {
-        prepareLooper();
-
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         assertEquals(1, mEventHandler.size());
 
@@ -337,8 +338,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testInputEvent_shouldNotClearEventsForOtherDisplayEventHandlers() {
-        prepareLooper();
-
         setDisplayCount(2);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         assertEquals(2, mEventHandler.size());
@@ -361,8 +360,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testInputEvent_shouldNotClearEventsForOtherDisplayAfterOnDisplayAdded() {
-        prepareLooper();
-
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         mCaptor1 = new EventCaptor();
         mEventHandler.put(DEFAULT_DISPLAY, mCaptor1);
@@ -378,8 +375,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testInputEvent_shouldNotClearEventsForOtherDisplayAfterOnDisplayRemoved() {
-        prepareLooper();
-
         setDisplayCount(2);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
         mCaptor1 = new EventCaptor();
@@ -395,7 +390,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEnabledFeatures_windowMagnificationMode_expectedMagnificationGestureHandler() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_WINDOW).when(
                 mAms).getMagnificationMode(DEFAULT_DISPLAY);
 
@@ -409,7 +403,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEnabledFeaturesChanged_magFeatureKeepsEnabled_flagOn_doNotResetMagnification() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN)
                 .when(mAms).getMagnificationMode(DEFAULT_DISPLAY);
         // Create FullScreenMagnificationGestureHandler
@@ -428,7 +421,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testDisablingMagFeatures_magFeatureWasEnabled_flagOn_resetMagnification() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN)
                 .when(mAms).getMagnificationMode(DEFAULT_DISPLAY);
         // Create FullScreenMagnificationGestureHandler
@@ -445,7 +437,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testChangeMagnificationModeToWindow_expectedMagnificationGestureHandler() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN).when(
                 mAms).getMagnificationMode(DEFAULT_DISPLAY);
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
@@ -465,7 +456,6 @@ public class AccessibilityInputFilterTest {
 
     @Test public void
     testChangeMagnificationModeToWindow_magnifierFeature_expectedMagnificationGestureHandler() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN).when(
                 mAms).getMagnificationMode(DEFAULT_DISPLAY);
         final int feature = FLAG_FEATURE_CONTROL_SCREEN_MAGNIFIER
@@ -487,7 +477,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEnabledFeatures_windowMagnificationMode_expectedMagnificationKeyHandler() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_WINDOW).when(
                 mAms).getMagnificationMode(DEFAULT_DISPLAY);
 
@@ -499,7 +488,6 @@ public class AccessibilityInputFilterTest {
 
     @Test
     public void testEnabledFeatures_fullscreenMagnificationMode_expectedMagnificationKeyHandler() {
-        prepareLooper();
         doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN).when(
                 mAms).getMagnificationMode(DEFAULT_DISPLAY);
 
@@ -510,38 +498,173 @@ public class AccessibilityInputFilterTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_MAGNIFICATION_FOLLOWS_MOUSE_WITH_POINTER_MOTION_FILTER)
     public void testEnabledFeatures_fullscreenMagnificationMode_expectedPointerMotionFilter() {
-        prepareLooper();
-        doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN).when(
-                mAms).getMagnificationMode(DEFAULT_DISPLAY);
+        doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN)
+                .when(mAms)
+                .getMagnificationMode(DEFAULT_DISPLAY);
 
         mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
+        mTestLooper.dispatchAll();
 
         assertNotNull(mA11yInputFilter.getFullScreenMagnificationPointerMotionEventFilter());
-        verify(mMockInputManagerInternal, times(1)).registerAccessibilityPointerMotionFilter(
-                notNull());
+        verify(mMockInputManagerInternal, times(1))
+                .registerAccessibilityPointerMotionFilter(notNull());
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_MAGNIFICATION_FOLLOWS_MOUSE_WITH_POINTER_MOTION_FILTER)
     public void
             testRegisterPointerMotionFilter_fullscreenMagnificationMode_delegatesToInputManager() {
         mA11yInputFilter.registerPointerMotionFilter(true);
+        mTestLooper.dispatchAll();
         assertNotNull(mA11yInputFilter.getFullScreenMagnificationPointerMotionEventFilter());
-        verify(mMockInputManagerInternal, times(1)).registerAccessibilityPointerMotionFilter(
-                notNull());
+        verify(mMockInputManagerInternal, times(1))
+                .registerAccessibilityPointerMotionFilter(notNull());
 
         mA11yInputFilter.registerPointerMotionFilter(false);
+        mTestLooper.dispatchAll();
         assertNull(mA11yInputFilter.getFullScreenMagnificationPointerMotionEventFilter());
-        verify(mMockInputManagerInternal, times(1)).registerAccessibilityPointerMotionFilter(
-                isNull());
+        verify(mMockInputManagerInternal, times(1))
+                .registerAccessibilityPointerMotionFilter(isNull());
     }
 
-    private static void prepareLooper() {
-        if (Looper.myLooper() == null) {
-            Looper.prepare();
-        }
+    @Test
+    public void registerPointerMotionFilter_doesNotHoldAccessibilityManagerServiceLock() {
+        doAnswer(invocation -> {
+            assertFalse("AccessibilityManagerService lock should not be held",
+                    mAms.unsafeIsLockHeld());
+            return null;
+        }).when(mMockInputManagerInternal).registerAccessibilityPointerMotionFilter(any());
+
+        doReturn(Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN).when(
+                mAms).getMagnificationMode(DEFAULT_DISPLAY);
+        mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
+        mTestLooper.dispatchAll();
+
+        verify(mMockInputManagerInternal, times(1))
+                .registerAccessibilityPointerMotionFilter(any());
+    }
+
+    @Test
+    public void testMotionEvents_midGestureFeatureEnable_shouldPassOrphanedUpToSuper() {
+        mA11yInputFilter = spy(
+                new AccessibilityInputFilter(InstrumentationRegistry.getContext(), mAms,
+                        mEventHandler, mMagnificationGestureHandler,
+                        new Handler(mTestLooper.getLooper())));
+        doNothing().when(mA11yInputFilter).sendInputEvent(any(), anyInt());
+        mA11yInputFilter.onInstalled();
+        mA11yInputFilter.setUserAndEnabledFeatures(0, 0);
+
+        // 1. send down event
+        long downTime = SystemClock.uptimeMillis();
+        MotionEvent downEvent = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, 100,
+                100, 0);
+        downEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        downEvent.setDisplayId(DEFAULT_DISPLAY);
+        mA11yInputFilter.onInputEvent(downEvent, FLAG_PASS_TO_USER);
+
+        // 2. request feature change
+        mA11yInputFilter.setUserAndEnabledFeatures(0, mFeatures);
+
+        // 3. send up event
+        long eventTime = SystemClock.uptimeMillis();
+        MotionEvent upEvent = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_UP, 100,
+                100, 0);
+        upEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        upEvent.setDisplayId(DEFAULT_DISPLAY);
+        mA11yInputFilter.onInputEvent(upEvent, FLAG_PASS_TO_USER);
+
+        verify(mA11yInputFilter).sendInputEvent(eq(upEvent), eq(FLAG_PASS_TO_USER));
+
+        downEvent.recycle();
+        upEvent.recycle();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_A11Y_ACTION_CANCEL_ON_RESET)
+    public void testDisableFeatures_withActiveTouch_injectsCancelEvent() {
+        // Enable Touch Exploration to track events. Spy on filter to intercept output.
+        AccessibilityInputFilter spyFilter = spy(mA11yInputFilter);
+        doNothing().when(spyFilter).sendInputEvent(any(), anyInt());
+        spyFilter.onInstalled();
+        spyFilter.setUserAndEnabledFeatures(0, FLAG_FEATURE_TOUCH_EXPLORATION);
+
+        // Send ACTION_DOWN to start a touch sequence.
+        long downTime = SystemClock.uptimeMillis();
+        MotionEvent downEvent = MotionEvent.obtain(downTime, downTime,
+                MotionEvent.ACTION_DOWN, 100, 100, 0);
+        downEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        downEvent.setDisplayId(DEFAULT_DISPLAY);
+        spyFilter.onInputEvent(downEvent, FLAG_PASS_TO_USER);
+
+        // Disable features while pointers are down to trigger stream reset.
+        spyFilter.setUserAndEnabledFeatures(0, 0);
+
+        // Verify the last outgoing event was ACTION_CANCEL.
+        ArgumentCaptor<InputEvent> eventCaptor = ArgumentCaptor.forClass(InputEvent.class);
+        verify(spyFilter, atLeastOnce()).sendInputEvent(eventCaptor.capture(),
+                eq(FLAG_PASS_TO_USER));
+        List<InputEvent> capturedEvents = eventCaptor.getAllValues();
+        assertThat(capturedEvents).isNotEmpty();
+        InputEvent lastEvent = capturedEvents.getLast();
+        assertThat(lastEvent).isInstanceOf(MotionEvent.class);
+        MotionEvent lastMotionEvent = (MotionEvent) lastEvent;
+        assertThat(lastMotionEvent.getActionMasked()).isEqualTo(MotionEvent.ACTION_CANCEL);
+        assertThat(lastMotionEvent.getSource()).isEqualTo(InputDevice.SOURCE_TOUCHSCREEN);
+        assertThat(lastMotionEvent.getDisplayId()).isEqualTo(DEFAULT_DISPLAY);
+
+        downEvent.recycle();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_A11Y_ACTION_CANCEL_ON_RESET)
+    public void testDoubleTap_shouldNotClearEventsOnSecondActionDown() {
+        mA11yInputFilter.setUserAndEnabledFeatures(0, FLAG_FEATURE_TOUCH_EXPLORATION);
+        EventStreamTransformation mockHandler = mock(EventStreamTransformation.class);
+        mEventHandler.put(DEFAULT_DISPLAY, mockHandler);
+
+        send(downEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+        // The first down event triggers clearEvents because the source changes from -1 to
+        // TOUCHSCREEN.
+        verify(mockHandler, times(1)).clearEvents(anyInt());
+
+        Mockito.clearInvocations(mockHandler);
+
+        send(upEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+        send(downEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+
+        verify(mockHandler, never()).clearEvents(anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_A11Y_ACTION_CANCEL_ON_RESET)
+    public void testTripleTap_doesNotResetGestureHandler() {
+        // This test simulates the specific failure mode where the filter was resetting
+        // the gesture handler in the middle of a multi-tap gesture.
+        mA11yInputFilter.setUserAndEnabledFeatures(0,
+                FLAG_FEATURE_MAGNIFICATION_SINGLE_FINGER_TRIPLE_TAP);
+        EventStreamTransformation mockHandler = mock(EventStreamTransformation.class);
+        mEventHandler.put(DEFAULT_DISPLAY, mockHandler);
+
+        // Tap 1
+        send(downEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+        // We expect a clearEvents call here to initialize the stream
+        verify(mockHandler, times(1)).clearEvents(anyInt());
+        Mockito.clearInvocations(mockHandler);
+
+        send(upEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+
+        // Tap 2
+        send(downEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+        send(upEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+
+        // Tap 3
+        send(downEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+        send(upEvent(DEFAULT_DISPLAY, InputDevice.SOURCE_TOUCHSCREEN));
+
+        // Crucial verification: The filter must NOT have cleared events (reset the handler)
+        // during any of the subsequent taps. If it did, the handler would forget the
+        // previous taps and fail to detect the triple-tap.
+        verify(mockHandler, never()).clearEvents(anyInt());
     }
 
     private Display createStubDisplay(DisplayInfo displayInfo) {
@@ -567,6 +690,15 @@ public class AccessibilityInputFilterTest {
         mLastDownTime = SystemClock.uptimeMillis();
         final MotionEvent ev = MotionEvent.obtain(mLastDownTime, mLastDownTime,
                 MotionEvent.ACTION_DOWN, DEFAULT_X, DEFAULT_Y, 0);
+        ev.setDisplayId(displayId);
+        ev.setSource(source);
+        return ev;
+    }
+
+    private MotionEvent upEvent(int displayId, int source) {
+        long eventTime = SystemClock.uptimeMillis();
+        final MotionEvent ev = MotionEvent.obtain(mLastDownTime, eventTime,
+                MotionEvent.ACTION_UP, DEFAULT_X, DEFAULT_Y, 0);
         ev.setDisplayId(displayId);
         ev.setSource(source);
         return ev;

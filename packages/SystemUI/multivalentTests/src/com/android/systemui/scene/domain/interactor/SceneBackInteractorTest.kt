@@ -18,12 +18,12 @@ package com.android.systemui.scene.domain.interactor
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.authentication.data.repository.FakeAuthenticationRepository
-import com.android.systemui.authentication.domain.interactor.AuthenticationResult
-import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
@@ -33,9 +33,11 @@ import com.android.systemui.scene.data.model.sceneStackOf
 import com.android.systemui.scene.domain.startable.sceneContainerStartable
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.enableSingleShade
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -158,7 +160,7 @@ class SceneBackInteractorTest : SysuiTestCase() {
             assertThat(underTest.backStack.value.asIterable().toList())
                 .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
 
-            underTest.updateBackStack { stack ->
+            underTest.updateBackStack("test") { stack ->
                 // Reverse the stack, just to see if it can be done:
                 sceneStackOf(*stack.asIterable().reversed().toTypedArray())
             }
@@ -176,7 +178,7 @@ class SceneBackInteractorTest : SysuiTestCase() {
             assertThat(underTest.backStack.value.asIterable().toList())
                 .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
 
-            underTest.replaceLockscreenSceneOnBackStack()
+            underTest.replaceLockscreenSceneOnBackStack("test")
 
             assertThat(underTest.backStack.value.asIterable().toList())
                 .isEqualTo(listOf(Scenes.Shade, Scenes.Gone))
@@ -191,18 +193,93 @@ class SceneBackInteractorTest : SysuiTestCase() {
             assertThat(underTest.backStack.value.asIterable().toList())
                 .isEqualTo(listOf(Scenes.Shade, Scenes.Gone))
 
-            underTest.replaceLockscreenSceneOnBackStack()
+            underTest.replaceLockscreenSceneOnBackStack("test")
 
             assertThat(underTest.backStack.value.asIterable().toList())
                 .isEqualTo(listOf(Scenes.Shade, Scenes.Gone))
         }
 
-    private suspend fun Kosmos.assertRoute(vararg route: RouteNode) {
+    @Test
+    fun replaceGoneSceneOnBackStack_replacesGoneWithLockscreen() =
+        kosmos.runTest {
+            enableSingleShade()
+            underTest.onSceneChange(from = Scenes.Gone, to = Scenes.Shade)
+            underTest.onSceneChange(from = Scenes.Shade, to = Scenes.QuickSettings)
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Gone))
+
+            underTest.replaceGoneSceneOnBackStack("test")
+
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
+        }
+
+    @Test
+    fun replaceGoneSceneOnBackStack_nothingToDo() =
+        kosmos.runTest {
+            enableSingleShade()
+            underTest.onSceneChange(from = Scenes.Lockscreen, to = Scenes.Shade)
+            underTest.onSceneChange(from = Scenes.Shade, to = Scenes.QuickSettings)
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
+
+            underTest.replaceGoneSceneOnBackStack("test")
+
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
+        }
+
+    @Test
+    fun addLockscreenToBackStack_empty() =
+        kosmos.runTest {
+            enableSingleShade()
+            assertThat(underTest.backStack.value.asIterable().toList()).isEmpty()
+
+            underTest.addLockscreenToBackStack("test")
+
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Lockscreen))
+        }
+
+    @Test
+    fun addLockscreenToBackStack_replacesGone() =
+        kosmos.runTest {
+            enableSingleShade()
+            underTest.onSceneChange(from = Scenes.Gone, to = Scenes.Shade)
+            underTest.onSceneChange(from = Scenes.Shade, to = Scenes.QuickSettings)
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Gone))
+
+            underTest.addLockscreenToBackStack("test")
+
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
+        }
+
+    @Test
+    fun addLockscreenToBackStack_alreadyLockscreen() =
+        kosmos.runTest {
+            enableSingleShade()
+            underTest.onSceneChange(from = Scenes.Lockscreen, to = Scenes.Shade)
+            underTest.onSceneChange(from = Scenes.Shade, to = Scenes.QuickSettings)
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
+
+            underTest.addLockscreenToBackStack("test")
+
+            assertThat(underTest.backStack.value.asIterable().toList())
+                .isEqualTo(listOf(Scenes.Shade, Scenes.Lockscreen))
+        }
+
+    private fun Kosmos.assertRoute(vararg route: RouteNode) {
         val currentScene by collectLastValue(sceneInteractor.currentScene)
         val backScene by collectLastValue(underTest.backScene)
 
         route.forEachIndexed { index, node ->
-            sceneInteractor.changeScene(node.changeSceneTo, "")
+            sceneInteractor.changeScene(node.changeSceneTo, "SceneBackInteractorTest")
+            sceneInteractor.setTransitionState(
+                flowOf(ObservableTransitionState.Idle(node.changeSceneTo))
+            )
             assertWithMessage("node at index $index currentScene mismatch")
                 .that(currentScene)
                 .isEqualTo(node.changeSceneTo)
@@ -215,10 +292,12 @@ class SceneBackInteractorTest : SysuiTestCase() {
         }
     }
 
-    private suspend fun Kosmos.unlockDevice() {
+    private fun Kosmos.unlockDevice() {
         val currentScene by collectLastValue(sceneInteractor.currentScene)
-        assertThat(authenticationInteractor.authenticate(FakeAuthenticationRepository.DEFAULT_PIN))
-            .isEqualTo(AuthenticationResult.SUCCEEDED)
+        kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+            unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+            biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
+        )
         assertThat(currentScene).isEqualTo(Scenes.Gone)
     }
 

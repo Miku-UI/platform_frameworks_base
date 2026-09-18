@@ -20,10 +20,10 @@ import android.Manifest
 import android.platform.test.annotations.Postsubmit
 import android.tools.Rotation
 import android.tools.device.apphelpers.YouTubeAppHelper
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.WindowUtils
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
@@ -74,7 +74,7 @@ open class YouTubeEnterPipToOtherOrientationTest(flicker: FlickerTest) :
             pipApp.launchViaIntent(
                 wmHelper,
                 YouTubeAppHelper.getYoutubeVideoIntent("3KtWfp0UopM"),
-                ComponentNameMatcher(YouTubeAppHelper.PACKAGE_NAME, "")
+                ComponentNameMatcher(YouTubeAppHelper.PACKAGE_NAME, ""),
             )
             pipApp.enterFullscreen()
             pipApp.waitForVideoPlaying()
@@ -150,14 +150,12 @@ open class YouTubeEnterPipToOtherOrientationTest(flicker: FlickerTest) :
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen
-         * orientation and navigation modes.
+         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen orientation
+         * and navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

@@ -19,7 +19,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.SystemProperties
 import androidx.annotation.VisibleForTesting
 import com.android.internal.messages.nano.SystemMessageProto
 import com.android.systemui.Dumpable
@@ -33,6 +32,7 @@ import com.android.systemui.plugins.PluginManager
 import com.android.systemui.shared.plugins.PluginEnabler.DisableReason
 import com.android.systemui.shared.system.UncaughtExceptionPreHandlerManager
 import java.io.PrintWriter
+import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,7 +45,8 @@ constructor(
     preHandlerManager: UncaughtExceptionPreHandlerManager?,
     private val pluginEnabler: PluginEnabler,
     private val pluginPrefs: PluginPrefs,
-    override val config: PluginManager.Config,
+    private val packages: PackageConfig,
+    private val env: PluginEnvironment,
 ) : BroadcastReceiver(), PluginManager, Dumpable {
     private val pluginMap = mutableMapOf<PluginListener<*>, PluginActionManager<*>>()
     private val logger = Logger(DEFAULT_LOGBUFFER, TAG)
@@ -143,7 +144,7 @@ constructor(
                         ?: throw IllegalStateException("Received invalid URI: ${intent.data}")
 
                 // Don't disable privileged plugins as they are a part of the OS.
-                if (config.isPrivileged(component)) return
+                if (packages.isPrivileged(component)) return
 
                 pluginEnabler.setDisabled(component, DisableReason.DISABLED_INVALID_VERSION)
                 hostContext
@@ -204,7 +205,7 @@ constructor(
 
     private inner class PluginExceptionHandler : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(thread: Thread, throwable: Throwable) {
-            if (SystemProperties.getBoolean("plugin.debugging", false)) {
+            if (env.isTestMode) {
                 return
             }
 
@@ -248,5 +249,51 @@ constructor(
 
         private val TAG: String = PluginManagerImpl::class.java.simpleName
         const val DISABLE_PLUGIN: String = "com.android.systemui.action.DISABLE_PLUGIN"
+
+        @JvmStatic
+        /** This is provided for ease of use */
+        fun create(
+            context: Context,
+            privilegedPlugins: List<String>,
+            pluginEnabler: PluginEnabler,
+            bgExecutor: Executor,
+            preHandlerManager: UncaughtExceptionPreHandlerManager?,
+        ): PluginManagerImpl {
+            val env = PluginEnvironment()
+            val pluginPrefs = PluginPrefs(context)
+            val packages = PackageConfig(*privilegedPlugins.toTypedArray())
+
+            val instanceFactory =
+                PluginInstance.Factory(
+                    VersionChecker.Impl(),
+                    this::class.java.classLoader!!,
+                    packages,
+                    env,
+                )
+
+            val pluginActionManagerFactory =
+                PluginActionManager.Factory(
+                    context,
+                    context.packageManager,
+                    context.mainExecutor,
+                    bgExecutor,
+                    context.getSystemService(NotificationManager::class.java),
+                    pluginEnabler,
+                    packages,
+                    instanceFactory,
+                    pluginPrefs,
+                    env,
+                )
+
+            return PluginManagerImpl(
+                context,
+                pluginActionManagerFactory,
+                preHandlerManager,
+                pluginEnabler,
+                pluginPrefs,
+                packages,
+                env,
+            )
+        }
     }
 }

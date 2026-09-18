@@ -35,7 +35,6 @@ import com.android.app.animation.Interpolators
 import com.android.server.display.feature.flags.Flags.FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.res.R
-import com.android.window.flags.Flags.FLAG_ENABLE_UPDATED_DISPLAY_CONNECTION_DIALOG
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -49,10 +48,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 @SmallTest
-@RequiresFlagsEnabled(
-    FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
-    FLAG_ENABLE_UPDATED_DISPLAY_CONNECTION_DIALOG,
-)
+@RequiresFlagsEnabled(FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 class ExternalDisplayConnectionDialogDelegateTest : SysuiTestCase() {
@@ -165,6 +161,44 @@ class ExternalDisplayConnectionDialogDelegateTest : SysuiTestCase() {
 
         val desktopModeButton = dialog.requireViewById<View>(R.id.start_desktop_mode)
         assertThat(desktopModeButton.visibility).isEqualTo(View.GONE)
+    }
+
+    @Test
+    fun startDesktopButton_desktopModeNotSupported_isNotVisible() {
+        val kioskModeDialogDelegate =
+            ExternalDisplayConnectionDialogDelegate(
+                context = context,
+                showConcurrentDisplayInfo = false,
+                isDesktopModeSupported = false,
+                rememberChoiceCheckBoxListener = rememberChoiceCallback,
+                onStartDesktopClickListener = onStartDesktopCallback,
+                onStartMirroringClickListener = onStartMirroringCallback,
+                onCancelClickListener = onCancelCallback,
+                insetsProvider = { Insets.of(Rect()) },
+            )
+        kioskModeDialogDelegate.onCreate(dialog, null)
+
+        val desktopModeButton = dialog.requireViewById<View>(R.id.start_desktop_mode)
+        assertThat(desktopModeButton.visibility).isEqualTo(View.GONE)
+    }
+
+    @Test
+    fun saveChoiceCheckbox_desktopModeNotSupported_isVisible() {
+        val kioskModeDialogDelegate =
+            ExternalDisplayConnectionDialogDelegate(
+                context = context,
+                showConcurrentDisplayInfo = false,
+                isDesktopModeSupported = false,
+                rememberChoiceCheckBoxListener = rememberChoiceCallback,
+                onStartDesktopClickListener = onStartDesktopCallback,
+                onStartMirroringClickListener = onStartMirroringCallback,
+                onCancelClickListener = onCancelCallback,
+                insetsProvider = { Insets.of(Rect()) },
+            )
+        kioskModeDialogDelegate.onCreate(dialog, null)
+
+        val saveChoiceCheckbox = dialog.requireViewById<CheckBox>(R.id.save_connection_preference)
+        assertThat(saveChoiceCheckbox.visibility).isEqualTo(View.VISIBLE)
     }
 
     @Test

@@ -1,10 +1,11 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.graphics {
 
   public class ColorMatrix {
     ctor public ColorMatrix();
-    ctor public ColorMatrix(float[]);
     ctor public ColorMatrix(android.graphics.ColorMatrix);
+    ctor public ColorMatrix(float[]);
     method public final float[] getArray();
     method public void postConcat(android.graphics.ColorMatrix);
     method public void preConcat(android.graphics.ColorMatrix);

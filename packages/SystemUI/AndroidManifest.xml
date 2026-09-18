@@ -172,6 +172,7 @@
     <uses-permission android:name="android.permission.CONFIGURE_WIFI_DISPLAY" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WARM_UP_CAMERA" />
     <uses-permission android:name="android.permission.CAMERA_OPEN_CLOSE_LISTENER" />
 
     <!-- Screen Capturing -->
@@ -180,6 +181,7 @@
     <!-- Screen Recording -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
@@ -274,6 +276,12 @@
     <uses-permission android:name="android.permission.MODIFY_ACCESSIBILITY_DATA" />
     <uses-permission android:name="android.permission.MANAGE_ACCESSIBILITY" />
     <uses-permission android:name="android.permission.ACT_AS_PACKAGE_FOR_ACCESSIBILITY" />
+
+    <permission
+            android:name="com.android.systemui.permission.LAUNCH_ACCESSIBILITY_SHORTCUT_CHOOSER_DIALOG"
+            android:protectionLevel="signature|privileged"/>
+    <uses-permission
+            android:name="com.android.systemui.permission.LAUNCH_ACCESSIBILITY_SHORTCUT_CHOOSER_DIALOG"/>
 
     <!-- to control accessibility volume -->
     <uses-permission android:name="android.permission.CHANGE_ACCESSIBILITY_VOLUME" />
@@ -403,6 +411,22 @@
     <!-- To be able to set unrestricted system gesture exclusion rects -->
     <uses-permission android:name="android.permission.SET_UNRESTRICTED_GESTURE_EXCLUSION"/>
 
+    <!-- Motion Cues -->
+    <uses-permission android:name="android.permission.BIND_MOTION_CUES_SERVICE"/>
+
+    <!-- To be able to start location button consent dialog activity in PermissionController. -->
+    <uses-permission android:name="android.permission.REQUEST_LOCATION_BUTTON_PERMISSIONS"/>
+
+    <!-- To be able to execute AppFunction for Android Context Engine use cases -->
+    <uses-permission android:name="android.permission.EXECUTE_APP_FUNCTIONS_SYSTEM"/>
+
+    <!-- To be able to render personal context autofill insights and host a visualizer. -->
+    <uses-permission android:name="android.permission.PERSONAL_CONTEXT_RECEIVE_INSIGHTS"/>
+
+    <!-- To be able to report UI latency stats to UILatencyStatsService. -->
+    <uses-permission android:name="android.permission.REPORT_UI_LATENCY_STATS"
+        android:featureFlag="com.android.server.ui_latency_stats.ui_latency_stats_service" />
+
     <protected-broadcast android:name="com.android.settingslib.action.REGISTER_SLICE_RECEIVER" />
     <protected-broadcast android:name="com.android.settingslib.action.UNREGISTER_SLICE_RECEIVER" />
     <protected-broadcast android:name="com.android.settings.flashlight.action.FLASHLIGHT_CHANGED" />
@@ -417,7 +441,7 @@
         android:killAfterRestore="false"
         android:hardwareAccelerated="true"
         android:label="@string/app_label"
-        android:icon="@drawable/android16_patch_adaptive"
+        android:icon="@drawable/android17_patch_adaptive"
         android:process="com.android.systemui"
         android:supportsRtl="true"
         android:theme="@style/Theme.SystemUI"
@@ -542,15 +566,33 @@
             android:name=".screencapture.record.smallscreen.ui.SmallScreenPostRecordingActivity"
             android:exported="false"
             android:showForAllUsers="true"
+            android:windowSoftInputMode="adjustResize"
+            android:taskAffinity="com.android.systemui.screencapture"
             android:theme="@style/ScreenCapture.PostRecord" />
 
-        <service android:name=".screenrecord.service.ScreenRecordingService" />
+        <activity
+            android:name=".screencapture.record.largescreen.ui.DirectoryPickerActivity"
+            android:exported="false"
+            android:showForAllUsers="true"
+            android:theme="@style/Theme.Transparent" />
+
+        <receiver
+            android:name=".screenrecord.service.ActivityStartingReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".screenrecord.service.ScreenRecordingService"
+            android:foregroundServiceType="systemExempted|microphone"
+            android:exported="false" />
 
         <service android:name=".screenrecord.RecordingService"
                  android:foregroundServiceType="systemExempted"/>
 
         <service android:name=".recordissue.IssueRecordingService"
                  android:foregroundServiceType="systemExempted"/>
+
+        <service android:name=".recordissue.IssueRecordingServiceLegacy"
+                android:foregroundServiceType="systemExempted"/>
 
         <receiver android:name=".SysuiRestartReceiver"
             android:exported="false">
@@ -633,6 +675,15 @@
 
         <!-- started from UsbDeviceSettingsManager -->
         <activity android:name=".usb.UsbResolverActivity"
+            android:exported="true"
+            android:permission="android.permission.MANAGE_USB"
+            android:theme="@style/Theme.SystemUI.Dialog.Alert"
+            android:finishOnCloseSystemDialogs="true"
+            android:excludeFromRecents="true">
+        </activity>
+
+        <!-- started from UsbDeviceSettingsManager -->
+        <activity android:name=".usb.UsbAuthorizationActivity"
             android:exported="true"
             android:permission="android.permission.MANAGE_USB"
             android:theme="@style/Theme.SystemUI.Dialog.Alert"
@@ -724,6 +775,18 @@
             android:visibleToInstantApps="true"/>
 
         <activity
+            android:name=".screencapture.ui.ShareScreenActivity"
+            android:label="@string/screen_share_a11y_announcement"
+            android:showForAllUsers="true"
+            android:exported="true"
+            android:theme="@style/Theme.SystemUI.MediaProjectionAlertDialog"
+            android:finishOnCloseSystemDialogs="true"
+            android:launchMode="singleTop"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:excludeFromRecents="true"
+            android:visibleToInstantApps="true"/>
+
+        <activity
             android:name=".mediaprojection.appselector.MediaProjectionAppSelectorActivity"
             android:theme="@style/Theme.SystemUI.MediaProjectionAppSelector"
             android:showForAllUsers="true"
@@ -794,6 +857,21 @@
             android:windowDisablePreview="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
 
+        <!-- AppFunctions -->
+        <activity android:name=".appfunctions.trampoline.AppFunctionExecutorProxy"
+            android:exported="true"
+            android:permission="android.permission.EXECUTE_APP_FUNCTIONS_SYSTEM"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay">
+        </activity >
+
+        <!-- Data Attribution for Android Context Engine use cases -->
+        <activity android:name=".personalcontext.attribution.AttributionActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.SystemUI.Dialog.Alert">
+        </activity >
+
         <!-- People Space Widget -->
         <receiver
             android:name=".people.widget.PeopleSpaceWidgetProvider"
@@ -838,6 +916,7 @@
 
         <service
             android:name=".keyguard.KeyguardService"
+            android:permission="android.permission.CONTROL_KEYGUARD"
             android:exported="true" />
 
         <service
@@ -895,7 +974,8 @@
             android:finishOnCloseSystemDialogs="true"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
-            android:exported="true">
+            android:exported="true"
+            android:showForAllUsers="true">
             <intent-filter>
                 <action android:name="com.android.intent.action.SHOW_BRIGHTNESS_DIALOG" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -1058,6 +1138,29 @@
             android:exported="false">
         </activity>
 
+        <!-- Contextual setup activity for dreams/screensavers. -->
+        <activity
+            android:name=".dreams.ui.activity.DreamSetupActivity"
+            android:theme="@style/Theme.Transparent"
+            android:label=""
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:finishOnTaskLaunch="true"
+            android:showWhenLocked="true"
+            android:showForAllUsers="true"
+            />
+
+        <activity
+            android:name=".notifications.intelligence.rules.ui.composable.NotificationRulesActivity"
+            android:theme="@style/Theme.Transparent"
+            android:label="@string/notification_rules_activity_title"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="false"
+            android:showForAllUsers="true"
+            />
+
         <service
             android:name="com.android.systemui.communal.widgets.GlanceableHubWidgetManagerService"
             android:exported="false" />
@@ -1113,7 +1216,6 @@
 
         <receiver android:name=".user.UserDialogReceiver"
             android:exported="true"
-            android:featureFlag="com.android.systemui.multiuser_open_user_switcher_dialog"
             android:permission="android.permission.CREATE_USERS">
             <intent-filter>
                 <action android:name="com.android.systemui.action.LAUNCH_USER_SWITCHER_DIALOG" />
@@ -1198,12 +1300,44 @@
                 <action android:name="android.service.dreams.DreamService" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/low_light_clock_dream_metadata" />
         </service>
 
         <service android:name=".selectiontoolbar.app.service.SysUiSelectionToolbarRenderService"
             android:permission="android.permission.BIND_SELECTION_TOOLBAR_RENDER_SERVICE"
             android:exported="true"
             />
+
+        <service android:name="com.android.systemui.personalcontext.SysuiVisualizerService"
+            android:enabled="false"
+            android:exported="true"
+            android:singleUser="true"
+            android:permission="android.permission.BIND_INSIGHT_SURFACE_VISUALIZER_SERVICE">
+            <intent-filter>
+                <action
+                    android:name="android.service.personalcontext.embedded.InsightSurfaceVisualizerService"
+                    />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name="com.android.systemui.personalcontext.AutofillRendererService"
+            android:singleUser="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_CONTEXT_COMPONENT_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.personalcontext.renderer.InsightRendererService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name="com.android.systemui.locationbutton.LocationButtonRenderService"
+            android:permission="android.permission.USE_LOCATION_BUTTON"
+            android:singleUser="true"
+            android:exported="true"
+           />
 
     </application>
 </manifest>

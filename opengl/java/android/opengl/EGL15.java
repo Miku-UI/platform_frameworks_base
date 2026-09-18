@@ -66,11 +66,11 @@ public final class EGL15 {
     public static final int EGL_LOSE_CONTEXT_ON_RESET                      = 0x31BF;
     public static final int EGL_PLATFORM_ANDROID_KHR                       = 0x3141;
     public static final long EGL_FOREVER                                   = 0xFFFFFFFFFFFFFFFFL;
-    public static final EGLImage EGL_NO_IMAGE                              = null;
-    public static final EGLSync EGL_NO_SYNC                                = null;
-    public static final EGLContext EGL_NO_CONTEXT                          = null;
-    public static final EGLDisplay EGL_NO_DISPLAY                          = null;
-    public static final EGLSurface EGL_NO_SURFACE                          = null;
+    public static final EGLImage EGL_NO_IMAGE                              = null; // Note: does not use null object wrapper
+    public static final EGLSync EGL_NO_SYNC                                = null; // Note: does not use null object wrapper
+    public static final EGLContext EGL_NO_CONTEXT                          = new EGLContext(0L);
+    public static final EGLDisplay EGL_NO_DISPLAY                          = new EGLDisplay(0L);
+    public static final EGLSurface EGL_NO_SURFACE                          = new EGLSurface(0L);
 
     native private static void _nativeClassInit();
     static {

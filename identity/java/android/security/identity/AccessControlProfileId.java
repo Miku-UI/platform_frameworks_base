@@ -16,9 +16,15 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
+
 /**
  * A class used to wrap an access control profile identifiers.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class AccessControlProfileId {
     private int mId = 0;
 
@@ -28,7 +34,11 @@ public class AccessControlProfileId {
      * <p>The identifier must be a non-negative number and less than 32.
      *
      * @param id the identifier.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public AccessControlProfileId(int id) {
         this.mId = id;
     }
@@ -37,7 +47,11 @@ public class AccessControlProfileId {
      * Gets the numerical identifier wrapped by this object.
      *
      * @return the identifier.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public int getId() {
         return this.mId;
     }

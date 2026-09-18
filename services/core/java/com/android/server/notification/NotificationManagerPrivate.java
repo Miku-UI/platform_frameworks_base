@@ -27,4 +27,8 @@ interface NotificationManagerPrivate {
     NotificationRecord getNotificationByKey(String key);
 
     void timeoutNotification(String key);
+
+    void triggerPolicyFileWrite();
+
+    void triggerRulesFileWrite();
 }

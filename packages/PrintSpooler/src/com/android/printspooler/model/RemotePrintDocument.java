@@ -41,7 +41,6 @@ import android.util.Log;
 
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.printspooler.R;
-import com.android.printspooler.flags.Flags;
 import com.android.printspooler.util.PageRangeUtils;
 
 import libcore.io.IoUtils;
@@ -483,9 +482,6 @@ public final class RemotePrintDocument {
     }
 
     private static boolean debugLogsEnabled() {
-        if (!Flags.enablePrintDebugOption()) {
-            return false;
-        }
         return PRINT_DEBUG_LOG_PROP_ENABLED.equals(SystemProperties.get(PRINT_DEBUG_LOG_PROP));
     }
 

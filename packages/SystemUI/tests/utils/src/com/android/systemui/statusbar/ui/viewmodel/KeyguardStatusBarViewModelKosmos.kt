@@ -21,21 +21,24 @@ import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
 import com.android.systemui.statusbar.domain.interactor.keyguardStatusBarInteractor
-import com.android.systemui.statusbar.notification.stack.domain.interactor.headsUpNotificationInteractor
-import com.android.systemui.statusbar.policy.batteryController
-import com.android.systemui.user.domain.interactor.userLogoutInteractor
+import com.android.systemui.statusbar.phone.domain.interactor.shadeDarkIconInteractor
+import com.android.systemui.statusbar.pipeline.shared.domain.interactor.homeStatusBarIconBlockListInteractor
 
-val Kosmos.keyguardStatusBarViewModel: KeyguardStatusBarViewModel by
+val Kosmos.keyguardStatusBarViewModelFactory by
     Kosmos.Fixture {
-        KeyguardStatusBarViewModel(
-            applicationCoroutineScope,
-            headsUpNotificationInteractor,
-            desktopInteractor,
-            sceneInteractor,
-            keyguardInteractor,
-            keyguardStatusBarInteractor,
-            userLogoutInteractor,
-            batteryController,
-        )
+        object : KeyguardStatusBarViewModel.Factory {
+            override fun create() =
+                KeyguardStatusBarViewModel(
+                    applicationCoroutineScope,
+                    desktopInteractor,
+                    sceneInteractor,
+                    keyguardInteractor,
+                    keyguardStatusBarInteractor,
+                    shadeStatusBarComponentsInteractor,
+                    shadeDarkIconInteractor,
+                    homeStatusBarIconBlockListInteractor,
+                )
+        }
     }

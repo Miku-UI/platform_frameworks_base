@@ -17,6 +17,7 @@
 package android.telecom;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SdkConstant;
 import android.annotation.SystemApi;
@@ -33,6 +34,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.OutcomeReceiver;
+import android.telecom.flags.Flags;
 import android.view.Surface;
 
 import com.android.internal.os.SomeArgs;
@@ -276,6 +278,7 @@ public abstract class InCallService extends Service {
     private static final int MSG_ON_CALL_ENDPOINT_CHANGED = 14;
     private static final int MSG_ON_AVAILABLE_CALL_ENDPOINTS_CHANGED = 15;
     private static final int MSG_ON_MUTE_STATE_CHANGED = 16;
+    private static final int MSG_ON_CALL_ENDPOINT_REQUESTED = 17;
 
     private CallEndpoint mCallEndpoint;
 
@@ -381,6 +384,11 @@ public abstract class InCallService extends Service {
                     InCallService.this.onMuteStateChanged((boolean) msg.obj);
                     break;
                 }
+                case MSG_ON_CALL_ENDPOINT_REQUESTED: {
+                    CallEndpoint endpoint = (CallEndpoint) msg.obj;
+                    InCallService.this.onCallEndpointRequested(endpoint);
+                    break;
+                }
                 default:
                     break;
             }
@@ -425,6 +433,11 @@ public abstract class InCallService extends Service {
         @Override
         public void onCallEndpointChanged(CallEndpoint callEndpoint) {
             mHandler.obtainMessage(MSG_ON_CALL_ENDPOINT_CHANGED, callEndpoint).sendToTarget();
+        }
+
+        @Override
+        public void onCallEndpointRequested(CallEndpoint callEndpoint) {
+            mHandler.obtainMessage(MSG_ON_CALL_ENDPOINT_REQUESTED, callEndpoint).sendToTarget();
         }
 
         @Override
@@ -748,6 +761,24 @@ public abstract class InCallService extends Service {
      */
     public void onCallEndpointChanged(@NonNull CallEndpoint callEndpoint) {
     }
+
+    /**
+     * Called by the platform when an {@link InCallService} changes the audio route using
+     * {@link #requestCallEndpointChange(CallEndpoint, Executor, OutcomeReceiver)} to initiate a
+     * call endpoint change.  It is intended so that an {@link InCallService} (e.g. a non-UI
+     * companion app) can be aware of audio route changes initiated by other {@link InCallService}s
+     * (e.g., the user changing the endpoint in the Dialer application). Note that requests
+     * reported by this API are not final until {@link #onCallEndpointChanged(CallEndpoint)}
+     * is called with the requested endpoint. The actual endpoint change may differ from the
+     * request in cases where a device becomes unavailable or the routing request fails to
+     * complete.
+     *
+     * @param callEndpoint The requested {@link CallEndpoint}.
+     */
+    @FlaggedApi(Flags.FLAG_CALL_ENDPOINT_REQUESTED_API)
+    public void onCallEndpointRequested(@NonNull CallEndpoint callEndpoint) {
+    }
+
 
     /**
      * Called when the available CallEndpoint changes.

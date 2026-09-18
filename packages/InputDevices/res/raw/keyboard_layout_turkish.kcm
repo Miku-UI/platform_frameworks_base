@@ -155,6 +155,7 @@ key T {
     base:                               't'
     shift, capslock:                    'T'
     shift+capslock:                     't'
+    ralt:                               '\u20ba'
 }
 
 key Y {
@@ -378,4 +379,17 @@ key PERIOD {
     label:                              '.'
     base:                               '.'
     shift:                              ':'
+}
+
+### NUMPAD
+
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              '.'
+    base:                               '.'
 }

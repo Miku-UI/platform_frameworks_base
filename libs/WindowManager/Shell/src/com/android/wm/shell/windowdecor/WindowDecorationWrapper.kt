@@ -29,9 +29,9 @@ import android.view.SurfaceControl
 import android.view.View.OnClickListener
 import android.view.View.OnGenericMotionListener
 import android.view.View.OnLongClickListener
-import android.view.View.OnTouchListener
 import android.window.DesktopExperienceFlags
 import android.window.WindowContainerTransaction
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
 import com.android.wm.shell.windowdecor.DragPositioningCallbackUtility.DragEventListener
 import com.android.wm.shell.windowdecor.DragResizeWindowGeometry.DisabledEdge
 import com.android.wm.shell.windowdecor.common.ExclusionRegionListener
@@ -130,16 +130,6 @@ private constructor(
                 else -> error("Expected Non-null window decoration")
             }
 
-    /** Returns the system's [Context]. */
-    val context: Context
-        get() =
-            when {
-                defaultWindowDecor != null -> requireDefaultWindowDecor().context
-                desktopWindowDecor != null -> requireDesktopWindowDecor().mContext
-                captionWindowDecoration != null -> requireCaptionWindowDecor().mContext
-                else -> error("Expected Non-null default or desktop window decoration")
-            }
-
     /** Returns if the task associated with the window decor is focused. */
     val isFocused: Boolean
         get() =
@@ -150,10 +140,10 @@ private constructor(
                 else -> error("Expected Non-null default or desktop window decoration")
             }
 
-    val maximizeMenuController: MaximizeMenuController?
+    val layoutMenuController: LayoutMenuController?
         get() =
             when {
-                defaultWindowDecor != null -> requireDefaultWindowDecor().maximizeMenuController
+                defaultWindowDecor != null -> requireDefaultWindowDecor().layoutMenuController
                 desktopWindowDecor != null -> requireDesktopWindowDecor()
                 else -> error("Expected Non-null default or desktop window decoration")
             }
@@ -172,6 +162,15 @@ private constructor(
             when {
                 defaultWindowDecor != null -> requireDefaultWindowDecor().handleMenuController
                 desktopWindowDecor != null -> requireDesktopWindowDecor()
+                else -> error("Expected Non-null default or desktop window decoration")
+            }
+
+    val pinnedLayerController: PinnedLayerController?
+        get() =
+            when {
+                defaultWindowDecor != null -> requireDefaultWindowDecor().pinnedLayerController
+                desktopWindowDecor != null -> null // Unsupported in this context
+                captionWindowDecoration != null -> null // Unsupported in this context
                 else -> error("Expected Non-null default or desktop window decoration")
             }
 
@@ -286,20 +285,6 @@ private constructor(
             else -> error("Expected Non-null window decoration")
         }
 
-    /** Declares whether a Recents transition is currently active. */
-    fun setIsRecentsTransitionRunning(isRecentsRunning: Boolean) =
-        when {
-            defaultWindowDecor != null -> {
-                requireDefaultWindowDecor().isRecentsTransitionRunning = isRecentsRunning
-            }
-
-            desktopWindowDecor != null -> {
-                requireDesktopWindowDecor().setIsRecentsTransitionRunning(isRecentsRunning)
-            }
-
-            else -> error("Expected Non-null default or desktop window decoration")
-        }
-
     /** Closes the window decoration. */
     fun close() =
         when {
@@ -388,6 +373,20 @@ private constructor(
 
             desktopWindowDecor != null -> {
                 requireDesktopWindowDecor().setIsDragging(dragging)
+            }
+
+            else -> error("Expected Non-null default or desktop window decoration")
+        }
+
+    /** Returns whether the task is being dragged. */
+    fun getIsDragging(): Boolean =
+        when {
+            defaultWindowDecor != null -> {
+                requireDefaultWindowDecor().isDragging
+            }
+
+            desktopWindowDecor != null -> {
+                requireDesktopWindowDecor().isDragging
             }
 
             else -> error("Expected Non-null default or desktop window decoration")
@@ -619,7 +618,7 @@ private constructor(
     /** Set the listeners for the decorations. */
     fun setCaptionListeners(
         onClickListener: OnClickListener,
-        onTouchListener: OnTouchListener,
+        gestureInterceptor: WindowDecorLinearLayout.GestureInterceptor,
         onLongClickListener: OnLongClickListener?,
         onGenericMotionListener: OnGenericMotionListener?,
     ) =
@@ -627,8 +626,7 @@ private constructor(
             defaultWindowDecor != null -> {
                 requireDefaultWindowDecor()
                     .setListeners(
-                        onClickListener,
-                        onTouchListener,
+                        gestureInterceptor,
                         checkNotNull(onLongClickListener) {
                             "Expected non-null long click listener"
                         },
@@ -641,8 +639,7 @@ private constructor(
             desktopWindowDecor != null -> {
                 requireDesktopWindowDecor()
                     .setCaptionListeners(
-                        onClickListener,
-                        onTouchListener,
+                        gestureInterceptor,
                         checkNotNull(onLongClickListener) {
                             "Expected non-null long click listener"
                         },
@@ -653,7 +650,7 @@ private constructor(
             }
 
             captionWindowDecoration != null -> {
-                requireCaptionWindowDecor().setCaptionListeners(onClickListener, onTouchListener)
+                requireCaptionWindowDecor().setCaptionListeners(onClickListener, gestureInterceptor)
             }
 
             else -> error("Expected Non-null window decoration")
@@ -692,14 +689,6 @@ private constructor(
             }
 
             else -> error("Expected Non-null window decoration")
-        }
-
-    /** Announces that the app window is now being focused for accessibility. */
-    fun a11yAnnounceNewFocusedWindow() =
-        when {
-            defaultWindowDecor != null -> requireDefaultWindowDecor().a11yAnnounceNewFocusedWindow()
-            desktopWindowDecor != null -> requireDesktopWindowDecor().a11yAnnounceNewFocusedWindow()
-            else -> error("Expected Non-null default or desktop window decoration")
         }
 
     /**

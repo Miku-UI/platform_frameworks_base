@@ -21,7 +21,6 @@ import android.animation.ValueAnimator
 import android.app.ActivityManager.RunningTaskInfo
 import android.graphics.Point
 import android.os.Handler
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper
@@ -29,11 +28,14 @@ import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.ImageButton
 import androidx.test.filters.SmallTest
-import com.android.internal.policy.SystemBarUtils
 import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger
+import com.android.wm.shell.desktopmode.DesktopTasksController
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
+import com.android.wm.shell.transition.FocusTransitionObserver
+import com.android.wm.shell.windowdecor.HandleMenuController
 import com.android.wm.shell.windowdecor.WindowManagerWrapper
 import com.android.wm.shell.windowdecor.viewholder.AppHandleAnimator.Companion.APP_HANDLE_ALPHA_FADE_IN_ANIMATION_DURATION_MS
 import com.android.wm.shell.windowdecor.viewholder.AppHandleAnimator.Companion.APP_HANDLE_ALPHA_FADE_OUT_ANIMATION_DURATION_MS
@@ -45,8 +47,6 @@ import org.junit.After
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.spy
-import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 /**
@@ -77,6 +77,10 @@ class AppHandleViewHolderTest : ShellTestCase() {
     private val mockHandler = mock<Handler>()
     private val mockTaskInfo = mock<RunningTaskInfo>()
     private val mockDesktopModeUiEventLogger = mock<DesktopModeUiEventLogger>()
+    private val mockHandleMenuController = mock<HandleMenuController>()
+    private val mockFocusTransitionObserver = mock<FocusTransitionObserver>()
+    private val mockPinnedLayerController = mock<PinnedLayerController>()
+    private val mockDesktopTasksController = mock<DesktopTasksController>()
 
     @Before
     fun setup() {
@@ -93,33 +97,7 @@ class AppHandleViewHolderTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(
-        Flags.FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER,
-        Flags.FLAG_ENABLE_DRAWING_APP_HANDLE,
-    )
-    fun statusBarInputLayer_disposedWhenCaptionBelowStatusBar() {
-        val appHandleViewHolder: AppHandleViewHolder = spy(createAppHandleViewHolder(mockView))
-        val captionPosition = Point(0, SystemBarUtils.getStatusBarHeight(mContext) + 10)
-
-        appHandleViewHolder.bindData(
-            AppHandleViewHolder.HandleData(
-                taskInfo = mockTaskInfo,
-                position = captionPosition,
-                width = DEFAULT_CAPTION_WIDTH,
-                height = DEFAULT_CAPTION_HEIGHT,
-                showInputLayer = DEFAULT_SHOW_INPUT_LAYER,
-                isCaptionVisible = DEFAULT_IS_CAPTION_VISIBLE,
-            )
-        )
-
-        verify(appHandleViewHolder).disposeStatusBarInputLayer()
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_REENABLE_APP_HANDLE_ANIMATIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
     fun animatesFromVisibleToInvisible() {
         runVisibilityAnimationTest(
             toVisible = false,
@@ -133,10 +111,7 @@ class AppHandleViewHolderTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_REENABLE_APP_HANDLE_ANIMATIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
     fun animatesFromInvisibleToVisible() {
         runVisibilityAnimationTest(
             toVisible = true,
@@ -150,10 +125,7 @@ class AppHandleViewHolderTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_REENABLE_APP_HANDLE_ANIMATIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
     fun animatesFromVisibleToInvisible_withPathInterpolator() {
         runVisibilityAnimationTest(
             toVisible = false,
@@ -172,10 +144,7 @@ class AppHandleViewHolderTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_REENABLE_APP_HANDLE_ANIMATIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
     fun animatesFromInvisibleToVisible_withPathInterpolator() {
         runVisibilityAnimationTest(
             toVisible = true,
@@ -194,10 +163,7 @@ class AppHandleViewHolderTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_REENABLE_APP_HANDLE_ANIMATIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
     fun continuesAnimationOnRepeatedBindToInvisibleWhileAnimating() {
         // Assumes view is inflated with visibility=VISIBLE
         val appHandle = createAppHandleViewHolder()
@@ -310,11 +276,15 @@ class AppHandleViewHolderTest : ShellTestCase() {
         return AppHandleViewHolder(
                 view,
                 mContext,
+                mock(),
                 mockOnTouchListener,
-                mockOnClickListener,
                 mockWindowManagerWrapper,
                 mockHandler,
                 mockDesktopModeUiEventLogger,
+                mockHandleMenuController,
+                mockFocusTransitionObserver,
+                mockPinnedLayerController,
+                mockDesktopTasksController,
             )
             .apply {
                 visible?.let { this.rootView.visibility = if (visible) View.VISIBLE else View.GONE }

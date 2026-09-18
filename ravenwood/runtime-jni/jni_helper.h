@@ -17,55 +17,10 @@
 #include <jni.h>
 #include <log/log.h>
 #include <nativehelper/JNIHelp.h>
-#include <nativehelper/ScopedLocalRef.h>
-#include <nativehelper/ScopedPrimitiveArray.h>
-#include <nativehelper/ScopedUtfChars.h>
 
-#include <string>
-
-constexpr const char* kCommonUtils = "com/android/ravenwood/common/RavenwoodCommonUtils";
-constexpr const char* kRuntimeEnvController =
-        "android/platform/test/ravenwood/RavenwoodDriver";
 constexpr const char* kRunnerState = "android/platform/test/ravenwood/RavenwoodRunnerState";
 constexpr const char* kRuntimeNative = "com/android/ravenwood/RavenwoodRuntimeNative";
-
-// We have to explicitly decode the string to real UTF-8, because when using GetStringUTFChars
-// we only get modified UTF-8, which is not the platform string type used in host JVM.
-struct ScopedRealUtf8Chars {
-    ScopedRealUtf8Chars(JNIEnv* env, jstring s) : valid_(false) {
-        if (s == nullptr) {
-            jniThrowNullPointerException(env);
-            return;
-        }
-        jclass clazz = env->GetObjectClass(s);
-        jmethodID getBytes = env->GetMethodID(clazz, "getBytes", "(Ljava/lang/String;)[B");
-
-        ScopedLocalRef<jstring> utf8(env, env->NewStringUTF("UTF-8"));
-        ScopedLocalRef<jbyteArray> jbytes(env,
-                                          (jbyteArray)env->CallObjectMethod(s, getBytes,
-                                                                            utf8.get()));
-
-        ScopedByteArrayRO bytes(env, jbytes.get());
-        string_.append((const char*)bytes.get(), bytes.size());
-        valid_ = true;
-    }
-
-    const char* c_str() const {
-        return valid_ ? string_.c_str() : nullptr;
-    }
-
-    size_t size() const {
-        return string_.size();
-    }
-
-    const char& operator[](size_t n) const {
-        return string_[n];
-    }
-
-private:
-    std::string string_;
-    bool valid_;
-};
+constexpr const char* kNativeLoader = "android/platform/test/ravenwood/RavenwoodNativeLoader";
 
 static inline JNIEnv* GetJNIEnvOrDie(JavaVM* vm) {
     JNIEnv* env = nullptr;

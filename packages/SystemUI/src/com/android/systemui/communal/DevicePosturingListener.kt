@@ -19,14 +19,14 @@ package com.android.systemui.communal
 import android.annotation.SuppressLint
 import android.app.DreamManager
 import android.os.PowerManager
-import android.service.dreams.Flags.allowDreamWhenPostured
 import com.android.app.tracing.coroutines.launchInTraced
 import com.android.app.tracing.coroutines.launchTraced
+import com.android.internal.logging.UiEventLogger
 import com.android.systemui.CoreStartable
-import com.android.systemui.common.domain.interactor.BatteryInteractorDeprecated
 import com.android.systemui.communal.posturing.domain.interactor.PosturingInteractor
 import com.android.systemui.communal.posturing.domain.interactor.PosturingInteractor.Companion.SLIDING_WINDOW_DURATION
 import com.android.systemui.communal.posturing.shared.model.PosturedState
+import com.android.systemui.communal.shared.log.CommunalUiEvent
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dreams.domain.interactor.DreamSettingsInteractor
@@ -38,7 +38,6 @@ import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.statusbar.commandline.Command
 import com.android.systemui.statusbar.commandline.CommandRegistry
 import com.android.systemui.statusbar.pipeline.battery.domain.interactor.BatteryInteractor
-import com.android.systemui.statusbar.pipeline.battery.shared.StatusBarUniversalBatteryDataSource
 import com.android.systemui.util.kotlin.BooleanFlowOperators.allOf
 import com.android.systemui.util.wakelock.WakeLock
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
@@ -61,12 +60,12 @@ constructor(
     private val dreamManager: DreamManager,
     private val posturingInteractor: PosturingInteractor,
     dreamSettingsInteractor: DreamSettingsInteractor,
-    private val batteryInteractorDeprecated: BatteryInteractorDeprecated,
     private val batteryInteractor: BatteryInteractor,
     @Background private val bgScope: CoroutineScope,
     @CommunalTableLog private val tableLogBuffer: TableLogBuffer,
     private val wakeLockBuilder: WakeLock.Builder,
     private val powerInteractor: PowerInteractor,
+    private val uiEventLogger: UiEventLogger,
 ) : CoreStartable {
     private val command = DevicePosturingCommand()
 
@@ -78,12 +77,7 @@ constructor(
             .build()
     }
 
-    private val isDevicePluggedIn =
-        if (StatusBarUniversalBatteryDataSource.isEnabled) {
-            batteryInteractor.isPluggedIn
-        } else {
-            batteryInteractorDeprecated.isDevicePluggedIn
-        }
+    private val isDevicePluggedIn = batteryInteractor.isPluggedIn
 
     // Only subscribe to posturing if applicable to avoid running the posturing CHRE nanoapp
     // if posturing signal is not needed.
@@ -113,9 +107,6 @@ constructor(
 
     @SuppressLint("MissingPermission")
     override fun start() {
-        if (!allowDreamWhenPostured()) {
-            return
-        }
 
         isDevicePluggedIn
             .logDiffsForTable(
@@ -128,6 +119,16 @@ constructor(
         postured
             .distinctUntilChanged()
             .onEach { postured -> dreamManager.setDevicePostured(postured) }
+            .dropWhile { !it }
+            .onEach { postured ->
+                val event =
+                    if (postured) {
+                        CommunalUiEvent.COMMUNAL_DEVICE_POSTURED
+                    } else {
+                        CommunalUiEvent.COMMUNAL_DEVICE_UNPOSTURED
+                    }
+                uiEventLogger.log(event)
+            }
             .launchInTraced("$TAG#collectPostured", bgScope)
 
         bgScope.launchTraced("$TAG#collectMayBePosturedSoon") {

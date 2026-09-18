@@ -17,6 +17,10 @@ public class TestTarget {
   public static int boostCount = 0;
   public static int unboostCount = 0;
   public static int invokeCount = 0;
+  public static int traceBeforeAcquireCount = 0;
+  public static int traceAfterAcquireCount = 0;
+  public static int traceBeforeReleaseCount = 0;
+  public static int traceAfterReleaseCount = 0;
   public static boolean nextUnboostThrows = false;
 
   // If this is not null, then this is the lock under test.  The lock must not be held when boost()
@@ -47,10 +51,30 @@ public class TestTarget {
     invokeCount++;
   }
 
+  public static void traceBeforeAcquire() {
+    traceBeforeAcquireCount++;
+  }
+
+  public static void traceAfterAcquire() {
+    traceAfterAcquireCount++;
+  }
+
+  public static void traceBeforeRelease() {
+    traceBeforeReleaseCount++;
+  }
+
+  public static void traceAfterRelease() {
+    traceAfterReleaseCount++;
+  }
+
   public static void resetCount() {
     boostCount = 0;
     unboostCount = 0;
     invokeCount = 0;
+    traceBeforeAcquireCount = 0;
+    traceAfterAcquireCount = 0;
+    traceBeforeReleaseCount = 0;
+    traceAfterReleaseCount = 0;
   }
 
   public synchronized void synchronizedCall() {

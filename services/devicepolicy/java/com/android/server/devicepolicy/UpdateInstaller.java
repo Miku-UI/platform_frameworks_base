@@ -48,10 +48,10 @@ abstract class UpdateInstaller {
     @Nullable protected File mCopiedUpdateFile;
 
     static final String TAG = "UpdateInstaller";
-    private DevicePolicyManagerService.Injector mInjector;
+    private Injector mInjector;
 
     protected UpdateInstaller(Context context, ParcelFileDescriptor updateFileDescriptor,
-            StartInstallingUpdateCallback callback, DevicePolicyManagerService.Injector injector,
+            StartInstallingUpdateCallback callback, Injector injector,
             DevicePolicyConstants constants) {
         mContext = context;
         mCallback = callback;

@@ -529,7 +529,7 @@ public class ImageWriter implements AutoCloseable {
                 crop.left, crop.top, crop.right, crop.bottom, image.getTransform(),
                 image.getScalingMode());
 
-        /**
+        /*
          * Only remove and cleanup the Images that are owned by this
          * ImageWriter. Images detached from other owners are only temporarily
          * owned by this ImageWriter and will be detached immediately after they
@@ -741,7 +741,7 @@ public class ImageWriter implements AutoCloseable {
             throw new IllegalArgumentException(
                     "Can not attach an image that is owned ImageWriter already");
         }
-        /**
+        /*
          * Throw ISE if the image is not attachable, which means that it is
          * either owned by other entity now, or completely non-attachable (some
          * stand-alone images are not backed by native gralloc buffer, thus not
@@ -856,7 +856,7 @@ public class ImageWriter implements AutoCloseable {
             return;
         }
 
-        /**
+        /*
          * We only need abort Images that are owned and dequeued by ImageWriter.
          * For attached Images, no need to abort, as there are only two cases:
          * attached + queued successfully, and attach failed. Neither of the
@@ -1238,7 +1238,7 @@ public class ImageWriter implements AutoCloseable {
                 mRowStride = rowStride;
                 mPixelStride = pixelStride;
                 mBuffer = buffer;
-                /**
+                /*
                  * Set the byteBuffer order according to host endianness (native
                  * order), otherwise, the byteBuffer order defaults to
                  * ByteOrder.BIG_ENDIAN.

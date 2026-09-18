@@ -16,6 +16,8 @@
 
 package com.android.server.ondeviceintelligence.executors;
 
+import static com.android.internal.util.Preconditions.checkNotNull;
+
 import android.Manifest;
 import android.os.RemoteException;
 import android.service.ondeviceintelligence.IOnDeviceSandboxedInferenceService;
@@ -63,8 +65,16 @@ public final class InferenceServiceExecutor
 
         // Ensure the remote service is initialized.
         manager.ensureRemoteInferenceServiceInitialized(/* shouldThrow= */ true);
-
-        AndroidFuture<?> future = manager.getRemoteInferenceService().postAsync(remoteCall::run);
+        var remoteService =
+                checkNotNull(
+                        manager.getRemoteInferenceService(), "Remote inference service is null");
+        AndroidFuture<?> future =
+                remoteService
+                        .postAsync(
+                                service -> {
+                                    AndroidFuture<?> res = remoteCall.run(service);
+                                    return res != null ? res : AndroidFuture.completedFuture(null);
+                                });
         future.whenComplete(
                 (res, ex) -> {
                     if (ex != null) {

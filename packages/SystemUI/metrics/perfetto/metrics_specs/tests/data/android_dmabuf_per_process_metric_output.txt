@@ -1,4 +1,5 @@
 metric_bundles {
+  bundle_id: "android_dmabuf_per_process_metric"
   row {
     values {
       double_value: 1024.0

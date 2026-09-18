@@ -236,8 +236,7 @@ public class BackProgressAnimator implements DynamicAnimation.OnAnimationUpdateL
         if (mLastBackEvent == null || mCallback == null || !mBackAnimationInProgress) {
             return;
         }
-        BackEvent backEvent;
-        backEvent = new BackEvent(mLastBackEvent.getTouchX(), mLastBackEvent.getTouchY(),
+        BackEvent backEvent = new BackEvent(mLastBackEvent.getTouchX(), mLastBackEvent.getTouchY(),
                 progress / SCALE_FACTOR, mLastBackEvent.getSwipeEdge(), frameTime);
         mCallback.onProgressUpdate(backEvent);
     }

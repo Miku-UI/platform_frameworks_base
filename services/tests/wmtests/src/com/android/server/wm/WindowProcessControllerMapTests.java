@@ -31,6 +31,8 @@ import android.util.ArraySet;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.am.psc.ProcessRecordInternal;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,23 +67,28 @@ public class WindowProcessControllerMapTests extends WindowTestsBase {
         mProcessMap = new WindowProcessControllerMap();
         pid1uid1 = new WindowProcessController(
                 mAtm, mAtm.mContext.getApplicationInfo(), "fakepid1fakeuid1", FAKE_UID1,
-                UserHandle.getUserId(12345), mock(Object.class), mock(WindowProcessListener.class));
+                UserHandle.getUserId(12345), mock(ProcessRecordInternal.class),
+                mock(WindowProcessListener.class));
         pid1uid1.setPid(FAKE_PID1);
         pid1uid2 = new WindowProcessController(
                 mAtm, mAtm.mContext.getApplicationInfo(), "fakepid1fakeuid2", FAKE_UID2,
-                UserHandle.getUserId(12345), mock(Object.class), mock(WindowProcessListener.class));
+                UserHandle.getUserId(12345), mock(ProcessRecordInternal.class),
+                mock(WindowProcessListener.class));
         pid1uid2.setPid(FAKE_PID1);
         pid2uid1 = new WindowProcessController(
                 mAtm, mAtm.mContext.getApplicationInfo(), "fakepid2fakeuid1", FAKE_UID1,
-                UserHandle.getUserId(12345), mock(Object.class), mock(WindowProcessListener.class));
+                UserHandle.getUserId(12345), mock(ProcessRecordInternal.class),
+                mock(WindowProcessListener.class));
         pid2uid1.setPid(FAKE_PID2);
         pid3uid1 = new WindowProcessController(
                 mAtm, mAtm.mContext.getApplicationInfo(), "fakepid3fakeuid1", FAKE_UID1,
-                UserHandle.getUserId(12345), mock(Object.class), mock(WindowProcessListener.class));
+                UserHandle.getUserId(12345), mock(ProcessRecordInternal.class),
+                mock(WindowProcessListener.class));
         pid3uid1.setPid(FAKE_PID3);
         pid4uid2 = new WindowProcessController(
                 mAtm, mAtm.mContext.getApplicationInfo(), "fakepid4fakeuid2", FAKE_UID2,
-                UserHandle.getUserId(12345), mock(Object.class), mock(WindowProcessListener.class));
+                UserHandle.getUserId(12345), mock(ProcessRecordInternal.class),
+                mock(WindowProcessListener.class));
         pid4uid2.setPid(FAKE_PID4);
     }
 

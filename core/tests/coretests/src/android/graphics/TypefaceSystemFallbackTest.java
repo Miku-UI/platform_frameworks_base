@@ -30,7 +30,6 @@ import android.graphics.fonts.FontFamily;
 import android.graphics.fonts.SystemFonts;
 import android.graphics.text.PositionedGlyphs;
 import android.graphics.text.TextRunShaper;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.text.FontConfig;
@@ -1067,7 +1066,6 @@ public class TypefaceSystemFallbackTest {
         assertEquals(GLYPH_2EM_WIDTH, paint.measureText("c"), 0.0f);
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_CUSTOM_FALLBACK_FOR_CUSTOMIZATION)
     @Test
     public void testBuildSystemFallback_fallbackAttribute() {
         final String xml = "<?xml version='1.0' encoding='UTF-8'?>"

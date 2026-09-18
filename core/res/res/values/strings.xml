@@ -438,6 +438,16 @@
     <!-- WFC, summary for Wi-Fi Only -->
     <string name="wfc_mode_wifi_only_summary">Wi-Fi only</string>
 
+    <!-- Displayed on a chronometer in low power mode to show approximately one minute for duration less than one minute [CHAR LIMIT=5] -->
+    <string name="adaptive_low_frequency_less_than_one_minute">~ %s</string>
+    <!-- Displayed on a chronometer in low power mode to show approximately negative one minute for duration less than one minute [CHAR LIMIT=5] -->
+    <string name="adaptive_low_frequency_neg_less_than_one_minute">~ −%s</string>
+
+    <!-- Format string for elapsed time in hours, minutes, and low frequency placeholder. [CHAR LIMIT=NONE] -->
+    <string name="elapsed_time_low_frequency_short_format_h_mm">%1$d:%2$02d:--</string>
+    <!-- Format string for elapsed time in minutes and low frequency placeholder. [CHAR LIMIT=NONE] -->
+    <string name="elapsed_time_low_frequency_short_format_mm">%1$02d:--</string>
+
     <!-- Template for showing mobile network operator name while Cross SIM calling is active -->
     <string-array name="crossSimSpnFormats" translatable="false">
         <item>@string/crossSimFormat_spn</item>
@@ -648,7 +658,7 @@
     <!-- Factory reset warning dialog strings--> <skip />
     <!-- Shows up in the dialog's title to warn about an impeding factory reset. [CHAR LIMIT=NONE] -->
     <string name="factory_reset_warning">Your device will be erased</string>
-    <!-- Text message in the factory reset warning dialog. This says that the the device admin app
+    <!-- Text message in the factory reset warning dialog. This says that the device admin app
          is missing or corrupted. As a result the device will be erased. [CHAR LIMIT=NONE]-->
     <string name="factory_reset_message">The admin app can\'t be used. Your device will now be
         erased.\n\nIf you have questions, contact your organization\'s admin.</string>
@@ -791,6 +801,9 @@
 
     <!-- label for item that generates a bug report in the phone options dialog [CHAR LIMIT=24] -->
     <string name="global_action_bug_report">Bug report</string>
+
+    <!-- label for item that opens the feedback app in the phone options dialog [CHAR LIMIT=24] -->
+    <string name="global_action_feedback">Feedback</string>
 
     <!-- label for item that logouts the current user [CHAR LIMIT=24]-->
     <string name="global_action_logout">End session</string>
@@ -958,6 +971,9 @@
 
     <!-- Text shown when viewing channel settings for notifications related to displays -->
     <string name="notification_channel_display">Display</string>
+
+    <!-- Text shown when viewing channel settings for notifications related to parental controls -->
+    <string name="notification_channel_parental_controls">Parental controls</string>
 
     <!-- Label for foreground service notification when one app is running.
     [CHAR LIMIT=NONE BACKUP_MESSAGE_ID=6826789589341671842] -->
@@ -1607,6 +1623,11 @@
     <string name="permdesc_systemCamera">This privileged or system app can take pictures and record videos using a system camera at any time. Requires the android.permission.CAMERA permission to be held by the app as well</string>
 
     <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR_LIMIT=NONE] -->
+    <string name="permlab_warmUpCamera">Allow an application or service to send a warm up signal to the camera sub-system</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR_LIMIT=NONE] -->
+    <string name="permdesc_warmUpCamera">This privileged or system app can send a signal to the camera sub system in order to warm up a camera device to help with performance amongst other benefits</string>
+
+    <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR_LIMIT=NONE] -->
     <string name="permlab_cameraOpenCloseListener">Allow an application or service to receive callbacks about camera devices being opened or closed.</string>
     <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR_LIMIT=NONE] -->
     <string name="permdesc_cameraOpenCloseListener">This app can receive callbacks when any camera device is being opened (by what application) or closed.</string>
@@ -1881,6 +1902,16 @@
     <string name="permdesc_access_local_network">Allows the app to access local network devices</string>
 
     <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR LIMIT=50]-->
+    <string name="permlab_use_loopback_interface">use loopback interface</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR LIMIT=120]-->
+    <string name="permdesc_use_loopback_interface">Allows the app to interact with other apps over loopback interface</string>
+
+    <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR LIMIT=50]-->
+    <string name="permlab_force_use_loopback_interface">force use loopback interface</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR LIMIT=175]-->
+    <string name="permdesc_force_use_loopback_interface">Allows the app to interact with other apps over loopback interface without requiring the other app to hold loopback permissions</string>
+
+    <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR LIMIT=50]-->
     <string name="permlab_ranging">determine relative position between nearby devices</string>
     <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. [CHAR LIMIT=120]-->
     <string name="permdesc_ranging">Allow the app to determine relative position between nearby devices</string>
@@ -2136,17 +2167,25 @@
     <!-- Notification title shown when the system suggests the user to set up another way to unlock. [CHAR LIMIT=NONE] -->
     <string name="alternative_unlock_setup_notification_title">Try another way to unlock</string>
     <!-- Notification content shown when the system suggests the user to enroll their face. [CHAR LIMIT=NONE] -->
-    <string name="alternative_face_setup_notification_content">Use Face Unlock when your fingerprint isn\'t recognized, like when your fingers are wet</string>
+    <string name="alternative_face_setup_notification_content" product="default">Use Face Unlock when your fingerprint isn\'t recognized, like when your fingers are wet</string>
+    <!-- Notification content shown when the system suggests the user to enroll their face. [CHAR LIMIT=NONE] -->
+    <string name="alternative_face_setup_notification_content" product="desktop">Unlock with face when your fingerprint isn\'t recognized, like when your fingers are wet</string>
     <!-- Notification content shown when the system suggests the user to enroll their fingerprint. [CHAR LIMIT=NONE] -->
     <string name="alternative_fp_setup_notification_content">Use Fingerprint Unlock when your face isn\'t recognized, like when there\'s not enough light</string>
     <!-- Notification name shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
-    <string name="face_recalibrate_notification_name">Face Unlock</string>
+    <string name="face_recalibrate_notification_name" product="default">Face Unlock</string>
+    <!-- Notification name shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+    <string name="face_recalibrate_notification_name" product="desktop">Unlock with face</string>
     <!-- Notification title shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
-    <string name="face_recalibrate_notification_title">Issue with Face Unlock</string>
+    <string name="face_recalibrate_notification_title" product="default">Issue with Face Unlock</string>
+    <!-- Notification title shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+    <string name="face_recalibrate_notification_title" product="desktop">Issue unlocking with face</string>
     <!-- Notification content shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
     <string name="face_recalibrate_notification_content">Tap to delete your face model, then add your face again</string>
     <!-- Error message indicating that the camera privacy sensor has been turned on [CHAR LIMIT=NONE] -->
-    <string name="face_sensor_privacy_enabled">To use Face Unlock, turn on <b>Camera access</b> in Settings > Privacy</string>
+    <string name="face_sensor_privacy_enabled" product="default">To use Face Unlock, turn on <b>Camera access</b> in Settings > Privacy</string>
+    <!-- Error message indicating that the camera privacy sensor has been turned on [CHAR LIMIT=NONE] -->
+    <string name="face_sensor_privacy_enabled" product="desktop">To unlock with face, turn on <b>Camera access</b> in Settings > Privacy</string>
 
     <!-- Notification name shown when the system requires the user to re-calibrate their fingerprint. [CHAR LIMIT=NONE] -->
     <string name="fingerprint_recalibrate_notification_name">Fingerprint Unlock</string>
@@ -2162,23 +2201,39 @@
     <!-- Message shown during face acquisition when the image is too dark [CHAR LIMIT=50] -->
     <string name="face_acquired_too_dark">Not enough light</string>
     <!-- Message shown during face acquisition when the user is too close to sensor [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_close">Move phone farther away</string>
+    <string name="face_acquired_too_close" product="default">Move phone farther away</string>
+    <!-- Message shown during face acquisition when the user is too close to sensor [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_close" product="desktop">Move device farther away</string>
     <!-- Message shown during face acquisition when the user is too far from sensor [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_far">Move phone closer</string>
+    <string name="face_acquired_too_far" product="default">Move phone closer</string>
+    <!-- Message shown during face acquisition when the user is too far from sensor [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_far" product="desktop">Move device closer</string>
     <!-- Message shown during face acquisition when the user is too high relatively to sensor [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_high">Move phone higher</string>
+    <string name="face_acquired_too_high" product="default">Move phone higher</string>
+    <!-- Message shown during face acquisition when the user is too high relatively to sensor [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_high" product="desktop">Move device higher</string>
     <!-- Message shown during face acquisition when the user is too low relatively to sensor [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_low">Move phone lower</string>
+    <string name="face_acquired_too_low" product="default">Move phone lower</string>
+    <!-- Message shown during face acquisition when the user is too low relatively to sensor [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_low" product="desktop">Move device lower</string>
     <!-- Message shown during face acquisition when only the right part of the user's face was detected [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_right">Move phone to your left</string>
+    <string name="face_acquired_too_right" product="default">Move phone to your left</string>
+    <!-- Message shown during face acquisition when only the right part of the user's face was detected [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_right" product="desktop">Move device to your left</string>
     <!-- Message shown during face acquisition when only the left part of the user's face was detected [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_left">Move phone to your right</string>
+    <string name="face_acquired_too_left" product="default">Move phone to your right</string>
+    <!-- Message shown during face acquisition when only the left part of the user's face was detected [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_left" product="desktop">Move device to your right</string>
     <!-- Message shown during face acquisition when the user is not front facing the sensor [CHAR LIMIT=50] -->
-    <string name="face_acquired_poor_gaze">Please look more directly at your device.</string>
+    <string name="face_acquired_poor_gaze">Look more directly at your camera</string>
     <!-- Message shown during face acquisition when the user is not detected [CHAR LIMIT=75] -->
-    <string name="face_acquired_not_detected">Can\u2019t see your face. Hold your phone at eye level.</string>
+    <string name="face_acquired_not_detected" product="default">Can\u2019t see your face. Hold your phone at eye level.</string>
+    <!-- Message shown during face acquisition when the user is not detected [CHAR LIMIT=75] -->
+    <string name="face_acquired_not_detected" product="desktop">Can\u2019t see your face. Hold your device at eye level.</string>
     <!-- Message shown during face acquisition when the device is not steady [CHAR LIMIT=50] -->
-    <string name="face_acquired_too_much_motion">Too much motion. Hold phone steady.</string>
+    <string name="face_acquired_too_much_motion" product="default">Too much motion. Hold phone steady.</string>
+    <!-- Message shown during face acquisition when the device is not steady [CHAR LIMIT=50] -->
+    <string name="face_acquired_too_much_motion" product="desktop">Too much motion. Hold device steady.</string>
     <!-- Message shown during face acquisition when the sensor needs to be recalibrated [CHAR LIMIT=50] -->
     <string name="face_acquired_recalibrate">Please re-enroll your face.</string>
     <!-- Message shown during face enrollment when a different person's face is detected [CHAR LIMIT=50] -->
@@ -2186,11 +2241,17 @@
     <!-- Message shown during face enrollment when the face is too similar to a previous acquisition [CHAR LIMIT=50] -->
     <string name="face_acquired_too_similar">Change the position of your head slightly</string>
     <!-- Message shown during acqusition when the user's face is turned too far left or right [CHAR LIMIT=50] -->
-    <string name="face_acquired_pan_too_extreme">Look more directly at your phone</string>
+    <string name="face_acquired_pan_too_extreme" product="default">Look more directly at your phone</string>
+    <!-- Message shown during acqusition when the user's face is turned too far left or right [CHAR LIMIT=50] -->
+    <string name="face_acquired_pan_too_extreme" product="desktop">Look more directly at your device</string>
     <!-- Message shown during acqusition when the user's face is tilted too high or too low [CHAR LIMIT=50] -->
-    <string name="face_acquired_tilt_too_extreme">Look more directly at your phone</string>
+    <string name="face_acquired_tilt_too_extreme" product="default">Look more directly at your phone</string>
+    <!-- Message shown during acqusition when the user's face is tilted too high or too low [CHAR LIMIT=50] -->
+    <string name="face_acquired_tilt_too_extreme" product="desktop">Look more directly at your device</string>
     <!-- Message shown during acquisiton when the user's face is tilted too far left or right [CHAR LIMIT=50] -->
-    <string name="face_acquired_roll_too_extreme">Look more directly at your phone</string>
+    <string name="face_acquired_roll_too_extreme" product="default">Look more directly at your phone</string>
+    <!-- Message shown during acquisiton when the user's face is tilted too far left or right [CHAR LIMIT=50] -->
+    <string name="face_acquired_roll_too_extreme" product="desktop">Look more directly at your device</string>
     <!-- Message shown during acquisition when the user's face is obscured [CHAR LIMIT=50] -->
     <string name="face_acquired_obscured">Remove anything hiding your face.</string>
     <!-- Message shown during acquisition when the sensor is dirty [CHAR LIMIT=100] -->
@@ -2214,25 +2275,35 @@
     <!-- Error message shown when the face hardware can't be accessed. [CHAR LIMIT=69] -->
     <string name="face_error_hw_not_available">Can\u2019t verify face. Hardware not available.</string>
     <!-- Error message shown when the face hardware timer has expired and the user needs to restart the operation. [CHAR LIMIT=50] -->
-    <string name="face_error_timeout">Try Face Unlock again</string>
+    <string name="face_error_timeout" product="default">Try Face Unlock again</string>
+    <!-- Error message shown when the face hardware timer has expired and the user needs to restart the operation. [CHAR LIMIT=50] -->
+    <string name="face_error_timeout" product="desktop">Try unlocking with face again</string>
     <!-- Error message shown when the face hardware has run out of room for storing faces. [CHAR LIMIT=69] -->
     <string name="face_error_no_space">Can\u2019t store new face data. Delete an old one first.</string>
     <!-- Generic error message shown when the face operation (e.g. enrollment or authentication) is canceled. Generally not shown to the user. [CHAR LIMIT=50] -->
     <string name="face_error_canceled">Face operation canceled.</string>
     <!-- Generic error message shown when the Face Unlock operation is canceled due to user input. Generally not shown to the user [CHAR LIMIT=68] -->
-    <string name="face_error_user_canceled">Face Unlock canceled by user</string>
+    <string name="face_error_user_canceled" product="default">Face Unlock canceled by user</string>
+    <!-- Generic error message shown when the Face Unlock operation is canceled due to user input. Generally not shown to the user [CHAR LIMIT=68] -->
+    <string name="face_error_user_canceled" product="desktop">Unlocking with face canceled by user</string>
     <!-- Generic error message shown when the face operation fails because too many attempts have been made. [CHAR LIMIT=50] -->
     <string name="face_error_lockout">Too many attempts. Try again later.</string>
     <!-- Generic error message shown when the face operation fails because strong authentication is required. [CHAR LIMIT=100] -->
-    <string name="face_error_lockout_permanent">Too many attempts. Face Unlock unavailable.</string>
+    <string name="face_error_lockout_permanent" product="default">Too many attempts. Face Unlock unavailable.</string>
+    <!-- Generic error message shown when the face operation fails because strong authentication is required. [CHAR LIMIT=100] -->
+    <string name="face_error_lockout_permanent" product="desktop">Too many attempts. Unlocking with face unavailable.</string>
     <!-- Generic error message shown when the face operation fails because strong authentication is required. [CHAR LIMIT=90] -->
     <string name="face_error_lockout_screen_lock">Too many attempts. Enter screen lock instead.</string>
     <!-- Generic error message shown when the face hardware can't recognize the face. [CHAR LIMIT=50] -->
     <string name="face_error_unable_to_process">Can\u2019t verify face. Try again.</string>
     <!-- Generic error message shown when the user has no enrolled face. [CHAR LIMIT=59] -->
-    <string name="face_error_not_enrolled">You haven\u2019t set up Face Unlock</string>
+    <string name="face_error_not_enrolled" product="default">You haven\u2019t set up Face Unlock</string>
+    <!-- Generic error message shown when the user has no enrolled face. [CHAR LIMIT=59] -->
+    <string name="face_error_not_enrolled" product="desktop">Unlocking with face isn\u2019t set up yet</string>
     <!-- Generic error message shown when the app requests Face Unlock on a device without a sensor. [CHAR LIMIT=61] -->
-    <string name="face_error_hw_not_present">Face Unlock isn\u2019t supported on this device</string>
+    <string name="face_error_hw_not_present" product="default">Face Unlock isn\u2019t supported on this device</string>
+    <!-- Generic error message shown when the app requests Face Unlock on a device without a sensor. [CHAR LIMIT=61] -->
+    <string name="face_error_hw_not_present" product="desktop">Unlocking with face isn\u2019t supported on this device</string>
     <!-- Generic error message shown when face unlock is not available due to a security vulnerability. [CHAR LIMIT=50] -->
     <string name="face_error_security_update_required">Sensor temporarily disabled.</string>
 
@@ -2240,7 +2311,9 @@
     <string name="face_name_template">Face <xliff:g id="faceId" example="1">%d</xliff:g></string>
 
     <!-- Name for an app setting that lets the user authenticate for that app with their face. [CHAR LIMIT=30] -->
-    <string name="face_app_setting_name">Use Face Unlock</string>
+    <string name="face_app_setting_name" product="default">Use Face Unlock</string>
+    <!-- Name for an app setting that lets the user authenticate for that app with their face. [CHAR LIMIT=30] -->
+    <string name="face_app_setting_name" product="desktop">Unlock with face</string>
     <!-- Name for an app setting that lets the user authenticate for that app with their face or screen lock credential (i.e. PIN, pattern, or password). [CHAR LIMIT=70] -->
     <string name="face_or_screen_lock_app_setting_name">Use face or screen lock</string>
     <!-- Subtitle shown on the system-provided biometric dialog, asking the user to authenticate with their face. [CHAR LIMIT=70] -->
@@ -2291,6 +2364,11 @@
     <string name="permlab_readMediaImages">read image files from shared storage</string>
     <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. "shared storage" refers to a storage space on the device that all apps with this permission can read from. [CHAR LIMIT=none] -->
     <string name="permdesc_readMediaImages">Allows the app to read image files from your shared storage.</string>
+
+     <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. "shared storage" refers to a storage space on the device that all apps with this permission can read from. [CHAR LIMIT=none] -->
+    <string name="permlab_readMediaDocuments">read document files from shared storage</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. "shared storage" refers to a storage space on the device that all apps with this permission can read from. [CHAR LIMIT=none] -->
+    <string name="permdesc_readMediaDocuments">Allows the app to read document files from your shared storage.</string>
 
     <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. "shared storage" refers to a storage space on the device that all apps with this permission can read from. [CHAR LIMIT=none] -->
     <string name="permlab_readVisualUserSelect">read user selected image and video files from shared storage</string>
@@ -2799,7 +2877,7 @@
     <!-- On the keyguard screen, when pattern lock is disabled, only tell them to press menu to unlock.  This is shown in small font at the bottom. -->
     <string name="lockscreen_instructions_when_pattern_disabled">Press Menu to unlock.</string>
 
-    <!-- On the unlock pattern screen, shown at the top of the unlock screen to tell the user what to do. Below this text is the place for theu ser to draw the pattern. -->
+    <!-- On the unlock pattern screen, shown at the top of the unlock screen to tell the user what to do. Below this text is the place for the user to draw the pattern. -->
     <string name="lockscreen_pattern_instructions">Draw pattern to unlock</string>
     <!-- Button at the bottom of the unlock screen to make an emergency call or access other emergency assistance functions. -->
     <string name="lockscreen_emergency_call">Emergency</string>
@@ -2812,11 +2890,23 @@
     <!-- On the unlock password screen, shown when the user enters the wrong lock password and must try again. -->
     <string name="lockscreen_password_wrong">Try again</string>
 
-    <!-- On the keyguard screen, this string explains that some features or data may not be available until the device is unlocked. [CHAR LIMIT=48] -->
+    <!-- On the keyguard screen, this string explains that the user can click anywhere to go to the
+         bouncer and, ultimately, unlock the device. [CHAR LIMIT=48] -->
+    <string name="lockscreen_click_to_unlock_hint">Click to unlock</string>
+    <!-- On the keyguard screen, this string explains that the user can press the ENTER key to go to the
+         bouncer and, ultimately, unlock the device. [CHAR LIMIT=48] -->
+    <string name="lockscreen_enter_to_unlock_hint">Press Enter to unlock</string>
+    <!-- On the keyguard screen, this string explains that the user can press any key to go to the
+         bouncer and, ultimately, unlock the device. [CHAR LIMIT=48] -->
+    <string name="lockscreen_key_to_unlock_hint">Press any key to unlock</string>
+    <!-- On the keyguard screen, this string explains that some features or data may not be
+         available until the device is unlocked. [CHAR LIMIT=48] -->
     <string name="lockscreen_storage_locked">Unlock for all features and data</string>
 
     <!-- Shown when face unlock failed multiple times so we're just using the backup -->
-    <string name="faceunlock_multiple_failures">Maximum Face Unlock attempts exceeded</string>
+    <string name="faceunlock_multiple_failures" product="default">Maximum Face Unlock attempts exceeded</string>
+    <!-- Shown when face unlock failed multiple times so we're just using the backup -->
+    <string name="faceunlock_multiple_failures" product="desktop">Maximum attempts reached of unlocking with face</string>
 
     <!-- Shown in the lock screen when there is no SIM. -->
     <string name="lockscreen_missing_sim_message_short">No SIM</string>
@@ -3016,6 +3106,10 @@
     <string name="lockscreen_access_pattern_detected">Pattern completed</string>
     <!-- Accessibility description of the unlock pattern area. [CHAR_LIMIT=none] -->
     <string name="lockscreen_access_pattern_area" msgid="">Pattern area.</string>
+    <!-- Accessibility description sent when user focuses or hovers an unselected dot. Announces
+    the actual cell when headphones are connected [CHAR LIMIT=NONE]  -->
+    <string name="lockscreen_access_pattern_cell_verbose">
+            Cell <xliff:g id="cell_index" example="3">%1$s</xliff:g></string>
 
     <!-- Accessibility description sent when user changes the current lock screen widget. [CHAR_LIMIT=none] -->
     <string name="keyguard_accessibility_widget_changed">%1$s. Widget %2$d of %3$d.</string>
@@ -3050,7 +3144,9 @@
     <!-- Accessibility description of the pattern unlock. [CHAR_LIMIT=none] -->
     <string name="keyguard_accessibility_pattern_unlock">Pattern unlock.</string>
     <!-- Accessibility description of the Face Unlock. [CHAR_LIMIT=none] -->
-    <string name="keyguard_accessibility_face_unlock">Face Unlock.</string>
+    <string name="keyguard_accessibility_face_unlock" product="default">Face Unlock.</string>
+    <!-- Accessibility description of the Face Unlock. [CHAR_LIMIT=none] -->
+    <string name="keyguard_accessibility_face_unlock" product="desktop">Unlock with face.</string>
     <!-- Accessibility description of the pin lock. [CHAR_LIMIT=none] -->
     <string name="keyguard_accessibility_pin_unlock">Pin unlock.</string>
     <!-- Accessibility description of the sim pin lock. [CHAR_LIMIT=none] -->
@@ -3487,9 +3583,11 @@
     <string name="ok">OK</string>
     <!-- Preference framework strings. -->
     <string name="cancel">Cancel</string>
-    <!-- Preference framework strings. {@deprecated Do not use. Incorrectly matches android.R.string.ok rather than "yes".} -->
+    <!-- Preference framework strings.
+         @deprecated Do not use. Incorrectly matches android.R.string.ok rather than "yes". -->
     <string name="yes">OK</string>
-    <!-- Preference framework strings. {@deprecated Do not use. Incorrectly matches android.R.string.cancel rather than "no".} -->
+    <!-- Preference framework strings.
+         @deprecated Do not use. Incorrectly matches android.R.string.cancel rather than "no". -->
     <string name="no">Cancel</string>
     <!-- This is the generic "attention" string to be used in attention dialogs.  Typically
          combined with setIconAttribute(android.R.attr.alertDialogIcon)
@@ -3535,6 +3633,8 @@
     <!-- Title of intent resolver dialog when selecting a viewer application to run
          and a previously used application is known. -->
     <string name="whichViewApplicationNamed">Open with %1$s</string>
+    <!-- Default title for a notification action that opens an app. -->
+    <string name="open_app_name">Open <xliff:g id="app_name" example="Maps">%1$s</xliff:g></string>
     <!-- Label for a link to a intent resolver dialog to view something -->
     <string name="whichViewApplicationLabel">Open</string>
     <!-- Title of intent resolver dialog when selecting a browser/application that opens specific URIs
@@ -3962,6 +4062,14 @@
     <!-- Body for time zone change notifications -->
     <string name="time_zone_change_notification_body">You\'re now in <xliff:g id="time_zone_display_name">%1$s</xliff:g> (<xliff:g id="time_zone_offset">%2$s</xliff:g>)</string>
 
+     <!-- Title for the notification shown when the daylight saving time changes. [CHAR LIMIT=50] -->
+    <string name="time_zone_offset_change_notification_title">Clock change</string>
+    <!-- Body for the notification shown when the daylight saving time changes and clocks move forward. [CHAR LIMIT=100] -->
+    <string name="time_zone_offset_change_notification_body_forward">Clocks moved forward <xliff:g id="time_zone_offset_duration" example="1h">%1$s</xliff:g>. You\'re now in <xliff:g id="time_zone_display_name">%2$s</xliff:g> (<xliff:g id="time_zone_offset">%3$s</xliff:g>).</string>
+    <!-- Body for the notification shown when the daylight saving time changes and clocks move backward. [CHAR LIMIT=100] -->
+    <string name="time_zone_offset_change_notification_body_backward">Clocks moved backward <xliff:g id="time_zone_offset_duration" example="1h">%1$s</xliff:g>. You\'re now in <xliff:g id="time_zone_display_name">%2$s</xliff:g> (<xliff:g id="time_zone_offset">%3$s</xliff:g>).</string>
+
+
     <!-- Date/Time picker dialogs strings -->
 
     <!-- The title of the time picker dialog. [CHAR LIMIT=NONE] -->
@@ -4051,6 +4159,24 @@
     <string name="usb_contaminant_not_detected_title">OK to use USB port</string>
     <!-- Message of notification shown when contaminant is no longer detected on the USB port. [CHAR LIMIT=NONE] -->
     <string name="usb_contaminant_not_detected_message">Phone no longer detects liquid or debris.</string>
+
+    <!-- Title of notification shown when new devices are added while screen is locked. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_on_screenlock_title">New USB device connected</string>
+    <!-- Message of notification shown when a single new device is added while screen is locked. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_on_screenlock_message">Sign in to trust this USB device and start using it.</string>
+    <!-- Message of notification shown when multiple new devices are added while screen is locked. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_on_screenlock_message_multiple">Sign in to trust these USB devices and start using them.</string>
+    <!-- Title of notification shown to tell user to finish logging in to trust a single new device. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_finish_logging_in_title">New USB device connected</string>
+    <!-- Message of notification shown to tell user to finish logging in to trust a single new device. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_finish_logging_in_message">Sign in within <xliff:g id="num_seconds" example="60">%1$d</xliff:g> seconds to fully trust this USB device. If you don\'t, you\'ll have to disconnect and reconnect it.</string>
+    <!-- Title of notification shown to tell user to finish logging in to trust multiple new devices. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_finish_logging_in_title_multiple">New USB devices connected</string>
+    <!-- Message of notification shown to tell user to finish logging in to trust multiple new devices. [CHAR LIMIT=NONE] -->
+    <string name="usb_authorization_notify_finish_logging_in_message_multiple">Sign in within <xliff:g id="num_seconds" example="60">%1$d</xliff:g> seconds to fully trust these USB devices. If you don\'t, you\'ll have to disconnect and reconnect them.</string>
+
+    <!-- Text shown when viewing channel settings for notifications related to a usb device authorization -->
+    <string name="notification_channel_usb_authorization">USB Device Authorization</string>
 
     <!-- Title of notification shown to indicate that bug report is being collected. -->
     <string name="taking_remote_bugreport_notification_title">Taking bug report\u2026</string>
@@ -4436,6 +4562,15 @@
     <!-- Network positioning verification No. Button to push to deny sharing of location
          information. -->
     <string name="gpsVerifNo">No</string>
+
+    <!-- Title for a notification that is shown when a user's location is shared for an emergency. -->
+    <string name="emergency_location_notification_title">Location shared for emergency</string>
+    <!-- Detailed message for a notification that is shown when a user's location is shared for an emergency. -->
+    <string name="emergency_location_notification_message">Emergency services received your location from your carrier</string>
+    <!-- Notification action when a user's location is shared for an emergency, that takes the user to a help center article. -->
+    <string name="emergency_location_notification_learn_more">Learn more</string>
+    <!-- DO NOT TRANSLATE. URL for the "Learn more" link on the emergency location notification. -->
+    <string name="emergency_location_notification_learn_more_url" translatable="false">https://support.google.com/android/answer/9319337?sjid=9024468350750903013-NC#send_location_automatically&amp;zippy=%2Csend-your-location-automatically</string>
 
     <!-- Error message when the sync tried to delete too many things -->
     <string name="sync_too_many_deletes">Delete limit exceeded</string>
@@ -4951,10 +5086,10 @@
     <string name="accessibility_shortcut_off">Don’t turn on</string>
 
     <!-- Text for a feature status that is enabled. [CHAR LIMIT=20] -->
-    <string name="accessibility_shortcut_menu_item_status_on">ON</string>
+    <string name="accessibility_shortcut_menu_item_status_on">On</string>
 
     <!-- Text for a feature status that is disabled. [CHAR LIMIT=20] -->
-    <string name="accessibility_shortcut_menu_item_status_off">OFF</string>
+    <string name="accessibility_shortcut_menu_item_status_off">Off</string>
 
     <!-- Title for a warning about security implications of enabling an accessibility
     service. [CHAR LIMIT=NONE] -->
@@ -5010,6 +5145,24 @@
     <string name="accessibility_edit_shortcut_menu_volume_title">Choose features to use with the
         volume keys shortcut
     </string>
+
+    <!-- Label for accessibility button shortcut. [CHAR LIMIT=100] -->
+    <string name="accessibility_shortcut_label_button">accessibility button</string>
+
+    <!-- Label for volume keys shortcut. [CHAR LIMIT=100] -->
+    <string name="accessibility_shortcut_label_volume_keys">volume keys</string>
+
+    <!-- Label for gesture shortcut. [CHAR LIMIT=100] -->
+    <string name="accessibility_shortcut_label_gesture">gesture</string>
+
+    <!-- Label for quick settings shortcut. [CHAR LIMIT=100] -->
+    <string name="accessibility_shortcut_label_quick_settings">quick settings</string>
+
+    <!-- Label for triple tap shortcut. [CHAR LIMIT=100] -->
+    <string name="accessibility_shortcut_label_triple_tap">triple tap</string>
+
+    <!-- Label for top row accessibility key. [CHAR LIMIT=100] -->
+    <string name="accessibility_shortcut_label_top_row_key">accessibility key</string>
 
     <!-- Text for showing the warning to user when uncheck the legacy app item in the accessibility
     shortcut menu, user can aware the service to be disabled. [CHAR LIMIT=100] -->
@@ -5106,8 +5259,8 @@
 
     <!-- Message shown when switching to a user [CHAR LIMIT=none] -->
     <string name="user_switching_message">Switching to <xliff:g id="name" example="Bob">%1$s</xliff:g>\u2026</string>
-    <!-- Message when logging out a user on a split user system -->
-    <string name="user_logging_out_message">Logging out <xliff:g id="name" example="Bob">%1$s</xliff:g>\u2026</string>
+    <!-- Message when logging out a user on a headless system user device [CHAR LIMIT=none] -->
+    <string name="user_logging_out_message">Signing out\u2026</string>
     <!-- Default name of the owner user [CHAR LIMIT=20] -->
     <string name="owner_name" msgid="3879126011135546571">Owner</string>
     <!-- Default name of the guest user [CHAR LIMIT=35] -->
@@ -5433,6 +5586,14 @@
     -->
     <string name="private_profile_label_badge">Private <xliff:g id="label" example="Messenger">%1$s</xliff:g></string>
 
+    <!--
+        Label to show for apps running on the Headless System User (User 0).
+        The Headless System User is a background user that runs system services.
+        This label distinguishes apps running on User 0 from apps running on the current user.
+        [CHAR LIMIT=20]
+    -->
+    <string name="hsu_label_badge">System <xliff:g id="label" example="Settings">%1$s</xliff:g></string>
+
     <!-- DO NOT TRANSLATE -->
     <string name="time_placeholder">--</string>
 
@@ -5658,11 +5819,6 @@
     <!-- Accessibility text for the close window button -->
     <string name="close_button_text">Close</string>
 
-    <!-- Ellipsis character to appear in notification templates, e.g.
-         notification_template_material_inbox.xml.
-         DO NOT TRANSLATE -->
-    <string name="notification_inbox_ellipsis">\u2026</string>
-
     <!-- Tempalate for Notification.MessagingStyle to join a conversation name with the name of the sender of a message, to make a notification title [CHAR LIMIT=NONE] -->
     <string name="notification_messaging_title_template"><xliff:g id="conversation_title" example="Tasty Treat Team">%1$s</xliff:g>: <xliff:g id="sender_name" example="Adrian Baker">%2$s</xliff:g></string>
 
@@ -5672,6 +5828,13 @@
     <string name="notification_metric_label_unit_separator"><xliff:g id="metric_label" example="Speed">%1$s</xliff:g> (<xliff:g id="metric_unit" example="km/h">%2$s</xliff:g>):</string>
     <!-- Template for Notification.MetricStyle to join Metric label with a separator e.g.: "Speed:". -->
     <string name="notification_metric_label_separator"><xliff:g id="metric_label" example="Steps">%1$s</xliff:g>:</string>
+
+    <!-- Template for Notification.MetricStyle to join a metric label and value for Notification History [CHAR LIMIT=NONE] -->
+    <string name="notification_history_metric_subtext"><xliff:g id="metric_label" example="Speed">%1$s</xliff:g>: <xliff:g id="metric value" example="4.1">%2$s</xliff:g></string>
+    <!-- Text for Notification.MetricStyle to show running timer in Notification History [CHAR LIMIT=20] -->
+    <string name="notification_metric_running_timer">Running Timer</string>
+    <!-- Text for Notification.MetricStyle to show running stopwatch in Notification History [CHAR LIMIT=20] -->
+    <string name="notification_metric_running_stopwatch">Running Stopwatch</string>
 
     <!-- Action text to be displayed for the "answer" action of an incoming call [CHAR LIMIT=13] -->
     <string name="call_notification_answer_action">Answer</string>
@@ -5743,6 +5906,137 @@
     <string name="app_suspended_more_details">Learn more</string>
     <!-- Title of the button to unsuspend a suspended app immediately [CHAR LIMIT=50]-->
     <string name="app_suspended_unsuspend_message">Unpause app</string>
+
+    <!-- Text of the button to navigate to screen lock settings. [CHAR LIMIT=50] -->
+    <string name="app_lock_add_screen_lock_button_text">
+        Add screen lock
+    </string>
+    <!-- Message of the dialog that is shown when the user needs to add a screen lock before using App Lock. [CHAR LIMIT=NONE] -->
+    <string name="app_lock_add_screen_lock_message">
+        Your screen lock can be a PIN, pattern, or password. You’ll use this to unlock your device and access locked apps.
+    </string>
+    <!-- Title of the dialog that is shown when the user needs to add a screen lock before using App Lock. [CHAR LIMIT=50] -->
+    <string name="app_lock_add_screen_lock_title">
+        First, add a screen lock
+    </string>
+    <!-- Message shown in a toast notifying the user about the successful enablement of App Lock on the provided application [CHAR LIMIT=NONE] -->
+    <string name="enable_app_lock_success_toast_message">
+        <xliff:g id="app_name" example="Gmail">%1$s</xliff:g> is locked
+    </string>
+    <!-- Message shown in a toast notifying the user about the unsuccessful enablement of App Lock on the provided application [CHAR LIMIT=NONE] -->
+    <string name="enable_app_lock_failure_toast_message">
+        Can\'t lock <xliff:g id="app_name" example="Gmail">%1$s</xliff:g>
+    </string>
+    <!-- Message shown in a toast notifying the user about the successful disablement of App Lock on the provided application [CHAR LIMIT=NONE] -->
+    <string name="disable_app_lock_success_toast_message">
+        App Lock removed
+    </string>
+    <!-- Message shown on the system-provided BiometricPrompt, informing the user that App Lock is being enabled for the app [CHAR LIMIT=NONE] -->
+    <string name="enable_app_lock_biometric_prompt_subtitle">
+        App lock will be added to <xliff:g id="app_name" example="Gmail">%1$s</xliff:g>
+    </string>
+    <!-- Message shown on the system-provided BiometricPrompt, informing the user that App Lock is being disabled for the app [CHAR LIMIT=NONE] -->
+    <string name="disable_app_lock_biometric_prompt_subtitle">
+        App lock will be removed from <xliff:g id="app_name" example="Gmail">%1$s</xliff:g>
+    </string>
+    <!-- Message shown on the system-provided BiometricPrompt, informing the user the app they're trying to open is locked by App Lock. [CHAR LIMIT=NONE] -->
+    <string name="locked_app_biometric_prompt_description">
+        This app is protected with app lock
+    </string>
+    <!-- Message shown on the system-provided activity, informing the user who is using an external display that the app they're trying to open needs to be unlocked on their other device. [CHAR LIMIT=NONE] -->
+    <string name="locked_app_external_display_message">
+        To access the app on this display, first verify it’s you on your other device
+    </string>
+    <!-- Title of the dialog that is shown when the user tries to enable App Lock on the provided application. [CHAR LIMIT=NONE] -->
+    <string name="app_lock_edu_dialog_enable_app_lock_title">
+        Add app lock to <xliff:g id="app_name" example="Gmail">%1$s</xliff:g>?
+    </string>
+    <!-- Description for the App Lock user education dialog, with placeholders for biometric and credential types. [CHAR LIMIT=NONE] -->
+    <string name="app_lock_edu_dialog_description_template">
+        For your security, only you can access this app with %1$s or your %2$s
+    </string>
+    <!-- Description for the App Lock user education dialog, shown when the user has a screen lock
+         (e.g., PIN, pattern) but no biometrics enrolled. The %1$s placeholder will be replaced with
+         the type of screen lock (e.g., "PIN"). [CHAR LIMIT=NONE] -->
+    <string name="app_lock_edu_dialog_description_template_no_biometrics">
+        For your security, only you can access this app with your %1$s
+    </string>
+    <!-- Header for the section in the main App Lock user education dialog that explains the consequences of locking an app. [CHAR LIMIT=40] -->
+    <string name="app_lock_edu_dialog_info_header">
+        With app lock
+    </string>
+    <!-- An informational item explaining that notifications from a locked app will have their content hidden. [CHAR LIMIT=60] -->
+    <string name="app_lock_edu_dialog_info_notifications">
+        Notification content will be hidden
+    </string>
+    <!-- An informational item explaining that widgets and shortcuts for a locked app will be removed. [CHAR LIMIT=60] -->
+    <string name="app_lock_edu_dialog_info_widgets">
+        Widgets and shortcuts will be removed
+    </string>
+    <!-- An informational item explaining that AI apps and services may still access data from a locked app. [CHAR LIMIT=200] -->
+    <string name="app_lock_edu_dialog_info_ai_disclaimer">
+        AI agents and services you’ve allowed to access %1$s will still be able to access its data
+    </string>
+    <!-- Text for the primary action button in the main App Lock user education dialog to confirm locking the app. [CHAR LIMIT=20] -->
+    <string name="app_lock_edu_dialog_button_lock">
+        Add app lock
+    </string>
+    <!-- The name for the Face Unlock feature. Used when only face is available. [CHAR LIMIT=20] -->
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="default">
+        Face Unlock
+    </string>
+    <!-- The name for the Face Unlock feature. Used when only face is available. [CHAR LIMIT=20] -->
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="desktop">
+        Unlock with face
+    </string>
+    <!-- The name for the Fingerprint Unlock feature. Used when only fingerprint is available. [CHAR LIMIT=40] -->
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint">
+        Fingerprint Unlock
+    </string>
+    <!-- A string that combines the names for both Fingerprint and Face Unlock. Used when both are available. [CHAR LIMIT=40] -->
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="default">
+        Fingerprint Unlock, Face Unlock
+    </string>
+    <!-- A string that combines the names for both Fingerprint and Face Unlock. Used when both are available. [CHAR LIMIT=40] -->
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="desktop">
+        Fingerprint Unlock, Unlock with face
+    </string>
+    <!-- Credential type name for a password-based screen lock, shown in the App Lock education dialog. [CHAR LIMIT=20] -->
+    <string name="app_lock_edu_dialog_lockscreen_password_name">
+        password
+    </string>
+    <!-- Credential type name for a pattern-based screen lock, shown in the App Lock education dialog. [CHAR LIMIT=20] -->
+    <string name="app_lock_edu_dialog_lockscreen_pattern_name">
+        pattern
+    </string>
+    <!-- Credential type name for a PIN-based screen lock, shown in the App Lock education dialog. [CHAR LIMIT=20] -->
+    <string name="app_lock_edu_dialog_lockscreen_pin_name">
+        PIN
+    </string>
+    <!-- Title of the dialog warning the user that locking the current app doesn't prevent other apps from seeing their photos. [CHAR LIMIT=60] -->
+    <string name="app_lock_permission_review_dialog_title_photos">
+        Your photos may still show in other apps
+    </string>
+    <!-- Subtitle introducing the list of other applications that have permission to access the user's photos. [CHAR LIMIT=40] -->
+    <string name="app_lock_permission_review_dialog_subtitle_photos">
+        Apps with access to your photos
+    </string>
+    <!-- Title of the dialog warning the user that locking the current app doesn't prevent other apps from accessing the files. [CHAR LIMIT=60] -->
+    <string name="app_lock_permission_review_dialog_title_files">
+        Your files may still show in other apps
+    </string>
+    <!-- Subtitle introducing the list of other applications that have permission to access the user's files. [CHAR LIMIT=40] -->
+    <string name="app_lock_permission_review_dialog_subtitle_files">
+        Apps with access to your files
+    </string>
+    <!-- Label for the button that expands the collapsed list of apps to show all of them. [CHAR LIMIT=20] -->
+    <string name="app_lock_permission_review_expand_app_list_button">
+        View all
+    </string>
+    <!-- Label for the button to acknowledge the warning and proceed with the app lock action. [CHAR LIMIT=20] -->
+    <string name="app_lock_permission_review_continue_button">
+        Continue
+    </string>
 
     <!-- Title of a dialog. This text is confirming that the user wants to turn on access to their work apps, which the user had previously paused. "Work" is an adjective. [CHAR LIMIT=30] -->
     <string name="work_mode_off_title">Unpause work apps?</string>
@@ -5933,35 +6227,63 @@
     }
     </string>
 
-    <!-- Title for the autofill save dialog shown when the the contents of the activity can be saved
+    <!-- Title for the autofill save dialog shown when the contents of the activity can be saved
          by an autofill service, but the service does not know what the activity represents [CHAR LIMIT=NONE] -->
     <string name="autofill_save_title">Save to <b><xliff:g id="label" example="MyPass">%1$s</xliff:g></b>?</string>
-    <!-- Title for the autofill save dialog shown when the the contents of the activity can be saved
+    <!-- Title for the autofill expressive save dialog shown when the contents of the activity can be saved
+         by an autofill service, but the service does not know what the activity represents [CHAR LIMIT=NONE] -->
+    <string name="autofill_save_title_expressive">Save info to <b><xliff:g id="label" example="MyPass">%1$s</xliff:g></b></string>
+    <!-- Title for the autofill save dialog shown when the contents of the activity can be saved
          by an autofill service, and the service knows what the activity represents (for example, credit card info) [CHAR LIMIT=NONE] -->
     <string name="autofill_save_title_with_type">Save <xliff:g id="type" example="Credit Card">%1$s</xliff:g> to <b><xliff:g id="label" example="MyPass">%2$s</xliff:g></b>?</string>
-    <!-- Title for the autofill save dialog shown when the the contents of the activity can be saved
+    <!-- Title for the autofill expressive save dialog shown when the contents of the activity can be saved
+         by an autofill service, and the service knows what the activity represents (for example, credit card info) [CHAR LIMIT=NONE] -->
+    <string name="autofill_save_title_with_type_expressive">Save <xliff:g id="type" example="Credit Card">%1$s</xliff:g> to <b><xliff:g id="label" example="MyPass">%2$s</xliff:g></b></string>
+    <!-- Title for the autofill save dialog shown when the contents of the activity can be saved
          by an autofill service, and the service knows what the activity represents, and it represents 2 types of
          data (for example, password and credit card info) [CHAR LIMIT=NONE] -->
     <string name="autofill_save_title_with_2types">Save <xliff:g id="type" example="Password">%1$s</xliff:g> and <xliff:g id="type" example="Credit Card">%2$s</xliff:g> to <b><xliff:g id="label" example="MyPass">%3$s</xliff:g></b>?</string>
-    <!-- Title for the autofill save dialog shown when the the contents of the activity can be saved
+    <!-- Title for the autofill expressive save dialog shown when the contents of the activity can be saved
+         by an autofill service, and the service knows what the activity represents, and it represents 2 types of
+         data (for example, password and credit card info) [CHAR LIMIT=NONE] -->
+    <string name="autofill_save_title_with_2types_expressive">Save <xliff:g id="type" example="Password">%1$s</xliff:g> and <xliff:g id="type" example="Credit Card">%2$s</xliff:g> to <b><xliff:g id="label" example="MyPass">%3$s</xliff:g></b></string>
+    <!-- Title for the autofill save dialog shown when the contents of the activity can be saved
          by an autofill service, and the service knows what the activity represents, and it represents 3 types of
          data (for example, username, password and credit card info) [CHAR LIMIT=NONE] -->
     <string name="autofill_save_title_with_3types">Save <xliff:g id="type" example="Username">%1$s</xliff:g>, <xliff:g id="type" example="Password">%2$s</xliff:g>, and <xliff:g id="type" example="Credit Card">%3$s</xliff:g> to <b><xliff:g id="label" example="MyPass">%4$s</xliff:g></b>?</string>
+    <!-- Title for the autofill expressive save dialog shown when the contents of the activity can be saved
+         by an autofill service, and the service knows what the activity represents, and it represents 3 types of
+         data (for example, username, password and credit card info) [CHAR LIMIT=NONE] -->
+    <string name="autofill_save_title_with_3types_expressive">Save <xliff:g id="type" example="Username">%1$s</xliff:g>, <xliff:g id="type" example="Password">%2$s</xliff:g>, and <xliff:g id="type" example="Credit Card">%3$s</xliff:g> to <b><xliff:g id="label" example="MyPass">%4$s</xliff:g></b></string>
 
-    <!-- Title for the autofill update dialog shown when the the contents of the activity can be updated
+    <!-- Title for the autofill update dialog shown when the contents of the activity can be updated
          in an autofill service, but the service does not know what the activity represents [CHAR LIMIT=NONE] -->
     <string name="autofill_update_title">Update in <b><xliff:g id="label" example="MyPass">%1$s</xliff:g></b>?</string>
-    <!-- Title for the autofill update dialog shown when the the contents of the activity can be updated
+    <!-- Title for the autofill expressive update dialog shown when the contents of the activity can be updated
+         in an autofill service, but the service does not know what the activity represents [CHAR LIMIT=NONE] -->
+    <string name="autofill_update_title_expressive">Update info in <b><xliff:g id="label" example="MyPass">%1$s</xliff:g></b></string>
+    <!-- Title for the autofill update dialog shown when the contents of the activity can be updated
          in an autofill service, and the service knows what the activity represents (for example, credit card info) [CHAR LIMIT=NONE] -->
     <string name="autofill_update_title_with_type">Update <xliff:g id="type" example="Credit Card">%1$s</xliff:g> in <b><xliff:g id="label" example="MyPass">%2$s</xliff:g></b>?</string>
-    <!-- Title for the autofill update dialog shown when the the contents of the activity can be updated
+    <!-- Title for the autofill expressive update dialog shown when the contents of the activity can be updated
+         in an autofill service, and the service knows what the activity represents (for example, credit card info) [CHAR LIMIT=NONE] -->
+    <string name="autofill_update_title_with_type_expressive">Update <xliff:g id="type" example="Credit Card">%1$s</xliff:g> in <b><xliff:g id="label" example="MyPass">%2$s</xliff:g></b></string>
+    <!-- Title for the autofill update dialog shown when the contents of the activity can be updated
          in an autofill service, and the service knows what the activity represents, and it represents 2 types of
          data (for example, password and credit card info) [CHAR LIMIT=NONE] -->
     <string name="autofill_update_title_with_2types">Update <xliff:g id="type" example="Password">%1$s</xliff:g> and <xliff:g id="type" example="Credit Card">%2$s</xliff:g> in <b><xliff:g id="label" example="MyPass">%3$s</xliff:g></b>?</string>
-    <!-- Title for the autofill update dialog shown when the the contents of the activity can be updated
+    <!-- Title for the autofill expressive update dialog shown when the contents of the activity can be updated
+         in an autofill service, and the service knows what the activity represents, and it represents 2 types of
+         data (for example, password and credit card info) [CHAR LIMIT=NONE] -->
+    <string name="autofill_update_title_with_2types_expressive">Update <xliff:g id="type" example="Password">%1$s</xliff:g> and <xliff:g id="type" example="Credit Card">%2$s</xliff:g> in <b><xliff:g id="label" example="MyPass">%3$s</xliff:g></b></string>
+    <!-- Title for the autofill update dialog shown when the contents of the activity can be updated
          in an autofill service, and the service knows what the activity represents, and it represents 3 types of
          data (for example, username, password and credit card info) [CHAR LIMIT=NONE] -->
     <string name="autofill_update_title_with_3types">Update these items in <b><xliff:g id="label" example="MyPass">%4$s</xliff:g></b>: <xliff:g id="type" example="Username">%1$s</xliff:g>, <xliff:g id="type" example="Password">%2$s</xliff:g>, and <xliff:g id="type" example="Credit Card">%3$s</xliff:g>?</string>
+    <!-- Title for the autofill expressive update dialog shown when the contents of the activity can be updated
+         in an autofill service, and the service knows what the activity represents, and it represents 3 types of
+         data (for example, username, password and credit card info) [CHAR LIMIT=NONE] -->
+    <string name="autofill_update_title_with_3types_expressive">Update these items in <b><xliff:g id="label" example="MyPass">%4$s</xliff:g></b>: <xliff:g id="type" example="Username">%1$s</xliff:g>, <xliff:g id="type" example="Password">%2$s</xliff:g>, and <xliff:g id="type" example="Credit Card">%3$s</xliff:g></string>
 
     <!-- Label for the autofill save button [CHAR LIMIT=NONE] -->
     <string name="autofill_save_yes">Save</string>
@@ -6439,11 +6761,9 @@
     <!-- Status message displayed on SIM Network Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_NETWORK_IN_PROGRESS">Requesting SIM network unlock\u2026</string>
     <!-- Status message displayed on SIM Network Subset Depersonalization panel [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS">Requesting SIM network subset unlock
-\u2026</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS">Requesting SIM network subset unlock\u2026</string>
     <!-- Status message displayed on SIM Service Provider Depersonalization panel [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS">Requesting SIM service provider un
-lock\u2026</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS">Requesting SIM service provider unlock\u2026</string>
     <!-- Status message displayed on SIM Corporate Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_CORPORATE_IN_PROGRESS">Requesting SIM corporate unlock\u2026</string>
     <!-- Status message displayed on PUK Depersonalization panel [CHAR LIMIT=none] -->
@@ -6465,8 +6785,7 @@ lock\u2026</string>
     <!-- Status message displayed on RUIM Hrpd Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_RUIM_HRPD_IN_PROGRESS">Requesting RUIM hrpd unlock\u2026</string>
     <!-- Status message displayed on RUIM Service Provider Depersonalization panel [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_IN_PROGRESS">Requesting RUIM service provider
-unlock\u2026</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_IN_PROGRESS">Requesting RUIM service provider unlock\u2026</string>
     <!-- Status message displayed on RUIM Corporate Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_IN_PROGRESS">Requesting RUIM corporate unlock\u2026</string>
 
@@ -6498,11 +6817,9 @@ unlock\u2026</string>
     <!-- Error message displayed on SIM Network Depersonalization panel  [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_NETWORK_ERROR">SIM Network unlock request unsuccessful.</string>
     <!-- Error message displayed on SIM Network Subset Depersonalization panel  [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR">SIM Network Subset unlock request unsucces
-sful.</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR">SIM Network Subset unlock request unsuccessful.</string>
     <!-- Error message displayed on SIM Service Provider Depersonalization panel  [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR">SIM Service Provider unlock request unsu
-ccessful.</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR">SIM Service Provider unlock request unsuccessful.</string>
     <!-- Error message displayed on SIM Corporate Depersonalization panel  [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_CORPORATE_ERROR">SIM Corporate unlock request unsuccessful.</string>
     <!-- Error message displayed on SIM SIM Depersonalization panel  [CHAR LIMIT=none] -->
@@ -6516,8 +6833,7 @@ ccessful.</string>
     <!-- Error message displayed on RUIM Corporate Depersonalization panel  [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_ERROR">RUIM Corporate unlock request unsuccessful.</string>
     <!-- Error message displayed on RUIM Service Provider Depersonalization panel  [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR">RUIM Service Provider unlock request un
-successful.</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR">RUIM Service Provider unlock request unsuccessful.</string>
     <!-- Error message displayed on RUIM RUIM Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_RUIM_RUIM_ERROR">RUIM unlock request unsuccessful.</string>
     <!-- Error message displayed on PUK Depersonalization panel [CHAR LIMIT=none] -->
@@ -6553,14 +6869,12 @@ successful.</string>
     <string name="PERSOSUBSTATE_SIM_IMPI_ERROR">IMPI unlock request unsuccessful.</string>
     <!--  Error message displayed on SIM NS_SP Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_NS_SP_ERROR">Network subset service provider unlock request unsuccessful.</string>
-
     <!-- Success message displayed on SIM Network Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUCCESS">SIM Network unlock successful.</string>
     <!-- Success message displayed on SIM Network Subset Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_SUCCESS">SIM Network Subset unlock successful.</string>
     <!-- Success message displayed on SIM Service Provider Depersonalization panel [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS">SIM Service Provider unlock successful
-.</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS">SIM Service Provider unlock successful.</string>
     <!-- Success message displayed on SIM Corporate Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_SIM_CORPORATE_SUCCESS">SIM Corporate unlock successful.</string>
     <!-- Success message displayed on SIM SIM Depersonalization panel [CHAR LIMIT=none] -->
@@ -6572,8 +6886,7 @@ successful.</string>
     <!-- Success message displayed on RUIM Hrpd Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_RUIM_HRPD_SUCCESS">RUIM Hrpd unlock successful.</string>
     <!-- Success message displayed on RUIM Service Provider Depersonalization panel [CHAR LIMIT=none] -->
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS">RUIM Service Provider unlock successf
-ul.</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS">RUIM Service Provider unlock successful.</string>
     <!-- Success message displayed on RUIM Corporate Depersonalization panel [CHAR LIMIT=none] -->
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_SUCCESS">RUIM Corporate unlock successful.</string>
     <!-- Success message displayed on RUIM RUIM Depersonalization panel [CHAR LIMIT=none] -->
@@ -6782,6 +7095,11 @@ ul.</string>
     <!-- Label for private space biometric prompt logo description [CHAR LIMIT=30] -->
     <string name="private_space_biometric_prompt_title">Private space</string>
 
+    <!-- Notification message used when the app that posted a notification is locked by App Lock [CHAR_LIMIT=NOTIF_BODY] -->
+    <string name="app_locked_new_notification">New notification</string>
+    <!-- Notification message used when the app that posted a notification is locked by App Lock [CHAR_LIMIT=NOTIF_BODY] -->
+    <string name="app_locked_notification_message">New message</string>
+
     <!-- Notification message used when a notification's normal message contains sensitive information [CHAR_LIMIT=NOTIF_BODY] -->
     <string name="redacted_notification_message">Sensitive notification content hidden</string>
     <!-- Notification action title used instead of a notification's normal title sensitive [CHAR_LIMIT=NOTIF_BODY] -->
@@ -6863,6 +7181,16 @@ ul.</string>
     <string name="satellite_messaging_location_disabled_notification_title">Satellite messaging not available</string>
     <!-- Notification summary when location settings is disabled. [CHAR LIMIT=NONE] -->
     <string name="satellite_messaging_location_disabled_notification_summary">To check if satellite messaging is available in this country or region, turn on location settings</string>
+    <!-- The satellite indicator to be shown on the status bar, settings, quick settings, and landing pages. [CHAR LIMIT=5] -->
+    <string name="satellite_indicator">SAT</string>
+    <!-- Satellite Upsell Notification title. TODO (b/473657577) : Update with finalized string. -->
+    <string name="satellite_upsell_notification_title" translatable="false">Satellite Upsell Notification (Draft)</string>
+    <!-- Satellite Upsell Notification summary. [CHAR LIMIT=NONE] TODO (b/473657577) : Update with finalized string. -->
+    <string name="satellite_upsell_notification_summary" translatable="false">Content briefly explains the benefit of satellite service. (Draft)</string>
+    <!-- Satellite Upsell Notification learn more.TODO (b/473657577) : Update with finalized string. -->
+    <string name="satellite_upsell_notification_learn_more" translatable="false">Learn more (Draft)</string>
+    <!-- Satellite Upsell Notification don't show again. TODO (b/473657577) : Update with finalized string. -->
+    <string name="satellite_upsell_notification_suppress" translatable="false">Don\'t show again (Draft)</string>
 
     <!-- Fingerprint dangling notification title -->
     <string name="fingerprint_dangling_notification_title">Set up Fingerprint Unlock again</string>
@@ -6875,9 +7203,13 @@ ul.</string>
     <!-- Fingerprint dangling notification content for more than 1 fingerprints deleted and no fingerprint left  -->
     <string name="fingerprint_dangling_notification_msg_all_deleted_2"><xliff:g id="fingerprint">%1$s</xliff:g> and <xliff:g id="fingerprint">%2$s</xliff:g> can no longer be recognized. Set up Fingerprint Unlock again.</string>
     <!-- Face dangling notification title -->
-    <string name="face_dangling_notification_title">Set up Face Unlock again</string>
+    <string name="face_dangling_notification_title" product="default">Set up Face Unlock again</string>
+    <!-- Face dangling notification title -->
+    <string name="face_dangling_notification_title" product="desktop">Set up unlocking with face again</string>
     <!-- Face dangling notification content -->
-    <string name="face_dangling_notification_msg">Your face model can no longer be recognized. Set up Face Unlock again.</string>
+    <string name="face_dangling_notification_msg" product="default">Your face model can no longer be recognized. Set up Face Unlock again.</string>
+    <!-- Face dangling notification content -->
+    <string name="face_dangling_notification_msg" product="desktop">Your face model can no longer be recognized. Set up unlocking with face again.</string>
     <!-- Biometric dangling notification "set up" action button -->
     <string name="biometric_dangling_notification_action_set_up">Set up</string>
     <!-- Biometric dangling notification "Not now" action button -->
@@ -6959,8 +7291,33 @@ ul.</string>
     <!-- Toast message that is shown when dream is triggered by short press power button. [CHAR LIMIT=TOAST] -->
     <string name="long_press_power_to_turn_off_tv_toast">Long press Power button to turn off TV</string>
 
-    <!-- TvWatchdogService notification related messages -->
-    <string name="tv_watchdog_notification_channel_name">System Resource Alerts</string>
-    <string name="tv_watchdog_notification_title">Resource Overuse</string>
-    <string name="tv_watchdog_notification_content">"App '<xliff:g id="app_name">%1$s</xliff:g>' is using too many resources."</string>
+    <!-- Supervision strings -->
+    <string name="supervision_blocked_app_title">Update from your parent</string>
+    <string name="supervision_blocked_app_content"><xliff:g id="app_name" example="YouTube">%1$s</xliff:g> was removed for now</string>
+    <string name="supervision_unblocked_app_content"><xliff:g id="app_name" example="YouTube">%1$s</xliff:g> is now available</string>
+
+    <!-- The label of cast to others button for Share Cast feature.  [CHAR LIMIT=30] -->
+    <string name="media_route_chooser_share_cast_others">Cast to others</string>
+
+    <!-- [CHAR LIMIT=NONE] Accessibility description for the draggable divider in activity embedding. -->
+    <string name="activity_embedding_divider_drag_handle_description">draggable divider</string>
+
+    <!-- Toast message shown when brightness is overridden by the top app and user tries to adjust it. [CHAR LIMIT=NONE] -->
+    <string name="brightness_unable_adjust_msg">Can\'t adjust brightness because it\'s being controlled by the top app</string>
+
+    <!-- CrossDeviceSync strings -->
+    <!-- Notification channel name for Airplane mode sync [CHAR LIMIT=NONE] -->
+    <string name="airplane_mode_sync_notification_channel_name">Airplane mode sync</string>
+    <!-- Notification title for Airplane mode sync [CHAR LIMIT=NONE] -->
+    <string name="airplane_mode_sync_notification_title">Airplane mode</string>
+    <!-- Notification content for Airplane mode sync [CHAR LIMIT=NONE] -->
+    <string name="airplane_mode_sync_notification_content">Airplane mode will now sync across your phone and watch.\n\nManage mode sync preferences on your watch and phone settings.</string>
+    <!-- Action label on the Notification for Airplane mode sync that opens the Airplane mode Settings Page [CHAR LIMIT=35]-->
+    <string name="apm_sync_notification_settings_action">Manage Settings</string>
+    <!-- Notification channel name for Do not disturb sync [CHAR LIMIT=NONE] -->
+    <string name="do_not_disturb_sync_notification_channel_name">Do not disturb sync</string>
+    <!-- Notification title for Do not disturb sync [CHAR LIMIT=NONE] -->
+    <string name="do_not_disturb_sync_notification_title">Do not disturb</string>
+    <!-- Notification content for Do not disturb sync [CHAR LIMIT=NONE] -->
+    <string name="do_not_disturb_sync_notification_content">Synced from your nearby device</string>
 </resources>

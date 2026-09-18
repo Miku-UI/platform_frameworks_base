@@ -18,5 +18,5 @@
           xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
     <item android:state_selected="true"
           android:color="?androidprv:attr/colorAccent"  />
-    <item android:color="?androidprv:attr/colorSurfaceVariant" />
+    <item android:color="@color/materialColorSurfaceContainerHigh" />
 </selector>

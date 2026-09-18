@@ -20,6 +20,7 @@ import android.annotation.SuppressLint
 import android.os.UserHandle
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Dumpable
+import com.android.systemui.Flags.hsuQsChanges
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.plugins.qs.TileDetailsViewModel
 import com.android.systemui.qs.tiles.base.domain.interactor.DisabledByPolicyInteractor
@@ -103,11 +104,22 @@ class QSTileViewModelImpl<DATA_TYPE>(
         get() = users.value.identifier
 
     override val state: StateFlow<QSTileState?> =
-        tileData
-            .map { data ->
+        combine(tileData, userRepository.isCurrentUserHeadlessSystemUser) {
+                data: DATA_TYPE?,
+                isCurrentUserHeadlessSystemUser: Boolean ->
                 data?.let {
-                    mapper().map(config, it).also { state ->
-                        qsTileLogger.logStateUpdate(spec, state, it)
+                    mapper().map(config, it).let { state ->
+                        if (hsuQsChanges() && isCurrentUserHeadlessSystemUser) {
+                                state.copy(
+                                    supportedActions =
+                                        state.supportedActions.minus(
+                                            QSTileState.UserAction.LONG_CLICK
+                                        )
+                                )
+                            } else {
+                                state
+                            }
+                            .also { state -> qsTileLogger.logStateUpdate(spec, state, it) }
                     }
                 }
             }

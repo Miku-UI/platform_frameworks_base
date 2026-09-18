@@ -250,12 +250,8 @@ bool IsFabricatedOverlay(std::string_view path) {
   if (!IsFabricatedOverlayName(path)) {
     return false;
   }
-  std::string path_copy;
-  if (path[path.size()] != '\0') {
-    path_copy.assign(path);
-    path = path_copy;
-  }
-  auto fd = base::unique_fd(base::utf8::open(path.data(), O_RDONLY|O_CLOEXEC|O_BINARY));
+  std::string path_with_nul{path};
+  auto fd = base::unique_fd(base::utf8::open(path_with_nul.data(), O_RDONLY|O_CLOEXEC|O_BINARY));
   if (fd < 0) {
     return false;
   }
@@ -673,6 +669,20 @@ status_t ResStringPool::setTo(incfs::map_ptr<void> data, size_t size, bool copyD
                     (int)mHeader->stylesStart, (int)mHeader->header.size);
             return (mError=BAD_TYPE);
         }
+
+        if (mHeader->styleCount >
+            std::numeric_limits<decltype(mHeader->styleCount)>::max() / sizeof(uint32_t)) {
+          ALOGW("Bad string block: potential integer overflow when finding style entries\n");
+          return (mError = BAD_TYPE);
+        }
+
+        const size_t styleOffsetsStart =
+            mEntryStyles.convert<uint8_t>() - mHeader.convert<uint8_t>();
+        if (mHeader->styleCount * sizeof(uint32_t) > (mHeader->stringsStart - styleOffsetsStart)) {
+          ALOGW("Bad string block: style offsets extend past style data start\n");
+          return (mError = BAD_TYPE);
+        }
+
         mStylePoolSize =
             (mHeader->header.size-mHeader->stylesStart)/sizeof(uint32_t);
 
@@ -1124,6 +1134,7 @@ base::expected<size_t, NullOrIOError> ResStringPool::indexOfString(const char16_
             // most often this happens because we want to get IDs for style
             // span tags; since those always appear at the end of the string
             // block, start searching at the back.
+            int i = mHeader->stringCount-1;
             String8 str8(str, strLen);
             const size_t str8Len = str8.size();
             std::optional<AutoMutex> cacheLock;
@@ -1133,9 +1144,10 @@ base::expected<size_t, NullOrIOError> ResStringPool::indexOfString(const char16_
                   it != mIndexLookupCache->first.end()) {
                 return it->second;
               }
+              // We know that we've handled all these strings, no need to check them again.
+              i -= (int)mIndexLookupCache->first.size();
             }
-
-            for (int i=mHeader->stringCount-1; i>=0; i--) {
+            for (; i>=0; i--) {
                 const base::expected<StringPiece, NullOrIOError> s = string8At(i);
                 if (UNLIKELY(IsIOError(s))) {
                     return base::unexpected(s.error());
@@ -1192,10 +1204,8 @@ base::expected<size_t, NullOrIOError> ResStringPool::indexOfString(const char16_
                 }
             }
         } else {
-            // It is unusual to get the ID from an unsorted string block...
-            // most often this happens because we want to get IDs for style
-            // span tags; since those always appear at the end of the string
-            // block, start searching at the back.
+            // Unsorted.
+            int i = mHeader->stringCount-1;
             std::optional<AutoMutex> cacheLock;
             if (mIndexLookupCache) {
               cacheLock.emplace(mCachesLock);
@@ -1203,8 +1213,9 @@ base::expected<size_t, NullOrIOError> ResStringPool::indexOfString(const char16_
                   it != mIndexLookupCache->second.end()) {
                 return it->second;
               }
+              i -= (int)mIndexLookupCache->second.size();
             }
-            for (int i=mHeader->stringCount-1; i>=0; i--) {
+            for (; i>=0; i--) {
                 const base::expected<StringPiece16, NullOrIOError> s = stringAt(i);
                 if (UNLIKELY(IsIOError(s))) {
                     return base::unexpected(s.error());
@@ -1819,7 +1830,7 @@ static volatile int32_t gCount = 0;
 ResXMLTree::ResXMLTree(std::shared_ptr<const DynamicRefTable> dynamicRefTable)
     : ResXMLParser(*this)
     , mDynamicRefTable(std::move(dynamicRefTable))
-    , mError(NO_INIT), mOwnedData(NULL)
+    , mError(NO_INIT)
 {
     if (kDebugResXMLTree) {
         ALOGI("Creating ResXMLTree %p #%d\n", this, android_atomic_inc(&gCount)+1);
@@ -1830,7 +1841,7 @@ ResXMLTree::ResXMLTree(std::shared_ptr<const DynamicRefTable> dynamicRefTable)
 ResXMLTree::ResXMLTree()
     : ResXMLParser(*this)
     , mDynamicRefTable(nullptr)
-    , mError(NO_INIT), mOwnedData(NULL)
+    , mError(NO_INIT)
 {
     if (kDebugResXMLTree) {
         ALOGI("Creating ResXMLTree %p #%d\n", this, android_atomic_inc(&gCount)+1);
@@ -1846,31 +1857,55 @@ ResXMLTree::~ResXMLTree()
     uninit();
 }
 
-status_t ResXMLTree::setTo(const void* data, size_t size, bool copyData)
-{
+status_t ResXMLTree::preInit(const void* data, size_t size) {
+  uninit();
+  mEventCode = START_DOCUMENT;
+
+  if (!data || !size) {
+    return (mError = BAD_TYPE);
+  }
+  if (size < sizeof(ResXMLTree_header)) {
+    ALOGW("Bad XML block: total size %d is less than the header size %d\n",
+          int(size), int(sizeof(ResXMLTree_header)));
+    return (mError = BAD_TYPE);
+  }
+  return NO_ERROR;
+}
+
+status_t ResXMLTree::setTo(std::unique_ptr<uint8_t[]> data, size_t size) {
+  if (auto res = preInit(data.get(), size); res != NO_ERROR) {
+    return res;
+  }
+  mMovedInData = std::move(data);
+  return init(mMovedInData.get(), size);
+}
+
+status_t ResXMLTree::setTo(base::MappedFile&& mapping) {
+  if (auto res = preInit(mapping.data(), mapping.size()); res != NO_ERROR) {
+    return res;
+  }
+  mMapping = std::move(mapping);
+  return init(mMapping->data(), mMapping->size());
+}
+
+status_t ResXMLTree::setTo(const void* data, size_t size, bool copyData) {
+  if (auto res = preInit(data, size); res != NO_ERROR) {
+    return res;
+  }
+  if (copyData) {
+    mMovedInData.reset(new uint8_t[size]);
+    if (!mMovedInData) {
+      return (mError=NO_MEMORY);
+    }
+    memcpy(mMovedInData.get(), data, size);
+    data = mMovedInData.get();
+  }
+  return init(data, size);
+}
+
+status_t ResXMLTree::init(const void* data, size_t size) {
     const ResChunk_header* chunk = nullptr;
     const ResChunk_header* lastChunk = nullptr;
-
-    uninit();
-    mEventCode = START_DOCUMENT;
-
-    if (!data || !size) {
-        return (mError=BAD_TYPE);
-    }
-    if (size < sizeof(ResXMLTree_header)) {
-        ALOGW("Bad XML block: total size %d is less than the header size %d\n",
-              int(size), int(sizeof(ResXMLTree_header)));
-        mError = BAD_TYPE;
-        goto done;
-    }
-    if (copyData) {
-        mOwnedData = malloc(size);
-        if (mOwnedData == NULL) {
-            return (mError=NO_MEMORY);
-        }
-        memcpy(mOwnedData, data, size);
-        data = mOwnedData;
-    }
 
     mHeader = (const ResXMLTree_header*)data;
     mSize = dtohl(mHeader->header.size);
@@ -1952,12 +1987,15 @@ status_t ResXMLTree::setTo(const void* data, size_t size, bool copyData)
     mError = mStrings.getError();
 
 done:
-    if (mError) {
-        uninit();
-    } else {
-        restart();
+    {
+        const auto res = mError;
+        if (mError) {
+          uninit();
+        } else {
+          restart();
+        }
+        return res;
     }
-    return mError;
 }
 
 status_t ResXMLTree::getError() const
@@ -1969,10 +2007,8 @@ void ResXMLTree::uninit()
 {
     mError = NO_INIT;
     mStrings.uninit();
-    if (mOwnedData) {
-        free(mOwnedData);
-        mOwnedData = NULL;
-    }
+    mMapping.reset();
+    mMovedInData.reset();
     restart();
 }
 
@@ -1997,6 +2033,11 @@ status_t ResXMLTree::validateNode(const ResXMLTree_node* node) const
         // check for sensical values pulled out of the stream so far...
         if ((size >= headerSize + sizeof(ResXMLTree_attrExt))
                 && ((void*)attrExt > (void*)node)) {
+            if (dtohs(attrExt->attributeSize) < sizeof(ResXMLTree_attribute)) {
+                ALOGW("Bad XML block: attribute size %d is smaller than min expected %d\n",
+                      int(dtohs(attrExt->attributeSize)), int(sizeof(ResXMLTree_attribute)));
+                return BAD_TYPE;
+            }
             const size_t attrSize = ((size_t)dtohs(attrExt->attributeSize))
                 * dtohs(attrExt->attributeCount);
             if ((dtohs(attrExt->attributeStart)+attrSize) <= (size-headerSize)) {
@@ -2050,6 +2091,25 @@ status_t ResXMLTree::validateNode(const ResXMLTree_node* node) const
             (int)headerSize);
     return BAD_TYPE;
 #endif
+}
+
+std::unique_ptr<ResXMLTree> ResXMLTree::fromAsset(std::unique_ptr<Asset>&& asset,
+                                                  std::unique_ptr<ResXMLTree> tree) {
+  auto data = std::move(*asset).takeData();
+  if (std::holds_alternative<std::monostate>(data)) {
+    return nullptr;
+  }
+  if (auto map = std::get_if<0>(&data)) {
+    if (tree->setTo(std::move(*map)) != NO_ERROR) {
+      return nullptr;
+    }
+  } else {
+    auto ptr = std::get<1>(std::move(data));
+    if (tree->setTo(std::move(ptr), asset->getLength()) != NO_ERROR) {
+      return nullptr;
+    }
+  }
+  return tree;
 }
 
 // --------------------------------------------------------------------

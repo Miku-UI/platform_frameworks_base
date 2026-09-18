@@ -1,0 +1,8 @@
+-assumevalues class android.content.pm.PackageManager {
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_VULKAN) return false;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_VULKAN, int) return false;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_WATCH) return true;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_WATCH, int = -2147483648..1) return true;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_WIFI) return true;
+  public boolean hasSystemFeature(java.lang.String = android.content.pm.PackageManager.FEATURE_WIFI, int = -2147483648..0) return true;
+}

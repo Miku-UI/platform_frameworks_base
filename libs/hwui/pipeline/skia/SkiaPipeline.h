@@ -20,6 +20,10 @@
 #include <SkDocument.h>
 #include <SkSurface.h>
 
+#ifdef __ANDROID__
+#include <gui/BLASTBufferQueue.h>
+#endif
+
 #include "Lighting.h"
 #include "LightingInfo.h"
 #include "hwui/AnimatedImageDrawable.h"
@@ -66,6 +70,71 @@ public:
     }
 
     void setTargetSdrHdrRatio(float ratio) override;
+#ifdef __ANDROID__
+    virtual void setBLASTBufferQueue(const sp<BLASTBufferQueue>& bbq) { mBLASTBufferQueue = bbq; }
+
+    void setCornerRadiiCallback(
+            std::function<void(const gui::CornerRadii&)> cornerRadiiCallback) override {
+        if (mBLASTBufferQueue != nullptr) {
+            mBLASTBufferQueue->setCornerRadiiCallback(std::move(cornerRadiiCallback));
+        }
+    }
+
+    void setWaitForBufferReleaseCallback(std::function<void(int64_t)> callback) override {
+        if (mBLASTBufferQueue != nullptr) {
+            mBLASTBufferQueue->setWaitForBufferReleaseCallback(std::move(callback));
+        }
+    }
+
+    bool syncNextTransaction(std::function<void(SurfaceComposerClient::Transaction*)> callback,
+                             bool acquireSingleBuffer = true) override {
+        if (mBLASTBufferQueue != nullptr) {
+            return mBLASTBufferQueue->syncNextTransaction(callback, acquireSingleBuffer);
+        } else {
+            return false;
+        }
+    }
+    void mergeWithNextTransaction(SurfaceComposerClient::Transaction* t,
+                                  uint64_t frameNumber) override {
+        if (mBLASTBufferQueue != nullptr) {
+            mBLASTBufferQueue->mergeWithNextTransaction(t, frameNumber);
+        } else {
+            // It would be surprising if we got here, but leaving a dangling
+            // transaction often ANRs apps waiting on a buffer release
+            // callback, so lets be defensive!
+            t->apply();
+        }
+    }
+    void applyPendingTransactions(uint64_t frameNumber) override {
+        if (mBLASTBufferQueue != nullptr) {
+            mBLASTBufferQueue->applyPendingTransactions(frameNumber);
+        }
+    }
+
+    void clearSyncTransaction() override {
+        if (mBLASTBufferQueue != nullptr) {
+            mBLASTBufferQueue->clearSyncTransaction();
+        }
+    }
+
+    SurfaceComposerClient::Transaction* gatherPendingTransactions(uint64_t frameNumber) override {
+        if (mBLASTBufferQueue != nullptr) {
+            return mBLASTBufferQueue->gatherPendingTransactions(frameNumber);
+        }
+        return new SurfaceComposerClient::Transaction();
+    }
+#endif
+
+    uint64_t getFrameNumber() override;
+    int getFrameTimestamps(uint64_t frameNumber, nsecs_t* outRequestedPresentTime,
+                           nsecs_t* outAcquireTime, nsecs_t* outLatchTime,
+                           nsecs_t* outFirstRefreshStartTime, nsecs_t* outLastRefreshStartTime,
+                           nsecs_t* outGpuCompositionDoneTime, nsecs_t* outDisplayPresentTime,
+                           nsecs_t* outDequeueReadyTime, nsecs_t* outReleaseTime) override;
+    void setFrameTimelineInfo(const ANativeWindowFrameTimelineInfo& info) override;
+    int64_t getLastDequeueDuration() override;
+
+    bool hasRenderTarget() override { return getSurface() != nullptr; }
 
 protected:
     renderthread::RenderThread& mRenderThread;
@@ -80,12 +149,31 @@ protected:
 
     bool isCapturingSkp() const { return mCaptureMode != CaptureMode::None; }
 
-private:
     void renderFrameImpl(const SkRect& clip,
                          const std::vector<sp<RenderNode>>& nodes, bool opaque,
                          const Rect& contentDrawBounds, SkCanvas* canvas,
                          const SkMatrix& preTransform);
 
+    class AutoLightingInfoRestore {
+    public:
+        AutoLightingInfoRestore(RenderNode* node)
+                : mSavedLightCenter(LightingInfo::getLightCenterRaw()) {
+            // TODO: put localized light center calculation and storage to a drawable related code.
+            // It does not seem right to store something localized in a global state
+            // fix here and in recordLayers
+            Vector3 transformedLightCenter(mSavedLightCenter);
+            // map current light center into RenderNode's coordinate space
+            node->getSkiaLayer()->inverseTransformInWindow.mapPoint3d(transformedLightCenter);
+            LightingInfo::setLightCenterRaw(transformedLightCenter);
+        }
+
+        ~AutoLightingInfoRestore() { LightingInfo::setLightCenterRaw(mSavedLightCenter); }
+
+    private:
+        Vector3 mSavedLightCenter;
+    };
+
+private:
     /**
      *  Debugging feature.  Draws a semi-transparent overlay on each pixel, indicating
      *  how many times it has been drawn.
@@ -123,25 +211,6 @@ private:
     };
     CaptureMode mCaptureMode = CaptureMode::None;
 
-    class AutoLightingInfoRestore {
-    public:
-        AutoLightingInfoRestore(RenderNode* node)
-                : mSavedLightCenter(LightingInfo::getLightCenterRaw()) {
-            // TODO: put localized light center calculation and storage to a drawable related code.
-            // It does not seem right to store something localized in a global state
-            // fix here and in recordLayers
-            Vector3 transformedLightCenter(mSavedLightCenter);
-            // map current light center into RenderNode's coordinate space
-            node->getSkiaLayer()->inverseTransformInWindow.mapPoint3d(transformedLightCenter);
-            LightingInfo::setLightCenterRaw(transformedLightCenter);
-        }
-
-        ~AutoLightingInfoRestore() { LightingInfo::setLightCenterRaw(mSavedLightCenter); }
-
-    private:
-        Vector3 mSavedLightCenter;
-    };
-
     /**
      * mCapturedFile - the filename to write a recorded SKP to in either MultiFrameSKP or
      * SingleFrameSKP mode.
@@ -169,6 +238,10 @@ private:
     // Set by setPictureCapturedCallback and when set, CallbackAPI mode recording is ongoing.
     // Not used in other recording modes.
     std::function<void(sk_sp<SkPicture>&&)> mPictureCapturedCallback;
+
+#ifdef __ANDROID__
+    sp<BLASTBufferQueue> mBLASTBufferQueue;
+#endif
 };
 
 } /* namespace skiapipeline */

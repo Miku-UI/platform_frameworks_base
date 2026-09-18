@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui
 
+import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.keyguard.dagger.GlanceableHubBlurComponent
 import com.android.systemui.keyguard.ui.transitions.GlanceableHubBlurProvider
 import com.android.systemui.keyguard.ui.transitions.blurConfig
@@ -29,7 +30,7 @@ val Kosmos.glanceableHubBlurComponentFactory by
             ): GlanceableHubBlurComponent {
                 return object : GlanceableHubBlurComponent {
                     override fun getBlurProvider(): GlanceableHubBlurProvider {
-                        return GlanceableHubBlurProvider(animation, blurConfig)
+                        return GlanceableHubBlurProvider(animation, blurConfig, communalSceneInteractor)
                     }
                 }
             }

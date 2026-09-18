@@ -16,21 +16,14 @@
 
 package com.android.systemui.lowlightclock;
 
-import static com.android.systemui.Flags.lowlightClockUsesKeyguardChargingStatus;
-
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.BatteryManager;
-import android.os.RemoteException;
-import android.text.format.Formatter;
-import android.util.Log;
 
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.Preconditions;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.settingslib.fuelgauge.BatteryStatus;
-import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.KeyguardIndicationController;
 
@@ -43,14 +36,9 @@ import javax.inject.Inject;
 /**
  * Provides charging status as a string to a registered callback such that it can be displayed to
  * the user (e.g. on the low-light clock).
- * TODO(b/223681352): Make this code shareable with {@link KeyguardIndicationController}.
  */
 public class ChargingStatusProvider {
-    private static final String TAG = "ChargingStatusProvider";
 
-    private final Resources mResources;
-    private final Context mContext;
-    private final IBatteryStats mBatteryInfo;
     private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
     private final BatteryState mBatteryState = new BatteryState();
     // This callback is registered with KeyguardUpdateMonitor, which only keeps weak references to
@@ -65,13 +53,9 @@ public class ChargingStatusProvider {
     @Inject
     public ChargingStatusProvider(
             Context context,
-            @Main Resources resources,
-            IBatteryStats iBatteryStats,
             KeyguardUpdateMonitor keyguardUpdateMonitor,
             Lazy<KeyguardIndicationController> keyguardIndicationController) {
-        mContext = context;
-        mResources = resources;
-        mBatteryInfo = iBatteryStats;
+
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mKeyguardIndicationController = keyguardIndicationController;
     }
@@ -101,67 +85,6 @@ public class ChargingStatusProvider {
         }
     }
 
-    private String computeChargingString() {
-        if (!mBatteryState.isValid()) {
-            return null;
-        }
-
-        int chargingId;
-
-        if (mBatteryState.isBatteryDefender()) {
-            return mResources.getString(
-                    R.string.keyguard_plugged_in_charging_limited,
-                    mBatteryState.getBatteryLevelAsPercentage());
-        } else if (mBatteryState.isPowerCharged()) {
-            return mResources.getString(R.string.keyguard_charged);
-        }
-
-        final long chargingTimeRemaining = mBatteryState.getChargingTimeRemaining(mBatteryInfo);
-        final boolean hasChargingTime = chargingTimeRemaining > 0;
-        if (mBatteryState.isPowerPluggedInWired()) {
-            switch (mBatteryState.getChargingSpeed(mContext)) {
-                case BatteryStatus.CHARGING_FAST:
-                    chargingId = hasChargingTime
-                            ? R.string.keyguard_indication_charging_time_fast
-                            : R.string.keyguard_plugged_in_charging_fast;
-                    break;
-                case BatteryStatus.CHARGING_SLOWLY:
-                    chargingId = hasChargingTime
-                            ? R.string.keyguard_indication_charging_time_slowly
-                            : R.string.keyguard_plugged_in_charging_slowly;
-                    break;
-                default:
-                    chargingId = hasChargingTime
-                            ? R.string.keyguard_indication_charging_time
-                            : R.string.keyguard_plugged_in;
-                    break;
-            }
-        } else if (mBatteryState.isPowerPluggedInWireless()) {
-            chargingId = hasChargingTime
-                    ? R.string.keyguard_indication_charging_time_wireless
-                    : R.string.keyguard_plugged_in_wireless;
-        } else if (mBatteryState.isPowerPluggedInDocked()) {
-            chargingId = hasChargingTime
-                    ? R.string.keyguard_indication_charging_time_dock
-                    : R.string.keyguard_plugged_in_dock;
-        } else {
-            chargingId = hasChargingTime
-                    ? R.string.keyguard_indication_charging_time
-                    : R.string.keyguard_plugged_in;
-        }
-
-        final String percentage = mBatteryState.getBatteryLevelAsPercentage();
-        if (hasChargingTime) {
-            final String chargingTimeFormatted =
-                    Formatter.formatShortElapsedTimeRoundingUpToMinutes(
-                            mContext, chargingTimeRemaining);
-            return mResources.getString(chargingId, chargingTimeFormatted,
-                    percentage);
-        } else {
-            return mResources.getString(chargingId, percentage);
-        }
-    }
-
     private void reportStatusToCallback() {
         if (mCallback != null) {
             final boolean shouldShowStatus =
@@ -171,11 +94,7 @@ public class ChargingStatusProvider {
     }
 
     private String getChargingString() {
-        if (lowlightClockUsesKeyguardChargingStatus()) {
-            return mKeyguardIndicationController.get().getPowerChargingString();
-        } else {
-            return computeChargingString();
-        }
+        return mKeyguardIndicationController.get().getPowerChargingString();
     }
 
     private class ChargingStatusCallback extends KeyguardUpdateMonitorCallback {
@@ -213,15 +132,6 @@ public class ChargingStatusProvider {
             return mBatteryStatus != null;
         }
 
-        public long getChargingTimeRemaining(IBatteryStats batteryInfo) {
-            try {
-                return isPowerPluggedIn() ? batteryInfo.computeChargeTimeRemaining() : -1;
-            } catch (RemoteException e) {
-                Log.e(TAG, "Error calling IBatteryStats: ", e);
-                return -1;
-            }
-        }
-
         public boolean isBatteryDefenderEnabled() {
             return isValid() && mBatteryStatus.isPluggedIn() && isBatteryDefender();
         }
@@ -230,46 +140,14 @@ public class ChargingStatusProvider {
             return isValid() && mBatteryStatus.isBatteryDefender();
         }
 
-        public int getBatteryLevel() {
-            return isValid() ? mBatteryStatus.level : 0;
-        }
-
-        public int getChargingSpeed(Context context) {
-            return isValid() ? mBatteryStatus.getChargingSpeed(context) : 0;
-        }
-
-        public boolean isPowerCharged() {
-            return isValid() && mBatteryStatus.isCharged();
-        }
-
         public boolean isPowerPluggedIn() {
             return isValid() && mBatteryStatus.isPluggedIn() && isChargingOrFull();
-        }
-
-        public boolean isPowerPluggedInWired() {
-            return isValid()
-                    && mBatteryStatus.isPluggedInWired()
-                    && isChargingOrFull();
-        }
-
-        public boolean isPowerPluggedInWireless() {
-            return isValid()
-                    && mBatteryStatus.isPluggedInWireless()
-                    && isChargingOrFull();
-        }
-
-        public boolean isPowerPluggedInDocked() {
-            return isValid() && mBatteryStatus.isPluggedInDock() && isChargingOrFull();
         }
 
         private boolean isChargingOrFull() {
             return isValid()
                     && (mBatteryStatus.status == BatteryManager.BATTERY_STATUS_CHARGING
                         || mBatteryStatus.isCharged());
-        }
-
-        private String getBatteryLevelAsPercentage() {
-            return NumberFormat.getPercentInstance().format(getBatteryLevel() / 100f);
         }
     }
 }

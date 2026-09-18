@@ -34,6 +34,7 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 
 @Presubmit
 @RunWith(AndroidTestingRunner.class)
@@ -63,6 +64,7 @@ public class AssociationDiskStoreTest {
 
         // Assert individual fields for the second association.
         AssociationInfo association = associations.getAssociations().get(1);
+        AssociationInfo associationWithExtraPerms = associations.getAssociations().get(0);
         assertEquals(3, association.getId());
         assertEquals("com.sample.companion.another.app", association.getPackageName());
         assertEquals("John's Watch", association.getDisplayName());
@@ -75,6 +77,8 @@ public class AssociationDiskStoreTest {
         assertEquals(0, association.getTransportFlags());
         assertEquals("1234", association.getDeviceId().getCustomId());
         assertEquals(2, association.getPackagesToNotify().size());
+        assertEquals(Set.of("NEARBY_DEVICES", "WIFI"),
+                associationWithExtraPerms.getExtraPermissions());
 
         // Assert metadata fields.
         PersistableBundle metadata = association.getMetadata();

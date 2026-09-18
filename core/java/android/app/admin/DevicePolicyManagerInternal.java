@@ -88,15 +88,6 @@ public abstract class DevicePolicyManagerInternal {
     public abstract void notifyCrossProfileProvidersChanged(int userId, List<String> packages);
 
     /**
-     * @param userHandle the handle of the user whose profile owner is being fetched.
-     * @return the configured supervision app if it exists and is the device owner or policy owner.
-     * @deprecated Use {@link android.app.supervision.SupervisionManagerInternal} methods instead.
-     */
-    @Deprecated
-    public abstract @Nullable ComponentName getProfileOwnerOrDeviceOwnerSupervisionComponent(
-            @NonNull UserHandle userHandle);
-
-    /**
      * Checks if an app with given uid is an active device owner of its user.
      *
      * <p>This takes the DPMS lock.  DO NOT call from PM/UM/AM with their lock held.
@@ -115,18 +106,6 @@ public abstract class DevicePolicyManagerInternal {
      * @return true if the uid is an active profile owner.
      */
     public abstract boolean isActiveProfileOwner(int uid);
-
-    /**
-     * Checks if an app with given uid is the active supervision admin.
-     *
-     * <p>This takes the DPMS lock. DO NOT call from PM/UM/AM with their lock held.
-     *
-     * @param uid App uid.
-     * @return true if the uid is the active supervision app.
-     * @deprecated Use {@link android.app.supervision.SupervisionManagerInternal} methods instead.
-     */
-    @Deprecated
-    public abstract boolean isActiveSupervisionApp(int uid);
 
     /**
      * Creates an intent to show the admin support dialog to say that an action is disallowed by
@@ -230,6 +209,28 @@ public abstract class DevicePolicyManagerInternal {
      * @hide
      */
     public abstract List<String> getDefaultCrossProfilePackages();
+
+    /**
+     * Sets the hidden state of an application for the specified user.
+     *
+     * @param systemEntity  The service entity that hides the application. This can
+     *                     be just the calling package name, or any string of the caller's choice
+     *                     can be used.
+     * @param packageName The package name of the app to hide or unhide.
+     * @param userId  The user for whom to hide application
+     * @param hidden {@code true} if the package should be hidden, {@code false} if unhidden.
+     */
+    public abstract void setApplicationHiddenBySystem(String systemEntity,
+            String packageName, @UserIdInt int userId, boolean hidden);
+
+    /**
+     * Clears all hidden applications for the given role.
+     *
+     * @param roleName The name of the role whose holders' policies should be cleared.
+     * @param targetUser The user for which to clear the policies.
+     */
+    public abstract void clearHiddenApplicationsForRole(
+            @NonNull String roleName, @UserIdInt int targetUser);
 
     /**
      * Sends the {@code intent} to the package holding the
@@ -336,6 +337,11 @@ public abstract class DevicePolicyManagerInternal {
     public abstract boolean isUserOrganizationManaged(@UserIdInt int userId);
 
     /**
+     * True if the entire device is organization managed.
+     */
+    public abstract boolean isDeviceOrganizationManaged();
+
+    /**
      * Returns a map of admin to {@link Bundle} map of restrictions set by the admins for the
      * provided {@code packageName} in the provided {@code userId}.
      *
@@ -378,4 +384,10 @@ public abstract class DevicePolicyManagerInternal {
      */
     public abstract void removeLocalPoliciesForSystemEntities(
             @UserIdInt int userId, @NonNull List<String> systemEntities);
+
+    /**
+     * Checks if the USB_DATA_SIGNALING policy is enabled
+     * @return true if USB_DATA_SIGNALING is enabled, false otherwise.
+     */
+    public abstract boolean isUsbDataSignalingEnabled();
 }

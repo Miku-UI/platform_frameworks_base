@@ -19,20 +19,25 @@ package com.android.systemui.bouncer.ui.viewmodel
 import android.app.admin.devicePolicyManager
 import android.content.applicationContext
 import com.android.keyguard.domain.interactor.keyguardKeyboardInteractor
+import com.android.systemui.accessibility.domain.interactor.accessibilityInteractor
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.bouncer.domain.interactor.bouncerActionButtonInteractor
 import com.android.systemui.bouncer.domain.interactor.bouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.simBouncerInteractor
 import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInteractor
 import com.android.systemui.haptics.msdl.bouncerHapticPlayer
 import com.android.systemui.inputmethod.domain.interactor.inputMethodInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardDismissActionInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardMediaKeyInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
+import com.android.systemui.user.domain.interactor.userLockedInteractor
+import com.android.systemui.user.domain.interactor.userLogoutInteractor
 import com.android.systemui.user.ui.viewmodel.userSwitcherViewModel
 import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 import kotlinx.coroutines.flow.StateFlow
@@ -55,7 +60,6 @@ val Kosmos.bouncerOverlayContentViewModel by Fixture {
         devicePolicyManager = devicePolicyManager,
         bouncerMessageViewModelFactory = bouncerMessageViewModelFactory,
         userSwitcher = userSwitcherViewModel,
-        actionButtonInteractor = bouncerActionButtonInteractor,
         pinViewModelFactory = pinBouncerViewModelFactory,
         patternViewModelFactory = patternBouncerViewModelFactory,
         passwordViewModelFactory = passwordBouncerViewModelFactory,
@@ -65,6 +69,10 @@ val Kosmos.bouncerOverlayContentViewModel by Fixture {
         keyguardDismissActionInteractor = keyguardDismissActionInteractor,
         sceneInteractor = sceneInteractor,
         windowRootViewBlurInteractor = windowRootViewBlurInteractor,
+        faceAuthInteractor = deviceEntryFaceAuthInteractor,
+        userLockedInteractor = userLockedInteractor,
+        userLogoutInteractor = userLogoutInteractor,
+        backgroundDispatcher = testDispatcher,
     )
 }
 
@@ -111,6 +119,7 @@ val Kosmos.patternBouncerViewModelFactory by Fixture {
                 isInputEnabled = isInputEnabled,
                 onIntentionalUserInput = onIntentionalUserInput,
                 bouncerHapticPlayer = bouncerHapticPlayer,
+                a11yInteractor = accessibilityInteractor,
             )
         }
     }
@@ -121,6 +130,7 @@ val Kosmos.passwordBouncerViewModelFactory by Fixture {
         override fun create(
             isInputEnabled: StateFlow<Boolean>,
             onIntentionalUserInput: () -> Unit,
+            bouncerHapticPlayer: BouncerHapticPlayer,
         ): PasswordBouncerViewModel {
             return PasswordBouncerViewModel(
                 interactor = bouncerInteractor,
@@ -128,6 +138,7 @@ val Kosmos.passwordBouncerViewModelFactory by Fixture {
                 selectedUserInteractor = selectedUserInteractor,
                 isInputEnabled = isInputEnabled,
                 onIntentionalUserInput = onIntentionalUserInput,
+                bouncerHapticPlayer = bouncerHapticPlayer,
             )
         }
     }

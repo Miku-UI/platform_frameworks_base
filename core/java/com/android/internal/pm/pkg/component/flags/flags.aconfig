@@ -8,3 +8,13 @@ flag {
     is_fixed_read_only: true
     bug: "295870718"
 }
+
+flag {
+    name: "enable_activity_alias_persistable_mode_bugfix"
+    namespace: "package_manager_service"
+    description: "Enable propagation of persistableMode to activity aliases."
+    bug: "458817598"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}

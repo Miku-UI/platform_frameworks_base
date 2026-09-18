@@ -39,6 +39,12 @@ public:
     virtual void onAnimationEnd() = 0;
 };
 
+class OnFrameRateHintListener {
+public:
+    virtual ~OnFrameRateHintListener() {}
+    virtual void onFrameRateHint(float fps) = 0;
+};
+
 /**
  * Native component of android.graphics.drawable.AnimatedImageDrawables.java.
  * This class can be drawn into Canvas.h and maintains the state needed to drive
@@ -96,6 +102,8 @@ public:
     void setOnAnimationEndListener(std::unique_ptr<OnAnimationEndListener> listener) {
         mEndListener = std::move(listener);
     }
+
+    void setOnFrameRateHintListener(std::unique_ptr<OnFrameRateHintListener> listener);
 
     struct Snapshot {
         sk_sp<SkPicture> mPic;
@@ -164,6 +172,9 @@ private:
     Properties mProperties;
 
     std::unique_ptr<OnAnimationEndListener> mEndListener;
+    std::unique_ptr<OnFrameRateHintListener> mFrameRateHintListener;
+
+    int mLastFrameDurationMs = -1;
 
     int adjustFrameDuration(int);
     int currentFrameDuration();

@@ -434,6 +434,8 @@
     <string name="accessibility_wifi_signal_full">Wifi signal full.</string>
     <!-- Content description of the WIFI signal when the WIFI is connected using the signal from a different device owned by the user. For accessibility (not shown on the screen) [CHAR LIMIT=NONE] -->
     <string name="accessibility_wifi_other_device">Connected to your device.</string>
+    <!-- Content description when a Talkback user focuses on the Wi-Fi entry that has the shared network icon. [CHAR LIMIT=NONE] -->
+    <string name="accessibility_wifi_shared_network_icon_message">All users on this device can view and connect.</string>
 
     <!-- Content description of the Wi-Fi security type. This message indicates this is an open Wi-Fi (no password needed) [CHAR LIMIT=NONE] -->
     <string name="accessibility_wifi_security_type_none">Open network</string>
@@ -634,8 +636,8 @@
     <string name="enable_adb">USB debugging</string>
     <!-- Setting checkbox summary for Whether to enable USB debugging support on the phone -->
     <string name="enable_adb_summary">Debug mode when USB is connected</string>
-    <!-- Setting title to revoke secure USB debugging authorizations -->
-    <string name="clear_adb_keys">Revoke USB debugging authorizations</string>
+    <!-- Setting title to revoke adb secure debugging authorizations [BACKUP_MESSAGE_ID=3010148733140369917] -->
+    <string name="clear_adb_keys">Revoke adb debugging authorizations</string>
     <!-- [CHAR LIMIT=32] Setting title for ADB wireless switch -->
     <string name="enable_adb_wireless">Wireless debugging</string>
     <!-- [CHAR LIMIT=NONE] Setting checkbox summary for whether to enable Wireless debugging support on the phone -->
@@ -684,6 +686,10 @@
     <string name="adb_qrcode_pairing_device_failed_msg">Failed to pair the device. Either the QR code was incorrect, or the device is not connected to the same network.</string>
     <!-- [CHAR LIMIT=50] Adb Wireless ip address and port title -->
     <string name="adb_wireless_ip_addr_preference_title">IP address \u0026 Port</string>
+    <!-- Text displayed when Adb Wireless isn't available due to network not allowed -->
+    <string name="adb_wireless_unavailable_not_allowed">Unavailable (Not allowed)</string>
+    <!-- Text displayed when Adb Wireless isn't available due to no network connection-->
+    <string name="adb_wireless_unavailable_disconnected">Unavailable (Wi\u2011Fi Disconnected)</string>
     <!-- [CHAR LIMIT=NONE] Adb Wireless QR code pairing scanner title -->
     <string name="adb_wireless_qrcode_pairing_title">Scan QR code</string>
     <!-- [CHAR LIMIT=NONE] Adb Wireless QR code pairing description -->
@@ -836,8 +842,8 @@
     <string name="adbwifi_warning_title">Allow wireless debugging?</string>
     <!-- Warning text to user about the implications of enabling USB debugging [CHAR LIMIT=NONE] -->
     <string name="adbwifi_warning_message">Wireless debugging is intended for development purposes only. Use it to copy data between your computer and your device, install apps on your device without notification, and read log data.</string>
-    <!-- Message of dialog confirming that user wants to revoke access to adb from all computers they have authorized -->
-    <string name="adb_keys_warning_message">Revoke access to USB debugging from all computers you\u2019ve previously authorized?</string>
+    <!-- Message of dialog confirming that user wants to revoke access to adb from all computers and networks they have authorized [BACKUP_MESSAGE_ID=2968555274488101220] -->
+    <string name="adb_keys_warning_message">Revoke access to adb debugging from all computers and networks you\u2019ve previously authorized?</string>
     <!-- Title of warning dialog about the implications of enabling developer settings -->
     <string name="dev_settings_warning_title">Allow development settings?</string>
     <!-- Warning text to user about the implications of enabling USB debugging -->
@@ -1834,14 +1840,6 @@
 
     <!-- Content description of the no calling for accessibility (not shown on the screen). [CHAR LIMIT=NONE] -->
     <string name="accessibility_no_calling">No calling.</string>
-
-
-    <!-- Title for the 'physical keyboard' settings screen. [CHAR LIMIT=35] -->
-    <string name="physical_keyboard_title">Physical keyboard</string>
-    <!-- Title for the keyboard layout preference dialog. [CHAR LIMIT=35] -->
-    <string name="keyboard_layout_dialog_title">Choose keyboard layout</string>
-    <!-- Label of the default keyboard layout.  [CHAR LIMIT=35] -->
-    <string name="keyboard_layout_default_label">Default</string>
 
     <!-- Special access > Title for managing turn screen on settings. [CHAR LIMIT=50] -->
     <string name="turn_screen_on_title">Screen turn-on control</string>

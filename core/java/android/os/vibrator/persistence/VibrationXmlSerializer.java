@@ -43,6 +43,7 @@ import java.lang.annotation.RetentionPolicy;
  * @hide
  */
 @TestApi
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VibrationXmlSerializer {
 
     /**

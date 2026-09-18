@@ -17,15 +17,20 @@
 package com.android.server.display.whitebalance;
 
 import android.annotation.NonNull;
+import android.hardware.Sensor;
 import android.os.Handler;
 import android.util.Slog;
 import android.util.Spline;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalServices;
+import com.android.server.display.DisplayDeviceConfig;
 import com.android.server.display.color.ColorDisplayService.ColorDisplayServiceInternal;
+import com.android.server.display.config.SensorData;
+import com.android.server.display.feature.flags.Flags;
 import com.android.server.display.utils.AmbientFilter;
 import com.android.server.display.utils.History;
+import com.android.server.display.utils.SensorUtils;
 
 import java.io.PrintWriter;
 import java.util.Objects;
@@ -377,6 +382,24 @@ public class DisplayWhiteBalanceController implements
     }
 
     /**
+     * Reconfigure the controller when the display changes.
+     */
+    public void onDisplayChanged(DisplayDeviceConfig config) {
+        if (!Flags.whiteBalanceControllerDdcConfig()) {
+            return;
+        }
+        SensorData colorSensorData = config.getColorSensor();
+        SensorData ambientLightSensorData = config.getAmbientLightSensor();
+        // with flag remove, have logging only if mLoggingEnabled
+        if (mLoggingEnabled || Flags.whiteBalanceControllerDdcConfig()) {
+            Slog.d(TAG, "onDisplayChanged: colorSensor="
+                    + colorSensorData + "; lightSensor=" + ambientLightSensorData);
+        }
+        mBrightnessSensor.setSensorData(ambientLightSensorData, Sensor.TYPE_LIGHT);
+        mColorTemperatureSensor.setSensorData(colorSensorData, SensorUtils.NO_FALLBACK);
+    }
+
+    /**
      * Enable/disable logging.
      *
      * @param loggingEnabled
@@ -558,6 +581,13 @@ public class DisplayWhiteBalanceController implements
         if (mDisplayPowerControllerCallbacks != null) {
             mDisplayPowerControllerCallbacks.updateWhiteBalance();
         }
+    }
+
+    /**
+     * Returns the current ambient color temperature.
+     */
+    public float getAmbientColorTemperature() {
+        return mAmbientColorTemperature;
     }
 
     /**

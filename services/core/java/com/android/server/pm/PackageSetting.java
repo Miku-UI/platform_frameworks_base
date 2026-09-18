@@ -38,6 +38,7 @@ import android.content.pm.SigningInfo;
 import android.content.pm.UserInfo;
 import android.content.pm.UserPackage;
 import android.content.pm.overlay.OverlayPaths;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.incremental.IncrementalManager;
 import android.service.pm.PackageProto;
@@ -107,6 +108,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
                 PENDING_RESTORE,
                 DEBUGGABLE,
                 IS_LEAVING_SHARED_USER,
+                VERIFY_COMPILATION_ARTIFACTS,
         })
         public @interface Flags {
         }
@@ -117,6 +119,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         private static final int PENDING_RESTORE = 1 << 4;
         private static final int DEBUGGABLE = 1 << 5;
         private static final int IS_LEAVING_SHARED_USER = 1 << 6;
+        private static final int VERIFY_COMPILATION_ARTIFACTS= 1 << 7;
     }
     private int mBooleans;
 
@@ -172,6 +175,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
     private String mRealName;
 
     private int mAppId;
+    private int mPccId;
 
     /**
      * It is expected that all code that uses a {@link PackageSetting} understands this inner field
@@ -303,6 +307,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         this.signatures = new PackageSignatures();
         this.installSource = InstallSource.EMPTY;
         this.mDomainSetId = domainSetId;
+        this.mPccId = Process.INVALID_UID;
         mSnapshot = makeCache();
     }
 
@@ -386,6 +391,22 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
 
     public PackageSetting setAppId(int appId) {
         this.mAppId = appId;
+        onChanged();
+        return this;
+    }
+
+    /**
+     * @return The PCC app ID of this package if it has one, {@link Process.INVALID_UID} otherwise
+     */
+    public int getPccId() {
+        return mPccId;
+    }
+
+    /**
+     * Sets the PCC app ID of this package
+     */
+    public PackageSetting setPccId(int pccId) {
+        this.mPccId = pccId;
         onChanged();
         return this;
     }
@@ -631,9 +652,24 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         return this;
     }
 
+
     @Override
     public boolean isLeavingSharedUser() {
         return getBoolean(Booleans.IS_LEAVING_SHARED_USER);
+    }
+
+    /**
+     * @see PackageState#shouldVerifyCompilationArtifacts.
+     */
+    public PackageSetting setShouldVerifyCompilationArtifacts(boolean value) {
+        setBoolean(Booleans.VERIFY_COMPILATION_ARTIFACTS, value);
+        onChanged();
+        return this;
+    }
+
+    @Override
+    public boolean shouldVerifyCompilationArtifacts() {
+        return getBoolean(Booleans.VERIFY_COMPILATION_ARTIFACTS);
     }
 
     /**
@@ -836,6 +872,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         mName = other.mName;
         mRealName = other.mRealName;
         mAppId = other.mAppId;
+        mPccId = other.mPccId;
         pkg = other.pkg;
         mPath = other.mPath;
         mPathString = other.mPathString;
@@ -951,12 +988,21 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         onChanged();
     }
 
+    void setAppLockEnabled(boolean appLockEnabled, int userId) {
+        modifyUserState(userId).setAppLockEnabled(appLockEnabled);
+        onChanged();
+    }
+
     boolean getInstalled(int userId) {
         return readUserState(userId).isInstalled();
     }
 
     boolean isArchived(int userId) {
         return PackageArchiver.isArchived(readUserState(userId));
+    }
+
+    boolean isAppLockEnabled(int userId) {
+        return readUserState(userId).isAppLockEnabled();
     }
 
     /**
@@ -1065,6 +1111,24 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         onChanged();
     }
 
+    long getPccCeDataInode(int userId) {
+        return readUserState(userId).getPccCeDataInode();
+    }
+
+    long getPccDeDataInode(int userId) {
+        return readUserState(userId).getPccDeDataInode();
+    }
+
+    void setPccCeDataInode(long pccCeDataInode, int userId) {
+        modifyUserState(userId).setPccCeDataInode(pccCeDataInode);
+        onChanged();
+    }
+
+    void setPccDeDataInode(long pccDeDataInode, int userId) {
+        modifyUserState(userId).setPccDeDataInode(pccDeDataInode);
+        onChanged();
+    }
+
     boolean getStopped(int userId) {
         return readUserState(userId).isStopped();
     }
@@ -1125,18 +1189,23 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         onChanged();
     }
 
-    void setUserState(int userId, long ceDataInode, long deDataInode, int enabled,
+    void setUserState(int userId, long ceDataInode, long deDataInode,
+                      long pccCeDataInode, long pccDeDataInode, int enabled,
                       boolean installed, boolean stopped, boolean notLaunched, boolean hidden,
                       int distractionFlags, ArrayMap<UserPackage, SuspendParams> suspendParams,
                       boolean instantApp, boolean virtualPreload, String lastDisableAppCaller,
                       ArraySet<String> enabledComponents, ArraySet<String> disabledComponents,
                       int installReason, int uninstallReason,
                       String harmfulAppWarning, String splashScreenTheme,
-                      long firstInstallTime, int aspectRatio, ArchiveState archiveState) {
+                      long firstInstallTime, int aspectRatio, ArchiveState archiveState,
+                      boolean appLockEnabled, int virtualGamepadUserOption,
+                      int personalContextMode) {
         modifyUserState(userId)
                 .setSuspendParams(suspendParams)
                 .setCeDataInode(ceDataInode)
                 .setDeDataInode(deDataInode)
+                .setPccCeDataInode(pccCeDataInode)
+                .setPccDeDataInode(pccDeDataInode)
                 .setEnabledState(enabled)
                 .setInstalled(installed)
                 .setStopped(stopped)
@@ -1154,13 +1223,17 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
                 .setSplashScreenTheme(splashScreenTheme)
                 .setFirstInstallTimeMillis(firstInstallTime)
                 .setMinAspectRatio(aspectRatio)
-                .setArchiveState(archiveState);
+                .setArchiveState(archiveState)
+                .setAppLockEnabled(appLockEnabled)
+                .setVirtualGamepadUserOption(virtualGamepadUserOption)
+                .setPersonalContextMode(personalContextMode);
         onChanged();
     }
 
     void setUserState(int userId, PackageUserStateInternal otherState) {
         setUserState(userId, otherState.getCeDataInode(), otherState.getDeDataInode(),
-                otherState.getEnabledState(), otherState.isInstalled(), otherState.isStopped(),
+                otherState.getPccCeDataInode(), otherState.getPccDeDataInode(),
+                otherState.getEnabledState(),  otherState.isInstalled(), otherState.isStopped(),
                 otherState.isNotLaunched(), otherState.isHidden(), otherState.getDistractionFlags(),
                 otherState.getSuspendParams() == null
                         ? null : otherState.getSuspendParams().untrackedStorage(),
@@ -1173,7 +1246,8 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
                 otherState.getInstallReason(), otherState.getUninstallReason(),
                 otherState.getHarmfulAppWarning(), otherState.getSplashScreenTheme(),
                 otherState.getFirstInstallTimeMillis(), otherState.getMinAspectRatio(),
-                otherState.getArchiveState());
+                otherState.getArchiveState(), otherState.isAppLockEnabled(),
+                otherState.getVirtualGamepadUserOption(), otherState.getPersonalContextMode());
     }
 
     WatchedArraySet<String> getEnabledComponents(int userId) {
@@ -1385,6 +1459,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
             proto.write(PackageProto.UserInfoProto.FIRST_INSTALL_TIME_MS,
                     state.getFirstInstallTimeMillis());
             writeArchiveState(proto, state.getArchiveState());
+            proto.write(PackageProto.UserInfoProto.IS_APP_LOCK_ENABLED, state.isAppLockEnabled());
             proto.end(userToken);
         }
     }
@@ -1449,6 +1524,16 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         return this;
     }
 
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public PackageSetting clearOldPaths() {
+        if (mOldPaths == null || mOldPaths.isEmpty()) {
+            return this;
+        }
+        mOldPaths.clear();
+        onChanged();
+        return this;
+    }
+
     /**
      * @param userId the specific user to change the label/icon for
      * @see PackageUserStateImpl#overrideLabelAndIcon(ComponentName, String, Integer)
@@ -1488,7 +1573,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
      * @return True if package is still being loaded, false if the package is fully loaded.
      */
     public boolean isLoading() {
-        return Math.abs(1.0f - mLoadingProgress) >= 0.00000001f;
+        return PackageManagerServiceUtils.isLoading(mLoadingProgress);
     }
 
     public PackageSetting setLoadingProgress(float progress) {

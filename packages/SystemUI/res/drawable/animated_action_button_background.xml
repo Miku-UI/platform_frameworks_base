@@ -27,10 +27,10 @@
             android:insetTop="8dp">
             <shape android:shape="rectangle">
                 <corners android:radius="@dimen/animated_action_button_corner_radius" />
-                <solid android:color="@androidprv:color/materialColorPrimaryContainer" />
+                <solid android:color="@color/materialColorPrimaryContainer" />
                 <stroke
                     android:width="@dimen/animated_action_button_outline_stroke_width"
-                    android:color="@androidprv:color/materialColorOutlineVariant" />
+                    android:color="@color/materialColorOutlineVariant" />
             </shape>
         </inset>
     </item>

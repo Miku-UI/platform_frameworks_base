@@ -8,12 +8,8 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-android_test {
-    name: "InputTests",
-    defaults: [
-        // For ExtendedMockito dependencies.
-        "modules-utils-testable-device-config-defaults",
-    ],
+java_defaults {
+    name: "InputTestsDefaults",
     srcs: [
         "src/**/*.aidl",
         "src/**/*.java",
@@ -24,7 +20,6 @@ android_test {
     ],
     asset_dirs: ["assets"],
     platform_apis: true,
-    certificate: "platform",
     static_libs: [
         "android.view.flags-aconfig-java",
         "androidx.test.core",
@@ -34,7 +29,6 @@ android_test {
         "androidx.test.runner",
         "androidx.test.uiautomator_uiautomator",
         "collector-device-lib",
-        "compatibility-device-util-axt",
         "cts-input-lib",
         "cts-wm-util",
         "flag-junit",
@@ -49,7 +43,6 @@ android_test {
         "platform-test-annotations",
         "platform-screenshot-diff-core",
         "services.core.unboosted",
-        "servicestests-utils",
         "testables",
         "testng",
         "truth",
@@ -62,5 +55,36 @@ android_test {
         "android.test.mock.stubs.system",
         "android.test.base.stubs.system",
     ],
+}
+
+android_test {
+    name: "InputTests",
+    defaults: [
+        "InputTestsDefaults",
+        // For ExtendedMockito dependencies.
+        "modules-utils-testable-device-config-defaults",
+    ],
+    certificate: "platform",
+    static_libs: [
+        "ravenwood-junit",
+        "compatibility-device-util-axt",
+        "servicestests-utils",
+    ],
     test_suites: ["device-tests"],
+}
+
+android_ravenwood_test {
+    name: "InputTestsRavenwood",
+    build_resources: true,
+    defaults: [
+        "InputTestsDefaults",
+    ],
+    static_libs: [
+        "modules-utils-extended-mockito-rule",
+        "compatibility-device-util-axt-ravenwood",
+        "servicestests-utils-ravenwood",
+    ],
+    ravenizer: {
+        strip_mockito: true,
+    },
 }

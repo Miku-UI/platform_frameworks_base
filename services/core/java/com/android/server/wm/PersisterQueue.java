@@ -69,6 +69,8 @@ class PersisterQueue {
      */
     private long mNextWriteTime = 0;
 
+    private boolean mShuttingDown;
+
     PersisterQueue() {
         this(INTER_WRITE_DELAY_MS, PRE_TASK_DELAY_MS);
     }
@@ -133,8 +135,14 @@ class PersisterQueue {
         mLazyTaskWriterThread.join();
     }
 
+    synchronized void onSystemShutdown() {
+        mShuttingDown = true;
+        flushNoWait();
+    }
+
     synchronized void addItem(WriteQueueItem item, boolean flush) {
         mWriteQueue.add(item);
+        flush |= mShuttingDown;
 
         if (flush || mWriteQueue.size() > MAX_WRITE_QUEUE_LENGTH) {
             mNextWriteTime = FLUSH_QUEUE;
@@ -190,9 +198,13 @@ class PersisterQueue {
         }
     }
 
-    synchronized void flush() {
+    synchronized void flushNoWait() {
         mNextWriteTime = FLUSH_QUEUE;
         notifyAll();
+    }
+
+    synchronized void flush() {
+        flushNoWait();
         do {
             try {
                 wait();

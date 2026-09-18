@@ -22,6 +22,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import android.app.Notification;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
@@ -80,6 +81,11 @@ public interface NotificationRowContentBinder {
     /** For testing, ensure all inflation is synchronous. */
     @VisibleForTesting
     void setInflateSynchronously(boolean inflateSynchronously);
+
+    /** For testing, sets the user profile badge provider. */
+    @VisibleForTesting
+    void setUserProfileBadgeProvider(
+            @Nullable Notification.UserProfileBadgeProvider userProfileBadgeProvider);
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true,

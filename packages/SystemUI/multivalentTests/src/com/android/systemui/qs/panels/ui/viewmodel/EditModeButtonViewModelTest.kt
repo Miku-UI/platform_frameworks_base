@@ -23,7 +23,9 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.classifier.fakeFalsingManager
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.advanceTimeBy
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
@@ -33,9 +35,13 @@ import com.android.systemui.plugins.activityStarter
 import com.android.systemui.qs.panels.data.repository.qsPreferencesRepository
 import com.android.systemui.qs.panels.ui.viewmodel.toolbar.EditModeButtonViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.toolbar.editModeButtonViewModelFactory
+import com.android.systemui.scene.domain.interactor.DualShadeEducationInteractor
+import com.android.systemui.scene.domain.interactor.dualShadeEducationInteractor
+import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.testKosmos
-import com.android.systemui.user.domain.interactor.fakeHeadlessSystemUserMode
-import com.android.systemui.user.domain.interactor.headlessSystemUserMode
+import com.android.systemui.user.data.repository.fakeUserRepository
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -124,54 +130,85 @@ class EditModeButtonViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_EDIT_MODE_TOOLTIP)
+    @DisableSceneContainer
     fun showTooltip_tooltipWasAlreadyShown_shouldNotBeVisible() =
         kosmos.runTest {
             val underTest = createEditModeButtonViewModel()
             qsPreferencesRepository.writeEditTooltipShown(true)
 
+            // Assert the tooltip is showing after the required delay
+            advanceTimeBy(EditModeButtonViewModel.TOOLTIP_APPEARANCE_DELAY_MS + 1)
             assertThat(underTest.showTooltip).isFalse()
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_EDIT_MODE_TOOLTIP)
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
+    fun showTooltip_onDualShade_waitsForNotificationShadeTooltip() =
+        kosmos.runTest {
+            enableDualShade()
+            sceneInteractor.showOverlay(Overlays.QuickSettingsShade, "")
+
+            val underTest = createEditModeButtonViewModel()
+            qsPreferencesRepository.writeEditTooltipShown(false)
+
+            assertThat(underTest.showTooltip).isFalse()
+
+            // Assert the tooltip is still hidden even after the required delay
+            advanceTimeBy(EditModeButtonViewModel.TOOLTIP_APPEARANCE_DELAY_MS + 1)
+            assertThat(underTest.showTooltip).isFalse()
+
+            // Wait the rest of the time needed for the notification shade tooltip
+            advanceTimeBy(
+                DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS -
+                    EditModeButtonViewModel.TOOLTIP_APPEARANCE_DELAY_MS
+            )
+            assertThat(underTest.showTooltip).isFalse()
+
+            // Dismiss the notification shade tooltip
+            dualShadeEducationInteractor.dismissNotificationsShadeTooltip()
+
+            // Assert the tooltip is showing after the required delay
+            advanceTimeBy(EditModeButtonViewModel.TOOLTIP_APPEARANCE_DELAY_MS + 1)
+            assertThat(underTest.showTooltip).isTrue()
+        }
+
+    @Test
+    @DisableSceneContainer
     fun showTooltip_tooltipWasNotShown_shouldBeVisible() =
         kosmos.runTest {
             val underTest = createEditModeButtonViewModel()
             qsPreferencesRepository.writeEditTooltipShown(false)
 
+            // Assert the tooltip is still hidden if not enough time passed
+            advanceTimeBy(EditModeButtonViewModel.TOOLTIP_APPEARANCE_DELAY_MS - 1)
+            assertThat(underTest.showTooltip).isFalse()
+
+            // Assert the tooltip is showing after the required delay
+            advanceTimeBy(2)
             assertThat(underTest.showTooltip).isTrue()
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_EDIT_MODE_TOOLTIP)
+    @DisableSceneContainer
     fun showTooltip_tooltipWasDismissed_shouldBeMarkedAsShown() =
         kosmos.runTest {
             val underTest = createEditModeButtonViewModel()
             qsPreferencesRepository.writeEditTooltipShown(false)
 
+            // Assert the tooltip is showing after the required delay
+            advanceTimeBy(EditModeButtonViewModel.TOOLTIP_APPEARANCE_DELAY_MS + 1)
             assertThat(underTest.showTooltip).isTrue()
 
             underTest.onTooltipDisposed()
 
-            assertThat(underTest.showTooltip).isFalse()
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_QS_EDIT_MODE_TOOLTIP)
-    fun showTooltip_flagDisabled_shouldNotBeVisible() =
-        kosmos.runTest {
-            val underTest = createEditModeButtonViewModel()
-            qsPreferencesRepository.writeEditTooltipShown(false)
-
+            // Assert the tooltip is hidden
             assertThat(underTest.showTooltip).isFalse()
         }
 
     private fun Kosmos.createEditModeButtonViewModel(
         isHeadlessSystemUser: Boolean = false
     ): EditModeButtonViewModel {
-        headlessSystemUserMode = fakeHeadlessSystemUserMode
-        fakeHeadlessSystemUserMode.setIsHeadlessSystemUser(isHeadlessSystemUser)
+        fakeUserRepository.setIsCurrentUserHeadlessSystemUser(isHeadlessSystemUser)
         return editModeButtonViewModelFactory.create(ignoreTestHarness = true).apply {
             activateIn(testScope)
         }

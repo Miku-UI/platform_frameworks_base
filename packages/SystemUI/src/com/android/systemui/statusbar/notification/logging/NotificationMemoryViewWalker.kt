@@ -165,7 +165,6 @@ object NotificationMemoryViewWalker {
             R.id.big_picture -> builder.addStyle(drawableUse)
             // Elements that are part of platform with resources
             R.id.phishing_alert,
-            R.id.feedback,
             R.id.alerted_icon,
             R.id.expand_button_icon,
             R.id.remote_input_send -> builder.addSystem(drawableUse)

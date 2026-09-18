@@ -241,7 +241,7 @@ class MediaSessionStack {
     }
 
     /**
-     * Find the media button session with the given {@param uid}.
+     * Find the media button session with the given {@code uid}.
      * If the app has multiple media sessions, the media session whose playback state is not null
      * and matches the audio playback state becomes the media button session. Otherwise the top
      * priority session becomes the media button session.

@@ -436,6 +436,7 @@ constructor(
      *
      * Follows same logic as Chronometer#formatDuration
      */
+    @WorkerThread
     private fun formatTimeContentDescription(milliseconds: Int): CharSequence {
         var seconds = milliseconds / DateUtils.SECOND_IN_MILLIS
 

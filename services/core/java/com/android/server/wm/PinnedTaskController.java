@@ -118,7 +118,7 @@ class PinnedTaskController {
     }
 
     /**
-     * @return whether the given {@param aspectRatio} is valid, i.e. min <= ratio <= max.
+     * @return whether the given {@code aspectRatio} is valid, i.e. min <= ratio <= max.
      */
     public boolean isValidPictureInPictureAspectRatio(float aspectRatio) {
         return Float.compare(mMinAspectRatio, aspectRatio) <= 0
@@ -126,7 +126,7 @@ class PinnedTaskController {
     }
 
     /**
-     * @return whether the given {@param aspectRatio} is valid, i.e. ratio < min or ratio > max.
+     * @return whether the given {@code aspectRatio} is valid, i.e. ratio < min or ratio > max.
      */
     public boolean isValidExpandedPictureInPictureAspectRatio(float aspectRatio) {
         return Float.compare(mMinAspectRatio, aspectRatio) > 0
@@ -161,7 +161,7 @@ class PinnedTaskController {
      */
     void setAdjustedForIme(boolean adjustedForIme, int imeHeight) {
         // Due to the order of callbacks from the system, we may receive an ime height even when
-        // {@param adjustedForIme} is false, and also a zero height when {@param adjustedForIme}
+        // {@code adjustedForIme} is false, and also a zero height when {@code adjustedForIme}
         // is true.  Instead, ensure that the ime state changes with the height and if the ime is
         // showing, then the height is non-zero.
         final boolean imeShowing = adjustedForIme && imeHeight > 0;

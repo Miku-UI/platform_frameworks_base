@@ -21,6 +21,8 @@ import android.media.tv.AdBuffer;
 import android.media.tv.AdRequest;
 import android.media.tv.BroadcastInfoRequest;
 import android.media.tv.TvRecordingInfo;
+import android.media.tv.interactive.WebServiceClientInfo;
+import android.media.tv.interactive.TvInteractiveAppInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.InputChannel;
@@ -37,6 +39,7 @@ oneway interface ITvInteractiveAppClient {
     void onBroadcastInfoRequest(in BroadcastInfoRequest request, int seq);
     void onRemoveBroadcastInfo(int id, int seq);
     void onSessionStateChanged(int state, int err, int seq);
+    void onInteractiveAppInfoChanged(in TvInteractiveAppInfo appInfo, int seq);
     void onBiInteractiveAppCreated(in Uri biIAppUri, in String biIAppId, int seq);
     void onTeletextAppStateChanged(int state, int seq);
     void onAdBufferReady(in AdBuffer buffer, int seq);
@@ -67,4 +70,5 @@ oneway interface ITvInteractiveAppClient {
             int port, in byte[] data, int seq);
     void onRequestCertificate(in String host, int port, int seq);
     void onAdRequest(in AdRequest request, int Seq);
+    void onSendWebServiceClientList(in List<WebServiceClientInfo> clients, int seq);
 }

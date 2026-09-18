@@ -44,6 +44,9 @@ enum class WakeSleepReason(
     /** Waking due to the lid being opened. */
     LID(isTouch = false, PowerManager.WAKE_REASON_LID),
 
+    /** Sleeping due to the lid being closed. */
+    LID_CLOSE(isTouch = false, PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH),
+
     /** Waking the device due to unfolding of a foldable device. */
     UNFOLD(isTouch = false, PowerManager.WAKE_REASON_UNFOLD_DEVICE),
 
@@ -84,6 +87,7 @@ enum class WakeSleepReason(
                 PowerManager.GO_TO_SLEEP_REASON_SLEEP_BUTTON -> SLEEP_BUTTON
                 PowerManager.GO_TO_SLEEP_REASON_TIMEOUT -> TIMEOUT
                 PowerManager.GO_TO_SLEEP_REASON_DEVICE_FOLD -> FOLD
+                PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH -> LID_CLOSE
                 else -> OTHER
             }
         }

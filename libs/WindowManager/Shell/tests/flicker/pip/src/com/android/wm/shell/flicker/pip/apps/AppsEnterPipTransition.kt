@@ -18,10 +18,10 @@ package com.android.wm.shell.flicker.pip.apps
 
 import android.platform.test.annotations.Postsubmit
 import android.tools.Rotation
-import android.tools.flicker.junit.FlickerBuilderProvider
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerBuilderProvider
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.wm.shell.flicker.pip.common.EnterPipTransition
 import org.junit.Test
@@ -35,10 +35,7 @@ abstract class AppsEnterPipTransition(flicker: FlickerTest) : EnterPipTransition
         return FlickerBuilder(instrumentation).apply {
             instrumentation.uiAutomation.adoptShellPermissionIdentity()
             for (permission in permissions) {
-                instrumentation.uiAutomation.grantRuntimePermission(
-                    pipApp.packageName,
-                    permission
-                )
+                instrumentation.uiAutomation.grantRuntimePermission(pipApp.packageName, permission)
             }
             setup { flicker.scenario.setIsTablet(tapl.isTablet) }
             transition()
@@ -67,20 +64,17 @@ abstract class AppsEnterPipTransition(flicker: FlickerTest) : EnterPipTransition
     }
 
     /**
-     * Checks that [pipApp] window remains inside the display bounds throughout the whole
-     * animation
+     * Checks that [pipApp] window remains inside the display bounds throughout the whole animation
      */
     @Postsubmit
     @Test
     override fun pipWindowRemainInsideVisibleBounds() {
-        flicker.assertWmVisibleRegion(pipApp.packageNameMatcher) {
-            coversAtMost(displayBounds)
-        }
+        flicker.assertWmVisibleRegion(pipApp.packageNameMatcher) { coversAtMost(displayBounds) }
     }
 
     /**
-     * Checks that the [pipApp] layer remains inside the display bounds throughout the
-     * whole animation
+     * Checks that the [pipApp] layer remains inside the display bounds throughout the whole
+     * animation
      */
     @Postsubmit
     @Test
@@ -98,9 +92,7 @@ abstract class AppsEnterPipTransition(flicker: FlickerTest) : EnterPipTransition
     override fun pipLayerReduces() {
         flicker.assertLayers {
             val pipLayerList =
-                this.layers {
-                    pipApp.packageNameMatcher.layerMatchesAnyOf(it) && it.isVisible
-                }
+                this.layers { pipApp.packageNameMatcher.layerMatchesAnyOf(it) && it.isVisible }
             pipLayerList.zipWithNext { previous, current ->
                 current.visibleRegion.notBiggerThan(previous.visibleRegion.region)
             }
@@ -126,15 +118,13 @@ abstract class AppsEnterPipTransition(flicker: FlickerTest) : EnterPipTransition
     }
 
     /**
-     * Checks that the focus changes between the [pipApp] window and the launcher when
-     * closing the pip window
+     * Checks that the focus changes between the [pipApp] window and the launcher when closing the
+     * pip window
      */
     @Postsubmit
     @Test
     override fun focusChanges() {
-        flicker.assertEventLog {
-            this.focusChanges(pipApp.packageName, "NexusLauncherActivity")
-        }
+        flicker.assertEventLog { this.focusChanges(pipApp.packageName, "NexusLauncherActivity") }
     }
 
     @Postsubmit
@@ -239,14 +229,12 @@ abstract class AppsEnterPipTransition(flicker: FlickerTest) : EnterPipTransition
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen
-         * orientation and navigation modes.
+         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen orientation
+         * and navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

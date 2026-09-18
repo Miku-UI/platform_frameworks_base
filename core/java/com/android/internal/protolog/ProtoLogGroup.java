@@ -17,9 +17,11 @@
 package com.android.internal.protolog;
 
 import android.annotation.NonNull;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import com.android.internal.protolog.common.IProtoLogGroup;
 
+@RavenwoodKeepWholeClass
 public class ProtoLogGroup implements IProtoLogGroup {
 
     /** The name should be unique across the codebase. */

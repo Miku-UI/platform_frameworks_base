@@ -85,7 +85,8 @@ class AccessCheckDelegateHelper {
             for (int i = 0; i < instrCount; i++) {
                 final ActiveInstrumentation instr =
                         mActiveInstrumentation.get(i);
-                if (instr.mTargetInfo.uid != delegateUid) {
+                if (instr.mTargetInfo.uid != delegateUid
+                        && instr.mTargetInfo.pccUid != delegateUid) {
                     continue;
                 }
 

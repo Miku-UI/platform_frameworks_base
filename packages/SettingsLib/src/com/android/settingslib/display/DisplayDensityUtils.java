@@ -16,7 +16,7 @@
 
 package com.android.settingslib.display;
 
-import static android.window.DesktopExperienceFlags.ENABLE_PERSISTING_DISPLAY_SIZE_FOR_CONNECTED_DISPLAYS;
+import static com.android.settingslib.flags.Flags.addExtraExternalDisplayDensityStops;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -27,9 +27,11 @@ import android.os.UserHandle;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.MathUtils;
+import android.util.Slog;
 import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.IWindowManager;
+import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.window.ConfigurationChangeSetting;
 
@@ -124,7 +126,7 @@ public class DisplayDensityUtils {
     private final int mCurrentIndex;
 
     public DisplayDensityUtils(@NonNull Context context) {
-        this(context, INTERNAL_ONLY);
+        this(context, INTERNAL_ONLY, (info) -> false);
     }
 
     /**
@@ -132,13 +134,29 @@ public class DisplayDensityUtils {
      * the predicate. It is enough to store the values for one display because the same density
      * should be set to all the displays that satisfy the predicate.
      *
-     * @param context   The context
-     * @param predicate Determines what displays the density should be set for. The default display
-     *                  must satisfy this predicate.
+     * @param context                The context
+     * @param targetDisplayPredicate Determines what displays the density should be set for. The
+     *                               default display must satisfy this predicate.
      */
     public DisplayDensityUtils(@NonNull Context context,
-            @NonNull Predicate<DisplayInfo> predicate) {
-        mPredicate = predicate;
+            @NonNull Predicate<DisplayInfo> targetDisplayPredicate) {
+        this(context, targetDisplayPredicate, (info) -> false);
+    }
+
+    /**
+     * Creates an instance that stores the density values for the smallest display that satisfies
+     * the predicate. It is enough to store the values for one display because the same density
+     * should be set to all the displays that satisfy the predicate.
+     *
+     * @param context                     The context
+     * @param targetDisplayPredicate      Determines what displays the density should be set for.
+     *                                    The default display must satisfy this predicate.
+     * @param isLargeScreenPredicate Predicate to determine if given display is a large screen.
+     */
+    public DisplayDensityUtils(@NonNull Context context,
+            @NonNull Predicate<DisplayInfo> targetDisplayPredicate,
+            @NonNull Predicate<DisplayInfo> isLargeScreenPredicate) {
+        mPredicate = targetDisplayPredicate;
         mDisplayManager = context.getSystemService(DisplayManager.class);
 
         Display defaultDisplay = mDisplayManager.getDisplay(Display.DEFAULT_DISPLAY);
@@ -216,6 +234,10 @@ public class DisplayDensityUtils {
         final int[] summariesSmaller;
         final int[] summariesLarger;
 
+        boolean isDesktopSupported = isLargeScreenPredicate.test(currentDisplayInfo);
+        final int minDimensionDp = isDesktopSupported
+                ? WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP : MIN_DIMENSION_DP;
+
         if (currentDisplayInfo.type == Display.TYPE_INTERNAL) {
             maxScaleFraction = R.fraction.display_density_max_scale;
             minScaleFraction = R.fraction.display_density_min_scale;
@@ -231,7 +253,7 @@ public class DisplayDensityUtils {
 
         // Compute number of "larger" and "smaller" scales for this display.
         final int maxDensity =
-                DisplayMetrics.DENSITY_MEDIUM * minDimensionPx / MIN_DIMENSION_DP;
+                DisplayMetrics.DENSITY_MEDIUM * minDimensionPx / minDimensionDp;
         final float maxScaleDimen = context.getResources().getFraction(
                 maxScaleFraction, 1, 1);
         final float maxScale = Math.min(maxScaleDimen, maxDensity / (float) defaultDensity);
@@ -297,6 +319,42 @@ public class DisplayDensityUtils {
             }
         }
 
+        // For external displays, add specific large-density stops (200%, 300%). This doesn't follow
+        // the fixed interval set up to 150% density. This should still be within `maxDensity`
+        if (addExtraExternalDisplayDensityStops()
+                && currentDisplayInfo.type != Display.TYPE_INTERNAL) {
+            final float[] extraScales = {2.0f, 3.0f};
+            for (float scale : extraScales) {
+                // Save the float density value before rounding to be used to set the density ratio
+                // of overridden density to default density in WM.
+                final float densityFloat = defaultDensity * scale;
+                // Round down to a multiple of 2 by truncating the low bit.
+                // LINT.IfChange
+                final int density = ((int) densityFloat) & ~1;
+                // LINT.ThenChange(/services/core/java/com/android/server/wm/DisplayContent.java:getBaseDensityFromRatio)
+
+                // Ensure the custom scale is still within the display max density
+                if (density > maxDensity) {
+                    continue;
+                }
+                if (currentDensity == density) {
+                    currentDensityIndex = curIndex;
+                }
+
+                // Resize the arrays to accommodate the new value. There are only 2 extra scales,
+                // so resizing is fine
+                int newLength = values.length + 1;
+                values = Arrays.copyOf(values, newLength);
+                valuesFloat = Arrays.copyOf(valuesFloat, newLength);
+                entries = Arrays.copyOf(entries, newLength);
+
+                values[curIndex] = density;
+                valuesFloat[curIndex] = densityFloat;
+                entries[curIndex] = res.getString(SUMMARY_CUSTOM, density);
+                curIndex++;
+            }
+        }
+
         final int displayIndex;
         if (currentDensityIndex >= 0) {
             displayIndex = currentDensityIndex;
@@ -321,6 +379,9 @@ public class DisplayDensityUtils {
         mEntries = entries;
         mValues = values;
         mFloatValues = valuesFloat;
+        Slog.i(LOG_TAG, "mDefaultDensity: " + mDefaultDensity + ", mCurrentIndex: " + mCurrentIndex
+                + ", mEntries: " + Arrays.toString(mEntries) + ", mValues: " + Arrays.toString(
+                mValues) + ", mFloatValues: " + Arrays.toString(mFloatValues));
     }
 
     @Nullable
@@ -421,8 +482,7 @@ public class DisplayDensityUtils {
                     final IWindowManager wm = WindowManagerGlobal.getWindowManagerService();
                     // Only set the ratio for external displays as Settings uses
                     // ScreenResolutionFragment to handle density update for internal display.
-                    if (ENABLE_PERSISTING_DISPLAY_SIZE_FOR_CONNECTED_DISPLAYS.isTrue()
-                            && info.type == Display.TYPE_EXTERNAL) {
+                    if (info.type == Display.TYPE_EXTERNAL) {
                         wm.setForcedDisplayDensityRatio(displayId,
                                 mFloatValues[index] / mDefaultDensity, userId);
                     } else {

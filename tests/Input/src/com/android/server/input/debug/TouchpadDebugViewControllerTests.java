@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import android.graphics.Rect;
 import android.hardware.input.InputManager;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableContext;
 import android.testing.TestableLooper;
@@ -54,6 +55,7 @@ import org.mockito.junit.MockitoRule;
 
 @RunWith(AndroidTestingRunner.class)
 @RunWithLooper
+@DisabledOnRavenwood(reason = "View subsystem unsupported", bug = 421246454)
 public class TouchpadDebugViewControllerTests {
     private static final int DEVICE_ID = 1000;
     private static final String TAG = "TouchpadDebugViewController";

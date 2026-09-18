@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,8 +34,10 @@ import com.android.systemui.qs.fake
 import com.android.systemui.qs.footer.domain.interactor.FakeFooterActionInteractor
 import com.android.systemui.qs.footer.domain.model.SecurityButtonConfig
 import com.android.systemui.qs.footerActionsInteractor
+import com.android.systemui.qs.panels.LargeScreenQSInlinePowerMenu
 import com.android.systemui.res.R
-import com.android.systemui.testKosmos
+import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.testKosmosNew
 import com.android.systemui.user.data.model.SelectedUserModel
 import com.android.systemui.user.data.model.SelectionStatus
 import com.android.systemui.user.data.repository.fakeUserRepository
@@ -45,7 +47,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -54,14 +55,10 @@ import org.junit.runner.RunWith
 @OptIn(ExperimentalCoroutinesApi::class)
 class ToolbarViewModelTest : SysuiTestCase() {
     private val kosmos =
-        testKosmos().apply { footerActionsInteractor = FakeFooterActionInteractor() }
+        testKosmosNew().apply { footerActionsInteractor = FakeFooterActionInteractor() }
 
-    private val Kosmos.underTest by Kosmos.Fixture { toolbarViewModelFactory.create() }
-
-    @Before
-    fun setUp() {
-        kosmos.underTest.activateIn(kosmos.testScope)
-    }
+    private val Kosmos.underTest by
+        Kosmos.Fixture { toolbarViewModelFactory.create().apply { activateIn(testScope) } }
 
     @Test
     fun start_noSecurityInfo_collapsed() =
@@ -90,8 +87,8 @@ class ToolbarViewModelTest : SysuiTestCase() {
                 setSecurityConfig(MANAGED_CONFIG)
 
                 with(underTest.securityInfoViewModel!!) {
-                    assertThat(icon).isEqualTo(MANAGED_CONFIG.icon)
-                    assertThat(text).isEqualTo(MANAGED_CONFIG.text)
+                    assertThat(model.icon).isEqualTo(MANAGED_CONFIG.icon)
+                    assertThat(model.text).isEqualTo(MANAGED_CONFIG.text)
                     assertThat(onClick).isNotNull()
                 }
 
@@ -117,6 +114,8 @@ class ToolbarViewModelTest : SysuiTestCase() {
             runTest {
                 setSecurityConfig(MANAGED_CONFIG)
 
+                assertThat(underTest.securityInfoShowCollapsed).isFalse()
+
                 testScope.advanceTimeBy(COLLAPSED_DELAY + 100.milliseconds)
 
                 assertThat(underTest.securityInfoShowCollapsed).isTrue()
@@ -134,8 +133,8 @@ class ToolbarViewModelTest : SysuiTestCase() {
                 setSecurityConfig(INFO_CONFIG)
 
                 with(underTest.securityInfoViewModel!!) {
-                    assertThat(icon).isEqualTo(INFO_CONFIG.icon)
-                    assertThat(text).isEqualTo(INFO_CONFIG.text)
+                    assertThat(model.icon).isEqualTo(INFO_CONFIG.icon)
+                    assertThat(model.text).isEqualTo(INFO_CONFIG.text)
                     assertThat(onClick).isNull()
                 }
 
@@ -198,9 +197,94 @@ class ToolbarViewModelTest : SysuiTestCase() {
             }
         }
 
+    @EnableFlags(LargeScreenQSInlinePowerMenu.FLAG_NAME)
+    @Test
+    fun useInlinePowerMenu_configEnabled_isTrue() =
+        kosmos.runTest {
+            setQsInlinePowerMenuEnabled(true)
+
+            assertThat(underTest.useInlinePowerMenu).isTrue()
+            assertThat(underTest.isInlinePowerMenuVisible).isFalse()
+        }
+
+    @EnableFlags(LargeScreenQSInlinePowerMenu.FLAG_NAME)
+    @Test
+    fun useInlinePowerMenu_configDisabled_isFalse() =
+        with(kosmos) {
+            runTest {
+                setQsInlinePowerMenuEnabled(false)
+
+                assertThat(underTest.useInlinePowerMenu).isFalse()
+                assertThat(underTest.isInlinePowerMenuVisible).isFalse()
+            }
+        }
+
+    @EnableFlags(LargeScreenQSInlinePowerMenu.FLAG_NAME)
+    @Test
+    fun powerMenuToggle_flagEnabled_togglesVisibility() =
+        with(kosmos) {
+            runTest {
+                setQsInlinePowerMenuEnabled(true)
+
+                // Initial state
+                assertThat(underTest.isInlinePowerMenuVisible).isFalse()
+                assertThat(underTest.powerMenuToggleButtonUiState.isSelected).isFalse()
+
+                // Click 1: Show menu
+                underTest.powerMenuToggleButtonUiState.onClick.invoke()
+                assertThat(underTest.isInlinePowerMenuVisible).isTrue()
+                assertThat(underTest.powerMenuToggleButtonUiState.isSelected).isTrue()
+
+                // Click 2: Hide menu
+                underTest.powerMenuToggleButtonUiState.onClick.invoke()
+                assertThat(underTest.isInlinePowerMenuVisible).isFalse()
+                assertThat(underTest.powerMenuToggleButtonUiState.isSelected).isFalse()
+            }
+        }
+
+    @EnableFlags(LargeScreenQSInlinePowerMenu.FLAG_NAME)
+    @Test
+    fun powerMenuDismissed_flagEnabled_hidesMenu() =
+        with(kosmos) {
+            runTest {
+                setQsInlinePowerMenuEnabled(true)
+
+                // Show menu
+                underTest.powerMenuToggleButtonUiState.onClick.invoke()
+                assertThat(underTest.isInlinePowerMenuVisible).isTrue()
+                assertThat(underTest.powerMenuToggleButtonUiState.isSelected).isTrue()
+
+                // Dismiss menu
+                underTest.onPowerMenuDismissed()
+                assertThat(underTest.isInlinePowerMenuVisible).isFalse()
+                assertThat(underTest.powerMenuToggleButtonUiState.isSelected).isFalse()
+            }
+        }
+
+    @EnableFlags(LargeScreenQSInlinePowerMenu.FLAG_NAME)
+    @Test
+    fun powerMenuVisible_whenShadePartiallyCollapsed_hidesMenu() =
+        with(kosmos) {
+            runTest {
+                setQsInlinePowerMenuEnabled(true)
+
+                shadeTestUtil.setQsExpansion(1.0f)
+
+                underTest.powerMenuToggleButtonUiState.onClick.invoke()
+                assertThat(underTest.isInlinePowerMenuVisible).isTrue()
+
+                shadeTestUtil.setQsExpansion(0.9f)
+                assertThat(underTest.isInlinePowerMenuVisible).isFalse()
+            }
+        }
+
     private fun Kosmos.setSecurityConfig(config: SecurityButtonConfig?) {
         footerActionsInteractor.fake.setSecurityConfig(config)
         runCurrent()
+    }
+
+    private fun setQsInlinePowerMenuEnabled(isEnabled: Boolean) {
+        overrideResource(R.bool.config_qsInlinePowerMenu, isEnabled)
     }
 
     private fun Kosmos.selectSystemUser() {

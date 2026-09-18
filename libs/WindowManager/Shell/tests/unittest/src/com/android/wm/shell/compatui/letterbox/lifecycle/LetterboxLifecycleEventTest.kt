@@ -108,4 +108,22 @@ class LetterboxLifecycleEventTest : ShellTestCase() {
             useChange { change -> assertTrue(change.isTranslucent()) }
         }
     }
+
+    @Test
+    fun `mainWindowHasRoundedCorners from TaskInfo or AppCompatTransitionInfo`() {
+        testLetterboxLifecycleEvent {
+            inputChange {}
+            useChange { change -> assertFalse(change.mainWindowHasRoundedCorners()) }
+
+            inputChange {
+                runningTaskInfo { ti -> ti.appCompatTaskInfo.setHasMainWindowRoundedCorners(true) }
+            }
+            useChange { change -> assertTrue(change.mainWindowHasRoundedCorners()) }
+
+            inputChange {
+                activityTransitionInfo { appCompatTransitionInfo { hasRoundedCorners = true } }
+            }
+            useChange { change -> assertTrue(change.mainWindowHasRoundedCorners()) }
+        }
+    }
 }

@@ -3622,28 +3622,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Field `CAPABILITY_SUPPORTS_SIMULTANEOUS_CALLING` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="            Long.numberOfTrailingZeros(CAPABILITY_SUPPORTS_SIMULTANEOUS_CALLING);"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/telephony/java/android/telephony/ims/ImsService.java"
-            line="186"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `CAPABILITY_SUPPORTS_SIMULTANEOUS_CALLING` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="            CAPABILITY_SUPPORTS_SIMULTANEOUS_CALLING, &quot;SIMULTANEOUS_CALLING&quot;);"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/telephony/java/android/telephony/ims/ImsService.java"
-            line="212"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Method `InputTransferToken()` is a flagged API and should be inside an `if (Flags.surfaceControlInputReceiver())` check (or annotate the surrounding method `handleRenderSuggestion` with `@FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER) to transfer requirement to caller`)"
         errorLine1="                    new InputTransferToken(hostInputToken), &quot;InlineSuggestionRenderService&quot;);"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -6944,39 +6922,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Method `hasSimultaneousCallingRestriction()` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="            if (phoneAccount.hasSimultaneousCallingRestriction()) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/telecomm/java/android/telecom/PhoneAccount.java"
-            line="585"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `getSimultaneousCallingRestriction()` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="                mSimultaneousCallingRestriction = phoneAccount.getSimultaneousCallingRestriction();"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/telecomm/java/android/telecom/PhoneAccount.java"
-            line="586"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `hasSimultaneousCallingRestriction()` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `toString` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="        if (hasSimultaneousCallingRestriction()) {"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/telecomm/java/android/telecom/PhoneAccount.java"
-            line="1292"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Field `STATE_PLAYBACK_SUPPRESSED` is a flagged API and should be inside an `if (Flags.enableNotifyingActivityManagerWithMediaSessionStatusChange())` check (or annotate the surrounding method `isActive` with `@FlaggedApi(Flags.FLAG_ENABLE_NOTIFYING_ACTIVITY_MANAGER_WITH_MEDIA_SESSION_STATUS_CHANGE) to transfer requirement to caller`)"
         errorLine1="            case PlaybackState.STATE_PLAYBACK_SUPPRESSED:"
         errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -9309,28 +9254,6 @@
 
     <issue
         id="FlaggedApi"
-        message="This is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `onSimultaneousCallingStateChanged` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="                    (SimultaneousCellularCallingSupportListener) mTelephonyCallbackWeakRef.get();"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/telephony/TelephonyCallback.java"
-            line="2065"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `onSimultaneousCellularCallingSubscriptionsChanged()` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `onSimultaneousCallingStateChanged` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="                            () -> listener.onSimultaneousCellularCallingSubscriptionsChanged("
-        errorLine2="                                  ^">
-        <location
-            file="frameworks/base/core/java/android/telephony/TelephonyCallback.java"
-            line="2070"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Class `SatelliteManager` is a flagged API and should be inside an `if (Flags.oemEnabledSatelliteFlag())` check (or annotate the surrounding method `registerServiceWrappers` with `@FlaggedApi(Flags.FLAG_OEM_ENABLED_SATELLITE_FLAG) to transfer requirement to caller`)"
         errorLine1="                SatelliteManager.class,"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~">
@@ -9459,28 +9382,6 @@
             file="frameworks/base/telephony/java/android/telephony/TelephonyManager.java"
             line="18712"
             column="9"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="This is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `getEventsFromCallback` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="                instanceof TelephonyCallback.SimultaneousCellularCallingSupportListener) {"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/telephony/TelephonyRegistryManager.java"
-            line="1241"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `EVENT_SIMULTANEOUS_CELLULAR_CALLING_SUBSCRIPTIONS_CHANGED` is a flagged API and should be inside an `if (Flags.simultaneousCallingIndications())` check (or annotate the surrounding method `getEventsFromCallback` with `@FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS) to transfer requirement to caller`)"
-        errorLine1="                    TelephonyCallback.EVENT_SIMULTANEOUS_CELLULAR_CALLING_SUBSCRIPTIONS_CHANGED);"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/telephony/TelephonyRegistryManager.java"
-            line="1243"
-            column="39"/>
     </issue>
 
     <issue

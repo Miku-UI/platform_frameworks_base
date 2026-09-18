@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo;
 
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
+import com.android.internal.inputmethod.IImeSwitcherMenu;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
@@ -32,6 +33,7 @@ import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputBindResult;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
+import com.android.internal.inputmethod.InputMethodSubtypeSafeList;
 
 /**
  * Public interface to the global input method manager, used by all client applications.
@@ -55,19 +57,9 @@ interface IInputMethodManager {
             + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
     InputMethodInfoSafeList getEnabledInputMethodList(int userId);
 
-    // TODO(b/339761278): Remove after getInputMethodList() is fully deployed.
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
-    List<InputMethodInfo> getInputMethodListLegacy(int userId, int directBootAwareness);
-
-    // TODO(b/339761278): Remove after getEnabledInputMethodList() is fully deployed.
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
-            + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
-    List<InputMethodInfo> getEnabledInputMethodListLegacy(int userId);
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
-            + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
-    List<InputMethodSubtype> getEnabledInputMethodSubtypeList(in @nullable String imiId,
+    InputMethodSubtypeSafeList getEnabledInputMethodSubtypeList(in @nullable String imiId,
             boolean allowsImplicitlyEnabledSubtypes, int userId);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
@@ -107,12 +99,29 @@ interface IInputMethodManager {
     @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS", "INTERACT_ACROSS_USERS_FULL"})
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
     + "permission.WRITE_SECURE_SETTINGS, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL})")
-    oneway void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId);
+    oneway void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int entryPoint,
+            int displayId);
 
+    @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS", "INTERACT_ACROSS_USERS_FULL"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+    + "permission.WRITE_SECURE_SETTINGS, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL})")
+    oneway void toggleInputMethodPickerFromSystem(int auxiliarySubtypeMode, int entryPoint,
+            int displayId);
+
+    @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS", "INTERACT_ACROSS_USERS_FULL"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+    + "permission.WRITE_SECURE_SETTINGS, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL})")
+    oneway void hideInputMethodPickerFromSystem(int displayId);
+
+    /**
+     * A test API for CTS to make sure that the input method menu is showing for the given user.
+     *
+     * @param userId the ID of the user to check the menu visibility for.
+     */
     @EnforcePermission("TEST_INPUT_METHOD")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.TEST_INPUT_METHOD)")
-    boolean isInputMethodPickerShownForTest();
+    boolean isInputMethodPickerShownForTest(int userId);
 
     /**
      * Called when the IME switch button was clicked from the system. Depending on the number of
@@ -122,7 +131,7 @@ interface IInputMethodManager {
      * @param displayId The ID of the display where the input method picker dialog should be shown.
      * @param userId    The ID of the user that triggered the click.
      */
-    @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS" ,"INTERACT_ACROSS_USERS_FULL"})
+    @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS", "INTERACT_ACROSS_USERS_FULL"})
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
     + "permission.WRITE_SECURE_SETTINGS, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL})")
     oneway void onImeSwitchButtonClickFromSystem(int displayId);
@@ -135,6 +144,18 @@ interface IInputMethodManager {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.TEST_INPUT_METHOD)")
     boolean shouldShowImeSwitcherButtonForTest();
+
+    /**
+     * Registers an interface for sending calls to the IME Switcher Menu controller. This is called
+     * after the IME Switcher Menu is fully initialized.
+     *
+     * @param imeSwitcherMenu the interface to send calls to the IME Switcher Menu controller.
+     */
+    @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS", "INTERACT_ACROSS_USERS_FULL", "STATUS_BAR_SERVICE"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+    + "permission.WRITE_SECURE_SETTINGS, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL"
+    + ", android.Manifest.permission.STATUS_BAR_SERVICE})")
+    void registerImeSwitcherMenu(in IImeSwitcherMenu imeSwitcherMenu);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
@@ -234,4 +255,58 @@ interface IInputMethodManager {
             + "android.Manifest.permission.TEST_INPUT_METHOD)")
     void setAllowedImesByPolicyForTest(
             in IInputMethodClient client, in List<String> allowedPackages);
+
+    /** Test method to set the bypassed apps for preventImeStartup. */
+    @EnforcePermission("TEST_INPUT_METHOD")
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+            + "android.Manifest.permission.TEST_INPUT_METHOD)")
+    void setPreventImeStartupBypassedAppsForTest(in List<String> packageNames);
+
+    /**
+     * A test API for CTS to reset the currently selected and enabled IMEs to the default ones for
+     * a given user.
+     *
+     * <p>This is the same as "adb shell ime reset --user <userId>" command.</p>
+     *
+     * This behavior can be triggered for all users using the UserHandle.USER_ALL constant.
+     */
+    @EnforcePermission(allOf = {"INTERACT_ACROSS_USERS_FULL", "TEST_INPUT_METHOD", "WRITE_SECURE_SETTINGS"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+            + "permission.INTERACT_ACROSS_USERS_FULL, android.Manifest.permission.TEST_INPUT_METHOD"
+            + ", android.Manifest.permission.WRITE_SECURE_SETTINGS})")
+    oneway void resetInputMethodsForTesting(int userId);
+
+    /**
+     * A test API for CTS to set the currently selected and enabled IMEs to the default ones for
+     * a given user.
+     *
+     * <p>This is the same as "adb shell ime set --user <userId>" command.</p>
+     */
+    @EnforcePermission(allOf = {"INTERACT_ACROSS_USERS_FULL", "TEST_INPUT_METHOD", "WRITE_SECURE_SETTINGS"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+            + "permission.INTERACT_ACROSS_USERS_FULL, android.Manifest.permission.TEST_INPUT_METHOD"
+            + ", android.Manifest.permission.WRITE_SECURE_SETTINGS})")
+    boolean setInputMethodForTesting(String imeId, int userId);
+
+    /**
+     * A test API for CTS to enable the given IME for the given user.
+     *
+     * <p>This is the same as "adb shell ime enable" command.</p>
+     */
+    @EnforcePermission(allOf = {"INTERACT_ACROSS_USERS_FULL", "TEST_INPUT_METHOD", "WRITE_SECURE_SETTINGS"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+            + "permission.INTERACT_ACROSS_USERS_FULL, android.Manifest.permission.TEST_INPUT_METHOD"
+            + ", android.Manifest.permission.WRITE_SECURE_SETTINGS})")
+    boolean enableInputMethodForTesting(String imeId, int userId);
+
+    /**
+     * A test API for CTS to disable the given IME for the given user.
+     *
+     * <p>This is the same as "adb shell ime disable" command.</p>
+     */
+    @EnforcePermission(allOf = {"INTERACT_ACROSS_USERS_FULL", "TEST_INPUT_METHOD", "WRITE_SECURE_SETTINGS"})
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
+            + "permission.INTERACT_ACROSS_USERS_FULL, android.Manifest.permission.TEST_INPUT_METHOD"
+            + ", android.Manifest.permission.WRITE_SECURE_SETTINGS})")
+    boolean disableInputMethodForTesting(String imeId, int userId);
 }

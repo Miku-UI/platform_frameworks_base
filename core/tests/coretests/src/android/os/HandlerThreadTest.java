@@ -23,8 +23,6 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import android.platform.test.ravenwood.RavenwoodRule;
-
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 
@@ -40,9 +38,6 @@ public class HandlerThreadTest {
 
     @Rule(order = 1)
     public ExpectedException mThrown = ExpectedException.none();
-
-    @Rule(order = 2)
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private boolean mGotMessage = false;
     private int mGotMessageWhat = -1;

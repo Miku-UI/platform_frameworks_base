@@ -19,6 +19,7 @@ package com.android.systemui.qs.tiles;
 import static android.media.MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY;
 
 import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.media.MediaRouter.RouteInfo;
 import android.media.projection.StopReason;
@@ -28,18 +29,22 @@ import android.provider.Settings;
 import android.service.quicksettings.Tile;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.app.MediaRouteDialogPresenter;
 import com.android.internal.jank.InteractionJankMonitor;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
+import com.android.systemui.Flags;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.animation.DialogCuj;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
+import com.android.systemui.animation.TransitionAnimator;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.plugins.ActivityStarter;
@@ -85,6 +90,7 @@ public class CastTile extends QSTileImpl<BooleanState> {
     private boolean mCastTransportAllowed;
     private boolean mHotspotConnected;
     private final CastDetailsViewModel.Factory mCastDetailsViewModelFactory;
+    private final DialogCreator mDialogCreator;
 
     @Inject
     public CastTile(
@@ -104,7 +110,8 @@ public class CastTile extends QSTileImpl<BooleanState> {
             ConnectivityRepository connectivityRepository,
             TileJavaAdapter javaAdapter,
             ShadeDialogContextInteractor shadeDialogContextInteractor,
-            CastDetailsViewModel.Factory castDetailsViewModelFactory
+            CastDetailsViewModel.Factory castDetailsViewModelFactory,
+            DialogCreator dialogCreator
     ) {
         super(host, uiEventLogger, backgroundLooper, mainHandler, falsingManager, metricsLogger,
                 statusBarStateController, activityStarter, qsLogger);
@@ -114,6 +121,7 @@ public class CastTile extends QSTileImpl<BooleanState> {
         mJavaAdapter = javaAdapter;
         mShadeDialogContextInteractor = shadeDialogContextInteractor;
         mCastDetailsViewModelFactory = castDetailsViewModelFactory;
+        mDialogCreator = dialogCreator;
         mController.observe(this, mCallback);
         mKeyguard.observe(this, mCallback);
         mJavaAdapter.bind(
@@ -122,6 +130,13 @@ public class CastTile extends QSTileImpl<BooleanState> {
                 mNetworkModelConsumer
         );
         hotspotController.observe(this, mHotspotCallback);
+    }
+
+    @Override
+    protected void handleInitialize() {
+        if (Flags.qsCastTileHsumFix()) {
+            mController.setCurrentUserId(mHost.getUserId());
+        }
     }
 
     @Override
@@ -225,11 +240,28 @@ public class CastTile extends QSTileImpl<BooleanState> {
         }
     }
 
+    @VisibleForTesting
+    static class DialogCreator {
+        @Inject
+        DialogCreator() {}
+
+        public Dialog createDialog(Context context, int routeTypes,
+                View.OnClickListener listener, int theme,
+                boolean showProgressBarWhenEmpty) {
+            return MediaRouteDialogPresenter.createDialog(
+                    context,
+                    routeTypes,
+                    listener,
+                    theme, showProgressBarWhenEmpty);
+        }
+    }
+
     private void showDialog(@Nullable Expandable expandable) {
         mUiHandler.post(() -> {
             final DialogHolder holder = new DialogHolder();
-            final Dialog dialog = MediaRouteDialogPresenter.createDialog(
-                    mShadeDialogContextInteractor.getContext(),
+            final Dialog dialog = mDialogCreator.createDialog(
+                    Flags.qsCastTileHsumFix() ? mHost.getUserContext()
+                            : mShadeDialogContextInteractor.getContext(),
                     ROUTE_TYPE_REMOTE_DISPLAY,
                     v -> {
                         ActivityTransitionAnimator.Controller controller =
@@ -248,6 +280,7 @@ public class CastTile extends QSTileImpl<BooleanState> {
             SystemUIDialog.registerDismissListener(dialog);
             SystemUIDialog.setWindowOnTop(dialog, mKeyguard.isShowing());
             SystemUIDialog.setDialogSize(dialog);
+            SystemUIDialog.resetElevation(dialog);
 
             mUiHandler.post(() -> {
                 if (expandable != null) {
@@ -256,7 +289,15 @@ public class CastTile extends QSTileImpl<BooleanState> {
                                     new DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN,
                                             INTERACTION_JANK_TAG));
                     if (controller != null) {
-                        mDialogTransitionAnimator.show(dialog, controller);
+                        if (TransitionAnimator.Companion.dynamicTargetResolutionEnabled()) {
+                            mDialogTransitionAnimator.show(
+                                    dialog,
+                                    expandable::dialogTransitionController,
+                                    controller.getCuj()
+                            );
+                        } else {
+                            mDialogTransitionAnimator.show(dialog, controller);
+                        }
                         return;
                     }
                 }
@@ -331,7 +372,11 @@ public class CastTile extends QSTileImpl<BooleanState> {
     }
 
     private boolean canCastToNetwork() {
-        return mCastTransportAllowed || mHotspotConnected;
+         if (Flags.qsCastTileSkipWifiCheck()) {
+            return true;
+        } else {
+            return mCastTransportAllowed || mHotspotConnected;
+        }
     }
 
     private void setCastTransportAllowed(boolean connected) {

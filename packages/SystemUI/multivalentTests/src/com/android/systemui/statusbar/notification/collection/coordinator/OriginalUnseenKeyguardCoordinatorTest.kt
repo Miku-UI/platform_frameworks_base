@@ -156,6 +156,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.LOCKSCREEN, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // WHEN: A notification is posted
@@ -181,6 +182,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.AOD, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // THEN: The notification is shown regardless
@@ -217,10 +219,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
         runKeyguardCoordinatorTest {
             val fakeEntry =
                 NotificationEntryBuilder().build().apply {
-                    row =
-                        mock<ExpandableNotificationRow>().apply {
-                            whenever(isMediaRow).thenReturn(true)
-                        }
+                    row = mock<ExpandableNotificationRow>()
                     sbn =
                         SbnBuilder()
                             .setNotification(
@@ -373,6 +372,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.LOCKSCREEN, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // WHEN: Keyguard is shown again
@@ -449,6 +449,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.LOCKSCREEN, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // WHEN: Keyguard is shown again
@@ -657,6 +658,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.LOCKSCREEN, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // WHEN: the notification is updated by the Server
@@ -699,6 +701,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.LOCKSCREEN, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // WHEN: the notification is updated by the SystemUi
@@ -741,6 +744,7 @@ class OriginalUnseenKeyguardCoordinatorTest(flags: FlagsParameterization) : Sysu
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(KeyguardState.LOCKSCREEN, KeyguardState.GONE),
+                skipChangeScene = true,
             )
 
             // WHEN: the notification is updated by the App

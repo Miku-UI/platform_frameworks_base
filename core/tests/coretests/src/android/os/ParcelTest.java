@@ -20,23 +20,16 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.platform.test.ravenwood.RavenwoodRule;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import java.util.IdentityHashMap;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,8 +39,6 @@ import java.util.ArrayList;
 @Presubmit
 @RunWith(AndroidJUnit4.class)
 public class ParcelTest {
-    @Rule public final RavenwoodRule mRavenwood = new RavenwoodRule();
-
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
@@ -435,5 +426,54 @@ public class ParcelTest {
         pA.writeStrongBinder(binder);
         int binderEndPos = pA.dataPosition();
         assertTrue(pA.hasBinders(binderStartPos, binderEndPos - binderStartPos));
+    }
+
+   @Test
+    public void testReadWriteHelper_withBinders() {
+        Binder binder = new Binder();
+        final int[] writeCount = {0};
+        final int[] readCount = {0};
+
+        Parcel.ReadWriteHelper helper = new Parcel.ReadWriteHelper() {
+            @Override
+            public void writeStrongBinder(Parcel p, IBinder val) {
+                writeCount[0]++;
+                super.writeStrongBinder(p, val);
+            }
+
+            @Override
+            public IBinder readStrongBinder(Parcel p) {
+                readCount[0]++;
+                return super.readStrongBinder(p);
+            }
+        };
+
+        Parcel p = Parcel.obtain();
+        try {
+            p.setReadWriteHelper(helper);
+            assertTrue(p.hasReadWriteHelper());
+
+            p.writeStrongBinder(binder);
+            assertEquals(1, writeCount[0]);
+            assertEquals(0, readCount[0]);
+
+            p.setDataPosition(0);
+            IBinder readBinder = p.readStrongBinder();
+
+            assertEquals(1, writeCount[0]);
+            assertEquals(1, readCount[0]);
+            assertEquals(binder, readBinder);
+
+            p.setReadWriteHelper(null);
+            assertFalse(p.hasReadWriteHelper());
+
+            p.setDataPosition(0);
+            p.readStrongBinder();
+            assertEquals(1, writeCount[0]);
+            assertEquals(1, readCount[0]);
+
+        } finally {
+            p.recycle();
+        }
     }
 }

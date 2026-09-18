@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.core
 
-import android.platform.test.annotations.EnableFlags
 import android.view.Display.DEFAULT_DISPLAY
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -34,7 +33,6 @@ import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
 class MultiDisplayStatusBarOrchestratorStoreTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()

@@ -15,9 +15,13 @@
  */
 package com.android.systemui.statusbar.notification.collection
 
+import android.service.notification.DynamicBundle
 import com.android.systemui.statusbar.notification.icon.IconPack
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.data.repository.BundleRepository
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay
+import com.android.systemui.statusbar.notification.stack.BUCKET_DYNAMIC_BUNDLE
+import com.android.systemui.statusbar.notification.stack.BUCKET_SILENT
 import java.util.Collections
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -26,15 +30,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
  *
  * This is the model used by the pipeline.
  */
-class BundleEntry(spec: BundleSpec) : PipelineEntry(spec.key) {
+class BundleEntry(val spec: BundleSpec) : PipelineEntry(spec.key) {
 
-    override val bucket: Int = spec.bucket
+    override val bucket: Int = if (NmContextualDisplay.isEnabled) BUCKET_SILENT else spec.bucket
+
+    override val bucketForLogging: Int
+        get() = if (spec.bucket > DynamicBundle.DYNAMIC_RANGE_START) BUCKET_DYNAMIC_BUNDLE else spec.bucket
 
     /** The model used by UI. */
     val bundleRepository =
         BundleRepository(
             titleText = spec.titleText,
             bundleIcon = spec.icon,
+            summaryTextRes = spec.summaryTextRes,
             summaryText = spec.summaryText,
             bundleType = spec.bundleType,
         )

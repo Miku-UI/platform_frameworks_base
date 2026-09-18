@@ -16,7 +16,7 @@
 
 package android.os.incremental;
 
-/**
+/*
  * Set up files and directories used in an installation session. Currently only used by Incremental
  * Installation. For Incremental installation, the expected outcome of this function is: 0) All the
  * files are in defaultStorage 1) All APK files are in the same directory, bound to mApkStorage, and

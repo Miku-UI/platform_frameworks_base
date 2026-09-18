@@ -59,6 +59,12 @@ interface StatusIconContext {
 val LocalStatusIconContext =
     compositionLocalOf<StatusIconContext> { error("LocalStatusIconContext not set!") }
 
+/**
+ * Provides a [StatusIconContext] for the given [tintedIconManagerFactory] within the block.
+ *
+ * @param tintedIconManagerFactory The factory to use to create the [TintedIconManager].
+ * @param block The block to provide the [StatusIconContext] for.
+ */
 @Composable
 fun WithStatusIconContext(
     tintedIconManagerFactory: TintedIconManager.Factory,
@@ -70,6 +76,12 @@ fun WithStatusIconContext(
     )
 }
 
+/**
+ * Creates a [StatusIconContext] that can be used to provide the context for UI that renders the
+ * status bar icons.
+ *
+ * @param tintedIconManagerFactory The factory to use to create the [TintedIconManager].
+ */
 @Composable
 fun rememberStatusIconContext(
     tintedIconManagerFactory: TintedIconManager.Factory

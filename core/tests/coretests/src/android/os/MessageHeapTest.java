@@ -17,6 +17,7 @@
 package android.os;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -224,5 +225,31 @@ public final class MessageHeapTest {
 
         // Verify the entire heap is still valid and ordered correctly.
         assertTrue(verify(heap));
+    }
+
+    /**
+     * Verifies that {@code maybeShrink} does not perform a reallocation if the calculated
+     * new size is the same as the current capacity. This tests the fix that prevents
+     * unnecessary array copying.
+     */
+    @Test
+    public void testWeOnlyShrinkIfCapacityWillChange() {
+        MessageHeap heap = new MessageHeap();
+        // Grow the heap. Initial size is 16 (`MessageHeap.INITIAL_SIZE`).
+        // Adding 17 elements will trigger a grow to 16 + 8 = 24.
+        final int numItemsToAdd = MessageHeap.INITIAL_SIZE + 1;
+
+        for (int i = 0; i < numItemsToAdd; i++) {
+            insertMessage(heap, 0);
+        }
+
+        assertEquals(numItemsToAdd, heap.size());
+        // In this state, maybeShrink calculates a newSize of 24, which is the current capacity.
+        // The code under test ensures we don't reallocate if newSize is not less than current
+        // capacity.
+        int capacityBeforeShrink = heap.capacity();
+        assertFalse(heap.maybeShrink());
+        assertEquals("Capacity should not change when not shrinking", capacityBeforeShrink,
+                heap.capacity());
     }
 }

@@ -39,7 +39,7 @@ bool CopyFileToArchive(IAaptContext* context, IFile* file, std::string_view out_
 bool CopyFileToArchivePreserveCompression(IAaptContext* context, IFile* file,
                                           std::string_view out_path, IArchiveWriter* writer);
 
-bool CopyProtoToArchive(IAaptContext* context, ::google::protobuf::Message* proto_msg,
+bool CopyProtoToArchive(IAaptContext* context, ::google::protobuf::MessageLite* proto_msg,
                         std::string_view out_path, uint32_t compression_flags,
                         IArchiveWriter* writer);
 

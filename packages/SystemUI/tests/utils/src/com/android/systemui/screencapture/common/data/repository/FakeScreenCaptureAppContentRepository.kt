@@ -16,8 +16,10 @@
 
 package com.android.systemui.screencapture.common.data.repository
 
+import android.media.projection.IAppContentProjectionCallback
 import android.media.projection.MediaProjectionAppContent
 import android.os.UserHandle
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -25,7 +27,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 class FakeScreenCaptureAppContentRepository : ScreenCaptureAppContentRepository {
 
     private val appContentChannels =
-        mutableMapOf<Pair<String, UserHandle>, Channel<Result<List<MediaProjectionAppContent>>>>()
+        mutableMapOf<Pair<String, UserHandle>, Channel<Result<RawAppContent>>>()
 
     val appContentsForCalls = mutableListOf<AppContentsForCall>()
 
@@ -34,18 +36,15 @@ class FakeScreenCaptureAppContentRepository : ScreenCaptureAppContentRepository 
         user: UserHandle,
         thumbnailWidthPx: Int,
         thumbnailHeightPx: Int,
-    ): Flow<Result<List<MediaProjectionAppContent>>> {
+        iconSizePx: Int,
+    ): Flow<Result<RawAppContent>> {
         appContentsForCalls.add(
-            AppContentsForCall(packageName, user, thumbnailWidthPx, thumbnailHeightPx)
+            AppContentsForCall(packageName, user, thumbnailWidthPx, thumbnailHeightPx, iconSizePx)
         )
         return channelFor(packageName, user).receiveAsFlow()
     }
 
-    fun setAppContent(
-        packageName: String,
-        user: UserHandle,
-        appContent: Result<List<MediaProjectionAppContent>>,
-    ) {
+    fun setAppContent(packageName: String, user: UserHandle, appContent: Result<RawAppContent>) {
         channelFor(packageName, user).trySend(appContent)
     }
 
@@ -53,26 +52,29 @@ class FakeScreenCaptureAppContentRepository : ScreenCaptureAppContentRepository 
         packageName: String,
         user: UserHandle,
         appContent: List<MediaProjectionAppContent>,
+        callback: WeakReference<IAppContentProjectionCallback>,
     ) {
-        setAppContent(packageName, user, Result.success(appContent))
+        setAppContent(
+            packageName,
+            user,
+            Result.success(RawAppContent(contents = appContent, projectionCallback = callback)),
+        )
     }
 
     fun setAppContentSuccess(
         packageName: String,
         user: UserHandle,
+        callback: WeakReference<IAppContentProjectionCallback>,
         vararg appContent: MediaProjectionAppContent,
     ) {
-        setAppContentSuccess(packageName, user, appContent.toList())
+        setAppContentSuccess(packageName, user, appContent.toList(), callback)
     }
 
     fun setAppContentFailure(packageName: String, user: UserHandle, throwable: Throwable) {
         setAppContent(packageName, user, Result.failure(throwable))
     }
 
-    private fun channelFor(
-        packageName: String,
-        user: UserHandle,
-    ): Channel<Result<List<MediaProjectionAppContent>>> =
+    private fun channelFor(packageName: String, user: UserHandle): Channel<Result<RawAppContent>> =
         appContentChannels.computeIfAbsent(packageName to user) { Channel(Channel.CONFLATED) }
 
     data class AppContentsForCall(
@@ -80,5 +82,6 @@ class FakeScreenCaptureAppContentRepository : ScreenCaptureAppContentRepository 
         val user: UserHandle,
         val thumbnailWidthPx: Int,
         val thumbnailHeightPx: Int,
+        val iconSizePx: Int,
     )
 }

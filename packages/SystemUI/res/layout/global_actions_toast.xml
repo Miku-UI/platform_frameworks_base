@@ -39,6 +39,6 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:textSize="14sp"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/materialColorOnSurfaceVariant"
         android:text="@string/global_action_smart_lock_disabled" />
 </LinearLayout>

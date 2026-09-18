@@ -16,6 +16,7 @@
 
 package com.android.systemui.inputmethod.domain.interactor
 
+import android.view.inputmethod.InputMethodManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -132,7 +133,11 @@ class InputMethodInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val displayId = 7
 
-            underTest.showInputMethodPicker(displayId, showAuxiliarySubtypes = false)
+            underTest.showInputMethodPicker(
+                showAuxiliarySubtypes = false,
+                InputMethodManager.IM_PICKER_ENTRY_POINT_DEFAULT,
+                displayId,
+            )
 
             assertThat(fakeInputMethodRepository.inputMethodPickerShownDisplayId)
                 .isEqualTo(displayId)

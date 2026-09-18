@@ -210,7 +210,7 @@ public final class NfcFServiceInfo implements Parcelable {
             if (parser != null) parser.close();
         }
         // Set uid
-        mUid = si.applicationInfo.uid;
+        mUid = si.getUid();
     }
 
     /**

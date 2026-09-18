@@ -15,9 +15,11 @@
  */
 package com.android.app.concurrent.benchmark.base
 
-import android.device.collectors.util.SendToInstrumentation
-import android.os.Bundle
+import android.os.Handler
 import android.util.Log
+import androidx.benchmark.BenchmarkState
+import androidx.benchmark.ExperimentalBenchmarkConfigApi
+import androidx.benchmark.MicrobenchmarkConfig
 import androidx.benchmark.junit4.BenchmarkRule
 import androidx.benchmark.junit4.PerfettoTraceRule
 import androidx.benchmark.macro.runSingleSessionServer
@@ -26,14 +28,22 @@ import androidx.benchmark.perfetto.PerfettoConfig
 import androidx.benchmark.traceprocessor.PerfettoTrace
 import androidx.benchmark.traceprocessor.Row
 import androidx.benchmark.traceprocessor.TraceProcessor
-import androidx.test.platform.app.InstrumentationRegistry
-import com.android.app.concurrent.benchmark.util.CsvMetricCollector
-import com.android.app.concurrent.benchmark.util.CsvMetricCollector.Helper.getCurrentBgThreadName
+import com.android.app.concurrent.benchmark.util.BG_THREAD_NAME_PREFIX
+import com.android.app.concurrent.benchmark.util.BgExceptionHandler
 import com.android.app.concurrent.benchmark.util.DEBUG
+import com.android.app.concurrent.benchmark.util.LooperThreadWithHandlerBuilder
 import com.android.app.concurrent.benchmark.util.PERFETTO_CONFIG
 import com.android.app.concurrent.benchmark.util.PERFETTO_SQL_QUERY_FORMAT_STR
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.PerfettoMeasurementTimelineMetricCollector
+import com.android.app.concurrent.benchmark.util.TAG
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.dbg
+import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.android.asCoroutineDispatcher
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
@@ -44,30 +54,110 @@ abstract class BaseConcurrentBenchmark {
     @get:Rule val benchmarkRule = ConcurrentBenchmarkRule()
 }
 
-abstract class BaseSchedulerBenchmark<T : Any>(param: ThreadFactory<Any, out T>) {
+abstract class BaseSchedulerBenchmark<T : Any>(param: ThreadBuilder<out T>) {
     val schedulerRule = SchedulerBenchmarkRule(param)
     val benchmarkRule = ConcurrentBenchmarkRule()
 
-    @get:Rule val chain: RuleChain = RuleChain.outerRule(schedulerRule).around(benchmarkRule)
+    @get:Rule val chain: RuleChain = RuleChain.outerRule(benchmarkRule).around(schedulerRule)
 
     val scheduler: T
         get() = schedulerRule.scheduler
 }
 
-class SchedulerBenchmarkRule<R : Any, S : Any>(val threadFactory: ThreadFactory<R, S>) : TestRule {
+abstract class BaseLooperThreadBenchmark() {
+    val handlerThreadRule = SchedulerBenchmarkRule(LooperThreadWithHandlerBuilder)
+    val benchmarkRule = ConcurrentBenchmarkRule()
+
+    @get:Rule val chain: RuleChain = RuleChain.outerRule(benchmarkRule).around(handlerThreadRule)
+
+    interface SingleThreadContext {
+        val state: BenchmarkState
+    }
+
+    interface HandlerThreadContext : SingleThreadContext {
+        val handler: Handler
+    }
+
+    interface SynchronousContext {
+        fun stopBenchmark()
+    }
+
+    interface HandlerSynchronousContext : HandlerThreadContext, SynchronousContext
+
+    protected open class HandlerMonitorImpl(
+        override val state: BenchmarkState,
+        override val handler: Handler,
+    ) : HandlerSynchronousContext {
+        val latch = CountDownLatch(1)
+
+        fun waitForBenchmarkCompletion() {
+            dbg { "waitForBenchmarkCompletion" }
+            latch.await()
+        }
+
+        override fun stopBenchmark() {
+            dbg { "stopBenchmark" }
+            latch.countDown()
+        }
+    }
+
+    /**
+     * Posts [initialBlock] to the bg handler, running until
+     * [stopBenchmark][HandlerSynchronousContext.stopBenchmark] is called.
+     */
+    fun measure(initialBlock: HandlerSynchronousContext.() -> Unit) {
+        val handlerMonitor =
+            HandlerMonitorImpl(benchmarkRule.benchmarkRule.getState(), handlerThreadRule.scheduler)
+        handlerMonitor.handler.post {
+            dbg { "startBenchmark" }
+            handlerMonitor.initialBlock()
+        }
+        handlerMonitor.waitForBenchmarkCompletion()
+    }
+}
+
+abstract class CoroutineLooperThreadBenchmark() : BaseLooperThreadBenchmark() {
+
+    interface CoroutineScopeContext : SingleThreadContext, HandlerThreadContext {
+        suspend fun stopBenchmark()
+    }
+
+    protected open class CoroutineScopeContextImpl(
+        override val state: BenchmarkState,
+        override val handler: Handler,
+        val job: Job,
+    ) : CoroutineScopeContext {
+
+        override suspend fun stopBenchmark() {
+            dbg { "stopBenchmark, cancelling scope" }
+            job.cancelAndJoin()
+        }
+    }
+
+    fun measureCoroutine(initialBlock: CoroutineScopeContext.(CoroutineScope) -> Unit) {
+        val job = Job()
+        val handler = handlerThreadRule.scheduler
+        dbg { "startBenchmark" }
+        val scope = CoroutineScope(handler.asCoroutineDispatcher() + job)
+        CoroutineScopeContextImpl(benchmarkRule.benchmarkRule.getState(), handler, job)
+            .initialBlock(scope)
+        runBlocking { job.join() }
+    }
+}
+
+class SchedulerBenchmarkRule<S : Any>(val threadBuilder: ThreadBuilder<S>) : TestRule {
     lateinit var scheduler: S
         private set
 
     override fun apply(base: Statement, description: Description): Statement {
         return object : Statement() {
             override fun evaluate() {
-                dbg { "evaluate $base#$description" }
-                scheduler = threadFactory.startThreadAndGetScheduler()
-                try {
+                dbg { "SchedulerBenchmarkRule START $description" }
+                threadBuilder.startThread().use { handle ->
+                    scheduler = handle.scheduler
                     base.evaluate()
-                } finally {
-                    threadFactory.stopThreadAndQuitScheduler()
                 }
+                dbg { "SchedulerBenchmarkRule END $description" }
             }
         }
     }
@@ -75,33 +165,34 @@ class SchedulerBenchmarkRule<R : Any, S : Any>(val threadFactory: ThreadFactory<
 
 class ConcurrentBenchmarkRule() : TestRule {
 
-    val benchmarkRule = BenchmarkRule()
-
-    companion object {
-        private val TAG = "ConcurrentBenchmarkRule"
-    }
+    @OptIn(ExperimentalBenchmarkConfigApi::class)
+    val benchmarkRule = BenchmarkRule(config = MicrobenchmarkConfig())
 
     @OptIn(ExperimentalPerfettoCaptureApi::class)
     override fun apply(base: Statement, description: Description): Statement {
         val traceCallback: ((PerfettoTrace) -> Unit) = { trace ->
             TraceProcessor.runSingleSessionServer(trace.path) {
                 if (DEBUG) return@runSingleSessionServer
+                dbg { "Running Perfetto SQL query" }
                 val rowSequence =
                     query(String.format(PERFETTO_SQL_QUERY_FORMAT_STR, getCurrentBgThreadName()))
-                val row = rowSequence.firstOrNull() ?: return@runSingleSessionServer
-                val results = Bundle()
-                var allMetricsValid = true
-                row.keys.forEach { key ->
-                    allMetricsValid = putValueFromRow(results, row, key) && allMetricsValid
-                }
-                CsvMetricCollector.Helper.clearActiveName()
-                val instrumentation = InstrumentationRegistry.getInstrumentation()
-                SendToInstrumentation.sendBundle(instrumentation, results)
-                if (!allMetricsValid) {
-                    error(
-                        "Trace has data loss or other errors. For more details, " +
-                            "open the trace in Perfetto and view its info and stats."
-                    )
+                dbg { "Query completed" }
+                val row = rowSequence.firstOrNull()
+                if (row != null) {
+                    var allMetricsValid = true
+                    row.keys.forEach { key ->
+                        dbg { "putValueFromRow where key=$key" }
+                        allMetricsValid = putValueFromRow(row, key) && allMetricsValid
+                    }
+                    clearBgThreadName()
+                    if (!allMetricsValid) {
+                        error(
+                            "Trace has data loss or other errors. For more details, " +
+                                "open the trace in Perfetto and view its info and stats."
+                        )
+                    }
+                } else {
+                    Log.e(TAG, "No row found for query")
                 }
             }
         }
@@ -111,6 +202,9 @@ class ConcurrentBenchmarkRule() : TestRule {
                 PerfettoTraceRule(
                     config = PerfettoConfig.Text(PERFETTO_CONFIG),
                     enableUserspaceTracing = false,
+                    labelProvider = {
+                        "${it.className.substringAfterLast('.')}_${it.methodName.substringBefore('[')}"
+                    },
                     traceCallback = traceCallback,
                 )
             )
@@ -120,12 +214,14 @@ class ConcurrentBenchmarkRule() : TestRule {
     private fun applyInternal(base: Statement, description: Description) =
         object : Statement() {
             override fun evaluate() {
-                dbg { "evaluate" }
-                CsvMetricCollector.Helper.setActiveName(
-                    description.testClass.simpleName,
-                    description.methodName,
-                )
-                base.evaluate()
+                dbg { "ConcurrentBenchmarkRule START $description" }
+                setBgThreadName()
+                try {
+                    base.evaluate()
+                } finally {
+                    clearBgThreadName()
+                    dbg { "ConcurrentBenchmarkRule END $description" }
+                }
             }
         }
 
@@ -138,46 +234,75 @@ class ConcurrentBenchmarkRule() : TestRule {
         onEachIteration: (n: Int) -> Unit,
         afterLastIteration: () -> Unit,
     ) {
-        dbg { "measureRepeated" }
-        var n = 0
-        beforeFirstIteration()
-
-        // No need to set THREAD_PRIORITY_MOST_FAVORABLE here; it is already set by the benchmark
-        // initialization in AndroidX
-        val state = benchmarkRule.getState()
-        while (state.keepRunning()) {
-            n++
-            onEachIteration(n)
-        }
-        afterLastIteration()
-    }
-
-    private fun putValueFromRow(bundle: Bundle, row: Row, key: String): Boolean {
-        // Key name for Perfetto metrics computed by looking at each measurement slice, e.g.
-        // "measurement 0", "measurement 1", "measurement 2", etc.
-        // mt = "measurement timeline"
-        val metricName = "perfetto_mt_$key"
-        val metricValue = row[key]
-        val strValue =
-            when (metricValue) {
-                is String,
-                is Int,
-                is Long -> "$metricValue"
-                is Float,
-                is Double -> String.format("%.3f", metricValue)
-                null -> {
-                    Log.w(TAG, "Metric not found for key: $key")
-                    null
-                }
-                else -> {
-                    Log.w(TAG, "Unsupported metric type: ${metricValue::class}")
-                    null
-                }
+        BgExceptionHandler.beginMonitoring()
+        try {
+            dbg { "measureRepeated" }
+            var n = 0
+            beforeFirstIteration()
+            // No need to set THREAD_PRIORITY_MOST_FAVORABLE here; it is already set by the
+            // benchmark initialization in AndroidX
+            val state = benchmarkRule.getState()
+            while (state.keepRunning()) {
+                if (Thread.interrupted()) throw InterruptedException()
+                n++
+                dbg { ">>>> onEachIteration >>>> n=$n " }
+                onEachIteration(n)
+                dbg { "<<<< onEachIteration <<<<" }
             }
-        if (strValue != null) {
-            bundle.putString(metricName, strValue)
-            CsvMetricCollector.Helper.putMetric(metricName, strValue)
+            afterLastIteration()
+        } catch (e: InterruptedException) {
+            BgExceptionHandler.rethrowInterruptWithCause(e)
+        } finally {
+            BgExceptionHandler.endMonitoring()
         }
-        return strValue != "=NA()"
     }
+}
+
+private lateinit var bgThreadName: String
+
+fun setBgThreadName() {
+    bgThreadName = "${BG_THREAD_NAME_PREFIX}${randomThreadId()}"
+}
+
+fun clearBgThreadName() {
+    bgThreadName = "${BG_THREAD_NAME_PREFIX}not_set"
+}
+
+fun getCurrentBgThreadName(): String {
+    return bgThreadName
+}
+
+private fun randomThreadId(): String {
+    val numericalChars = ('0'..'9')
+    return String(CharArray(8) { numericalChars.random() })
+}
+
+private fun putValueFromRow(row: Row, key: String): Boolean {
+    // Key name for Perfetto metrics computed by looking at each measurement slice, e.g.
+    // "measurement 0", "measurement 1", "measurement 2", etc.
+    // mt = "measurement timeline"
+    val metricName = "perfetto_mt_$key"
+    val metricValue = row[key]
+    val strValue =
+        when (metricValue) {
+            is String,
+            is Int,
+            is Long -> "$metricValue"
+            is Float,
+            is Double -> String.format("%.3f", metricValue)
+            null -> {
+                Log.w(TAG, "Metric not found for key: $key")
+                null
+            }
+            else -> {
+                Log.w(TAG, "Unsupported metric type: ${metricValue::class}")
+                null
+            }
+        }
+    if (strValue != null) {
+        if (metricValue is Number) {
+            PerfettoMeasurementTimelineMetricCollector.putMetric(metricName, metricValue.toDouble())
+        }
+    }
+    return strValue != "=NA()"
 }

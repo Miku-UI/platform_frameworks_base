@@ -19,8 +19,12 @@ import android.annotation.IntDef;
 import android.annotation.WorkerThread;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.telecom.Log;
+import android.telecom.PhoneAccount;
+import android.telephony.PhoneNumberUtils;
+import android.text.TextUtils;
+import android.util.Log;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -157,6 +161,13 @@ public class BlockedNumberContract {
     public static final Uri AUTHORITY_URI = Uri.parse("content://" + AUTHORITY);
 
     private static final String LOG_TAG = BlockedNumberContract.class.getSimpleName();
+    private static final boolean VERBOSE = android.util.Log.isLoggable(LOG_TAG,
+            android.util.Log.VERBOSE);
+
+    /**
+     * When generating a bug report, include the last X dialable digits when logging phone numbers.
+     */
+    private static final int NUM_DIALABLE_DIGITS_TO_LOG = "user".equals(Build.TYPE) ? 0 : 2;
 
     /**
      * Constants to interact with the blocked numbers list.
@@ -336,8 +347,8 @@ public class BlockedNumberContract {
             final Bundle res = context.getContentResolver().call(
                     AUTHORITY_URI, METHOD_IS_BLOCKED, phoneNumber, null);
             boolean isBlocked = res != null && res.getBoolean(RES_NUMBER_IS_BLOCKED, false);
-            Log.d(LOG_TAG, "isBlocked: phoneNumber=%s, isBlocked=%b", Log.piiHandle(phoneNumber),
-                    isBlocked);
+            Log.d(LOG_TAG, String.format("isBlocked: phoneNumber=%s, isBlocked=%b",
+                    piiHandle(phoneNumber), isBlocked));
             return isBlocked;
         } catch (NullPointerException | IllegalArgumentException ex) {
             // The content resolver can throw an NPE or IAE; we don't want to crash Telecom if
@@ -366,7 +377,7 @@ public class BlockedNumberContract {
      */
     @WorkerThread
     public static int unblock(Context context, String phoneNumber) {
-        Log.d(LOG_TAG, "unblock: phoneNumber=%s", Log.piiHandle(phoneNumber));
+        Log.d(LOG_TAG, "unblock: phoneNumber=" + piiHandle(phoneNumber));
         final Bundle res = context.getContentResolver().call(
                 AUTHORITY_URI, METHOD_UNBLOCK, phoneNumber, null);
         return res.getInt(RES_NUM_ROWS_DELETED, 0);
@@ -461,7 +472,7 @@ public class BlockedNumberContract {
          */
         public static void notifyEmergencyContact(Context context) {
             try {
-                Log.i(LOG_TAG, "notifyEmergencyContact; caller=%s", context.getOpPackageName());
+                Log.i(LOG_TAG, "notifyEmergencyContact; caller=" + context.getOpPackageName());
                 context.getContentResolver().call(
                         AUTHORITY_URI, METHOD_NOTIFY_EMERGENCY_CONTACT, null, null);
             } catch (NullPointerException | IllegalArgumentException ex) {
@@ -477,7 +488,7 @@ public class BlockedNumberContract {
          */
         public static void endBlockSuppression(Context context) {
             String caller = context.getOpPackageName();
-            Log.i(LOG_TAG, "endBlockSuppression: caller=%s", caller);
+            Log.i(LOG_TAG, "endBlockSuppression: caller=" + caller);
             context.getContentResolver().call(
                     AUTHORITY_URI, METHOD_END_BLOCK_SUPPRESSION, null, null);
         }
@@ -504,8 +515,9 @@ public class BlockedNumberContract {
                         AUTHORITY_URI, METHOD_SHOULD_SYSTEM_BLOCK_NUMBER, phoneNumber, extras);
                 int blockResult = res != null ? res.getInt(RES_BLOCK_STATUS, STATUS_NOT_BLOCKED) :
                         BlockedNumberContract.STATUS_NOT_BLOCKED;
-                Log.d(LOG_TAG, "shouldSystemBlockNumber: number=%s, caller=%s, result=%s",
-                        Log.piiHandle(phoneNumber), caller, blockStatusToString(blockResult));
+                Log.d(LOG_TAG,
+                        String.format("shouldSystemBlockNumber: number=%s, caller=%s, result=%s",
+                                piiHandle(phoneNumber), caller, blockStatusToString(blockResult)));
                 return blockResult;
             } catch (NullPointerException | IllegalArgumentException ex) {
                 // The content resolver can throw an NPE or IAE; we don't want to crash Telecom if
@@ -524,8 +536,8 @@ public class BlockedNumberContract {
             BlockSuppressionStatus blockSuppressionStatus = new BlockSuppressionStatus(
                     res.getBoolean(RES_IS_BLOCKING_SUPPRESSED, false),
                     res.getLong(RES_BLOCKING_SUPPRESSED_UNTIL_TIMESTAMP, 0));
-            Log.d(LOG_TAG, "getBlockSuppressionStatus: caller=%s, status=%s",
-                    context.getOpPackageName(), blockSuppressionStatus);
+            Log.d(LOG_TAG, String.format("getBlockSuppressionStatus: caller=%s, status=%s",
+                    context.getOpPackageName(), blockSuppressionStatus));
             return blockSuppressionStatus;
         }
 
@@ -645,5 +657,93 @@ public class BlockedNumberContract {
                         + untilTimestampMillis + "]";
             }
         }
+    }
+
+    /**
+     * Generates an obfuscated string for a calling handle in {@link Uri} format, or a raw phone
+     * phone number in {@link String} format.
+     * @param pii The information to obfuscate.
+     * @return The obfuscated string.
+     */
+    private static String piiHandle(Object pii) {
+        if (pii == null || VERBOSE) {
+            return String.valueOf(pii);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (pii instanceof Uri) {
+            Uri uri = (Uri) pii;
+            String scheme = uri.getScheme();
+
+            if (!TextUtils.isEmpty(scheme)) {
+                sb.append(scheme).append(":");
+            }
+
+            String textToObfuscate = uri.getSchemeSpecificPart();
+            if (PhoneAccount.SCHEME_TEL.equals(scheme)) {
+                obfuscatePhoneNumber(sb, textToObfuscate);
+            } else if (PhoneAccount.SCHEME_SIP.equals(scheme)) {
+                for (int i = 0; i < textToObfuscate.length(); i++) {
+                    char c = textToObfuscate.charAt(i);
+                    if (c != '@' && c != '.') {
+                        c = '*';
+                    }
+                    sb.append(c);
+                }
+            } else {
+                sb.append(pii(pii));
+            }
+        } else if (pii instanceof String) {
+            String number = (String) pii;
+            obfuscatePhoneNumber(sb, number);
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Obfuscates a phone number, allowing NUM_DIALABLE_DIGITS_TO_LOG digits to be exposed for
+     * the phone number.
+     * @param sb String buffer to write obfuscated number to.
+     * @param phoneNumber The number to obfuscate.
+     */
+    private static void obfuscatePhoneNumber(StringBuilder sb, String phoneNumber) {
+        int numDigitsToObfuscate = getDialableCount(phoneNumber)
+                - NUM_DIALABLE_DIGITS_TO_LOG;
+        for (int i = 0; i < phoneNumber.length(); i++) {
+            char c = phoneNumber.charAt(i);
+            boolean isDialable = PhoneNumberUtils.isDialable(c);
+            if (isDialable) {
+                numDigitsToObfuscate--;
+            }
+            sb.append(isDialable && numDigitsToObfuscate >= 0 ? "*" : c);
+        }
+    }
+
+    /**
+     * Redact personally identifiable information for production users.
+     * If we are running in verbose mode, return the original string,
+     * and return "***" otherwise.
+     */
+    private static String pii(Object pii) {
+        if (pii == null || VERBOSE) {
+            return String.valueOf(pii);
+        }
+        return "***";
+    }
+
+    /**
+     * Determines the number of dialable characters in a string.
+     * @param toCount The string to count dialable characters in.
+     * @return The count of dialable characters.
+     */
+    private static int getDialableCount(String toCount) {
+        int numDialable = 0;
+        for (char c : toCount.toCharArray()) {
+            if (PhoneNumberUtils.isDialable(c)) {
+                numDialable++;
+            }
+        }
+        return numDialable;
     }
 }

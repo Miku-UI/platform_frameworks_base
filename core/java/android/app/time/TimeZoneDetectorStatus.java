@@ -64,31 +64,39 @@ public final class TimeZoneDetectorStatus implements Parcelable {
     @Override
     public String toString() {
         return "TimeZoneDetectorStatus{"
-                + "mDetectorStatus=" + DetectorStatusTypes.detectorStatusToString(mDetectorStatus)
-                + ", mTelephonyTimeZoneAlgorithmStatus=" + mTelephonyTimeZoneAlgorithmStatus
-                + ", mLocationTimeZoneAlgorithmStatus=" + mLocationTimeZoneAlgorithmStatus
+                + "mDetectorStatus="
+                + DetectorStatusTypes.detectorStatusToString(mDetectorStatus)
+                + ", mTelephonyTimeZoneAlgorithmStatus="
+                + mTelephonyTimeZoneAlgorithmStatus
+                + ", mLocationTimeZoneAlgorithmStatus="
+                + mLocationTimeZoneAlgorithmStatus
                 + '}';
     }
 
-    public static final @NonNull Creator<TimeZoneDetectorStatus> CREATOR = new Creator<>() {
-        @Override
-        public TimeZoneDetectorStatus createFromParcel(Parcel in) {
-            @DetectorStatus int detectorStatus = in.readInt();
-            TelephonyTimeZoneAlgorithmStatus telephonyTimeZoneAlgorithmStatus =
-                    in.readParcelable(getClass().getClassLoader(),
-                            TelephonyTimeZoneAlgorithmStatus.class);
-            LocationTimeZoneAlgorithmStatus locationTimeZoneAlgorithmStatus =
-                    in.readParcelable(getClass().getClassLoader(),
-                            LocationTimeZoneAlgorithmStatus.class);
-            return new TimeZoneDetectorStatus(detectorStatus,
-                    telephonyTimeZoneAlgorithmStatus, locationTimeZoneAlgorithmStatus);
-        }
+    public static final @NonNull Creator<TimeZoneDetectorStatus> CREATOR =
+            new Creator<>() {
+                @Override
+                public TimeZoneDetectorStatus createFromParcel(Parcel in) {
+                    @DetectorStatus int detectorStatus = in.readInt();
+                    TelephonyTimeZoneAlgorithmStatus telephonyTimeZoneAlgorithmStatus =
+                            in.readParcelable(
+                                    getClass().getClassLoader(),
+                                    TelephonyTimeZoneAlgorithmStatus.class);
+                    LocationTimeZoneAlgorithmStatus locationTimeZoneAlgorithmStatus =
+                            in.readParcelable(
+                                    getClass().getClassLoader(),
+                                    LocationTimeZoneAlgorithmStatus.class);
+                    return new TimeZoneDetectorStatus(
+                            detectorStatus,
+                            telephonyTimeZoneAlgorithmStatus,
+                            locationTimeZoneAlgorithmStatus);
+                }
 
-        @Override
-        public TimeZoneDetectorStatus[] newArray(int size) {
-            return new TimeZoneDetectorStatus[size];
-        }
-    };
+                @Override
+                public TimeZoneDetectorStatus[] newArray(int size) {
+                    return new TimeZoneDetectorStatus[size];
+                }
+            };
 
     @Override
     public int describeContents() {
@@ -118,7 +126,9 @@ public final class TimeZoneDetectorStatus implements Parcelable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(mDetectorStatus, mTelephonyTimeZoneAlgorithmStatus,
+        return Objects.hash(
+                mDetectorStatus,
+                mTelephonyTimeZoneAlgorithmStatus,
                 mLocationTimeZoneAlgorithmStatus);
     }
 }

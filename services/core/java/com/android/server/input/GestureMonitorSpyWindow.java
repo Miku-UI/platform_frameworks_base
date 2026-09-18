@@ -21,7 +21,6 @@ import static android.os.InputConstants.DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
 import android.os.IBinder;
 import android.os.InputConfig;
 import android.view.InputApplicationHandle;
-import android.view.InputChannel;
 import android.view.InputMonitor;
 import android.view.InputWindowHandle;
 import android.view.SurfaceControl;
@@ -41,13 +40,11 @@ class GestureMonitorSpyWindow {
 
     // The token, InputChannel, and SurfaceControl are owned by this object.
     final IBinder mMonitorToken;
-    final InputChannel mClientChannel;
     final SurfaceControl mInputSurface;
 
     GestureMonitorSpyWindow(IBinder token, String name, int displayId, int pid, int uid,
-            SurfaceControl sc, InputChannel inputChannel) {
+            SurfaceControl sc, IBinder inputChannelToken) {
         mMonitorToken = token;
-        mClientChannel = inputChannel;
         mInputSurface = sc;
 
         mApplicationHandle = new InputApplicationHandle(null, name,
@@ -55,7 +52,7 @@ class GestureMonitorSpyWindow {
         mWindowHandle = new InputWindowHandle(mApplicationHandle, displayId);
 
         mWindowHandle.name = name;
-        mWindowHandle.token = mClientChannel.getToken();
+        mWindowHandle.token = inputChannelToken;
         mWindowHandle.layoutParamsType = WindowManager.LayoutParams.TYPE_SECURE_SYSTEM_OVERLAY;
         mWindowHandle.dispatchingTimeoutMillis = DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
         mWindowHandle.ownerPid = pid;
@@ -80,12 +77,10 @@ class GestureMonitorSpyWindow {
         t.hide(mInputSurface);
         t.remove(mInputSurface);
         t.apply();
-
-        mClientChannel.dispose();
     }
 
     String dump() {
-        return "name='" + mWindowHandle.name + "', inputChannelToken="
-                + mClientChannel.getToken() + " displayId=" + mWindowHandle.displayId;
+        return "name='" + mWindowHandle.name + "', InputChannel token="
+                + mWindowHandle.token + ", displayId=" + mWindowHandle.displayId;
     }
 }

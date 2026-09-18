@@ -16,9 +16,11 @@
 
 package com.android.settingslib;
 
+import static android.app.admin.DevicePolicyIdentifiers.getIdentifierForUserRestriction;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_FEATURES_NONE;
 import static android.app.admin.DevicePolicyManager.MTE_NOT_CONTROLLED_BY_POLICY;
 import static android.app.admin.DevicePolicyManager.PROFILE_KEYGUARD_FEATURES_AFFECT_OWNER;
+import static android.app.admin.DpcAuthority.DPC_AUTHORITY;
 import static android.app.role.RoleManager.ROLE_FINANCED_DEVICE_KIOSK;
 
 import static com.android.settingslib.Utils.getColorAttrDefaultColor;
@@ -42,6 +44,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
+import android.os.Binder;
 import android.os.Build;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -63,8 +66,11 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.widget.LockPatternUtils;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Utility class to host methods usable in adding a restricted padlock icon and showing admin
@@ -174,13 +180,28 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
      * or {@code null} If the restriction is not set. If the restriction is set by both device owner
      * and profile owner, then the admin component will be set to {@code null} and userId to
      * {@link UserHandle#USER_NULL}.
+     * @deprecated Use {@link DevicePolicyManager#getEnforcingAdminsForPolicy} instead.
      */
+    @Deprecated
     public static EnforcedAdmin checkIfRestrictionEnforced(Context context,
             String userRestriction, int userId) {
         final DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(
                 Context.DEVICE_POLICY_SERVICE);
         if (dpm == null) {
             return null;
+        }
+
+        if (android.app.admin.flags.Flags.policyTransparencyRefactorEnabled()) {
+            PolicyEnforcementInfo policyEnforcementInfo = dpm.getEnforcingAdminsForPolicy(
+                    DevicePolicyIdentifiers.getIdentifierForUserRestriction(userRestriction),
+                    userId);
+            if (policyEnforcementInfo.getAllAdmins().isEmpty()
+                    || policyEnforcementInfo.isOnlyEnforcedBySystem()) {
+                return null;
+            }
+            EnforcingAdmin admin = policyEnforcementInfo.getMostImportantEnforcingAdmin();
+            return new EnforcedAdmin(admin.getComponentName(), userRestriction,
+                    admin.getUserHandle());
         }
 
         final UserManager um = UserManager.get(context);
@@ -211,18 +232,16 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
             return null;
         }
 
-        if (android.security.Flags.aapmApi()) {
-            EnforcingAdmin admin = dpm.getEnforcingAdmin(userId, userRestriction);
-            if (admin != null) {
-                return new EnforcedAdmin(admin.getComponentName(), userRestriction,
-                        admin.getUserHandle());
-            }
+        EnforcingAdmin enforcingAdmin = dpm.getEnforcingAdmin(userId, userRestriction);
+        if (enforcingAdmin != null) {
+            return new EnforcedAdmin(enforcingAdmin.getComponentName(), userRestriction,
+                    enforcingAdmin.getUserHandle());
         }
 
-        final EnforcedAdmin admin =
+        final EnforcedAdmin enforcedAdmin =
                 getProfileOrDeviceOwner(context, userRestriction, enforcingUser.getUserHandle());
-        if (admin != null) {
-            return admin;
+        if (enforcedAdmin != null) {
+            return enforcedAdmin;
         }
         return EnforcedAdmin.createDefaultEnforcedAdminWithRestriction(userRestriction);
     }
@@ -341,7 +360,7 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
      * @param userId user to create the resultant {@link EnforcedAdmin} as.
      * @param check filter predicate.
      *
-     * @return {@code null} if none of the {@param admins} match.
+     * @return {@code null} if none of the {@code admins} match.
      *         An {@link EnforcedAdmin} if exactly one of the admins matches.
      *         Otherwise, {@link EnforcedAdmin#MULTIPLE_ENFORCED_ADMIN} for multiple matches.
      */
@@ -386,6 +405,78 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
             }
         } catch (RemoteException e) {
             // Nothing to do
+        }
+        return null;
+    }
+
+    /**
+     * Checks for the user restrictions set on the app either by device admin or system
+     * components. Returns {@link PolicyEnforcementInfo} if the restriction is set with
+     * EnforcingAdmin and empty admin list otherwise.
+     * The {@link PolicyEnforcementInfo} that's returned will contain the information if it's
+     * blocked by admin or the system.
+     */
+    @NonNull
+    public static PolicyEnforcementInfo checkIfUninstallBlockedByAdminOrSystem(Context context,
+            String packageName, int userId) {
+        DevicePolicyManager dpm = context.getSystemService(DevicePolicyManager.class);
+        if (dpm == null) {
+            return new PolicyEnforcementInfo(Collections.emptyList());
+        }
+
+        PolicyEnforcementInfo appsControlAdminEnforcement = dpm.getEnforcingAdminsForPolicy(
+                DevicePolicyIdentifiers.getIdentifierForUserRestriction(
+                        UserManager.DISALLOW_APPS_CONTROL), userId);
+        if (!appsControlAdminEnforcement.getAllAdmins().isEmpty()) {
+            return appsControlAdminEnforcement;
+        }
+
+        PolicyEnforcementInfo uninstallAppsAdminEnforcement = dpm.getEnforcingAdminsForPolicy(
+                DevicePolicyIdentifiers.getIdentifierForUserRestriction(
+                        UserManager.DISALLOW_UNINSTALL_APPS), userId);
+        if (!uninstallAppsAdminEnforcement.getAllAdmins().isEmpty()) {
+            return uninstallAppsAdminEnforcement;
+        }
+
+        IPackageManager ipm = AppGlobals.getPackageManager();
+        try {
+            if (ipm.getBlockUninstallForUser(packageName, userId)) {
+                EnforcingAdmin admin = getProfileOrDeviceOwnerAdmin(context,
+                        getUserHandleOf(userId));
+                if (admin == null) {
+                    Log.w(LOG_TAG, "Uninstall blocked for " + packageName + " but no admin found.");
+                    return new PolicyEnforcementInfo(Collections.emptyList());
+                }
+                return new PolicyEnforcementInfo(List.of(admin));
+            }
+        } catch (RemoteException e) {
+            // Nothing to do
+        }
+        return new PolicyEnforcementInfo(Collections.emptyList());
+    }
+
+    // TODO(b/441922977): PO/DO assumption is not correct in context of policy transparency. This is
+    //  an intermediate step to get around that until the legacy policies are migrated to support
+    //  coexistence. This method needs to be removed when those policies are migrated.
+    private static @Nullable EnforcingAdmin getProfileOrDeviceOwnerAdmin(Context context,
+            UserHandle user) {
+        DevicePolicyManager dpm = context.getSystemService(DevicePolicyManager.class);
+
+        if (dpm == null) {
+            return null;
+        }
+
+        ComponentName adminComponent = dpm.getProfileOwnerAsUser(user);
+        if (adminComponent != null) {
+            return new EnforcingAdmin(adminComponent.getPackageName(), DPC_AUTHORITY, user,
+                    adminComponent);
+        }
+        if (Objects.equals(dpm.getDeviceOwnerUser(), user)) {
+            adminComponent = dpm.getDeviceOwnerComponentOnAnyUser();
+            if (adminComponent != null) {
+                return new EnforcingAdmin(adminComponent.getPackageName(), DPC_AUTHORITY, user,
+                        adminComponent);
+            }
         }
         return null;
     }
@@ -472,6 +563,10 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
         return null;
     }
 
+    // LINT.IfChange
+    /**
+     * Disables accessibility service that are not permitted.
+     */
     public static EnforcedAdmin checkIfAccessibilityServiceDisallowed(Context context,
             String packageName, int userId) {
         DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(
@@ -500,9 +595,27 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
         } else if (!permittedByProfileAdmin) {
             return profileAdmin;
         }
-        return null;
-    }
 
+        String userRestriction = UserManager.DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICE;
+        PolicyEnforcementInfo policyEnforcementInfo;
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            policyEnforcementInfo = dpm.getEnforcingAdminsForPolicy(
+                    getIdentifierForUserRestriction(userRestriction), userId);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+        if (policyEnforcementInfo.getAllAdmins().isEmpty()) {
+            return null;
+        }
+        EnforcingAdmin aapmEnforcingAdmin = policyEnforcementInfo.getMostImportantEnforcingAdmin();
+        EnforcedAdmin aapmEnforcedAdmin = new EnforcedAdmin(aapmEnforcingAdmin.getComponentName(),
+                userRestriction,
+                aapmEnforcingAdmin.getUserHandle());
+        return aapmEnforcedAdmin;
+    }
+    // LINT.ThenChange(frameworks/base/services/accessibility/java/com/android/server
+    // /accessibility/RestrictedLockUtilsInternal.java)
     /**
      * Retrieves the user ID of a managed profile associated with a specific user.
      *
@@ -556,6 +669,33 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
             return null;
         }
         return getProfileOrDeviceOwner(context, getUserHandleOf(userId));
+    }
+
+    /**
+     * Check if account management for a specific type of account is disabled by admin.
+     * Only a profile or device owner can disable account management. So, we check if account
+     * management is disabled and return profile or device owner on the calling user.
+     *
+     * @return EnforcingAdmin Object containing the enforcing admin component and admin user
+     * details or {@code null} if the account management is not disabled.
+     */
+    public static @Nullable EnforcingAdmin checkIfAccountManagementDisabledByAdmin(Context context,
+            String accountType, int userId) {
+        if (accountType == null) {
+            return null;
+        }
+        DevicePolicyManager dpm = context.getSystemService(DevicePolicyManager.class);
+        PackageManager pm = context.getPackageManager();
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_DEVICE_ADMIN) || dpm == null) {
+            return null;
+        }
+        String[] disabledTypes = dpm.getAccountTypesWithManagementDisabledAsUser(userId);
+        boolean isAccountTypeDisabled = disabledTypes != null && Arrays.asList(
+                disabledTypes).contains(accountType);
+        if (!isAccountTypeDisabled) {
+            return null;
+        }
+        return getProfileOrDeviceOwnerAdmin(context, getUserHandleOf(userId));
     }
 
     /**
@@ -703,7 +843,7 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
      * Checks whether any of the user's profiles enforce the lock setting. A managed profile is only
      * included if it does not have a separate challenge.
      *
-     * The user identified by {@param userId} is always included.
+     * The user identified by {@code userId} is always included.
      */
     private static EnforcedAdmin checkForLockSetting(
             Context context, @UserIdInt int userId, LockSettingCheck check) {
@@ -948,7 +1088,6 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     public static boolean isPolicyEnforcedByAdvancedProtection(Context context, String identifier,
             int userId) {
-        if (!android.security.Flags.aapmApi()) return false;
         if (identifier == null) return false;
         EnforcingAdmin admin = context.getSystemService(DevicePolicyManager.class)
                 .getEnforcingAdmin(userId, identifier);
@@ -979,6 +1118,30 @@ public class RestrictedLockUtilsInternal extends RestrictedLockUtils {
         }
         int profileId = getManagedProfileId(context, context.getUserId());
         return RestrictedLockUtils.getProfileOrDeviceOwner(context, UserHandle.of(profileId));
+    }
+
+    /**
+     * Check if there are restrictions on an application from being a Credential Manager provider.
+     *
+     * @return PolicyEnforcementInfo Object containing the enforced admin component and admin
+     * user details or {@code null} if the setting is not managed.
+     */
+    public static @NonNull PolicyEnforcementInfo checkIfApplicationCanBeCredentialManagerProvider(
+            @NonNull Context context, @NonNull String packageName, int userId) {
+        final DevicePolicyManager dpm = context.getSystemService(DevicePolicyManager.class);
+        final PackagePolicy pp = dpm.getCredentialManagerPolicy();
+        // TODO : b/454240717 - check if packageName is system app and provide a list of system
+        //  apps to query if package is allowed correctly.
+        if (pp == null || pp.isPackageAllowed(packageName, new HashSet<>())) {
+            return new PolicyEnforcementInfo(Collections.emptyList());
+        }
+
+        EnforcingAdmin admin = getProfileOrDeviceOwnerAdmin(context, UserHandle.of(userId));
+        if (admin == null) {
+            return new PolicyEnforcementInfo(Collections.emptyList());
+        }
+
+        return new PolicyEnforcementInfo(List.of(admin));
     }
 
     /**

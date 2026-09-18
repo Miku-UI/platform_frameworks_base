@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <string>
 
+#include "androidfw/ResourceTypes.h"
 #include "utils/ByteOrder.h"
 #include "utils/Unicode.h"
 

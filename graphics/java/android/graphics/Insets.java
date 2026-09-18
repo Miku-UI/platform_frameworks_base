@@ -132,6 +132,26 @@ public final class Insets implements Parcelable {
     }
 
     /**
+     * Returns an Insets instance of scaled values. The rounding logic exactly matches
+     * {@link Rect#scale(float)}.
+     *
+     * @param insets The given Insets.
+     * @param scale The given scale.
+     * @return a new instance of Insets if the scale is not 1, or the given insets is returned.
+     * @hide
+     */
+    public static @NonNull Insets scale(@NonNull Insets insets, float scale) {
+        if (scale == 1.0f) {
+            return insets;
+        }
+        return Insets.of(
+                (int) (insets.left * scale + 0.5f),
+                (int) (insets.top * scale + 0.5f),
+                (int) (insets.right * scale + 0.5f),
+                (int) (insets.bottom * scale + 0.5f));
+    }
+
+    /**
      * Two Insets instances are equal iff they belong to the same class and their fields are
      * pairwise equal.
      *

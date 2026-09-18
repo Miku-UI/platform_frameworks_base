@@ -40,6 +40,7 @@ import java.util.Objects;
  * <p>Vibrators without independent frequency control do not have a frequency profile.
  */
 @FlaggedApi(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VibratorFrequencyProfile {
 
     private final VibratorInfo.FrequencyProfile mFrequencyProfile;

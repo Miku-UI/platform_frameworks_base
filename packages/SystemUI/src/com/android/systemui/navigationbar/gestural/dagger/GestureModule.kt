@@ -16,6 +16,8 @@
 
 package com.android.systemui.navigationbar.gestural.dagger
 
+import com.android.systemui.navigationbar.gestural.GestureNavigationSettingsObserverFactory
+import com.android.systemui.navigationbar.gestural.GestureNavigationSettingsObserverFactoryImpl
 import com.android.systemui.navigationbar.gestural.data.respository.GestureRepository
 import com.android.systemui.navigationbar.gestural.data.respository.GestureRepositoryImpl
 import dagger.Binds
@@ -26,4 +28,10 @@ import dagger.Module
 interface GestureModule {
     /**  */
     @Binds fun gestureRespoitory(impl: GestureRepositoryImpl): GestureRepository
+
+    /**  */
+    @Binds
+    fun bindGestureNavigationSettingsObserverFactory(
+        impl: GestureNavigationSettingsObserverFactoryImpl
+    ): GestureNavigationSettingsObserverFactory
 }

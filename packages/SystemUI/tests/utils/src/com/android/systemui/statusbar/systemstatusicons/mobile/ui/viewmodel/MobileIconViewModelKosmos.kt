@@ -18,7 +18,7 @@ package com.android.systemui.statusbar.systemstatusicons.mobile.ui.viewmodel
 
 import android.content.Context
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsViewModel
+import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsStateFactory
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.stackedMobileIconViewModelFactory
 
 val Kosmos.mobileSystemStatusIconsViewModelFactory: MobileSystemStatusIconsViewModel.Factory by
@@ -27,7 +27,7 @@ val Kosmos.mobileSystemStatusIconsViewModelFactory: MobileSystemStatusIconsViewM
             override fun create(context: Context): MobileSystemStatusIconsViewModel =
                 MobileSystemStatusIconsViewModel(
                     context,
-                    mobileIconsViewModel,
+                    mobileIconsStateFactory,
                     stackedMobileIconViewModelFactory,
                 )
         }

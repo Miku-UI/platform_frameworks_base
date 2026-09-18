@@ -19,29 +19,22 @@ package com.android.systemui.qs.panels.ui.viewmodel
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.keyframes
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.compose.animation.Bounceable
+import com.android.compose.animation.BounceableImpl
 
-class BounceableTileViewModel : Bounceable {
-    private val animatableContainerBounce = Animatable(0.dp, Dp.VectorConverter)
+class BounceableTileViewModel(
+    private val containerBounceable: BounceableImpl = BounceableImpl(BounceSize)
+) : Bounceable by containerBounceable {
     private val animatableIconBounceScale = Animatable(1f)
     private val animatableTextBounceScale = Animatable(1f)
-
-    override val bounce: Dp
-        get() = animatableContainerBounce.value
 
     val iconBounceScale: Float
         get() = animatableIconBounceScale.value
 
     val textBounceScale: Float
         get() = animatableTextBounceScale.value
-
-    suspend fun animateContainerBounce() {
-        animatableContainerBounce.animateBounce(ContainerBounceAtRest, BounceSize)
-    }
 
     suspend fun animateContentBounce(iconOnly: Boolean) {
         if (iconOnly) {
@@ -79,7 +72,6 @@ class BounceableTileViewModel : Bounceable {
         val BounceSize = 8.dp
         val BounceStartEasing = CubicBezierEasing(.05f, 0f, 0f, 1f)
         val BounceEndEasing = CubicBezierEasing(1f, 0f, .95f, 1f)
-        val ContainerBounceAtRest = 0.dp
         const val ICON_BOUNCE_SCALE = 1.1f
         const val TEXT_BOUNCE_SCALE = 1.06f
         const val SCALE_BOUNCE_AT_REST = 1f

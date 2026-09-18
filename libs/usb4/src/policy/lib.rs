@@ -25,6 +25,8 @@
 
 /// Defines shared data structures and the primary control trait.
 pub mod common;
+/// Provides mode selection between alt modes.
+pub mod mode_selector;
 /// Implements the core authorization logic and Uevent handling.
 pub mod pci_authorizer;
 /// Provides the main public-facing API for the library.

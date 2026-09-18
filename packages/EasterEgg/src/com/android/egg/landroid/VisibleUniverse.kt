@@ -16,6 +16,7 @@
 
 package com.android.egg.landroid
 
+import android.os.Build
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotateRad
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -49,7 +51,7 @@ const val DRAW_ORBITS = true
 const val DRAW_GRAVITATIONAL_FIELDS = true
 const val DRAW_STAR_GRAVITATIONAL_FIELDS = true
 
-val STAR_POINTS = android.os.Build.VERSION.SDK_INT.takeIf { it in 1..99 } ?: 31
+val STAR_POINTS = Build.VERSION.SDK_INT.takeIf { it in 1..99 } ?: 31
 
 /**
  * A zoomedDrawScope is one that is scaled, but remembers its zoom level, so you can correct for it
@@ -175,12 +177,13 @@ fun ZoomedDrawScope.drawUniverse(universe: Universe) {
                 is Container -> drawContainer(it)
             }
         }
-        drawStar(star)
+        drawStar(star, universe.now)
         entities.forEach {
+            // TODO: skip drawing if the object is not on screen
             if (it === star) return@forEach // don't draw the star as a planet
             when (it) {
                 is Spark -> drawSpark(it)
-                is Planet -> drawPlanet(it)
+                is Planet -> drawPlanet(it, universe)
                 else -> Unit // draw these at a different time, or not at all
             }
         }
@@ -202,18 +205,18 @@ fun ZoomedDrawScope.drawContainer(container: Container) {
     )
 }
 
-fun ZoomedDrawScope.drawGravitationalField(planet: Planet) {
-    val rings = 8
+fun ZoomedDrawScope.drawGravitationalField(planet: Planet, now: Float) {
+    val rings = 10
     for (i in 0 until rings) {
         val force =
             lerp(
-                200f,
+                2000f,
                 0.01f,
-                i.toFloat() / rings
+                (i.toFloat() - now % 1f) / rings
             ) // first rings at force = 1N, dropping off after that
         val r = sqrt(GRAVITATION * planet.mass * SPACECRAFT_MASS / force)
         drawCircle(
-            color = Color(1f, 0f, 0f, lerp(0.5f, 0.1f, i.toFloat() / rings)),
+            color = Color(1f, 0f, 0f, lerp(0.75f, 0.1f, i.toFloat() / rings)),
             center = planet.pos,
             style = Stroke(2f / zoom),
             radius = r
@@ -221,11 +224,14 @@ fun ZoomedDrawScope.drawGravitationalField(planet: Planet) {
     }
 }
 
-fun ZoomedDrawScope.drawPlanet(planet: Planet) {
+fun ZoomedDrawScope.drawPlanet(planet: Planet, universe: Universe) {
     with(planet) {
+        // new in a17: things get a little more interesting once you've discovered a planet
+        val drawColor = if (planet.explored) planet.color else Colors.Eigengrau4
+
         if (DRAW_ORBITS)
             drawCircle(
-                color = Color(0x8000FFFF),
+                color = Colors.Eigengrau3,
                 radius = pos.distance(orbitCenter),
                 center = orbitCenter,
                 style =
@@ -235,19 +241,55 @@ fun ZoomedDrawScope.drawPlanet(planet: Planet) {
             )
 
         if (DRAW_GRAVITATIONAL_FIELDS) {
-            drawGravitationalField(this)
+            drawGravitationalField(this, universe.now)
         }
 
-        drawCircle(color = Colors.Eigengrau, radius = radius, center = pos)
-        drawCircle(color = color, radius = radius, center = pos, style = Stroke(2f / zoom))
+        translate(pos.x, pos.y) {
+            drawCircle(color = Colors.Eigengrau, radius = radius, center = Vec2.Zero)
+
+            // if you're close enough, you get to see the planet texture after you've discovered it
+            if (planet.explored
+                && this@drawPlanet.zoom > 0.05f
+                && planet.pos.distance(universe.ship.pos) < 10_000f
+            ) {
+                clipCircle(Vec2.Zero, radius) {
+                    val textureScale = radius / (planetTextureSize / 2f)
+                    // rather than perturbing the RNG we're just going to piggyback off of some
+                    // of the intrinsic randomness of the planet
+                    val textureRot = PI2f * (radius % 100f) / 100f
+                    val textureArt = planetTextures[((radius % 17f) / 17f * planetTextures.size).toInt()]
+                    rotateRad(textureRot, pivot = Vec2.Zero) {
+                        translate(-radius, -radius) {
+                            scale(textureScale, pivot = Vec2.Zero) {
+                                drawPath(
+                                    path = textureArt,
+                                    color = drawColor,
+                                    style = Stroke(width = 1f / this@drawPlanet.zoom / textureScale)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            drawCircle(
+                color = drawColor,
+                radius = radius,
+                center = Vec2.Zero,
+                style = Stroke(2f / this@drawPlanet.zoom)
+            )
+        }
     }
 }
 
-fun ZoomedDrawScope.drawStar(star: Star) {
-    translate(star.pos.x, star.pos.y) {
-        drawCircle(color = star.color, radius = star.radius, center = Vec2.Zero)
+fun DrawScope.clipCircle(center: Vec2, radius: Float, block: DrawScope.() -> Unit) {
+    clipPath(Path().apply { addCircle(center, radius) }, block = block)
+}
 
-        if (DRAW_STAR_GRAVITATIONAL_FIELDS) this@drawStar.drawGravitationalField(star)
+fun ZoomedDrawScope.drawStar(star: Star, now: Float) {
+    translate(star.pos.x, star.pos.y) {
+        if (DRAW_STAR_GRAVITATIONAL_FIELDS) this@drawStar.drawGravitationalField(star, now)
+
+        drawCircle(color = star.color, radius = star.radius, center = Vec2.Zero)
 
         rotateRad(radians = star.anim / 23f * PI2f, pivot = Vec2.Zero) {
             drawPath(
@@ -283,49 +325,6 @@ fun ZoomedDrawScope.drawStar(star: Star) {
         }
     }
 }
-
-val spaceshipPath =
-    Path().apply {
-        parseSvgPathData(
-            """
-M11.853 0
-C11.853 -4.418 8.374 -8 4.083 -8
-L-5.5 -8
-C-6.328 -8 -7 -7.328 -7 -6.5
-C-7 -5.672 -6.328 -5 -5.5 -5
-L-2.917 -5
-C-1.26 -5 0.083 -3.657 0.083 -2
-L0.083 2
-C0.083 3.657 -1.26 5 -2.917 5
-L-5.5 5
-C-6.328 5 -7 5.672 -7 6.5
-C-7 7.328 -6.328 8 -5.5 8
-L4.083 8
-C8.374 8 11.853 4.418 11.853 0
-Z
-"""
-        )
-    }
-val spaceshipLegs =
-    Path().apply {
-        parseSvgPathData(
-            """
-M-7   -6.5
-l-3.5  0
-l-1   -2
-l 0    4
-l 1   -2
-Z
-M-7    6.5
-l-3.5  0
-l-1   -2
-l 0    4
-l 1   -2
-Z
-"""
-        )
-    }
-val thrustPath = createPolygon(-3f, 3).also { it.translate(Vec2(-5f, 0f)) }
 
 fun ZoomedDrawScope.drawSpacecraft(ship: Spacecraft) {
     with(ship) {

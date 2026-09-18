@@ -16,8 +16,10 @@
 
 package android.media;
 
+import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * An AudioPortConfig contains a possible configuration of an audio port chosen
@@ -32,13 +34,14 @@ import android.os.Build;
  * @hide
  */
 
+@RavenwoodKeepWholeClass
 public class AudioPortConfig {
     @UnsupportedAppUsage
     final AudioPort mPort;
     @UnsupportedAppUsage
     private final int mSamplingRate;
     @UnsupportedAppUsage
-    private final int mChannelMask;
+    @NonNull private final AudioFormat.ChannelMasks mChannelMasks;
     @UnsupportedAppUsage
     private final int mFormat;
     @UnsupportedAppUsage
@@ -57,9 +60,15 @@ public class AudioPortConfig {
     @UnsupportedAppUsage
     AudioPortConfig(AudioPort port, int samplingRate, int channelMask, int format,
             AudioGainConfig gain) {
+        this(port, samplingRate, new AudioFormat.ChannelMasks(channelMask), format, gain);
+    }
+
+    @UnsupportedAppUsage
+    AudioPortConfig(AudioPort port, int samplingRate,
+            @NonNull AudioFormat.ChannelMasks channelMasks, int format, AudioGainConfig gain) {
         mPort = port;
         mSamplingRate = samplingRate;
-        mChannelMask = channelMask;
+        mChannelMasks = channelMasks;
         mFormat = format;
         mGain = gain;
         mConfigMask = 0;
@@ -84,7 +93,14 @@ public class AudioPortConfig {
      * Channel mask configuration (e.g AudioFormat.CHANNEL_CONFIGURATION_STEREO).
      */
     public int channelMask() {
-        return mChannelMask;
+        return mChannelMasks.getPositionMask();
+    }
+
+    /**
+     * Channel mask configuration.
+     */
+    public @NonNull AudioFormat.ChannelMasks channelMasks() {
+        return mChannelMasks;
     }
 
     /**
@@ -105,7 +121,7 @@ public class AudioPortConfig {
     public String toString() {
         return "{mPort:" + mPort
                 + ", mSamplingRate:" + mSamplingRate
-                + ", mChannelMask: " + mChannelMask
+                + ", m" + mChannelMasks
                 + ", mFormat:" + mFormat
                 + ", mGain:" + mGain
                 + "}";

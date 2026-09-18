@@ -15,6 +15,7 @@
  */
 
 package com.android.wm.shell.apptoweb
+
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
@@ -27,13 +28,17 @@ import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.compatui.DialogContainerSupplier
 
-/** View for open by default settings dialog for an application which allows the user to change
- * where links will open by default, in the default browser or in the application. */
-class OpenByDefaultDialogView @JvmOverloads constructor(
+/**
+ * View for open by default settings dialog for an application which allows the user to change where
+ * links will open by default, in the default browser or in the application.
+ */
+class OpenByDefaultDialogView
+@JvmOverloads
+constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-    defStyleRes: Int = 0
+    defStyleRes: Int = 0,
 ) : ConstraintLayout(context, attrs, defStyleAttr, defStyleRes), DialogContainerSupplier {
 
     private lateinit var dialogContainer: View
@@ -49,7 +54,7 @@ class OpenByDefaultDialogView @JvmOverloads constructor(
         setOnClickListener(callback)
         // We add a no-op on-click listener to the dialog container so that clicks on it won't
         // propagate to the listener of the layout (which represents the background dim).
-        dialogContainer.setOnClickListener { }
+        dialogContainer.setOnClickListener {}
     }
 
     fun setConfirmButtonClickListener(callback: (View) -> Unit) {
@@ -68,9 +73,8 @@ class OpenByDefaultDialogView @JvmOverloads constructor(
         dialogSubheader = dialogContainer.requireViewById(R.id.dialog_subheader)
         openInAppButton = dialogContainer.requireViewById(R.id.open_in_app_button)
         openInBrowserButton = dialogContainer.requireViewById(R.id.open_in_browser_button)
-        dismissButton = dialogContainer.requireViewById(
-            R.id.open_by_default_settings_dialog_confirm_button
-        )
+        dismissButton =
+            dialogContainer.requireViewById(R.id.open_by_default_settings_dialog_confirm_button)
 
         backgroundDim = background.mutate()
         backgroundDim.alpha = 128
@@ -84,20 +88,21 @@ class OpenByDefaultDialogView @JvmOverloads constructor(
     // elements behind the dialog.
     // TODO: ag/34061541 - once landed, see if we can refactor with simpler fix
     private fun setupA11yTraversal() {
-        dialogTitle.accessibilityTraversalBefore = R.id.open_by_default_settings_dialog_confirm_button
-        dialogTitle.accessibilityTraversalAfter = R.id.dialog_subheader
+        dialogTitle.accessibilityTraversalAfter =
+            R.id.open_by_default_settings_dialog_confirm_button
+        dialogTitle.accessibilityTraversalBefore = R.id.dialog_subheader
 
-        dialogSubheader.accessibilityTraversalBefore = R.id.application_name
-        dialogSubheader.accessibilityTraversalAfter = R.id.open_in_app_button
+        dialogSubheader.accessibilityTraversalAfter = R.id.application_name
+        dialogSubheader.accessibilityTraversalBefore = R.id.open_in_app_button
 
-        openInAppButton.accessibilityTraversalBefore = R.id.dialog_subheader
-        openInAppButton.accessibilityTraversalAfter = R.id.open_in_browser_button
+        openInAppButton.accessibilityTraversalAfter = R.id.dialog_subheader
+        openInAppButton.accessibilityTraversalBefore = R.id.open_in_browser_button
 
-        openInBrowserButton.accessibilityTraversalBefore = R.id.open_in_app_button
-        openInBrowserButton.accessibilityTraversalAfter =
+        openInBrowserButton.accessibilityTraversalAfter = R.id.open_in_app_button
+        openInBrowserButton.accessibilityTraversalBefore =
             R.id.open_by_default_settings_dialog_confirm_button
 
-        dismissButton.accessibilityTraversalBefore = R.id.open_in_browser_button
-        dismissButton.accessibilityTraversalAfter = R.id.application_name
+        dismissButton.accessibilityTraversalAfter = R.id.open_in_browser_button
+        dismissButton.accessibilityTraversalBefore = R.id.application_name
     }
 }

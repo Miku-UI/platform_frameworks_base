@@ -502,7 +502,7 @@ public class UpdateEngine {
     }
 
     /**
-     * Return value of {@link #allocateSpace.}
+     * Return value of {@link #allocateSpace}.
      */
     public static final class AllocateSpaceResult {
         private @ErrorCode int mErrorCode = ErrorCodeConstants.SUCCESS;

@@ -18,8 +18,6 @@ package com.android.systemui.statusbar.notification.promoted.domain.interactor
 
 import android.app.Notification.FLAG_FOREGROUND_SERVICE
 import android.app.Notification.FLAG_ONGOING_EVENT
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -33,9 +31,7 @@ import com.android.systemui.mediaprojection.data.repository.fakeMediaProjectionR
 import com.android.systemui.mediaprojection.taskswitcher.FakeActivityTaskManager.Companion.createTask
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.screenrecord.data.repository.screenRecordRepository
-import com.android.systemui.statusbar.chips.call.ui.viewmodel.CallChipViewModelTest.Companion.createStatusBarIconViewOrNull
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildOngoingCallEntry
 import com.android.systemui.statusbar.notification.collection.buildPromotedOngoingEntry
@@ -43,9 +39,7 @@ import com.android.systemui.statusbar.notification.data.model.activeNotification
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
 import com.android.systemui.statusbar.notification.data.repository.addNotif
 import com.android.systemui.statusbar.notification.domain.interactor.renderNotificationListInteractor
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentBuilder
-import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallTestHelper.addOngoingCallState
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -55,11 +49,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(
-    PromotedNotificationUi.FLAG_NAME,
-    StatusBarChipsModernization.FLAG_NAME,
-    StatusBarRootModernization.FLAG_NAME,
-)
 class PromotedNotificationsInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
@@ -563,14 +552,14 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             activeNotificationListRepository.addNotif(
                 activeNotificationModel(
                     key = "notif1",
-                    statusBarChipIcon = createStatusBarIconViewOrNull(),
+                    statusBarChipIcon = null,
                     promotedContent = PromotedNotificationContentBuilder("notif1").build(),
                 )
             )
             activeNotificationListRepository.addNotif(
                 activeNotificationModel(
                     key = "notif2",
-                    statusBarChipIcon = createStatusBarIconViewOrNull(),
+                    statusBarChipIcon = null,
                     promotedContent = PromotedNotificationContentBuilder("notif2").build(),
                 )
             )
@@ -609,14 +598,14 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             activeNotificationListRepository.addNotif(
                 activeNotificationModel(
                     key = "notif1",
-                    statusBarChipIcon = createStatusBarIconViewOrNull(),
+                    statusBarChipIcon = null,
                     promotedContent = PromotedNotificationContentBuilder("notif1").build(),
                 )
             )
             activeNotificationListRepository.addNotif(
                 activeNotificationModel(
                     key = "notif2",
-                    statusBarChipIcon = createStatusBarIconViewOrNull(),
+                    statusBarChipIcon = null,
                     promotedContent = PromotedNotificationContentBuilder("notif2").build(),
                 )
             )

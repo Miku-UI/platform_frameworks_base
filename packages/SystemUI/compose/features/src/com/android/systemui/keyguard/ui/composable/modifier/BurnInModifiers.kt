@@ -16,61 +16,29 @@
 
 package com.android.systemui.keyguard.ui.composable.modifier
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onPlaced
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
-import com.android.systemui.keyguard.ui.viewmodel.BurnInParameters
-import com.android.systemui.keyguard.ui.viewmodel.BurnInScaleViewModel
-import kotlinx.coroutines.flow.map
+import com.android.systemui.keyguard.shared.model.BurnInModel.Companion.MAX_LARGE_CLOCK_SCALE
+import com.android.systemui.keyguard.ui.viewmodel.BurnInMovementState
 
 /**
  * Modifies the composable to account for anti-burn in translation, alpha, and scaling.
  *
  * Please override [isClock] as `true` if the composable is an element that's part of a clock.
  */
-@Composable
-fun Modifier.burnInAware(
-    viewModel: AodBurnInViewModel,
-    params: BurnInParameters,
-    isClock: Boolean = false,
-): Modifier {
-    val cachedYTranslation = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        viewModel.updateBurnInParams(params.copy(translationY = { cachedYTranslation.floatValue }))
-    }
-
-    val burnIn = viewModel.movement
-    val translationX by
-        burnIn.map { it.translationX.toFloat() }.collectAsStateWithLifecycle(initialValue = 0f)
-    val translationY by
-        burnIn.map { it.translationY.toFloat() }.collectAsStateWithLifecycle(initialValue = 0f)
-    cachedYTranslation.floatValue = translationY
-    val scaleViewModel by
-        burnIn
-            .map { BurnInScaleViewModel(scale = it.scale, scaleClockOnly = it.scaleClockOnly) }
-            .collectAsStateWithLifecycle(initialValue = BurnInScaleViewModel())
-
+fun Modifier.burnInAware(movement: BurnInMovementState, isClock: Boolean): Modifier {
     return this.graphicsLayer {
-        this.translationX = if (isClock) 0F else translationX
-        this.translationY = translationY
-        this.alpha = alpha
+        this.translationX = if (isClock) 0f else movement.translation.x
+        this.translationY = movement.translation.y
 
-        val scale = if (scaleViewModel.scaleClockOnly) scaleViewModel.scale else 1f
+        val scale =
+            when {
+                !isClock -> 1f
+                movement.scale.scaleClockOnly -> movement.scale.scale
+                else -> MAX_LARGE_CLOCK_SCALE
+            }
         this.scaleX = scale
         this.scaleY = scale
     }
-}
-
-/** Reports the "top" coordinate of the modified composable to the given [consumer]. */
-@Composable
-fun Modifier.onTopPlacementChanged(consumer: (Float) -> Unit): Modifier {
-    return onPlaced { coordinates -> consumer(coordinates.boundsInWindow().top) }
 }

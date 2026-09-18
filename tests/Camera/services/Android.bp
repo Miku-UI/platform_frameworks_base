@@ -1,0 +1,54 @@
+//########################################################################
+// Build CameraServicesTests package
+//########################################################################
+
+package {
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_camera_framework",
+}
+
+android_test {
+    name: "CameraServicesTests",
+    defaults: [
+        // For ExtendedMockito dependencies.
+        "modules-utils-extended-mockito-rule-defaults",
+        "modules-utils-testable-device-config-defaults",
+    ],
+
+    // Include all test java files.
+    srcs: [
+        "src/**/*.java",
+    ],
+
+    static_libs: [
+        "androidx.test.runner",
+        "flag-junit",
+        "junit",
+        "junit-params",
+        "mockito-target-extended-minus-junit4",
+        "services.companion",
+        "services.core",
+        "servicestests-utils-mockito-extended",
+        "truth",
+        "mockito-target-extended-minus-junit4",
+        "statsdprotolite",
+        "StatsdTestUtils",
+    ],
+
+    libs: [
+        "android.test.runner.stubs.system",
+    ],
+
+    platform_apis: true,
+
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+
+    certificate: "platform",
+
+    optimize: {
+        enabled: false,
+    },
+}

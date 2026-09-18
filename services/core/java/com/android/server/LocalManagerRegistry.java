@@ -21,6 +21,8 @@ import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.util.ArrayMap;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.Map;
 import java.util.Objects;
 
@@ -83,6 +85,19 @@ public final class LocalManagerRegistry {
                 throw new IllegalStateException(managerClass.getName() + " is already registered");
             }
             sManagers.put(managerClass, manager);
+        }
+    }
+
+
+    /**
+     * Removes a manager from the registry for testing. Must be only used in tests.
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    public static <T> void removeManagerForTesting(@NonNull Class<T> managerClass) {
+        synchronized (sManagers) {
+            sManagers.remove(managerClass);
         }
     }
 

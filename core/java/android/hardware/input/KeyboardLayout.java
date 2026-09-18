@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.os.LocaleList;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -31,6 +32,7 @@ import java.util.Objects;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public final class KeyboardLayout implements Parcelable, Comparable<KeyboardLayout> {
 
     /** Undefined keyboard layout */

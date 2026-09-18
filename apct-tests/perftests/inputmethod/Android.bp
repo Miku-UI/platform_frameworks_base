@@ -31,6 +31,7 @@ android_test {
         "apct-perftests-utils",
         "collector-device-lib",
         "compatibility-device-util-axt",
+        "flickerlib-parsers",
         "platform-test-annotations",
     ],
     test_suites: ["device-tests"],

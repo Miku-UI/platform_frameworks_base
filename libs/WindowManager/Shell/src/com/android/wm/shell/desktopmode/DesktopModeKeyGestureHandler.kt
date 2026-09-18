@@ -20,14 +20,20 @@ import android.app.ActivityManager.RunningTaskInfo
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
 import android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW
+import android.app.KeyguardManager
 import android.content.Context
 import android.hardware.input.InputManager
 import android.hardware.input.InputManager.KeyGestureEventHandler
 import android.hardware.input.KeyGestureEvent
 import android.os.IBinder
 import android.view.Display.DEFAULT_DISPLAY
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED
+import android.view.accessibility.AccessibilityManager
+import android.widget.Toast
 import android.window.DesktopExperienceFlags
 import com.android.internal.protolog.ProtoLog
+import com.android.wm.shell.R
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.ShellExecutor
@@ -38,7 +44,7 @@ import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
 import com.android.wm.shell.shared.annotations.ShellMainThread
 import com.android.wm.shell.shared.desktopmode.DesktopModeTransitionSource
 import com.android.wm.shell.shared.desktopmode.DesktopState
-import com.android.wm.shell.splitscreen.SplitScreenController
+import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.transition.FocusTransitionObserver
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModel
 import java.util.Optional
@@ -55,8 +61,14 @@ class DesktopModeKeyGestureHandler(
     @ShellMainThread private val mainExecutor: ShellExecutor,
     private val displayController: DisplayController,
     private val desktopState: DesktopState,
-    private val splitScreenController: Optional<SplitScreenController>,
+    private val accessibilityManager: AccessibilityManager,
+    private val shellController: ShellController,
+    private val keyguardManager: KeyguardManager,
 ) : KeyGestureEventHandler {
+    private val a11yAnnounceTextMinimizing: String =
+        context.getString(R.string.desktop_mode_talkback_state_minimizing)
+    private val a11yAnnounceTextClosing: String =
+        context.getString(R.string.desktop_mode_talkback_state_closing)
 
     init {
         if (desktopTasksController.isPresent && desktopModeWindowDecorViewModel.isPresent) {
@@ -77,6 +89,16 @@ class DesktopModeKeyGestureHandler(
     }
 
     override fun handleKeyGestureEvent(event: KeyGestureEvent, focusedToken: IBinder?) {
+        if (keyguardManager.isKeyguardLocked) {
+            logV("Key gesture is ignored because keyguard is showing")
+            return
+        }
+
+        if (shellController.isOverviewVisible(focusTransitionObserver.globallyFocusedDisplayId)) {
+            logV("Key gesture is ignored because overview is visible")
+            return
+        }
+
         when (event.keyGestureType) {
             KeyGestureEvent.KEY_GESTURE_TYPE_MOVE_TO_NEXT_DISPLAY -> {
                 logV("Key gesture MOVE_TO_NEXT_DISPLAY is handled")
@@ -174,6 +196,7 @@ class DesktopModeKeyGestureHandler(
                 logV("Key gesture MINIMIZE_FREEFORM_WINDOW is handled")
                 getGloballyFocusedDesktopTask()?.let {
                     mainExecutor.execute {
+                        handleA11y(a11yAnnounceTextMinimizing)
                         desktopTasksController.get().minimizeTask(it, MinimizeReason.KEY_GESTURE)
                     }
                 }
@@ -199,6 +222,8 @@ class DesktopModeKeyGestureHandler(
                         }
                     } ?: return
                 mainExecutor.execute {
+                    handleA11y(a11yAnnounceTextClosing)
+                    // TODO(b/448484440): Call DesktopTasksController#closeTask instead.
                     desktopModeWindowDecorViewModel.get().closeTask(focusedTask)
                 }
             }
@@ -236,15 +261,6 @@ class DesktopModeKeyGestureHandler(
     //  will pick a wrong task when a user quickly perform other actions with keyboard shortcuts
     //  after moveToNextDisplay, and move this to FocusTransitionObserver class.
     private fun getGloballyFocusedDesktopTask(): RunningTaskInfo? {
-        if (
-            !DesktopExperienceFlags.EXCLUDE_DESK_ROOTS_FROM_DESKTOP_TASKS.isTrue ||
-                !DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue
-        ) {
-            return shellTaskOrganizer.getRunningTasks().find { taskInfo ->
-                taskInfo.windowingMode == WINDOWING_MODE_FREEFORM &&
-                    focusTransitionObserver.hasGlobalFocus(taskInfo)
-            }
-        }
         val repository = desktopUserRepositories.current
         return shellTaskOrganizer.getRunningTasks().find { taskInfo ->
             repository.isActiveTask(taskInfo.taskId) &&
@@ -259,14 +275,6 @@ class DesktopModeKeyGestureHandler(
                 desktopTask.taskId,
             )
             return@getGloballyFocusedTaskToMoveToNextDisplay desktopTask
-        }
-
-        if (!DesktopExperienceFlags.MOVE_TO_NEXT_DISPLAY_SHORTCUT_WITH_PROJECTED_MODE.isTrue) {
-            logV(
-                "getGloballyFocusedTaskToMoveToNextDisplay: Skip focusing fullscreen task because " +
-                    "MOVE_TO_NEXT_DISPLAY_SHORTCUT_WITH_PROJECTED_MODE is disabled"
-            )
-            return null
         }
 
         if (!desktopState.isProjectedMode()) {
@@ -363,10 +371,29 @@ class DesktopModeKeyGestureHandler(
         }
     }
 
+    // TODO(b/485012341): extract this into its own utility class,
+    // TODO(b/485012341): refactor handling of announcements in AppHeaderViewHolder
+    private fun handleA11y(eventText: String) {
+        // Send an a11y event as if a toast was shown
+        if (!accessibilityManager.isEnabled) return
+
+        val event =
+            AccessibilityEvent(TYPE_NOTIFICATION_STATE_CHANGED).apply {
+                className = Toast::class.java.name
+                packageName = context.opPackageName
+                text.add(eventText)
+            }
+        accessibilityManager.sendAccessibilityEvent(event)
+    }
+
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
         ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

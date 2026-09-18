@@ -19,15 +19,11 @@ import com.android.hoststubgen.utils.ArgIterator
 import com.android.hoststubgen.utils.DEFAULT_SHARD_COUNT
 import com.android.hoststubgen.utils.IntSetOnce
 import com.android.hoststubgen.utils.SetOnce
-import com.android.hoststubgen.utils.ensureFileExists
 
 /**
  * Options that can be set from command line arguments.
  */
 class HostStubGenOptions(
-    /** Input jar file*/
-    val inJar: SetOnce<String> = SetOnce(""),
-
     /** Output jar file */
     val outJar: SetOnce<String?> = SetOnce(null),
 
@@ -41,9 +37,7 @@ class HostStubGenOptions(
 ) : HostStubGenClassProcessorOptions() {
 
     override fun checkArgs() {
-        if (!inJar.isSet) {
-            throw ArgumentsException("Required option missing: --in-jar")
-        }
+        super.checkArgs()
         if (!outJar.isSet) {
             log.w("--out-jar is not set. $executableName will not generate jar files.")
         }
@@ -57,7 +51,6 @@ class HostStubGenOptions(
             // TODO: Write help
             "-h", "--help" -> TODO("Help is not implemented yet")
 
-            "--in-jar" -> inJar.set(nextArg()).ensureFileExists()
             "--out-jar" -> outJar.set(nextArg())
 
             "--clean-up-on-error" -> cleanUpOnError.set(true)
@@ -80,7 +73,6 @@ class HostStubGenOptions(
 
     override fun dumpFields(): String {
         return """
-            inJar=$inJar,
             outJar=$outJar,
             inputJarDumpFile=$inputJarDumpFile,
             inputJarAsKeepAllFile=$inputJarAsKeepAllFile,

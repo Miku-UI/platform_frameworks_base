@@ -122,7 +122,7 @@ public class FingerprintSensorConfigurations implements Parcelable {
     }
 
     /**
-     * Checks if {@param instance} exists.
+     * Checks if {@code instance} exists.
      */
     @Nullable
     public boolean doesInstanceExist(String instance) {
@@ -130,7 +130,7 @@ public class FingerprintSensorConfigurations implements Parcelable {
     }
 
     /**
-     * Return the first HAL instance, which does not correspond to the given {@param instance}.
+     * Return the first HAL instance, which does not correspond to the given {@code instance}.
      * If another instance is not available, then null is returned.
      */
     @Nullable
@@ -202,7 +202,7 @@ public class FingerprintSensorConfigurations implements Parcelable {
     }
 
     /**
-     * Returns fingerprint sensor props for the HAL {@param instance}.
+     * Returns fingerprint sensor props for the HAL {@code instance}.
      */
     @Nullable
     public SensorProps[] getSensorPropForInstance(String instance) {

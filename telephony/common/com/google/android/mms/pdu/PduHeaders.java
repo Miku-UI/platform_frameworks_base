@@ -362,7 +362,7 @@ public class PduHeaders {
     @UnsupportedAppUsage
     protected void setOctet(int value, int field)
             throws InvalidHeaderValueException{
-        /**
+        /*
          * Check whether this field can be set for specific
          * header and check validity of the field.
          */
@@ -519,7 +519,7 @@ public class PduHeaders {
      * @throws NullPointerException if the value is null.
      */
     protected void setTextString(byte[] value, int field) {
-        /**
+        /*
          * Check whether this field can be set for specific
          * header and check validity of the field.
          */
@@ -588,7 +588,7 @@ public class PduHeaders {
      */
     @UnsupportedAppUsage
     protected void setEncodedStringValue(EncodedStringValue value, int field) {
-        /**
+        /*
          * Check whether this field can be set for specific
          * header and check validity of the field.
          */
@@ -625,7 +625,7 @@ public class PduHeaders {
      * @throws NullPointerException if the value is null.
      */
     protected void setEncodedStringValues(EncodedStringValue[] value, int field) {
-        /**
+        /*
          * Check whether this field can be set for specific
          * header and check validity of the field.
          */
@@ -708,7 +708,7 @@ public class PduHeaders {
      */
     @UnsupportedAppUsage
     protected void setLongInteger(long value, int field) {
-        /**
+        /*
          * Check whether this field can be set for specific
          * header and check validity of the field.
          */

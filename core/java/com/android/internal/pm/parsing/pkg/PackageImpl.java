@@ -20,6 +20,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 
+import android.annotation.FlaggedApi;
 import android.annotation.LongDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -56,6 +57,8 @@ import com.android.internal.pm.pkg.SEInfoUtil;
 import com.android.internal.pm.pkg.component.ComponentMutateUtils;
 import com.android.internal.pm.pkg.component.ParsedActivity;
 import com.android.internal.pm.pkg.component.ParsedActivityImpl;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicy;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicyImpl;
 import com.android.internal.pm.pkg.component.ParsedApexSystemService;
 import com.android.internal.pm.pkg.component.ParsedApexSystemServiceImpl;
 import com.android.internal.pm.pkg.component.ParsedAttribution;
@@ -324,6 +327,8 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Nullable
     @DataClass.ParcelWith(ForInternedString.class)
     private String backupAgentName;
+    @ApplicationInfo.BackupAgentProcess private int mBackupAgentProcess =
+            ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN;
     private int banner;
     private int category = ApplicationInfo.CATEGORY_UNDEFINED;
     @Nullable
@@ -371,6 +376,12 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Nullable
     @DataClass.ParcelWith(ForInternedString.class)
     private String zygotePreloadName;
+    @Nullable
+    @DataClass.ParcelWith(ForInternedString.class)
+    private String mZygotePreloadNativeLib;
+    @Nullable
+    @DataClass.ParcelWith(ForInternedString.class)
+    private String mZygotePreloadNativeFunc;
     /**
      * @see AndroidPackage#getResizeableActivity()
      */
@@ -406,11 +417,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     private int mLocaleConfigRes;
     private boolean mAllowCrossUidActivitySwitchFromBelow;
 
-    @Nullable
-    private int[] mAlternateLauncherIconResIds;
-    @Nullable
-    private int[] mAlternateLauncherLabelResIds;
-
     private List<AndroidPackageSplit> mSplits;
 
     @NonNull
@@ -425,6 +431,9 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     private Map<String, Boolean> mFeatureFlagState = new ArrayMap<>();
 
     private int mIntentMatchingFlags;
+
+    @Nullable
+    private ParsedAllowComponentAccessPolicy mParsedAllowComponentAccessPolicy;
 
     @NonNull
     public static PackageImpl forParsing(@NonNull String packageName, @NonNull String baseCodePath,
@@ -539,7 +548,11 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     public PackageImpl addImplicitPermission(String permission) {
         addUsesPermission(
                 new ParsedUsesPermissionImpl(
-                        permission, /* usesPermissionFlags= */ 0, /* purposes= */ emptySet()));
+                        permission,
+                        /* usesPermissionFlags= */ 0,
+                        /* purposeStringResource= */ 0,
+                        /* purposes= */ emptySet(),
+                        /* generalPurposes= */ emptySet()));
         this.implicitPermissions = CollectionUtils.add(this.implicitPermissions,
                 TextUtils.safeIntern(permission));
         return this;
@@ -875,18 +888,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         return adoptPermissions;
     }
 
-    @Nullable
-    @Override
-    public int[] getAlternateLauncherIconResIds() {
-        return mAlternateLauncherIconResIds;
-    }
-
-    @Nullable
-    @Override
-    public int[] getAlternateLauncherLabelResIds() {
-        return mAlternateLauncherLabelResIds;
-    }
-
     @NonNull
     @Override
     public List<ParsedApexSystemService> getApexSystemServices() {
@@ -914,6 +915,12 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public String getBackupAgentName() {
         return backupAgentName;
+    }
+
+    @ApplicationInfo.BackupAgentProcess
+    @Override
+    public int getBackupAgentProcess() {
+        return mBackupAgentProcess;
     }
 
     @Override
@@ -1562,6 +1569,18 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         return zygotePreloadName;
     }
 
+    @Nullable
+    @Override
+    public String getZygotePreloadNativeFunc() {
+        return mZygotePreloadNativeFunc;
+    }
+
+    @Nullable
+    @Override
+    public String getZygotePreloadNativeLib() {
+        return mZygotePreloadNativeLib;
+    }
+
     @Override
     public boolean isAllowCrossUidActivitySwitchFromBelow() {
         return mAllowCrossUidActivitySwitchFromBelow;
@@ -1732,11 +1751,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     }
 
     @Override
-    public boolean shouldRunInPccSandbox() {
-        return getBoolean2(Booleans2.RUN_IN_PCC_SANDBOX);
-    }
-
-    @Override
     public boolean isResourceOverlay() {
         return getBoolean(Booleans.OVERLAY);
     }
@@ -1857,6 +1871,14 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         return getBoolean(Booleans.USE_EMBEDDED_DEX);
     }
 
+    /**
+     * @deprecated This API will be deprecated in the future and will always return false for
+     * newer platform versions.
+     * The future-proof mechanism to opt-in to cleartext traffic is to specify a
+     * <a href="{@docRoot}privacy-and-security/security-config#CleartextTrafficOptIn">Network
+     * Security Configuration file</a> in addition to android:usesCleartextTraffic in the
+     * manifest.
+     */
     @Override
     public boolean isCleartextTrafficAllowed() {
         return getBoolean(Booleans.USES_CLEARTEXT_TRAFFIC);
@@ -1875,6 +1897,11 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public boolean isVmSafeMode() {
         return getBoolean(Booleans.VM_SAFE_MODE);
+    }
+
+    @Override
+    public boolean hasPccComponents() {
+        return getBoolean2(Booleans2.HAS_PCC_COMPONENTS);
     }
 
     @Override public PackageImpl removeUsesOptionalNativeLibrary(String libraryName) {
@@ -1906,19 +1933,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public PackageImpl setAllowNativeHeapPointerTagging(boolean value) {
         return setBoolean(Booleans.ALLOW_NATIVE_HEAP_POINTER_TAGGING, value);
-    }
-
-    @Override
-    public PackageImpl setAlternateLauncherIconResIds(@Nullable int[] alternateLauncherIconResIds) {
-        this.mAlternateLauncherIconResIds = alternateLauncherIconResIds;
-        return this;
-    }
-
-    @Override
-    public PackageImpl setAlternateLauncherLabelResIds(
-            @Nullable int[] alternateLauncherLabelResIds) {
-        this.mAlternateLauncherLabelResIds = alternateLauncherLabelResIds;
-        return this;
     }
 
     @Override
@@ -1957,6 +1971,13 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public PackageImpl setBackupAgentName(@Nullable String backupAgentName) {
         this.backupAgentName = backupAgentName;
+        return this;
+    }
+
+    @Override
+    public PackageImpl setBackupAgentProcess(
+            @ApplicationInfo.BackupAgentProcess int backupAgentProcess) {
+        this.mBackupAgentProcess = backupAgentProcess;
         return this;
     }
 
@@ -2245,12 +2266,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public ParsingPackage setOnBackInvokedCallbackEnabled(boolean value) {
         setBoolean(Booleans.ENABLE_ON_BACK_INVOKED_CALLBACK, value);
-        return this;
-    }
-
-    @Override
-    public ParsingPackage setRunInPccSandbox(boolean value) {
-        setBoolean2(Booleans2.RUN_IN_PCC_SANDBOX, value);
         return this;
     }
 
@@ -2574,7 +2589,14 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         return setBoolean(Booleans.USE_EMBEDDED_DEX, value);
     }
 
+    /**
+     * @deprecated This API will be deprecated in the future and will have no effect.
+     * Specify a <a href="{@docRoot}privacy-and-security/security-config#CleartextTrafficOptIn">
+     * Network Security Configuration file</a> in addition to this API to prevent future breakage.
+     */
+    @Deprecated
     @Override
+    @FlaggedApi(android.security.Flags.FLAG_DEPRECATE_USES_CLEARTEXT_TRAFFIC2)
     public PackageImpl setCleartextTrafficAllowed(boolean value) {
         return setBoolean(Booleans.USES_CLEARTEXT_TRAFFIC, value);
     }
@@ -2613,6 +2635,18 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     }
 
     @Override
+    public PackageImpl setZygotePreloadNativeLib(@Nullable String zygotePreloadNativeLib) {
+        this.mZygotePreloadNativeLib = zygotePreloadNativeLib;
+        return this;
+    }
+
+    @Override
+    public PackageImpl setZygotePreloadNativeFunc(@Nullable String zygotePreloadNativeFunc) {
+        this.mZygotePreloadNativeFunc = zygotePreloadNativeFunc;
+        return this;
+    }
+
+    @Override
     public PackageImpl sortActivities() {
         Collections.sort(this.activities, ORDER_COMPARATOR);
         return this;
@@ -2638,6 +2672,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         // separate these.
         appInfo.appComponentFactory = appComponentFactory;
         appInfo.backupAgentName = backupAgentName;
+        appInfo.backupAgentProcess = mBackupAgentProcess;
         appInfo.banner = banner;
         appInfo.category = category;
         appInfo.classLoaderName = classLoaderName;
@@ -2702,6 +2737,8 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         appInfo.uiOptions = uiOptions;
         appInfo.volumeUuid = volumeUuid;
         appInfo.zygotePreloadName = zygotePreloadName;
+        appInfo.zygotePreloadNativeLib = mZygotePreloadNativeLib;
+        appInfo.zygotePreloadNativeFunc = mZygotePreloadNativeFunc;
         appInfo.setGwpAsanMode(gwpAsanMode);
         appInfo.setMemtagMode(memtagMode);
         appInfo.setNativeHeapZeroInitialized(nativeHeapZeroInitialized);
@@ -3259,6 +3296,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         sForInternedStringSet.parcel(this.queriesProviders, dest, flags);
         dest.writeString(this.appComponentFactory);
         dest.writeString(this.backupAgentName);
+        dest.writeInt(this.mBackupAgentProcess);
         dest.writeInt(this.banner);
         dest.writeInt(this.category);
         dest.writeString(this.classLoaderName);
@@ -3289,6 +3327,8 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         dest.writeInt(this.theme);
         dest.writeInt(this.uiOptions);
         dest.writeString(this.zygotePreloadName);
+        dest.writeString(this.mZygotePreloadNativeLib);
+        dest.writeString(this.mZygotePreloadNativeFunc);
         dest.writeStringArray(this.splitClassLoaderNames);
         dest.writeStringArray(this.splitCodePaths);
         dest.writeSparseArray(this.splitDependencies);
@@ -3318,9 +3358,9 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         dest.writeLong(this.mBooleans2);
         dest.writeBoolean(this.mAllowCrossUidActivitySwitchFromBelow);
         dest.writeInt(this.mIntentMatchingFlags);
-        dest.writeIntArray(this.mAlternateLauncherIconResIds);
-        dest.writeIntArray(this.mAlternateLauncherLabelResIds);
         dest.writeInt(this.mPageSizeAppCompatFlags);
+        dest.writeTypedObject(
+                (ParsedAllowComponentAccessPolicyImpl) mParsedAllowComponentAccessPolicy, flags);
     }
 
     private void writeUsesPermissionMapping(@NonNull Parcel dest) {
@@ -3460,6 +3500,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         this.queriesProviders = sForInternedStringSet.unparcel(in);
         this.appComponentFactory = in.readString();
         this.backupAgentName = in.readString();
+        this.mBackupAgentProcess = in.readInt();
         this.banner = in.readInt();
         this.category = in.readInt();
         this.classLoaderName = in.readString();
@@ -3490,6 +3531,8 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         this.theme = in.readInt();
         this.uiOptions = in.readInt();
         this.zygotePreloadName = in.readString();
+        this.mZygotePreloadNativeLib = in.readString();
+        this.mZygotePreloadNativeFunc = in.readString();
         this.splitClassLoaderNames = in.createStringArray();
         this.splitCodePaths = in.createStringArray();
         this.splitDependencies = in.readSparseArray(boot);
@@ -3520,10 +3563,9 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         this.mBooleans2 = in.readLong();
         this.mAllowCrossUidActivitySwitchFromBelow = in.readBoolean();
         this.mIntentMatchingFlags = in.readInt();
-        this.mAlternateLauncherIconResIds = in.createIntArray();
-        this.mAlternateLauncherLabelResIds = in.createIntArray();
         this.mPageSizeAppCompatFlags = in.readInt();
-
+        this.mParsedAllowComponentAccessPolicy = in.readTypedObject(
+                ParsedAllowComponentAccessPolicyImpl.CREATOR);
         assignDerivedFields();
         assignDerivedFields2();
 
@@ -3779,6 +3821,12 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     }
 
     @Override
+    public ParsingPackage setHasPccComponents(boolean hasPccComponents) {
+        setBoolean2(Booleans2.HAS_PCC_COMPONENTS, hasPccComponents);
+        return this;
+    }
+
+    @Override
     public int getIntentMatchingFlags() {
         return mIntentMatchingFlags;
     }
@@ -3804,6 +3852,24 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
 
     public Map<String, Boolean> getFeatureFlagState() {
         return mFeatureFlagState;
+    }
+
+    /**
+     * Sets the policy parsed from the allow-component-access manifest tag.
+     */
+    public PackageImpl setParsedAllowComponentAccessPolicy(
+            ParsedAllowComponentAccessPolicy policy) {
+        this.mParsedAllowComponentAccessPolicy = policy;
+        return this;
+    }
+
+    /**
+     * Gets the policy parsed from the allow-component-access manifest tag.
+     */
+    @Nullable
+    @Override
+    public ParsedAllowComponentAccessPolicy getParsedAllowComponentAccessPolicy() {
+        return mParsedAllowComponentAccessPolicy;
     }
 
     /**
@@ -3947,13 +4013,13 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
                 STUB,
                 APEX,
                 UPDATABLE_SYSTEM,
-                RUN_IN_PCC_SANDBOX,
+                HAS_PCC_COMPONENTS,
         })
         public @interface Flags {}
 
         private static final long STUB = 1L;
         private static final long APEX = 1L << 1;
         private static final long UPDATABLE_SYSTEM = 1L << 2;
-        private static final long RUN_IN_PCC_SANDBOX = 1L << 3;
+        private static final long HAS_PCC_COMPONENTS = 1L << 3;
     }
 }

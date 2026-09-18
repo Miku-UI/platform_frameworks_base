@@ -78,6 +78,10 @@ public class MainSwitchPreference extends TwoStatePreference implements OnChecke
             mainSwitchBar.setSummary(getSummary());
         }
         mainSwitchBar.setIconSpaceReserved(isIconSpaceReserved());
+
+        // Leave parent as the only focusable view to avoid duplicate keyboard focus.
+        mainSwitchBar.setFocusable(false);
+
         // To support onPreferenceChange callback, it needs to call callChangeListener() when
         // MainSwitchBar is clicked.
         mainSwitchBar.setOnClickListener(view -> {

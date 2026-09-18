@@ -91,6 +91,19 @@ class BluetoothRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
+    fun connectedDevices_initialStateWithDevice_containsDevice() =
+        kosmos.runTest {
+            whenever(cachedDevice.isConnected).thenReturn(true)
+            whenever(cachedDevice.maxConnectionState).thenReturn(BluetoothProfile.STATE_CONNECTED)
+            whenever(cachedBluetoothDeviceManager.cachedDevicesCopy)
+                .thenReturn(listOf(cachedDevice))
+
+            val connectedDevices by collectLastValue(underTest.connectedDevices)
+
+            assertThat(connectedDevices).isEqualTo(listOf(cachedDevice))
+        }
+
+    @Test
     fun connectedDevices_whenDeviceConnects_emitsDevice() =
         kosmos.runTest {
             val connectedDevices by collectLastValue(underTest.connectedDevices)

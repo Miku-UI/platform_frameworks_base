@@ -135,7 +135,7 @@ public final class TvInputManager {
             VIDEO_UNAVAILABLE_REASON_CAS_NO_CARD, VIDEO_UNAVAILABLE_REASON_CAS_CARD_MUTE,
             VIDEO_UNAVAILABLE_REASON_CAS_CARD_INVALID, VIDEO_UNAVAILABLE_REASON_CAS_BLACKOUT,
             VIDEO_UNAVAILABLE_REASON_CAS_REBOOTING, VIDEO_UNAVAILABLE_REASON_CAS_UNKNOWN,
-            VIDEO_UNAVAILABLE_REASON_STOPPED})
+            VIDEO_UNAVAILABLE_REASON_STOPPED, VIDEO_UNAVAILABLE_REASON_NO_VIDEO_NO_AUDIO})
     public @interface VideoUnavailableReason {}
 
     /** Indicates that this TV message contains watermarking data */
@@ -352,6 +352,15 @@ public final class TvInputManager {
      */
     @FlaggedApi(Flags.FLAG_TIAF_V_APIS)
     public static final int VIDEO_UNAVAILABLE_REASON_STOPPED = 19;
+
+    /**
+     * Reason for {@link TvInputService.Session#notifyVideoUnavailable(int)} and
+     * {@link TvView.TvInputCallback#onVideoUnavailable(String, int)}: Video is unavailable because
+     * both video and audio are unavailable while video has signal.
+     *
+     * @hide
+     */
+    public static final int VIDEO_UNAVAILABLE_REASON_NO_VIDEO_NO_AUDIO = 20;
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -902,6 +911,19 @@ public final class TvInputManager {
         }
 
         /**
+         * This is called when the channel of this session is changed by the underlying TV input
+         * without any {@link TvInputManager.Session#tune(Uri)} request and with special information
+         * required to notify the app.
+         *
+         * @param session A {@link TvInputManager.Session} associated with this callback.
+         * @param channelUri The URI of a channel.
+         *
+         * @hide
+         */
+        public void onChannelRetunedWithExtraInfo(Session session, Uri channelUri, Bundle args) {
+        }
+
+        /**
          * This is called when the audio presentation information of the session has been changed.
          *
          * @param session A {@link TvInputManager.Session} associated with this callback.
@@ -1197,6 +1219,15 @@ public final class TvInputManager {
                 public void run() {
                     mSessionCallback.onChannelRetuned(mSession, channelUri);
                 }
+            });
+        }
+
+        void postChannelRetunedWithExtraInfo(final Uri channelUri, final Bundle args) {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    mSessionCallback.onChannelRetunedWithExtraInfo(mSession, channelUri, args);
+                    }
             });
         }
 
@@ -1727,6 +1758,19 @@ public final class TvInputManager {
                     record.postChannelRetuned(channelUri);
                 }
             }
+
+            @Override
+            public void onChannelRetunedWithExtraInfo(Uri channelUri, Bundle arg, int seq) {
+                synchronized (mSessionCallbackRecordMap) {
+                    SessionCallbackRecord record = mSessionCallbackRecordMap.get(seq);
+                    if (record == null) {
+                        Log.e(TAG, "Callback not found for seq " + seq);
+                        return;
+                    }
+                    record.postChannelRetunedWithExtraInfo(channelUri, arg);
+                }
+            }
+
             @Override
             public void onAudioPresentationsChanged(List<AudioPresentation> audioPresentations,
                     int seq) {
@@ -2540,9 +2584,9 @@ public final class TvInputManager {
      * status.
      *
      * @param useCase the use case type of the client.
-     *        {@see TvInputService#PriorityHintUseCaseType}.
+     *        See {@link TvInputService#PriorityHintUseCaseType}.
      * @param sessionId the unique id of the session owned by the client.
-     *        {@see TvInputService#onCreateSession(String, String, AttributionSource)}.
+     *        See {@link TvInputService#onCreateSession(String, String, AttributionSource)}.
      *
      * @return the use case priority value for the given use case type and the client's foreground
      *         or background status.
@@ -2565,7 +2609,7 @@ public final class TvInputManager {
      * status.
      *
      * @param useCase the use case type of the caller.
-     *        {@see TvInputService#PriorityHintUseCaseType}.
+     *        See {@link TvInputService#PriorityHintUseCaseType}.
      *
      * @return the use case priority value for the given use case type and the caller's foreground
      *         or background status.
@@ -2790,9 +2834,10 @@ public final class TvInputManager {
      * @param deviceId The device ID to acquire Hardware for.
      * @param info The TV input which will use the acquired Hardware.
      * @param tvInputSessionId a String returned to TIS when the session was created.
-     *        {@see TvInputService#onCreateSession(String, String, AttributionSource)}. If null, the
-     *        client will be treated as a background app.
-     * @param priorityHint The use case of the client. {@see TvInputService#PriorityHintUseCaseType}
+     *        See {@link TvInputService#onCreateSession(String, String, AttributionSource)}. If
+     *        null, the client will be treated as a background app.
+     * @param priorityHint The use case of the client. See
+     *        {@link TvInputService#PriorityHintUseCaseType}
      * @param executor the executor on which the listener would be invoked.
      * @param callback A callback to receive updates on Hardware.
      * @return Hardware on success, {@code null} otherwise. When the TRM decides to not grant

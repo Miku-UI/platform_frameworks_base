@@ -162,6 +162,17 @@ class DreamSmartspaceControllerTest : SysuiTestCase() {
             )
     }
 
+    @Test
+    fun testConnectSession_throwsException_handlesGracefully() {
+        `when`(precondition.conditionsMet()).thenReturn(true)
+        `when`(smartspaceManager.createSmartspaceSession(any()))
+            .thenThrow(RuntimeException("Test exception"))
+
+        controller.addListener(listener)
+
+        verify(session, never()).addOnTargetsAvailableListener(any(), any())
+    }
+
     /** Ensures smartspace session begins on a listener only flow. */
     @Test
     fun testConnectOnListen() {

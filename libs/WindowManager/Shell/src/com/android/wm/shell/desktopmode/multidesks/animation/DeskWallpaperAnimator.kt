@@ -53,7 +53,7 @@ private constructor(
         val offsetStep = 1f / (animation.numberOfDesks - 1)
         val finalOffset = animation.toDeskIndex * offsetStep
         if (DeskSwitchAnimationUtils.DEBUG_ANIMATION) {
-            logD("startAnimation: offsetStep=%d finalOffset=%d", offsetStep, finalOffset)
+            logD("startAnimation: offsetStep=%f finalOffset=%f", offsetStep, finalOffset)
         }
         setWallpaperOffset(offsetStep, finalOffset)
     }
@@ -64,7 +64,7 @@ private constructor(
         val finalOffset = animation.toDeskIndex * offsetStep
         if (DeskSwitchAnimationUtils.DEBUG_ANIMATION) {
             logD(
-                "startAnimation: offsetStep=%d initialOffset=%d finalOffset=%d",
+                "startAnimation: offsetStep=%f initialOffset=%f finalOffset=%f",
                 offsetStep,
                 initialOffset,
                 finalOffset,
@@ -76,13 +76,13 @@ private constructor(
                 addListener(
                     onStart = {
                         if (DeskSwitchAnimationUtils.DEBUG_ANIMATION) {
-                            logD("startAnimation(start): initialOffset=%d", initialOffset)
+                            logD("startAnimation(start): initialOffset=%f", initialOffset)
                         }
                         setWallpaperOffset(offsetStep, initialOffset)
                     },
                     onEnd = {
                         if (DeskSwitchAnimationUtils.DEBUG_ANIMATION) {
-                            logD("startAnimation(end): finalOffset=%d", finalOffset)
+                            logD("startAnimation(end): finalOffset=%f", finalOffset)
                         }
                         setWallpaperOffset(offsetStep, finalOffset)
                     },
@@ -90,7 +90,7 @@ private constructor(
                 addUpdateListener { animator ->
                     val offsetX = animator.animatedValue as Float
                     if (DeskSwitchAnimationUtils.DEBUG_ANIMATION) {
-                        logD("startAnimation(update): offset=%d", offsetX)
+                        logD("startAnimation(update): offset=%f", offsetX)
                     }
                     setWallpaperOffset(offsetStep, offsetX)
                 }
@@ -98,6 +98,8 @@ private constructor(
             }
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

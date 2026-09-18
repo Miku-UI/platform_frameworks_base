@@ -57,10 +57,12 @@ import android.util.Slog;
 import android.util.TimingsTraceLog;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
+import android.widget.Button;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalServices;
 import com.android.server.PackageWatchdog;
+import com.android.server.power.feature.flags.Flags;
 import com.android.server.statusbar.StatusBarManagerInternal;
 
 import java.io.File;
@@ -219,6 +221,37 @@ public final class ShutdownThread extends Thread {
             sConfirmDialog.setOnDismissListener(closer);
             sConfirmDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
             sConfirmDialog.show();
+
+            if (Flags.enableInsetFocusRingsInSuw()
+                    && context.getResources()
+                            .getBoolean(
+                                    com.android.internal.R.bool
+                                            .config_enableInsetFocusRingsInSuw)) {
+                boolean inSetupWizard =
+                        Settings.Global.getInt(
+                                        context.getContentResolver(),
+                                        Settings.Global.DEVICE_PROVISIONED,
+                                        /* default= */ 0)
+                                == 0;
+                if (inSetupWizard && mRebootSafeMode) {
+                    Button positiveButton =
+                            sConfirmDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+                    if (positiveButton != null) {
+                        positiveButton.setForeground(
+                                context.getDrawable(
+                                        com.android.internal.R.drawable
+                                                .reboot_safe_mode_focus_indicator));
+                    }
+                    Button negativeButton =
+                            sConfirmDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
+                    if (negativeButton != null) {
+                        negativeButton.setForeground(
+                                context.getDrawable(
+                                        com.android.internal.R.drawable
+                                                .reboot_safe_mode_focus_indicator));
+                    }
+                }
+            }
         } else {
             beginShutdownSequence(context);
         }

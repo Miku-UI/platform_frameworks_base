@@ -153,12 +153,13 @@ class InputWindowHandleWrapper {
         mChanged = true;
     }
 
-    void setFocusable(boolean focusable) {
+    boolean setFocusable(boolean focusable) {
         if (isFocusable() == focusable) {
-            return;
+            return false;
         }
         mHandle.setInputConfig(InputConfig.NOT_FOCUSABLE, !focusable);
         mChanged = true;
+        return true;
     }
 
     void setTouchOcclusionMode(int mode) {
@@ -271,14 +272,15 @@ class InputWindowHandleWrapper {
         mChanged = true;
     }
 
-    void setInputConfigMasked(@InputConfigFlags int inputConfig, @InputConfigFlags int mask) {
+    boolean setInputConfigMasked(@InputConfigFlags int inputConfig, @InputConfigFlags int mask) {
         final int inputConfigMasked = inputConfig & mask;
         if (inputConfigMasked == (mHandle.inputConfig & mask)) {
-            return;
+            return false;
         }
         mHandle.inputConfig &= ~mask;
         mHandle.inputConfig |= inputConfigMasked;
         mChanged = true;
+        return true;
     }
 
     void setFocusTransferTarget(IBinder toToken) {

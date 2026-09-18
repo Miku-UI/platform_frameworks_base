@@ -23,17 +23,24 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -60,6 +67,7 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class EditModeTest : SysuiTestCase() {
+
     @get:Rule val composeRule = createComposeRule()
 
     private val kosmos = testKosmos()
@@ -124,7 +132,7 @@ class EditModeTest : SysuiTestCase() {
         composeRule.setContent { EditTileGridUnderTest() }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("tileF").performClick() // Tap to add
+        composeRule.scrollToAndClickSpec("tileF")
 
         composeRule.assertCurrentTilesGridContainsExactly(
             listOf("tileA", "tileB", "tileC", "tileD_large", "tileE", "tileF")
@@ -137,13 +145,10 @@ class EditModeTest : SysuiTestCase() {
         composeRule.setContent { EditTileGridUnderTest() }
         composeRule.waitForIdle()
 
-        // Tap to remove
-        composeRule
-            .onAllNodesWithContentDescription(
-                context.getString(R.string.accessibility_qs_edit_remove_tile_action)
-            )
-            .onFirst()
-            .performClick()
+        // Select tile and click on the remove button
+        composeRule.onNodeWithContentDescription("tileA").performClick()
+        composeRule.onNodeWithText("Remove").assertIsEnabled()
+        composeRule.onNodeWithText("Remove").performClick()
 
         composeRule.assertCurrentTilesGridContainsExactly(
             listOf("tileB", "tileC", "tileD_large", "tileE")
@@ -165,6 +170,25 @@ class EditModeTest : SysuiTestCase() {
         // Assert tileA moved to tileE's position
         composeRule.assertCurrentTilesGridContainsExactly(
             listOf("tileB", "tileC", "tileD_large", "tileE", "tileA")
+        )
+    }
+
+    @Test
+    fun placementMode_withKeyboard_shouldRepositionTile() {
+        composeRule.setContent { EditTileGridUnderTest() }
+        composeRule.waitForIdle()
+
+        // Tab over to the first tile and enter placement mode
+        composeRule.onRoot().performKeyInput { pressKey(Key.Tab) }
+        composeRule.onNodeWithContentDescription("tileA").performKeyInput { pressKey(Key.M) }
+
+        // Tab over to the next tile (tileB) and complete the move
+        composeRule.onRoot().performKeyInput { pressKey(Key.Tab) }
+        composeRule.onNodeWithContentDescription("tileB").performKeyInput { pressKey(Key.Enter) }
+
+        // Assert tileA moved to tileE's position
+        composeRule.assertCurrentTilesGridContainsExactly(
+            listOf("tileB", "tileA", "tileC", "tileD_large", "tileE")
         )
     }
 
@@ -223,7 +247,7 @@ class EditModeTest : SysuiTestCase() {
         composeRule.setContent { EditTileGridUnderTest() }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("tileF").performClick() // Tap to add
+        composeRule.scrollToAndClickSpec("tileF")
         composeRule.waitForIdle()
 
         composeRule.onNodeWithContentDescription("Undo").assertExists()
@@ -272,6 +296,24 @@ class EditModeTest : SysuiTestCase() {
         composeRule.onNodeWithText("tileF").assertDoesNotExist()
     }
 
+    @Test
+    fun topBar_reactsToScroll() {
+        composeRule.setContent { EditTileGridUnderTest() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Edit tiles").assertExists()
+        composeRule
+            .onNodeWithText(context.getString(R.string.select_to_rearrange_tiles))
+            .assertExists()
+
+        composeRule.onNodeWithTag(EDIT_MODE_ROOT_TEST_TAG).performTouchInput { swipeUp() }
+
+        composeRule.onNodeWithText("Edit tiles").assertExists()
+        composeRule
+            .onNodeWithText(context.getString(R.string.select_to_rearrange_tiles))
+            .assertDoesNotExist()
+    }
+
     private fun ComposeContentTestRule.assertCurrentTilesGridContainsExactly(specs: List<String>) =
         assertGridContainsExactly(CURRENT_TILES_GRID_TEST_TAG, specs)
 
@@ -279,9 +321,21 @@ class EditModeTest : SysuiTestCase() {
         specs: List<String>
     ) = assertGridContainsExactly(AVAILABLE_TILES_GRID_TEST_TAG, specs)
 
+    private fun ComposeContentTestRule.scrollToAndClickSpec(spec: String) {
+        onNodeWithTag(AVAILABLE_TILES_GRID_TEST_TAG)
+            .performScrollToNode(hasText(spec))
+            .performTouchInput {
+                // Perform additional scroll to make sure the tile is above the nav bar
+                swipeUp(startY = centerY, endY = top)
+            }
+        onNodeWithText(spec).performClick()
+    }
+
     companion object {
+
         private val CURRENT_TILES_GRID_TEST_TAG = resIdToTestTag("CurrentTilesGrid")
         private val AVAILABLE_TILES_GRID_TEST_TAG = resIdToTestTag("AvailableTilesGrid")
+        private val EDIT_MODE_ROOT_TEST_TAG = resIdToTestTag("EditModeRoot")
 
         private fun createEditTile(
             tileSpec: String,

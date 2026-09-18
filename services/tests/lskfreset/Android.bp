@@ -1,0 +1,25 @@
+package {
+    // See: http://go/android-license-faq
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_desktop_security",
+}
+
+android_test {
+    name: "LskfResetTests",
+    srcs: [
+        "src/**/*.java",
+    ],
+    static_libs: [
+        "androidx.test.core",
+        "androidx.test.ext.junit",
+        "androidx.test.rules",
+        "androidx.test.uiautomator_uiautomator",
+        "bouncycastle-webapp",
+        "flag-junit",
+        "platform-test-annotations",
+        "services.core",
+        "services.lskfreset",
+        "tink-java",
+    ],
+    test_suites: ["general-tests"],
+}

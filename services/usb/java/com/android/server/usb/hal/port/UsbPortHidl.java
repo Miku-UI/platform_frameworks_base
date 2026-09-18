@@ -15,7 +15,6 @@
  */
 package com.android.server.usb.hal.port;
 
-import static android.hardware.usb.UsbManager.USB_HAL_NOT_SUPPORTED;
 import static android.hardware.usb.UsbManager.USB_HAL_V1_0;
 import static android.hardware.usb.UsbManager.USB_HAL_V1_1;
 import static android.hardware.usb.UsbManager.USB_HAL_V1_2;
@@ -23,42 +22,27 @@ import static android.hardware.usb.UsbManager.USB_HAL_V1_3;
 import static android.hardware.usb.UsbOperationInternal.USB_OPERATION_ERROR_INTERNAL;
 import static android.hardware.usb.UsbOperationInternal.USB_OPERATION_ERROR_NOT_SUPPORTED;
 import static android.hardware.usb.UsbOperationInternal.USB_OPERATION_SUCCESS;
-import static android.hardware.usb.UsbPortStatus.CONTAMINANT_DETECTION_NOT_SUPPORTED;
-import static android.hardware.usb.UsbPortStatus.CONTAMINANT_PROTECTION_NONE;
-import static android.hardware.usb.UsbPortStatus.DATA_ROLE_DEVICE;
-import static android.hardware.usb.UsbPortStatus.DATA_ROLE_HOST;
-import static android.hardware.usb.UsbPortStatus.MODE_DFP;
-import static android.hardware.usb.UsbPortStatus.MODE_DUAL;
-import static android.hardware.usb.UsbPortStatus.MODE_UFP;
-import static android.hardware.usb.UsbPortStatus.POWER_BRICK_STATUS_UNKNOWN;
-import static android.hardware.usb.UsbPortStatus.POWER_ROLE_SINK;
-import static android.hardware.usb.UsbPortStatus.POWER_ROLE_SOURCE;
 import static android.hardware.usb.UsbPortStatus.DATA_STATUS_DISABLED_FORCE;
 import static android.hardware.usb.UsbPortStatus.DATA_STATUS_UNKNOWN;
-import static android.hardware.usb.UsbPortStatus.PLUG_STATE_UNKNOWN;
-import static android.hardware.usb.DisplayPortAltModeInfo.DISPLAYPORT_ALT_MODE_STATUS_UNKNOWN;
 
 import static com.android.server.usb.UsbPortManager.logAndPrint;
 import static com.android.server.usb.UsbPortManager.logAndPrintException;
 
-import android.annotation.Nullable;
 import android.hardware.usb.IUsbOperationInternal;
 import android.hardware.usb.UsbManager.UsbHalVersion;
 import android.hardware.usb.UsbPort;
-import android.hardware.usb.UsbPortStatus;
 import android.hardware.usb.V1_0.IUsb;
+import android.hardware.usb.V1_0.PortRole;
 import android.hardware.usb.V1_0.PortRoleType;
 import android.hardware.usb.V1_0.Status;
 import android.hardware.usb.V1_1.PortStatus_1_1;
 import android.hardware.usb.V1_2.IUsbCallback;
-import android.hardware.usb.V1_0.PortRole;
 import android.hardware.usb.V1_2.PortStatus;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.os.IHwBinder;
 import android.os.RemoteException;
 import android.util.Log;
-import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.IndentingPrintWriter;
@@ -414,20 +398,16 @@ public final class UsbPortHidl implements UsbPortHal {
             ArrayList<RawPortInfo> newPortInfo = new ArrayList<>();
 
             for (android.hardware.usb.V1_0.PortStatus current : currentPortStatus) {
-                RawPortInfo temp = new RawPortInfo(current.portName,
-                        current.supportedModes, CONTAMINANT_PROTECTION_NONE,
-                        current.currentMode,
-                        current.canChangeMode, current.currentPowerRole,
-                        current.canChangePowerRole,
-                        current.currentDataRole, current.canChangeDataRole,
-                        false, CONTAMINANT_PROTECTION_NONE,
-                        false, CONTAMINANT_DETECTION_NOT_SUPPORTED, sUsbDataStatus,
-                        false, POWER_BRICK_STATUS_UNKNOWN,
-                        false, new int[] {},
-                        PLUG_STATE_UNKNOWN,
-                        0,
-                        null);
-                newPortInfo.add(temp);
+                RawPortInfo.Builder builder = new RawPortInfo.Builder(current.portName);
+                builder.setSupportedModes(current.supportedModes)
+                        .setCurrentMode(current.currentMode)
+                        .setCanChangeMode(current.canChangeMode)
+                        .setCurrentPowerRole(current.currentPowerRole)
+                        .setCanChangePowerRole(current.canChangePowerRole)
+                        .setCurrentDataRole(current.currentDataRole)
+                        .setCanChangeDataRole(current.canChangeDataRole)
+                        .setUsbDataStatus(sUsbDataStatus);
+                newPortInfo.add(builder.build());
                 UsbPortManager.logAndPrint(Log.INFO, mPw, "ClientCallback V1_0: "
                         + current.portName);
             }
@@ -452,20 +432,17 @@ public final class UsbPortHidl implements UsbPortHal {
             int numStatus = currentPortStatus.size();
             for (int i = 0; i < numStatus; i++) {
                 PortStatus_1_1 current = currentPortStatus.get(i);
-                RawPortInfo temp = new RawPortInfo(current.status.portName,
-                        current.supportedModes, CONTAMINANT_PROTECTION_NONE,
-                        current.currentMode,
-                        current.status.canChangeMode, current.status.currentPowerRole,
-                        current.status.canChangePowerRole,
-                        current.status.currentDataRole, current.status.canChangeDataRole,
-                        false, CONTAMINANT_PROTECTION_NONE,
-                        false, CONTAMINANT_DETECTION_NOT_SUPPORTED, sUsbDataStatus,
-                        false, POWER_BRICK_STATUS_UNKNOWN,
-                        false, new int[] {},
-                        PLUG_STATE_UNKNOWN,
-                        0,
-                        null);
-                newPortInfo.add(temp);
+                RawPortInfo.Builder builder = new RawPortInfo.Builder(current.status.portName);
+                builder.setSupportedModes(current.supportedModes)
+                        .setCurrentMode(current.currentMode)
+                        .setCanChangeMode(current.status.canChangeMode)
+                        .setCurrentPowerRole(current.status.currentPowerRole)
+                        .setCanChangePowerRole(current.status.canChangePowerRole)
+                        .setCurrentDataRole(current.status.currentDataRole)
+                        .setCanChangeDataRole(current.status.canChangeDataRole)
+                        .setUsbDataStatus(sUsbDataStatus);
+                newPortInfo.add(builder.build());
+
                 UsbPortManager.logAndPrint(Log.INFO, mPw, "ClientCallback V1_1: "
                         + current.status.portName);
             }
@@ -488,26 +465,25 @@ public final class UsbPortHidl implements UsbPortHal {
             int numStatus = currentPortStatus.size();
             for (int i = 0; i < numStatus; i++) {
                 PortStatus current = currentPortStatus.get(i);
-                RawPortInfo temp = new RawPortInfo(current.status_1_1.status.portName,
-                        current.status_1_1.supportedModes,
-                        current.supportedContaminantProtectionModes,
-                        current.status_1_1.currentMode,
-                        current.status_1_1.status.canChangeMode,
-                        current.status_1_1.status.currentPowerRole,
-                        current.status_1_1.status.canChangePowerRole,
-                        current.status_1_1.status.currentDataRole,
-                        current.status_1_1.status.canChangeDataRole,
-                        current.supportsEnableContaminantPresenceProtection,
-                        current.contaminantProtectionStatus,
-                        current.supportsEnableContaminantPresenceDetection,
-                        current.contaminantDetectionStatus,
-                        sUsbDataStatus,
-                        false, POWER_BRICK_STATUS_UNKNOWN,
-                        false, new int[] {},
-                        PLUG_STATE_UNKNOWN,
-                        0,
-                        null);
-                newPortInfo.add(temp);
+                RawPortInfo.Builder builder = new RawPortInfo.Builder(
+                        current.status_1_1.status.portName);
+                builder.setSupportedModes(current.status_1_1.supportedModes)
+                        .setSupportedContaminantProtectionModes(
+                            current.supportedContaminantProtectionModes)
+                        .setCurrentMode(current.status_1_1.currentMode)
+                        .setCanChangeMode(current.status_1_1.status.canChangeMode)
+                        .setCurrentPowerRole(current.status_1_1.status.currentPowerRole)
+                        .setCanChangePowerRole(current.status_1_1.status.canChangePowerRole)
+                        .setCurrentDataRole(current.status_1_1.status.currentDataRole)
+                        .setCanChangeDataRole(current.status_1_1.status.canChangeDataRole)
+                        .setSupportsEnableContaminantPresenceProtection(
+                            current.supportsEnableContaminantPresenceProtection)
+                        .setContaminantProtectionStatus(current.contaminantProtectionStatus)
+                        .setSupportsEnableContaminantPresenceDetection(
+                            current.supportsEnableContaminantPresenceDetection)
+                        .setContaminantDetectionStatus(current.contaminantDetectionStatus)
+                        .setUsbDataStatus(sUsbDataStatus);
+                newPortInfo.add(builder.build());
                 UsbPortManager.logAndPrint(Log.INFO, mPw, "ClientCallback V1_2: "
                         + current.status_1_1.status.portName);
             }

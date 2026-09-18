@@ -23,37 +23,54 @@ import android.annotation.NonNull;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
 import android.provider.Settings;
 import android.service.ondeviceintelligence.IOnDeviceSandboxedInferenceService;
 import android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService;
 
 import java.util.concurrent.TimeUnit;
 
-
 /**
  * Manages the connection to the remote on-device sand boxed inference service. Also, handles
- * unbinding
- * logic set by the service implementation via a SecureSettings flag.
+ * unbinding logic set by the service implementation via a SecureSettings flag.
  */
-public class RemoteOnDeviceSandboxedInferenceService extends
-        ServiceConnector.Impl<IOnDeviceSandboxedInferenceService> {
+public class RemoteOnDeviceSandboxedInferenceService
+        extends ServiceConnector.Impl<IOnDeviceSandboxedInferenceService> {
     private static final long LONG_TIMEOUT = TimeUnit.HOURS.toMillis(1);
 
     /**
      * Creates an instance of {@link ServiceConnector}
      *
-     * See {@code protected} methods for optional parameters you can override.
+     * <p>See {@code protected} methods for optional parameters you can override.
      *
-     * @param context to be used for {@link Context#bindServiceAsUser binding} and
-     *                {@link Context#unbindService unbinding}
-     * @param userId  to be used for {@link Context#bindServiceAsUser binding}
+     * @param context to be used for {@link Context#bindServiceAsUser binding} and {@link
+     *     Context#unbindService unbinding}
+     * @param userId to be used for {@link Context#bindServiceAsUser binding}
      */
-    RemoteOnDeviceSandboxedInferenceService(Context context, ComponentName serviceName,
-            int userId) {
-        super(context, new Intent(
-                        OnDeviceSandboxedInferenceService.SERVICE_INTERFACE).setComponent(serviceName),
-                BIND_FOREGROUND_SERVICE | BIND_INCLUDE_CAPABILITIES, userId,
-                IOnDeviceSandboxedInferenceService.Stub::asInterface);
+    RemoteOnDeviceSandboxedInferenceService(
+            Context context, ComponentName serviceName, int userId, Handler handler) {
+        this(
+                context,
+                serviceName,
+                userId,
+                BIND_FOREGROUND_SERVICE | BIND_INCLUDE_CAPABILITIES,
+                handler);
+    }
+
+    RemoteOnDeviceSandboxedInferenceService(
+            Context context,
+            ComponentName serviceName,
+            int userId,
+            int bindingFlags,
+            Handler handler) {
+        super(
+                context,
+                new Intent(OnDeviceSandboxedInferenceService.SERVICE_INTERFACE)
+                        .setComponent(serviceName),
+                bindingFlags,
+                userId,
+                IOnDeviceSandboxedInferenceService.Stub::asInterface,
+                handler);
 
         // Bind right away
         connect();
@@ -64,10 +81,10 @@ public class RemoteOnDeviceSandboxedInferenceService extends
         return LONG_TIMEOUT;
     }
 
-
     @Override
     protected long getAutoDisconnectTimeoutMs() {
-        return Settings.Secure.getLongForUser(mContext.getContentResolver(),
+        return Settings.Secure.getLongForUser(
+                mContext.getContentResolver(),
                 Settings.Secure.ON_DEVICE_INFERENCE_UNBIND_TIMEOUT_MS,
                 TimeUnit.SECONDS.toMillis(30),
                 mContext.getUserId());

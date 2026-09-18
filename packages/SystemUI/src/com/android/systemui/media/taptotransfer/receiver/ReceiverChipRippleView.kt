@@ -20,8 +20,8 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.content.Context
 import android.util.AttributeSet
-import com.android.systemui.surfaceeffects.ripple.RippleShader
-import com.android.systemui.surfaceeffects.ripple.RippleView
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader
+import com.android.systemui.surfaceeffects.view.ripple.RippleView
 import kotlin.math.pow
 
 /** An expanding ripple effect for the media tap-to-transfer receiver chip. */

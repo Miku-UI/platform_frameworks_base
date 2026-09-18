@@ -26,7 +26,6 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.shared.Flags.ambientAod
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -59,13 +58,7 @@ constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTra
         return transitionAnimation.sharedFlow(
             duration = 250.milliseconds,
             startTime = 0.milliseconds,
-            onStart = {
-                if (ambientAod()) {
-                    currentAlpha = viewState.alpha()
-                } else {
-                    currentAlpha = 0f
-                }
-            },
+            onStart = { currentAlpha = viewState.alpha() },
             onStep = { MathUtils.lerp(currentAlpha, 0f, it) },
         )
     }

@@ -22,7 +22,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.awaitClose
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.launchEffect
@@ -47,7 +46,6 @@ import kotlinx.coroutines.CoroutineDispatcher
  * It also provides a mechanism to create a top-level view model for each IconManager to know about
  * the list of available mobile lines of service for which we want to show icons.
  */
-@ExperimentalKairosApi
 @SysUISingleton
 class MobileUiAdapterKairos
 @Inject

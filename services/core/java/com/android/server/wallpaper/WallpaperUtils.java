@@ -17,6 +17,7 @@
 package com.android.server.wallpaper;
 
 import android.os.Environment;
+import android.os.UserHandle;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ class WallpaperUtils {
     static final String WALLPAPER_LOCK_ORIG = "wallpaper_lock_orig";
     static final String WALLPAPER_LOCK_CROP = "wallpaper_lock";
     static final String WALLPAPER_INFO = "wallpaper_info.xml";
+    static final String DEFAULT_WALLPAPER_CROP_PREFIX = "default_wallpaper_crop_";
     static final String RECORD_FILE = "decode_record";
     static final String RECORD_LOCK_FILE = "decode_lock_record";
 
@@ -47,6 +49,36 @@ class WallpaperUtils {
 
     static File getWallpaperDir(int userId) {
         return Environment.getUserSystemDirectory(userId);
+    }
+
+    /**
+     * Returns the file where a cropped version of the default wallpaper is
+     * (or should be) stored.
+     */
+    static File getDefaultCropFile(int maxSide) {
+        return new File(getWallpaperDir(UserHandle.USER_SYSTEM),
+                DEFAULT_WALLPAPER_CROP_PREFIX + maxSide);
+    }
+
+    /**
+     * Returns all cached cropped versions of the default wallpaper.
+     */
+    static File[] getDefaultCropFiles() {
+        File wallpaperDir = getWallpaperDir(UserHandle.USER_SYSTEM);
+        return wallpaperDir.listFiles((dir, name) ->
+                name.startsWith(DEFAULT_WALLPAPER_CROP_PREFIX));
+    }
+
+    /**
+     * Deletes all cached cropped versions of the default wallpaper.
+     */
+    static void clearDefaultWallpaperCrops() {
+        File[] files = getDefaultCropFiles();
+        if (files != null) {
+            for (File f : files) {
+                f.delete();
+            }
+        }
     }
 
     /**

@@ -39,6 +39,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.media.AudioAttributes;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.DisabledOnRavenwood;
 
 import androidx.test.InstrumentationRegistry;
 
@@ -54,6 +55,7 @@ import org.mockito.InOrder;
 import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
+@DisabledOnRavenwood(blockedBy = Vibrator.class)
 public class VibratorTest {
 
     @Rule

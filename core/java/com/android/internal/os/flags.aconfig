@@ -50,21 +50,3 @@ flag {
     bug: "314735374"
     is_fixed_read_only: true
 }
-
-flag {
-    name: "pre_watchdog_throttle_thread_dump"
-    namespace: "stability"
-    description: "Throttles how often a pre-watchdog results in a thread dump"
-    bug: "417424880"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "zygote_early_fifo_boost"
-    namespace: "watch_software_performance"
-    description: "Enables zygote boosting to fifo priority for top-app launches when fifo_ui is enabled"
-    bug: "397918406"
-    is_fixed_read_only: true
-}

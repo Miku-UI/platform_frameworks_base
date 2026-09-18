@@ -25,10 +25,13 @@ import android.annotation.ElapsedRealtimeLong;
 import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.UserIdInt;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Display;
 import android.view.inputmethod.ImeTracker;
 
 import com.android.internal.annotations.GuardedBy;
@@ -101,8 +104,9 @@ public final class ImeTrackerService extends IImeTracker.Stub {
     final Object mLock = new Object();
 
     ImeTrackerService(@NonNull Handler handler) {
-        this(new History(), handler, DEFAULT_TIMEOUT_MS, entry -> FrameworkStatsLog.write(
-                FrameworkStatsLog.IME_REQUEST_FINISHED,
+        // TODO (b/459507608): add userId and displayId to metrics and proto definitions
+        this(new History(), handler, DEFAULT_TIMEOUT_MS,
+                entry -> FrameworkStatsLog.write(FrameworkStatsLog.IME_REQUEST_FINISHED,
                 entry.mUid, entry.mDuration, entry.mType, entry.mStatus, entry.mReason,
                 entry.mOrigin, entry.mPhase, entry.mFromUser));
     }
@@ -119,7 +123,7 @@ public final class ImeTrackerService extends IImeTracker.Stub {
     @Override
     public void onStart(@NonNull ImeTracker.Token statsToken, int uid, @ImeTracker.Type int type,
             @ImeTracker.Origin int origin, @SoftInputShowHideReason int reason, boolean fromUser,
-            @CurrentTimeMillisLong long startWallTimeMs,
+            @UserIdInt int userId, int displayId, @CurrentTimeMillisLong long startWallTimeMs,
             @ElapsedRealtimeLong long startTimestampMs) {
         synchronized (mLock) {
             final long id = statsToken.getId();
@@ -137,8 +141,8 @@ public final class ImeTrackerService extends IImeTracker.Stub {
                     return;
                 }
 
-                entry.onStart(tag, uid, type, origin, reason, fromUser, startWallTimeMs,
-                        startTimestampMs);
+                entry.onStart(tag, uid, type, origin, reason, fromUser, userId, displayId,
+                        startWallTimeMs, startTimestampMs);
 
                 if (entry.mFinished) {
                     complete(id, entry);
@@ -151,7 +155,7 @@ public final class ImeTrackerService extends IImeTracker.Stub {
 
                 final var newEntry = new History.Entry();
                 // Prefer current time to passed in startTime when creating the entry in onStart.
-                newEntry.onStart(tag, uid, type, origin, reason, fromUser,
+                newEntry.onStart(tag, uid, type, origin, reason, fromUser, userId, displayId,
                         System.currentTimeMillis() /* startWallTimeMs */,
                         SystemClock.elapsedRealtime() /* startTimestampMs */);
 
@@ -618,6 +622,13 @@ public final class ImeTrackerService extends IImeTracker.Stub {
             /** Whether this request was created directly from user interaction. */
             boolean mFromUser;
 
+            /** The ID of the user that started the request. */
+            @UserIdInt
+            int mUserId;
+
+            /** The ID of the display where the IME would show. */
+            int mDisplayId;
+
             /**
              * Name of the window that created the request.
              *
@@ -637,6 +648,8 @@ public final class ImeTrackerService extends IImeTracker.Stub {
                 mReason = SoftInputShowHideReason.NOT_SET;
                 mPhase = ImeTracker.PHASE_NOT_SET;
                 mFromUser = false;
+                mUserId = UserHandle.USER_NULL;
+                mDisplayId = Display.INVALID_DISPLAY;
                 mRequestWindowName = "not set";
             }
 
@@ -650,6 +663,8 @@ public final class ImeTrackerService extends IImeTracker.Stub {
              * @param reason           the reason for starting the request.
              * @param fromUser         whether this request was created directly from user
              *                         interaction.
+             * @param userId           the ID of the user that started the request.
+             * @param displayId        the ID of the display where the IME would show.
              * @param startWallTimeMs  the wall time in milliseconds when the request was started.
              * @param startTimestampMs the time since boot in milliseconds when the request was
              *                         started.
@@ -657,7 +672,8 @@ public final class ImeTrackerService extends IImeTracker.Stub {
             @GuardedBy("mLock")
             void onStart(@NonNull String tag, int uid, @ImeTracker.Type int type,
                     @ImeTracker.Origin int origin, @SoftInputShowHideReason int reason,
-                    boolean fromUser, @CurrentTimeMillisLong long startWallTimeMs,
+                    boolean fromUser, @UserIdInt int userId, int displayId,
+                    @CurrentTimeMillisLong long startWallTimeMs,
                     @ElapsedRealtimeLong long startTimestampMs) {
                 mTag = tag;
                 mUid = uid;
@@ -668,6 +684,8 @@ public final class ImeTrackerService extends IImeTracker.Stub {
                 mStartWallTimeMs = startWallTimeMs;
                 mStartTimestampMs = startTimestampMs;
                 mStarted = true;
+                mUserId = userId;
+                mDisplayId = displayId;
             }
 
             /**
@@ -714,13 +732,14 @@ public final class ImeTrackerService extends IImeTracker.Stub {
                 pw.print(" - " + mTag);
                 pw.println(" (" + mDuration + "ms):");
 
-                pw.print(prefix);
-                pw.print("  startTime=" + formatter.format(Instant.ofEpochMilli(mStartWallTimeMs)));
+                final String innerPrefix = prefix + "  ";
+                pw.print(innerPrefix);
+                pw.print("startTime=" + formatter.format(Instant.ofEpochMilli(mStartWallTimeMs)));
                 pw.print(" (timestamp=" + mStartTimestampMs + ")");
                 pw.println(" " + ImeTracker.Debug.originToString(mOrigin));
 
-                pw.print(prefix);
-                pw.print("  reason=" + InputMethodDebug.softInputDisplayReasonToString(mReason));
+                pw.print(innerPrefix);
+                pw.print("reason=" + InputMethodDebug.softInputDisplayReasonToString(mReason));
                 pw.print(" " + ImeTracker.Debug.phaseToString(mPhase));
 
                 if (mStatus == ImeTracker.STATUS_TIMEOUT) {
@@ -729,8 +748,12 @@ public final class ImeTrackerService extends IImeTracker.Stub {
                 }
                 pw.println();
 
-                pw.print(prefix);
-                pw.println("  requestWindowName=" + mRequestWindowName);
+                pw.print(innerPrefix);
+                pw.print("userId=" + mUserId);
+                pw.println(" displayId=" + mDisplayId);
+
+                pw.print(innerPrefix);
+                pw.println("requestWindowName=" + mRequestWindowName);
             }
 
             @Override
@@ -752,6 +775,8 @@ public final class ImeTrackerService extends IImeTracker.Stub {
                         + ", mDuration: " + mDuration
                         + ", mStarted: " + mStarted
                         + ", mFinished: " + mFinished
+                        + ", mUserId: " + mUserId
+                        + ", mDisplayId: " + mDisplayId
                         + "}";
             }
         }

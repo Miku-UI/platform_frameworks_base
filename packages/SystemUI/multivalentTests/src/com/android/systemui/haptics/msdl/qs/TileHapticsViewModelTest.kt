@@ -101,16 +101,50 @@ class TileHapticsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun whenLongClickOccurs_playsLongPressHaptics() =
+    fun whenLongClickOccurs_withDialogDrawAction_playsLongPressHaptics() =
         testScope.runTest {
             // WHEN the tile is long-clicked
             underTest.setTileInteractionState(
                 TileHapticsViewModel.TileInteractionState.LONG_CLICKED
             )
+            // WHEN a dialog is launched as a consequence
+            underTest.onDialogDrawingStart()
+
             runCurrent()
 
             // THEN the long-press token plays
             assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.LONG_PRESS)
+            assertThat(msdlPlayer.latestPropertiesPlayed).isNull()
+        }
+
+    @Test
+    fun whenLongClickOccurs_withActivityLaunchAction_playsLongPressHaptics() =
+        testScope.runTest {
+            // WHEN the tile is long-clicked
+            underTest.setTileInteractionState(
+                TileHapticsViewModel.TileInteractionState.LONG_CLICKED
+            )
+            // WHEN an activityis launched as a consequence
+            underTest.onActivityLaunchTransitionStart()
+
+            runCurrent()
+
+            // THEN the long-press token plays
+            assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.LONG_PRESS)
+            assertThat(msdlPlayer.latestPropertiesPlayed).isNull()
+        }
+
+    @Test
+    fun whenLongClickOccurs_withoutAction_doesNotPlayHaptics() =
+        testScope.runTest {
+            // WHEN the tile is long-clicked and nothing happens
+            underTest.setTileInteractionState(
+                TileHapticsViewModel.TileInteractionState.LONG_CLICKED
+            )
+            runCurrent()
+
+            // THEN no haptics play
+            assertThat(msdlPlayer.latestTokenPlayed).isNull()
             assertThat(msdlPlayer.latestPropertiesPlayed).isNull()
         }
 

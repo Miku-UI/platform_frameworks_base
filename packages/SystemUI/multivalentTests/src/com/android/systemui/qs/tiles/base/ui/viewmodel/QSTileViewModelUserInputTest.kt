@@ -16,6 +16,7 @@
 
 package com.android.systemui.qs.tiles.base.ui.viewmodel
 
+import android.os.UserManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.MediumTest
 import com.android.systemui.SysuiTestCase
@@ -39,6 +40,7 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileUserAction
 import com.android.systemui.qs.tiles.base.ui.analytics.QSTileAnalytics
 import com.android.systemui.qs.tiles.base.ui.model.QSTileDataToStateMapper
 import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.UserIconProvider
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.time.FakeSystemClock
@@ -63,6 +65,7 @@ class QSTileViewModelUserInputTest : SysuiTestCase() {
 
     @Mock private lateinit var qsTileLogger: QSTileLogger
     @Mock private lateinit var qsTileAnalytics: QSTileAnalytics
+    @Mock private lateinit var userManager: UserManager
 
     // TODO(b/299909989): this should be parametrised. b/299096521 blocks this.
     private val userAction: QSTileUserAction = QSTileUserAction.Click(null)
@@ -72,7 +75,6 @@ class QSTileViewModelUserInputTest : SysuiTestCase() {
             policy = QSTilePolicy.Restricted(listOf(ENABLED_RESTRICTION))
         }
 
-    private val userRepository = FakeUserRepository()
     private val tileDataInteractor = FakeQSTileDataInteractor<String>()
     private val tileUserActionInteractor = FakeQSTileUserActionInteractor<String>()
     private val disabledByPolicyInteractor = FakeDisabledByPolicyInteractor()
@@ -81,11 +83,14 @@ class QSTileViewModelUserInputTest : SysuiTestCase() {
     private val testCoroutineDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testCoroutineDispatcher)
 
+    private lateinit var userRepository: FakeUserRepository
     private lateinit var underTest: QSTileViewModel
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
+        userRepository =
+            FakeUserRepository(UserIconProvider(context, userManager, testCoroutineDispatcher))
         underTest = createViewModel(testScope)
     }
 

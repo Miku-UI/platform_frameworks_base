@@ -70,6 +70,17 @@ class ClipboardOverlaySuppressionControllerImplTest : SysuiTestCase() {
     }
 
     @Test
+    fun shouldSuppressOverlay_nullClipSource_returnFalse() {
+        Assert.assertFalse(
+            mClipboardOverlaySuppressionControllerImpl.shouldSuppressOverlay(
+                mSuppressableClipData,
+                null,
+                false,
+            )
+        )
+    }
+
+    @Test
     fun shouldSuppressOverlay_noSuppressOverlayExtra_returnFalse() {
         // Regardless of the package or emulator, nothing should be suppressed without the flag.
         Assert.assertFalse(

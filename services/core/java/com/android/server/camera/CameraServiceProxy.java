@@ -53,6 +53,8 @@ import android.hardware.ICameraServiceProxy;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.ICameraDeviceUser.AudioRestriction;
+import android.hardware.camera2.params.OutputConfiguration;
 import android.hardware.devicestate.DeviceStateManager;
 import android.hardware.devicestate.DeviceStateManager.FoldStateListener;
 import android.hardware.display.DisplayManager;
@@ -81,6 +83,7 @@ import android.os.UserManager;
 import android.stats.camera.nano.CameraProtos.CameraStreamProto;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+import android.util.DebugUtils;
 import android.util.Log;
 import android.util.Range;
 import android.util.Slog;
@@ -92,12 +95,16 @@ import android.view.WindowManagerGlobal;
 import com.android.framework.protobuf.nano.MessageNano;
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.camera.flags.Flags;
+import com.android.internal.util.DumpUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.LocalServices;
 import com.android.server.ServiceThread;
 import com.android.server.SystemService;
 import com.android.server.am.StackTracesDumpHelper;
+import com.android.server.lights.LightsManager;
+import com.android.server.utils.Slogf;
 import com.android.server.wm.WindowManagerInternal;
 
 import java.io.FileDescriptor;
@@ -123,7 +130,19 @@ import java.util.concurrent.TimeUnit;
 public class CameraServiceProxy extends SystemService
         implements Handler.Callback, IBinder.DeathRecipient {
     private static final String TAG = "CameraService_proxy";
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG;
+
+    // TODO(b/442009819): inline DEBUG once Flag is ramped-up
+    static {
+        boolean debug = false;
+        try {
+            debug = Log.isLoggable(TAG, Log.DEBUG) || Flags.fixManagedProfilesReceiver();
+        } catch (Throwable t) {
+            Slogf.e(TAG, t, "Error setting DEBUG (most likely reading "
+                    + "Flags.fixManagedProfilesReceiver()");
+        }
+        DEBUG = debug;
+    }
 
     /**
      * This must match the ICameraService.aidl definition
@@ -213,7 +232,10 @@ public class CameraServiceProxy extends SystemService
     private UserManager mUserManager;
 
     private final Object mLock = new Object();
+
+    @GuardedBy("mLock")
     private Set<Integer> mEnabledCameraUsers;
+    @GuardedBy("mLock")
     private int mLastUser;
     // The current set of device state flags. May be different from mLastReportedDeviceState if the
     // native camera service has not been notified of the change.
@@ -225,6 +247,7 @@ public class CameraServiceProxy extends SystemService
     @DeviceStateFlags
     private int mLastReportedDeviceState;
 
+    @GuardedBy("mLock")
     private ICameraService mCameraServiceRaw;
 
     // Map of currently active camera IDs
@@ -272,13 +295,16 @@ public class CameraServiceProxy extends SystemService
         public Range<Integer> mMostRequestedFpsRange;
         public final long mLogId;
         public final int mSessionIndex;
+        private int mErrorState;
 
         private long mDurationOrStartTimeMs;  // Either start time, or duration once completed
         public CameraExtensionSessionStats mExtSessionStats = null;
+        private final boolean mSharedMode;
+        private final int mInputFormat;
 
         CameraUsageEvent(String cameraId, int facing, String clientName, int apiLevel,
                 boolean isNdk, int action, int latencyMs, int operatingMode, boolean deviceError,
-                long logId, int sessionIdx) {
+                long logId, int sessionIdx, int errorState, boolean sharedMode, int inputFormat) {
             mCameraId = cameraId;
             mCameraFacing = facing;
             mClientName = clientName;
@@ -292,6 +318,9 @@ public class CameraServiceProxy extends SystemService
             mDeviceError = deviceError;
             mLogId = logId;
             mSessionIndex = sessionIdx;
+            mErrorState = errorState;
+            mSharedMode = sharedMode;
+            mInputFormat = inputFormat;
             mMostRequestedFpsRange = new Range<Integer>(0, 0);
         }
 
@@ -300,7 +329,7 @@ public class CameraServiceProxy extends SystemService
                 List<CameraStreamStats>  streamStats, String userTag,
                 int videoStabilizationMode, boolean usedUltraWide,
                 boolean usedZoomOverride, Range<Integer> mostRequestedFpsRange,
-                CameraExtensionSessionStats extStats) {
+                CameraExtensionSessionStats extStats, int errorState) {
             if (mCompleted) {
                 return;
             }
@@ -317,6 +346,7 @@ public class CameraServiceProxy extends SystemService
             mUsedZoomOverride = usedZoomOverride;
             mExtSessionStats = extStats;
             mMostRequestedFpsRange = mostRequestedFpsRange;
+            mErrorState = errorState;
             if (CameraServiceProxy.DEBUG) {
                 Slog.v(TAG, "A camera facing " + cameraFacingToString(mCameraFacing) +
                         " was in use by " + mClientName + " for " +
@@ -416,6 +446,9 @@ public class CameraServiceProxy extends SystemService
                         + mostRequestedFpsRangeDebug
                         + ", logId " + mLogId
                         + ", sessionIndex " + mSessionIndex
+                        + ", errorState " + mErrorState
+                        + ", sharedMode " + mSharedMode
+                        + ", inputFormat " + mInputFormat
                         + ", mExtSessionStats {type " + extensionType
                         + " isAdvanced " + extensionIsAdvanced
                         + extensionCaptureFormatDebug + "}");
@@ -443,6 +476,7 @@ public class CameraServiceProxy extends SystemService
                     streamProtos[i].dynamicRangeProfile = streamStats.getDynamicRangeProfile();
                     streamProtos[i].streamUseCase = streamStats.getStreamUseCase();
                     streamProtos[i].colorSpace = streamStats.getColorSpace();
+                    streamProtos[i].currentSurfaceId = streamStats.getCurrentSurfaceId();
 
                     if (CameraServiceProxy.DEBUG) {
                         String histogramTypeName =
@@ -470,6 +504,7 @@ public class CameraServiceProxy extends SystemService
                     }
                 }
             }
+            boolean hasInputStream = (mInputFormat != -1);
             FrameworkStatsLog.write(FrameworkStatsLog.CAMERA_ACTION_EVENT, getDuration(),
                     mAPILevel, mClientName, facing, mCameraId, mAction, mIsNdk,
                     mLatencyMs, mOperatingMode, mInternalReconfigure,
@@ -484,10 +519,40 @@ public class CameraServiceProxy extends SystemService
                     extensionType, extensionIsAdvanced, mUsedUltraWide,
                     mUsedZoomOverride,
                     mMostRequestedFpsRange.getLower(), mMostRequestedFpsRange.getUpper(),
-                    extensionCaptureFormat);
+                    extensionCaptureFormat, /* errorState */ mErrorState,
+                    mSharedMode, getMultiResolutionMode(), hasInputStream, mInputFormat);
 
         }
+
+        /**
+         * Get the MultiResolutionImageReader mode based on mStreamStats.
+         */
+        private int getMultiResolutionMode() {
+            if (mStreamStats == null) {
+                return FrameworkStatsLog.CAMERA_ACTION_EVENT__MRIR_TYPE__MRIR_OFF;
+            }
+
+            boolean hasConcurrentMrir = false;
+            boolean hasSingleMrir = false;
+            for (CameraStreamStats streamStats : mStreamStats) {
+                if (streamStats.getMultiResMode() == OutputConfiguration.MULTI_RES_ON) {
+                    hasSingleMrir = true;
+                }
+                if (streamStats.getMultiResMode() == OutputConfiguration.MULTI_RES_ON_CONCURRENT) {
+                    hasConcurrentMrir = true;
+                }
+            }
+
+            if (hasConcurrentMrir) {
+                return FrameworkStatsLog.CAMERA_ACTION_EVENT__MRIR_TYPE__MRIR_CONCURRENT;
+            }
+            if (hasSingleMrir) {
+                return FrameworkStatsLog.CAMERA_ACTION_EVENT__MRIR_TYPE__MRIR_SINGLE;
+            }
+            return FrameworkStatsLog.CAMERA_ACTION_EVENT__MRIR_TYPE__MRIR_OFF;
+        }
     }
+
     /**
      * Structure to track feature combination query
      */
@@ -597,6 +662,10 @@ public class CameraServiceProxy extends SystemService
             final String action = intent.getAction();
             if (action == null) return;
 
+            if (DEBUG) {
+                Slogf.d(TAG, "onReceive(): action=%s on user %d", action, context.getUserId());
+            }
+
             switch (action) {
                 case Intent.ACTION_USER_ADDED:
                 case Intent.ACTION_USER_REMOVED:
@@ -605,14 +674,19 @@ public class CameraServiceProxy extends SystemService
                 case Intent.ACTION_MANAGED_PROFILE_REMOVED:
                     synchronized(mLock) {
                         // Return immediately if we haven't seen any users start yet
-                        if (mEnabledCameraUsers == null) return;
+                        if (mEnabledCameraUsers == null) {
+                            Slogf.w(TAG, "Received event intent %s, but no user has started yet "
+                                    + "(last user is %d)", action, mLastUser);
+                            return;
+                        }
                         switchUserLocked(mLastUser);
                     }
                     break;
                 case UsbManager.ACTION_USB_DEVICE_ATTACHED:
                 case UsbManager.ACTION_USB_DEVICE_DETACHED:
                     synchronized (mLock) {
-                        UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, android.hardware.usb.UsbDevice.class);
+                        UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE,
+                                android.hardware.usb.UsbDevice.class);
                         if (device != null) {
                             notifyUsbDeviceHotplugLocked(device,
                                     action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED));
@@ -820,8 +894,8 @@ public class CameraServiceProxy extends SystemService
         }
 
         /**
-         * Placeholder method to fetch the system state for autoframing.
-         * TODO: b/260617354
+         * This is a placeholder for a feature to override autoframing based on system state.
+         * The feature was not implemented. See b/260617354 for context.
          */
         @Override
         public int getAutoframingOverride(String packageName) {
@@ -915,11 +989,54 @@ public class CameraServiceProxy extends SystemService
         }
 
         @Override
+        public void notifyCameraDistractionRestriction(int mode) {
+            if (Binder.getCallingUid() != Process.CAMERASERVER_UID) {
+                Slog.e(TAG, "Calling UID: " + Binder.getCallingUid()
+                        + " doesn't match expected camera service UID!");
+                return;
+            }
+
+            boolean mutedLights = (mode == AudioRestriction.VIBRATION_SOUND);
+            LightsManager lm = LocalServices.getService(LightsManager.class);
+            if (lm != null) {
+                lm.setMutedState(mutedLights);
+                if (DEBUG) {
+                    Slog.d(TAG, "Muting lights: " + mutedLights + ", mode: " + mode);
+                }
+            } else {
+                Slog.w(TAG, "Unable to find the Lights service");
+            }
+        }
+
+        @Override
         public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
                 String[] args, ShellCallback callback, ResultReceiver resultReceiver)
                 throws RemoteException {
             new CSPShellCmd(CameraServiceProxy.this)
                 .exec(this, in, out, err, args, callback, resultReceiver);
+        }
+
+        @Override
+        protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+            if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) return;
+
+            pw.printf("DEBUG logging: %b\n", DEBUG);
+
+            synchronized (mLock) {
+                pw.printf("Raw service: %s\n", mCameraServiceRaw);
+                pw.printf("Device state: %s\n", deviceStateToString(mDeviceState));
+                pw.printf("Last reported device state: %s\n",
+                        deviceStateToString(mLastReportedDeviceState));
+                pw.printf("Last user: %d\n", mLastUser);
+                pw.printf("Enabled camera users: %s\n", mEnabledCameraUsers);
+            }
+
+            // Don't need to dump other state (like mCameraEventHistory) as it's dumped by the
+            // native service
+        }
+
+        private static String deviceStateToString(@DeviceStateFlags int state) {
+            return DebugUtils.flagsToString(ICameraService.class, "DEVICE_STATE_", state);
         }
 
         private static class CSPShellCmd extends ShellCommand {
@@ -979,7 +1096,9 @@ public class CameraServiceProxy extends SystemService
         mHandler = new Handler(mHandlerThread.getLooper(), this);
 
         mNotifyNfc = SystemProperties.getInt(NFC_NOTIFICATION_PROP, 0) > 0;
-        if (DEBUG) Slog.v(TAG, "Notify NFC behavior is " + (mNotifyNfc ? "active" : "disabled"));
+        if (DEBUG) {
+            Slogf.v(TAG, "Notify NFC behavior is %s", (mNotifyNfc ? "active" : "disabled"));
+        }
         // Don't keep any extra logging threads if not needed
         mLogWriterService.setKeepAliveTime(1, TimeUnit.SECONDS);
         mLogWriterService.allowCoreThreadTimeOut(true);
@@ -1062,6 +1181,10 @@ public class CameraServiceProxy extends SystemService
         filter.addAction(Intent.ACTION_USER_ADDED);
         filter.addAction(Intent.ACTION_USER_REMOVED);
         filter.addAction(Intent.ACTION_USER_INFO_CHANGED);
+        // NOTE: we don't need to register the PROFILE actions here on HSUM devices (those area
+        // added on UserSwitching()), but it doesn't hurt to, as recommended by the wise Justin
+        // (last name Case).
+        // TODO(b/442009819); optimize it so it's only set if the system user can have profiles.
         filter.addAction(Intent.ACTION_MANAGED_PROFILE_ADDED);
         filter.addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED);
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
@@ -1095,6 +1218,11 @@ public class CameraServiceProxy extends SystemService
     @Override
     public void onUserStarting(@NonNull TargetUser user) {
         synchronized(mLock) {
+            if (DEBUG) {
+                Slogf.d(TAG, "onUserStarting(%s): mEnabledCameraUsers=%s", user,
+                        mEnabledCameraUsers);
+            }
+
             if (mEnabledCameraUsers == null) {
                 // Initialize cameraserver, or update cameraserver if we are recovering
                 // from a crash.
@@ -1105,8 +1233,42 @@ public class CameraServiceProxy extends SystemService
 
     @Override
     public void onUserSwitching(@Nullable TargetUser from, @NonNull TargetUser to) {
+        if (DEBUG) {
+            Slogf.d(TAG, "onUserSwitching(): from %s to %s", from, to);
+        }
         synchronized(mLock) {
             switchUserLocked(to.getUserIdentifier());
+        }
+
+        if (!Flags.fixManagedProfilesReceiver()) {
+            return;
+        }
+        updateBroadcastReceiver(from, to);
+    }
+
+    @VisibleForTesting
+    void updateBroadcastReceiver(@Nullable TargetUser from, TargetUser to) {
+        // TODO(b/442009819): optimize code below so it only registers the receiver when the to user
+        // can have profiles
+
+        //  mIntentReceiver is registered (on constructor) to only receive BCs sent to system user
+        // (A.K.A. "user 0), but ACTION_MANAGED_PROFILE_* are sent to the parent of the profile,
+        // which is not necessarily the system user.
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_MANAGED_PROFILE_ADDED);
+        filter.addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED);
+        var newContext = mContext.createContextAsUser(to.getUserHandle(), /* flags= */ 0);
+        if (DEBUG) {
+            Slogf.d(TAG, "Registering BC receiver on user %d", newContext.getUserId());
+        }
+        newContext.registerReceiver(mIntentReceiver, filter);
+        if (from != null && from.getUserIdentifier() != UserHandle.USER_SYSTEM) {
+            var prevContext = mContext.createContextAsUser(from.getUserHandle(),
+                    /* flags= */ 0);
+            if (DEBUG) {
+                Slogf.d(TAG, "Unregistering BC receiver from user %d", prevContext.getUserId());
+            }
+            prevContext.unregisterReceiver(mIntentReceiver);
         }
     }
 
@@ -1125,6 +1287,13 @@ public class CameraServiceProxy extends SystemService
 
             if ( mNotifyNfc && !wasEmpty ) {
                 notifyNfcService(/*enablePolling*/ true);
+            }
+
+            // Ensure lights are back on
+            try {
+                mCameraServiceProxy.notifyCameraDistractionRestriction(AudioRestriction.NONE);
+            } catch (RemoteException e) {
+                // ignore
             }
         }
     }
@@ -1154,6 +1323,7 @@ public class CameraServiceProxy extends SystemService
     /**
      * Get camera usage event count
      */
+    @VisibleForTesting
     int getUsageEventCount() {
         synchronized (mLock) {
             return mCameraEventHistory.size();
@@ -1164,6 +1334,7 @@ public class CameraServiceProxy extends SystemService
      * Dump camera events to log.
      * Package-private
      */
+    @VisibleForTesting
     void dumpCameraEvents() {
         synchronized(mLock) {
             // Randomize order of events so that it's not meaningful
@@ -1182,6 +1353,7 @@ public class CameraServiceProxy extends SystemService
     }
 
     @Nullable
+    @GuardedBy("mLock")
     private ICameraService getCameraServiceRawLocked() {
         if (mCameraServiceRaw == null) {
             IBinder cameraServiceBinder = getBinderService(CAMERA_SERVICE_BINDER_NAME);
@@ -1200,10 +1372,19 @@ public class CameraServiceProxy extends SystemService
         return mCameraServiceRaw;
     }
 
+    @GuardedBy("mLock")
     private void switchUserLocked(int userHandle) {
         Set<Integer> currentUserHandles = getEnabledUserHandles(userHandle);
+        if (DEBUG) {
+            Slogf.d(TAG, "switchUserLocked(%d): currentUserHandles=%s", userHandle,
+                    currentUserHandles);
+        }
         mLastUser = userHandle;
         if (mEnabledCameraUsers == null || !mEnabledCameraUsers.equals(currentUserHandles)) {
+            if (DEBUG) {
+                Slogf.d(TAG, "switchUserLocked(%d): mEnabledCameraUsers changed from %s to %s",
+                        userHandle, mEnabledCameraUsers, currentUserHandles);
+            }
             // Some user handles have been added or removed, update cameraserver.
             mEnabledCameraUsers = currentUserHandles;
             notifySwitchWithRetriesLocked(RETRY_TIMES);
@@ -1239,7 +1420,12 @@ public class CameraServiceProxy extends SystemService
         }
     }
 
+    @GuardedBy("mLock")
     private void notifySwitchWithRetriesLocked(int retries) {
+        if (DEBUG) {
+            Slogf.d(TAG, "notifySwitchWithRetriesLocked(retries=%d): mEnabledCameraUsers=%s",
+                    retries, mEnabledCameraUsers);
+        }
         if (mEnabledCameraUsers == null) {
             return;
         }
@@ -1254,7 +1440,12 @@ public class CameraServiceProxy extends SystemService
                 RETRY_DELAY_TIME);
     }
 
+    @GuardedBy("mLock")
     private boolean notifyCameraserverLocked(int eventType, Set<Integer> updatedUserHandles) {
+        if (DEBUG) {
+            Slogf.d(TAG, "notifyCameraserverLocked(): eventType=%d, users=%s", eventType,
+                    updatedUserHandles);
+        }
         // Forward the user switch event to the native camera service running in the cameraserver
         // process.
         ICameraService cameraService = getCameraServiceRawLocked();
@@ -1341,7 +1532,8 @@ public class CameraServiceProxy extends SystemService
         return Math.max(Math.min(maxFps, MAX_PREVIEW_FPS), MIN_PREVIEW_FPS);
     }
 
-    private void updateActivityCount(CameraSessionStats cameraState) {
+    @VisibleForTesting
+    void updateActivityCount(CameraSessionStats cameraState) {
         String cameraId = cameraState.getCameraId();
         int newCameraState = cameraState.getNewCameraState();
         int facing = cameraState.getFacing();
@@ -1351,6 +1543,7 @@ public class CameraServiceProxy extends SystemService
         int sessionType = cameraState.getSessionType();
         int internalReconfigureCount = cameraState.getInternalReconfigureCount();
         int latencyMs = cameraState.getLatencyMs();
+        int inputFormat = cameraState.getInputFormat();
         long requestCount = cameraState.getRequestCount();
         long resultErrorCount = cameraState.getResultErrorCount();
         boolean deviceError = cameraState.getDeviceErrorFlag();
@@ -1361,6 +1554,8 @@ public class CameraServiceProxy extends SystemService
         boolean usedZoomOverride = cameraState.getUsedZoomOverride();
         long logId = cameraState.getLogId();
         int sessionIdx = cameraState.getSessionIndex();
+        int errorState = cameraState.getErrorState();
+        boolean sharedMode = cameraState.getSharedMode();
         CameraExtensionSessionStats extSessionStats = cameraState.getExtensionSessionStats();
         Range<Integer> mostRequestedFpsRange = Flags.analytics24q3()
                 ? cameraState.getMostRequestedFpsRange()
@@ -1387,7 +1582,8 @@ public class CameraServiceProxy extends SystemService
                     CameraUsageEvent openEvent = new CameraUsageEvent(
                             cameraId, facing, clientName, apiLevel, isNdk,
                             FrameworkStatsLog.CAMERA_ACTION_EVENT__ACTION__OPEN,
-                            latencyMs, sessionType, deviceError, logId, sessionIdx);
+                            latencyMs, sessionType, deviceError, logId, sessionIdx, errorState,
+                            sharedMode, inputFormat);
                     mCameraEventHistory.add(openEvent);
                     break;
                 case CameraSessionStats.CAMERA_STATE_ACTIVE:
@@ -1414,7 +1610,8 @@ public class CameraServiceProxy extends SystemService
                     CameraUsageEvent newEvent = new CameraUsageEvent(
                             cameraId, facing, clientName, apiLevel, isNdk,
                             FrameworkStatsLog.CAMERA_ACTION_EVENT__ACTION__SESSION,
-                            latencyMs, sessionType, deviceError, logId, sessionIdx);
+                            latencyMs, sessionType, deviceError, logId, sessionIdx, errorState,
+                            sharedMode, inputFormat);
                     CameraUsageEvent oldEvent = mActiveCameraUsage.put(cameraId, newEvent);
                     if (oldEvent != null) {
                         Slog.w(TAG, "Camera " + cameraId + " was already marked as active");
@@ -1422,7 +1619,7 @@ public class CameraServiceProxy extends SystemService
                                 /*resultErrorCount*/0, /*deviceError*/false, streamStats,
                                 /*userTag*/"", /*videoStabilizationMode*/-1, /*usedUltraWide*/false,
                                 /*usedZoomOverride*/false, new Range<Integer>(0, 0),
-                                new CameraExtensionSessionStats());
+                                new CameraExtensionSessionStats(), errorState);
                         mCameraEventHistory.add(oldEvent);
                     }
                     break;
@@ -1434,10 +1631,11 @@ public class CameraServiceProxy extends SystemService
                         doneEvent.markCompleted(internalReconfigureCount, requestCount,
                                 resultErrorCount, deviceError, streamStats, userTag,
                                 videoStabilizationMode, usedUltraWide, usedZoomOverride,
-                                mostRequestedFpsRange, extSessionStats);
+                                mostRequestedFpsRange, extSessionStats, errorState);
                         mCameraEventHistory.add(doneEvent);
                         // Do not double count device error
                         deviceError = false;
+                        errorState = 0;
 
                         // Check current active camera IDs to see if this package is still
                         // talking to some camera
@@ -1461,7 +1659,8 @@ public class CameraServiceProxy extends SystemService
                         CameraUsageEvent closeEvent = new CameraUsageEvent(
                                 cameraId, facing, clientName, apiLevel, isNdk,
                                 FrameworkStatsLog.CAMERA_ACTION_EVENT__ACTION__CLOSE,
-                                latencyMs, sessionType, deviceError, logId, sessionIdx);
+                                latencyMs, sessionType, deviceError, logId, sessionIdx, errorState,
+                                sharedMode, inputFormat);
                         mCameraEventHistory.add(closeEvent);
                     }
 

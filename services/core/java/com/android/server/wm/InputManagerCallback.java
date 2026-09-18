@@ -26,7 +26,6 @@ import static com.android.server.wm.WindowManagerService.H.ON_POINTER_DOWN_OUTSI
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.gui.StalledTransactionInfo;
 import android.os.Debug;
 import android.os.IBinder;
 import android.os.Trace;
@@ -37,8 +36,6 @@ import android.view.InputApplicationHandle;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.SurfaceControl;
-import android.view.WindowManager;
-import android.view.WindowManagerPolicyConstants;
 
 import com.android.internal.os.TimeoutRecord;
 import com.android.internal.util.function.pooled.PooledLambda;
@@ -99,29 +96,45 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
     }
 
     /**
-     * Notifies the window manager about an application that is not responding because it has
-     * no focused window.
+     * Notifies the window manager about an application that is not responding because it has no
+     * focused window.
      *
-     * Called by the InputManager.
+     * <p>Called by the InputManager.
      */
     @Override
-    public void notifyNoFocusedWindowAnr(@NonNull InputApplicationHandle applicationHandle) {
-        TimeoutRecord timeoutRecord = TimeoutRecord.forInputDispatchNoFocusedWindow(
-                timeoutMessage(OptionalInt.empty(), "Application does not have a focused window"));
+    public void notifyNoFocusedWindowAnr(
+            @NonNull InputApplicationHandle applicationHandle,
+            @NonNull TimeoutRecord timeoutRecord) {
         mService.mAnrController.notifyAppUnresponsive(applicationHandle, timeoutRecord);
     }
 
     @Override
-    public void notifyWindowUnresponsive(@NonNull IBinder token, @NonNull OptionalInt pid,
-            String reason) {
-        TimeoutRecord timeoutRecord = TimeoutRecord.forInputDispatchWindowUnresponsive(
-                timeoutMessage(pid, reason));
+    public void notifyWindowUnresponsive(
+            @NonNull IBinder token,
+            @NonNull OptionalInt pid,
+            @NonNull TimeoutRecord timeoutRecord) {
         mService.mAnrController.notifyWindowUnresponsive(token, pid, timeoutRecord);
     }
 
     @Override
     public void notifyWindowResponsive(@NonNull IBinder token, @NonNull OptionalInt pid) {
         mService.mAnrController.notifyWindowResponsive(token, pid);
+    }
+
+    /**
+     * Notifies the window manager about an application that is about to ANR because it has
+     * no focused window.
+     *
+     * Called by the InputManager.
+     */
+    @Override
+    public void notifyPreNoFocusedWindowAnr(
+            @NonNull InputApplicationHandle inputApplicationHandle,
+            int eventId,
+            long elapsedDurationMs,
+            long timeoutDurationMs) {
+        mService.mAnrController.notifyPreAppUnresponsive(
+                inputApplicationHandle, eventId, elapsedDurationMs, timeoutDurationMs);
     }
 
     /** Notifies that the input device configuration has changed. */
@@ -247,14 +260,6 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
         return mService.mPolicy.interceptUnhandledKey(event, focusedToken);
     }
 
-    /** Callback to get pointer layer. */
-    @Override
-    public int getPointerLayer() {
-        return mService.mPolicy.getWindowLayerFromTypeLw(WindowManager.LayoutParams.TYPE_POINTER)
-                * WindowManagerPolicyConstants.TYPE_LAYER_MULTIPLIER
-                + WindowManagerPolicyConstants.TYPE_LAYER_OFFSET;
-    }
-
     /** Callback to get pointer display id. */
     @Override
     public int getPointerDisplayId() {
@@ -301,9 +306,11 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
     }
 
     @Override
-    public void notifyDropWindow(IBinder token, float x, float y) {
+    public void notifyDropWindow(IBinder token, float windowX, float windowY, float rawX,
+            float rawY) {
         mService.mH.sendMessage(PooledLambda.obtainMessage(
-                mService.mDragDropController::reportDropWindow, token, x, y));
+                mService.mDragDropController::reportDropWindow, token, windowX, windowY, rawX,
+                rawY));
     }
 
     @Override
@@ -315,7 +322,7 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
                         + " - DisplayContent not found.");
                 return null;
             }
-            return dc.getOverlayLayer();
+            return dc.getPointerOverlayLayer();
         }
     }
 
@@ -405,23 +412,6 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
 
     private void updateInputDispatchModeLw() {
         mService.mInputManager.setInputDispatchMode(mInputDispatchEnabled, mInputDispatchFrozen);
-    }
-
-    private String timeoutMessage(OptionalInt pid, String reason) {
-        String message = (reason == null) ? "Input dispatching timed out."
-                : String.format("Input dispatching timed out (%s).", reason);
-        if (pid.isEmpty()) {
-            return message;
-        }
-        StalledTransactionInfo stalledTransactionInfo =
-                SurfaceControl.getStalledTransactionInfo(pid.getAsInt());
-        if (stalledTransactionInfo == null) {
-            return message;
-        }
-        return String.format("%s Buffer processing for the associated surface is stuck due to an "
-                + "unsignaled fence (window=%s, bufferId=0x%016X, frameNumber=%s). This "
-                + "potentially indicates a GPU hang.", message, stalledTransactionInfo.layerName,
-                stalledTransactionInfo.bufferId, stalledTransactionInfo.frameNumber);
     }
 
     void dump(PrintWriter pw, String prefix) {

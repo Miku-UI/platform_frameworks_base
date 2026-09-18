@@ -34,6 +34,10 @@ final class ProcessReceiverRecord extends ProcessReceiverRecordInternal {
      */
     private final ArraySet<ReceiverList> mReceivers = new ArraySet<>();
 
+    ArraySet<ReceiverList> getReceiverLists() {
+        return mReceivers;
+    }
+
     int numberOfReceivers() {
         return mReceivers.size();
     }

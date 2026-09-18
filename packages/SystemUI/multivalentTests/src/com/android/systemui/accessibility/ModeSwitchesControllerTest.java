@@ -24,8 +24,6 @@ import static org.mockito.Mockito.when;
 
 import android.content.pm.ActivityInfo;
 import android.hardware.display.DisplayManager;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.provider.Settings;
 import android.testing.TestableLooper;
 import android.view.Display;
@@ -35,7 +33,6 @@ import android.view.WindowManager;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 
 import org.junit.After;
@@ -124,25 +121,7 @@ public class ModeSwitchesControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_CLEANUP_INSTANCES_WHEN_DISPLAY_REMOVED)
-    public void testOnDisplayRemoved_flagOff_instancesStayInSupplier() {
-        int originalCachedItemsSize = mSupplier.getSize();
-        int testDisplayId2 = 200;
-        int testDisplayId3 = 300;
-
-        // Make the settings supplier add 2 new instance entries.
-        mModeSwitchesController.removeButton(testDisplayId2);
-        mModeSwitchesController.removeButton(testDisplayId3);
-        // When displays removed, the current behavior keeps the entries/instances in the supplier.
-        mModeSwitchesController.onDisplayRemoved(testDisplayId2);
-        mModeSwitchesController.onDisplayRemoved(testDisplayId3);
-
-        assertThat(mSupplier.getSize()).isEqualTo(originalCachedItemsSize + 2);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_CLEANUP_INSTANCES_WHEN_DISPLAY_REMOVED)
-    public void testOnDisplayRemoved_flagOn_instancesAreRemovedFromSupplier() {
+    public void testOnDisplayRemoved_instancesAreRemovedFromSupplier() {
         int originalCachedItemsSize = mSupplier.getSize();
         int testDisplayId2 = 200;
         int testDisplayId3 = 300;

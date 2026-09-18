@@ -16,6 +16,7 @@
 
 package com.android.companiondevicemanager;
 
+import static android.companion.AssociationRequest.DEVICE_PROFILE_WATCH;
 import static android.companion.CompanionDeviceManager.RESULT_INTERNAL_ERROR;
 import static android.companion.CompanionDeviceManager.RESULT_SECURITY_ERROR;
 import static android.companion.CompanionDeviceManager.RESULT_USER_REJECTED;
@@ -172,6 +173,17 @@ public class CompanionAssociationActivity extends FragmentActivity implements
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        final Intent intent = getIntent();
+        mRequest = intent.getParcelableExtra(EXTRA_ASSOCIATION_REQUEST, AssociationRequest.class);
+        mAppCallback = IAssociationRequestCallback.Stub.asInterface(
+                intent.getExtras().getBinder(EXTRA_APPLICATION_CALLBACK));
+        mCdmServiceReceiver = intent.getParcelableExtra(EXTRA_RESULT_RECEIVER,
+                ResultReceiver.class);
+
+        requireNonNull(mRequest);
+        requireNonNull(mAppCallback);
+        requireNonNull(mCdmServiceReceiver);
+
         boolean forceCancelDialog = getIntent().getBooleanExtra(EXTRA_FORCE_CANCEL_CONFIRMATION,
                 false);
         // Must handle the force cancel request in onNewIntent.
@@ -187,17 +199,6 @@ public class CompanionAssociationActivity extends FragmentActivity implements
     @Override
     protected void onStart() {
         super.onStart();
-
-        final Intent intent = getIntent();
-        mRequest = intent.getParcelableExtra(EXTRA_ASSOCIATION_REQUEST, AssociationRequest.class);
-        mAppCallback = IAssociationRequestCallback.Stub.asInterface(
-                intent.getExtras().getBinder(EXTRA_APPLICATION_CALLBACK));
-        mCdmServiceReceiver = intent.getParcelableExtra(EXTRA_RESULT_RECEIVER,
-                ResultReceiver.class);
-
-        requireNonNull(mRequest);
-        requireNonNull(mAppCallback);
-        requireNonNull(mCdmServiceReceiver);
 
         // Start discovery services if needed.
         if (!mRequest.isSelfManaged()) {
@@ -498,10 +499,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         }
 
         if (PROFILE_SUMMARIES.containsKey(deviceProfile)) {
-            final int summaryResourceId = PROFILE_SUMMARIES.get(deviceProfile);
-            final Spanned summary = getHtmlFromResources(this, summaryResourceId,
-                    mAppLabel, getString(R.string.device_type), mDeviceName);
-            mSummary.setText(summary);
+            mSummary.setText(getSummary(String.valueOf(mDeviceName)));
         } else {
             mSummary.setVisibility(View.GONE);
         }
@@ -516,6 +514,8 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         mTimeoutMessage.setVisibility(View.GONE);
         mProgressBar.setVisibility(View.GONE);
         mBorderBottom.setVisibility(View.GONE);
+        mTitle.post(() -> mTitle.performAccessibilityAction(
+                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null));
     }
 
     private void initUiForDeviceDiscovery() {
@@ -644,29 +644,63 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         mCancelScanLayout.setVisibility(View.GONE);
 
         final String deviceProfile = mRequest.getDeviceProfile();
-        final int summaryResourceId = PROFILE_SUMMARIES.get(deviceProfile);
         final String remoteDeviceName = mSelectedDevice.getDisplayName();
         final Spanned title = getHtmlFromResources(
                 this, PROFILE_TITLES.get(deviceProfile), mAppLabel, remoteDeviceName,
                 getString(R.string.device_type));
-        final Spanned summary;
 
         if (deviceProfile == null && mRequest.isSingleDevice()) {
-            summary = getHtmlFromResources(this, summaryResourceId, remoteDeviceName);
-            mConstraintList.setVisibility(View.GONE);
+            if (mRequest.getRequestedPerms() == null)  {
+                mConstraintList.setVisibility(View.GONE);
+            } else {
+                setupPermissionList(mRequest.getRequestedPerms());
+            }
         } else {
-            summary = getHtmlFromResources(
-                    this, summaryResourceId, getString(R.string.device_type), mAppLabel,
-                    remoteDeviceName);
             setupPermissionList(mRequest.getRequestedPerms());
         }
 
         mTitle.setText(title);
-        mSummary.setText(summary);
+        mSummary.setText(getSummary(remoteDeviceName));
 
         mSummary.setVisibility(View.VISIBLE);
         mButtonAllow.setVisibility(View.VISIBLE);
         mButtonNotAllow.setVisibility(View.VISIBLE);
+        mTitle.post(() -> mTitle.performAccessibilityAction(
+                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null));
+    }
+
+    private Spanned getSummary(String deviceName) {
+        final String deviceProfile = mRequest.getDeviceProfile();
+
+        if (mRequest.isSelfManaged()) {
+            return getHtmlFromResources(this, PROFILE_SUMMARIES.get(deviceProfile),
+                    mAppLabel, getString(R.string.device_type), mDeviceName);
+        }
+
+        if (mRequest.isRemoteAiAgentSupported()) {
+            if (deviceProfile == null && mRequest.getExtraPermissions().isEmpty()) {
+                return getHtmlFromResources(this,
+                        R.string.summary_generic_with_remote_ai_capability, deviceName,
+                        getString(R.string.device_type));
+            } else {
+                return getHtmlFromResources(this,
+                        R.string.summary_with_permissions_and_remote_ai_capability, deviceName,
+                        getString(R.string.device_type));
+            }
+        }
+
+        if (deviceProfile == null && mRequest.isSingleDevice()) {
+            final int summaryResourceIdNonProfile =
+                    CollectionUtils.isEmpty(mRequest.getExtraPermissions())
+                            ? PROFILE_SUMMARIES.get(null)
+                            : PROFILE_SUMMARIES.get(DEVICE_PROFILE_WATCH);
+            return getHtmlFromResources(
+                    this, summaryResourceIdNonProfile, getString(R.string.device_type));
+        } else {
+            return getHtmlFromResources(
+                    this, PROFILE_SUMMARIES.get(deviceProfile), getString(R.string.device_type),
+                    mAppLabel, deviceName);
+        }
     }
 
     private void onPositiveButtonClick(View v) {
@@ -763,15 +797,6 @@ public class CompanionAssociationActivity extends FragmentActivity implements
                                 .removeOnGlobalLayoutListener(this);
                     }
                 });
-
-        // Set accessibility for the recyclerView that to be able scroll up/down for voice access.
-        mPermissionListRecyclerView.setAccessibilityDelegate(new View.AccessibilityDelegate() {
-            public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
-                super.onInitializeAccessibilityNodeInfo(host, info);
-                info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN);
-                info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP);
-            }
-        });
 
         mConstraintList.setVisibility(View.VISIBLE);
         mPermissionListRecyclerView.setVisibility(View.VISIBLE);

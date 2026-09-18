@@ -46,6 +46,9 @@ public interface StatusBarIconController {
     /** Refresh the state of an IconManager by recreating the views */
     void refreshIconGroup(IconManager iconManager);
 
+    /** A lightweight refresh of an IconManager that only updates view layouts. */
+    void reloadIconGroupLayoutParams(IconManager iconManager);
+
     /** Refreshes icon groups for a specific display. */
     void refreshIconGroups(int displayId);
 

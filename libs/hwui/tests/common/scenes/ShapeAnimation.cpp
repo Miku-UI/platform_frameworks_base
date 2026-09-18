@@ -40,12 +40,14 @@ public:
                                 canvas.drawOval(0, 0, size, size, paint);
                             },
                             [](Canvas& canvas, float size, const Paint& paint) {
-                                SkPath diamondPath;
-                                diamondPath.moveTo(size / 2, 0);
-                                diamondPath.lineTo(size, size / 2);
-                                diamondPath.lineTo(size / 2, size);
-                                diamondPath.lineTo(0, size / 2);
-                                diamondPath.close();
+                                const SkPath diamondPath = SkPath::Polygon(
+                                        {
+                                                {size / 2, 0},
+                                                {size, size / 2},
+                                                {size / 2, size},
+                                                {0, size / 2},
+                                        },
+                                        /*isClosed=*/true);
                                 canvas.drawPath(diamondPath, paint);
                             },
                             [](Canvas& canvas, float size, const Paint& paint) {

@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"वाय-फाय तीन बार."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"वाय-फाय सिग्नल संपूर्ण आहे."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"तुमच्या डिव्हाइसशी कनेक्ट केले आहे."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"या डिव्हाइसवरील सर्व वापरकर्ते पाहू आणि कनेक्ट करू शकतात."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"नेटवर्क उघडा"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"सुरक्षित नेटवर्क"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"या वापरकर्त्यासाठी अ‍ॅक्सेस बिंदू नाव सेटिंग्ज उपलब्ध नाहीत"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB डीबग करणे"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB कनेक्ट केलेले असताना डीबग मोड"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB डीबग करणारी ऑथोरायझेशन मागे घ्या"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb डीबगिंगची ऑथोरायझेशन मागे घ्या"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"वायरलेस डीबगिंग"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"वाय-फाय कनेक्ट केलेले असताना डीबग मोड"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"एरर"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"डिव्हाइस पेअर करत आहे…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"डिव्हाइस पेअर करता आले नाही. QR कोड चुकीचा होता किंवा डिव्हाइस समान नेटवर्कशी कनेक्ट केलेले नाही."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"आयपी अ‍ॅड्रेस आणि पोर्ट"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"उपलब्ध नाही (अनुमती नाही)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"उपलब्ध नाही (वाय-फाय डिस्कनेक्ट केले आहे)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR कोड स्कॅन करा"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR कोड स्कॅन करून वाय-फाय वरून डिव्हाइस पेअर करा"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"कृपया एका वाय-फाय नेटवर्कशी कनेक्ट करा"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB डीबग करण्याचा हेतू फक्त विकास उद्देशांसाठी आहे. याचा वापर तुमचा कॉंप्युटर आणि तुमचे डिव्हाइस यांच्या दरम्यान डेटा कॉपी करण्यासाठी करा, सूचनेशिवाय तुमच्या डिव्हाइस वर अ‍ॅप्स इंस्टॉल करा आणि लॉग डेटा वाचा."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"वायरलेस डीबगिंग करण्याची अनुमती द्यायची आहे का?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"वायरलेस डीबगिंग करण्याचा हेतू फक्त विकास उद्देशांसाठी आहे. याचा वापर तुमचा कॉंप्युटर आणि तुमचे डिव्हाइस यांच्या दरम्यान डेटा कॉपी करण्यासाठी करा, सूचनेशिवाय तुमच्या डिव्हाइसवर अ‍ॅप्स इंस्टॉल करा आणि लॉग डेटा वाचा."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"तुम्ही पूर्वी ऑथोराइझ केलेल्या सर्व संगणकांवरुन USB डीबग करण्यासाठी अ‍ॅक्सेस रीव्होक करायचा?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"तुम्ही यापूर्वी ऑथोराइझ केलेल्या सर्व काँप्युटर आणि नेटवर्क यांवरून adb डीबगिंगचा अ‍ॅक्सेस मागे घ्यायचा आहे का?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"विकास सेटिंग्जला अनुमती द्यायची?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"या सेटिंग्जचा हेतू फक्त विकास वापरासाठी आहे. त्यामुळे तुमचे डिव्हाइस आणि त्यावरील ॲप्लिकेशन ब्रेक होऊ शकतात किंवा नेहमीपेक्षा वेगळे वर्तन करू शकतात."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB वर अ‍ॅप्स पडताळून पहा"</string>
@@ -466,7 +469,7 @@
     <string name="local_backup_password_toast_validation_failure" msgid="714669442363647122">"बॅक अप पासवर्ड सेट करणे अयशस्वी"</string>
     <string name="loading_injected_setting_summary" msgid="8394446285689070348">"लोड करत आहे…"</string>
   <string-array name="color_mode_names">
-    <item msgid="3836559907767149216">"सशक्त (डीफॉल्ट)"</item>
+    <item msgid="3836559907767149216">"व्हायब्रंट (डीफॉल्ट)"</item>
     <item msgid="9112200311983078311">"नैसर्गिक"</item>
     <item msgid="6564241960833766170">"मानक"</item>
   </string-array>
@@ -719,7 +722,7 @@
     <string name="failed_attempts_now_wiping_profile" msgid="7626589520888963129">"बरेच चुकीचे प्रयत्‍न. ही कार्य प्रोफाइल आणि त्यामधील डेटा हटवला जाईल."</string>
     <string name="failed_attempts_now_wiping_dialog_dismiss" msgid="2749889771223578925">"डिसमिस करा"</string>
     <string name="cached_apps_freezer_device_default" msgid="2616594131750144342">"डिव्हाइस डीफॉल्ट"</string>
-    <string name="cached_apps_freezer_disabled" msgid="4816382260660472042">"बंद केले आहे"</string>
+    <string name="cached_apps_freezer_disabled" msgid="4816382260660472042">"बंद केले"</string>
     <string name="cached_apps_freezer_enabled" msgid="8866703500183051546">"सुरू केले आहे"</string>
     <string name="cached_apps_freezer_reboot_dialog_text" msgid="695330563489230096">"हा बदल लागू करण्यासाठी तुमचे डिव्हाइस रीबूट करणे आवश्यक आहे. आता रीबूट करा किंवा रद्द करा."</string>
     <string name="media_transfer_wired_headphone_name" msgid="8698668536022665254">"वायर्ड हेडफोन"</string>
@@ -728,7 +731,7 @@
     <string name="media_transfer_wired_device_mic_name" msgid="7115192790725088698">"वायर्ड मायक्रोफोन"</string>
     <string name="media_transfer_usb_device_mic_name" msgid="7171789543226269822">"USB मायक्रोफोन"</string>
     <string name="media_transfer_bt_device_mic_name" msgid="1870669402238687618">"BT मायक्रोफोन"</string>
-    <string name="wifi_hotspot_switch_on_text" msgid="9212273118217786155">"सुरू करा"</string>
+    <string name="wifi_hotspot_switch_on_text" msgid="9212273118217786155">"सुरू"</string>
     <string name="wifi_hotspot_switch_off_text" msgid="7245567251496959764">"बंद करा"</string>
     <string name="carrier_network_change_mode" msgid="4257621815706644026">"वाहक नेटवर्क बदलत आहे"</string>
     <string name="data_connection_3g" msgid="931852552688157407">"3G"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"इथरनेट डिस्कनेक्ट केले."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"इथरनेट."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"कॉलिंग उपलब्ध नाही."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"प्रत्यक्ष कीबोर्ड"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"किबोर्ड लेआउट निवडा"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"डीफॉल्ट"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"स्क्रीन सुरू करण्यासंबंधित नियंत्रण"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"स्क्रीन सुरू करण्यासाठी अनुमती द्या"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"स्क्रीन सुरू करण्यासाठी ॲपला अनुमती द्या. अनुमती दिल्यास, ॲप तुमच्या स्पष्ट हेतूशिवाय कधीही स्क्रीन सुरू करू शकते."</string>

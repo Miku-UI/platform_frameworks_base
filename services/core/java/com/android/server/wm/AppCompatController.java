@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.server.wm;
 
 import android.annotation.NonNull;
@@ -50,7 +51,11 @@ class AppCompatController {
     @NonNull
     private final AppCompatSandboxingPolicy mSandboxingPolicy;
     @NonNull
-    private final AppCompatDisplayCompatModePolicy mDisplayCompatModePolicy;
+    private final AppCompatDisplayCompatPolicy mDisplayCompatPolicy;
+    @NonNull
+    private final AppCompatResourceOverlayPolicy mResourceOverlayPolicy;
+    @NonNull
+    private final AppCompatRecreateOnConfigChangePolicy mRecreateOnConfigChangePolicy;
 
     AppCompatController(@NonNull WindowManagerService wmService,
                         @NonNull ActivityRecord activityRecord) {
@@ -74,8 +79,11 @@ class AppCompatController {
                 mAppCompatOverrides, mTransparentPolicy, wmService.mAppCompatConfiguration);
         mSizeCompatModePolicy = new AppCompatSizeCompatModePolicy(activityRecord,
                 mAppCompatOverrides);
-        mSandboxingPolicy = new AppCompatSandboxingPolicy(activityRecord);
-        mDisplayCompatModePolicy = new AppCompatDisplayCompatModePolicy(activityRecord);
+        mSandboxingPolicy = new AppCompatSandboxingPolicy(activityRecord,
+                wmService.mAppCompatConfiguration);
+        mDisplayCompatPolicy = new AppCompatDisplayCompatPolicy(activityRecord);
+        mResourceOverlayPolicy = new AppCompatResourceOverlayPolicy(activityRecord);
+        mRecreateOnConfigChangePolicy = new AppCompatRecreateOnConfigChangePolicy(activityRecord);
     }
 
     @NonNull
@@ -164,8 +172,13 @@ class AppCompatController {
     }
 
     @NonNull
-    AppCompatDisplayCompatModePolicy getDisplayCompatModePolicy() {
-        return mDisplayCompatModePolicy;
+    AppCompatDisplayCompatPolicy getDisplayCompatPolicy() {
+        return mDisplayCompatPolicy;
+    }
+
+    @NonNull
+    AppCompatResourceOverlayPolicy getResourceOverlayPolicy() {
+        return mResourceOverlayPolicy;
     }
 
     @NonNull
@@ -173,12 +186,23 @@ class AppCompatController {
         return mAppCompatOverrides.getDisplayOverrides();
     }
 
+    @NonNull
+    AppCompatRecreateOnConfigChangePolicy getRecreateOnConfigChangePolicy() {
+        return mRecreateOnConfigChangePolicy;
+    }
+
+    @NonNull
+    AppCompatSandboxOverrides getSandboxOverrides() {
+        return mAppCompatOverrides.getSandboxOverrides();
+    }
+
     void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
         getTransparentPolicy().dump(pw, prefix);
         getLetterboxPolicy().dump(pw, prefix);
         getSizeCompatModePolicy().dump(pw, prefix);
-        getDisplayCompatModePolicy().dump(pw, prefix);
+        getDisplayCompatPolicy().dump(pw, prefix);
         getSafeRegionPolicy().dump(pw, prefix);
+        getRecreateOnConfigChangePolicy().dump(pw, prefix);
     }
 
     void dumpDebug(@NonNull ProtoOutputStream proto) {

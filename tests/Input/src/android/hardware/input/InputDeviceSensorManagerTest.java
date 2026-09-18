@@ -35,6 +35,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
 import android.view.InputDevice;
 
@@ -62,6 +63,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Presubmit
 @RunWith(MockitoJUnitRunner.class)
+@DisabledOnRavenwood(blockedBy = InputDeviceSensorManager.class)
 public class InputDeviceSensorManagerTest {
     private static final String TAG = "InputDeviceSensorManagerTest";
 

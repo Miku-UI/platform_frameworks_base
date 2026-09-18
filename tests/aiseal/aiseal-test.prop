@@ -1,0 +1,4 @@
+service.aiseal.enable=1
+service.aiseal.tenant_config_package=android.aiseal.tests.config
+service.aiseal.tenant_config_path=assets/vm_config.json
+service.aiseal.aiseal_config_path=assets/aiseal_config.json

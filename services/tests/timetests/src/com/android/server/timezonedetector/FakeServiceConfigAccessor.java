@@ -59,7 +59,8 @@ public class FakeServiceConfigAccessor implements ServiceConfigAccessor {
 
     @Override
     public boolean updateConfiguration(
-            @UserIdInt int userId, @NonNull TimeZoneConfiguration requestedChanges,
+            @UserIdInt int userId,
+            @NonNull TimeZoneConfiguration requestedChanges,
             boolean bypassUserPolicyChecks) {
         assertNotNull(mCurrentUserConfigurationInternal);
         assertNotNull(requestedChanges);
@@ -83,7 +84,7 @@ public class FakeServiceConfigAccessor implements ServiceConfigAccessor {
                 mCurrentUserConfigurationInternal = updatedConfiguration;
             } else if (mOtherUserConfigurationInternal != null
                     && updatedConfiguration.getUserId()
-                    == mOtherUserConfigurationInternal.getUserId()) {
+                            == mOtherUserConfigurationInternal.getUserId()) {
                 mOtherUserConfigurationInternal = updatedConfiguration;
             }
             // Note: Unlike the real strategy, the listeners are invoked synchronously.
@@ -118,7 +119,7 @@ public class FakeServiceConfigAccessor implements ServiceConfigAccessor {
         if (userId == mCurrentUserConfigurationInternal.getUserId()) {
             return mCurrentUserConfigurationInternal;
         } else if (mOtherUserConfigurationInternal != null
-                    && userId == mOtherUserConfigurationInternal.getUserId()) {
+                && userId == mOtherUserConfigurationInternal.getUserId()) {
             return mOtherUserConfigurationInternal;
         }
         throw new AssertionError("userId not known: " + userId);

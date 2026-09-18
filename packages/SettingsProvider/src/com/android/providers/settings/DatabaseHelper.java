@@ -2452,7 +2452,11 @@ class DatabaseHelper extends SQLiteOpenHelper {
 
             // Set default lid/cover behaviour according to legacy device config
             final int defaultLidBehavior;
-            if (res.getBoolean(com.android.internal.R.bool.config_lidControlsSleep)) {
+            if (com.android.server.display.feature.flags.Flags.changeDefaultDisplayLidClosed()
+                    && SystemProperties.get("ro.boot.hardware").equals("android-desktop")) {
+                // WindowManagerFuncs.LID_BEHAVIOR_NONE
+                defaultLidBehavior = 0;
+            } else if (res.getBoolean(com.android.internal.R.bool.config_lidControlsSleep)) {
                 // WindowManagerFuncs.LID_BEHAVIOR_SLEEP
                 defaultLidBehavior = 1;
             } else if (res.getBoolean(com.android.internal.R.bool.config_lidControlsScreenLock)) {

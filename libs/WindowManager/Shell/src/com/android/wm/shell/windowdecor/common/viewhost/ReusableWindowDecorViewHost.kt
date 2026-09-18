@@ -25,7 +25,7 @@ import android.view.SurfaceControl
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-import android.view.WindowManager.LayoutParams.TYPE_APPLICATION
+import android.view.WindowManager.LayoutParams.TYPE_APPLICATION_CAPTION_BAR
 import android.widget.FrameLayout
 import androidx.tracing.Trace
 import com.android.app.tracing.traceSection
@@ -61,7 +61,7 @@ class ReusableWindowDecorViewHost(
         WindowManager.LayoutParams(
                 0 /* width*/,
                 0 /* height */,
-                TYPE_APPLICATION,
+                TYPE_APPLICATION_CAPTION_BAR,
                 FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSPARENT,
             )

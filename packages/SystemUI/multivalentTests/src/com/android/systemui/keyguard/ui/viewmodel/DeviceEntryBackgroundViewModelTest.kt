@@ -16,11 +16,17 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.settingslib.Utils.getColorAttrDefaultColor
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
+import com.android.systemui.common.shared.colors.SurfaceEffectColors
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
@@ -30,6 +36,7 @@ import com.android.systemui.keyguard.shared.model.TransitionState.STARTED
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
+import com.android.systemui.window.data.repository.fakeWindowRootViewBlurRepository
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -72,6 +79,103 @@ class DeviceEntryBackgroundViewModelTest : SysuiTestCase() {
             )
             runCurrent()
 
+            assertThat(alpha).isEqualTo(0f)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_LOCKSCREEN_BLUR)
+    fun colorIsCorrect() =
+        testScope.runTest {
+            val color by collectLastValue(underTest.color)
+
+            assertThat(color).isEqualTo(0)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_LOCKSCREEN_BLUR)
+    fun useBackground_colorIsCorrect() =
+        testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsUdfps()
+
+            val expected =
+                getColorAttrDefaultColor(mContext, com.android.internal.R.attr.colorSurface)
+            val color by collectLastValue(underTest.color)
+
+            assertThat(color).isEqualTo(expected)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_LOCKSCREEN_BLUR)
+    fun useBackgroundAndBlurIsSupported_colorIsCorrect() =
+        testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsUdfps()
+            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
+
+            val expected = SurfaceEffectColors.surfaceEffect1(mContext)
+            val color by collectLastValue(underTest.color)
+
+            assertThat(color).isEqualTo(expected)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_LOCKSCREEN_BLUR)
+    fun useBackgroundAndBlurIsNotSupported_colorIsCorrect() =
+        testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsUdfps()
+            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = false
+
+            val expected =
+                getColorAttrDefaultColor(mContext, com.android.internal.R.attr.colorSurface)
+            val color by collectLastValue(underTest.color)
+
+            assertThat(color).isEqualTo(expected)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun alpha_emitsWhenToLockscreenEndStateTransitionFinishes() =
+        testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsUdfps()
+            val alpha by collectLastValue(underTest.alpha)
+
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.UNDEFINED,
+                to = KeyguardState.LOCKSCREEN,
+                testScope,
+            )
+            runCurrent()
+            assertThat(alpha).isEqualTo(1.0f)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun alpha_emitsWhenToAodEndStateTransitionFinishes() =
+        testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsUdfps()
+            val alpha by collectLastValue(underTest.alpha)
+
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.UNDEFINED,
+                to = KeyguardState.AOD,
+                testScope,
+            )
+            runCurrent()
+            assertThat(alpha).isEqualTo(0f)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun alpha_emitsWhenToDozingEndStateTransitionFinishes() =
+        testScope.runTest {
+            kosmos.fingerprintPropertyRepository.supportsUdfps()
+            val alpha by collectLastValue(underTest.alpha)
+
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.UNDEFINED,
+                to = KeyguardState.DOZING,
+                testScope,
+            )
+            runCurrent()
             assertThat(alpha).isEqualTo(0f)
         }
 

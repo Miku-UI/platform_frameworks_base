@@ -35,23 +35,25 @@ import org.junit.Ignore
 abstract class DesktopScenarioCustomAppTestBase(
     isResizeable: Boolean = true,
     isLandscapeApp: Boolean = true,
-    rotation: Rotation = Rotation.ROTATION_0
+    rotation: Rotation = Rotation.ROTATION_0,
 ) : TestScenarioBase(rotation) {
     val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     val tapl = LauncherInstrumentation()
     val wmHelper = WindowManagerStateHelper(instrumentation)
     val device = UiDevice.getInstance(instrumentation)
     // TODO(b/363181411): Consolidate in LetterboxAppHelper.
-    val testApp = when {
-        isResizeable && isLandscapeApp -> SimpleAppHelper(instrumentation)
-        isResizeable && !isLandscapeApp -> SimpleAppHelper(
-                instrumentation,
-                launcherName = ActivityOptions.PortraitOnlyActivity.LABEL,
-                component = ActivityOptions.PortraitOnlyActivity.COMPONENT.toFlickerComponent()
-            )
-        // NonResizeablAppHelper has no fixed orientation.
-        !isResizeable && isLandscapeApp -> NonResizeableAppHelper(instrumentation)
-        // Opens NonResizeablePortraitActivity.
-        else -> LetterboxAppHelper(instrumentation)
-    }.let { DesktopModeAppHelper(it) }
+    val testApp =
+        when {
+            isResizeable && isLandscapeApp -> SimpleAppHelper(instrumentation)
+            isResizeable && !isLandscapeApp ->
+                SimpleAppHelper(
+                    instrumentation,
+                    launcherName = ActivityOptions.PortraitOnlyActivity.LABEL,
+                    component = ActivityOptions.PortraitOnlyActivity.COMPONENT.toFlickerComponent(),
+                )
+            // NonResizeablAppHelper has no fixed orientation.
+            !isResizeable && isLandscapeApp -> NonResizeableAppHelper(instrumentation)
+            // Opens NonResizeablePortraitActivity.
+            else -> LetterboxAppHelper(instrumentation)
+        }.let { DesktopModeAppHelper(it) }
 }

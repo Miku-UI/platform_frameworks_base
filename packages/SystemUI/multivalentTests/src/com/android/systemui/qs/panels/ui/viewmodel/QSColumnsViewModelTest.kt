@@ -18,12 +18,15 @@ package com.android.systemui.qs.panels.ui.viewmodel
 
 import android.content.res.Configuration
 import android.content.res.mainResources
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.configurationRepository
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testCase
@@ -75,6 +78,7 @@ class QSColumnsViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun mediaLocationNull_singleOrSplit_alwaysSingleShadeColumns() =
         kosmos.runTest {
             val underTest = qsColumnsViewModelFactory.create(null, null)
@@ -94,7 +98,7 @@ class QSColumnsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun mediaLocationNull_dualShade_alwaysDualShadeColumns() =
         kosmos.runTest {
             val underTest = qsColumnsViewModelFactory.create(null, null)
@@ -114,7 +118,7 @@ class QSColumnsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun mediaLocationQS_dualShade_alwaysDualShadeColumns() =
         kosmos.runTest {
             val underTest =
@@ -137,7 +141,7 @@ class QSColumnsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun mediaLocationQQS_dualShade_alwaysDualShadeColumns() =
         kosmos.runTest {
             val underTest =
@@ -160,6 +164,7 @@ class QSColumnsViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun mediaLocationQS_singleOrSplit_halfColumnsOnCorrectConfigurationAndVisible() =
         kosmos.runTest {
             val underTest =
@@ -184,6 +189,7 @@ class QSColumnsViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun mediaLocationQQS_singleOrSplit_halfColumnsOnCorrectConfigurationAndVisible() =
         kosmos.runTest {
             val underTest =

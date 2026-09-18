@@ -16,10 +16,12 @@
 
 package com.android.server.wm;
 
+import static android.view.Display.INVALID_DISPLAY;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_FLAG_DISPLAY_LEVEL_TRANSITION;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN;
+import static com.android.server.power.hint.Flags.powerHintOnDeviceStateChange;
 import static com.android.server.wm.ActivityTaskManagerService.POWER_MODE_REASON_CHANGE_DISPLAY;
 import static com.android.server.wm.utils.DisplayInfoOverrides.WM_OVERRIDE_FIELDS;
 import static com.android.server.wm.utils.DisplayInfoOverrides.copyDisplayInfoFields;
@@ -28,10 +30,12 @@ import static com.android.window.flags.Flags.ensureWallpaperDrawnOnDisplaySwitch
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Rect;
+import android.os.Handler;
 import android.os.Message;
 import android.os.Trace;
 import android.util.Slog;
 import android.view.DisplayInfo;
+import android.window.DesktopExperienceFlags;
 import android.window.DisplayAreaInfo;
 import android.window.TransitionRequestInfo;
 import android.window.WindowContainerTransaction;
@@ -69,6 +73,7 @@ class DeferredDisplayUpdater {
         out.uniqueId = override.uniqueId;
         out.address = override.address;
         out.canHostTasks = override.canHostTasks;
+        out.state = override.state;
 
         // Also apply WM-override fields, since they might produce differences in window hierarchy
         WM_OVERRIDE_FIELDS.setFields(out, override);
@@ -78,7 +83,15 @@ class DeferredDisplayUpdater {
 
     private static final String TRACE_TAG_WAIT_FOR_TRANSITION =
             "Screen unblock: wait for transition";
-    private static final int WAIT_FOR_TRANSITION_TIMEOUT = 1000;
+
+    /**
+     * Currently, the 95th percentile between creating the transition and presenting
+     * the start transaction is ~930ms. Let's set the timeout to two seconds in case
+     * a transition just started collecting and we have received another display change that
+     * will be put into the TransitionController queue, so in total we would need to wait
+     * for both transitions.
+     */
+    private static final int WAIT_FOR_TRANSITION_TIMEOUT = 2000;
 
     private static final String READY_CONDITION_KEYGUARD_DRAWN = "keyguard_drawn";
 
@@ -105,16 +118,32 @@ class DeferredDisplayUpdater {
     @NonNull
     private final DisplayInfo mOutputDisplayInfo = new DisplayInfo();
 
+    @VisibleForTesting
+    @NonNull
+    Handler mHandler;
+
     /** Whether {@link #mScreenUnblocker} should wait for transition to be ready. */
     private boolean mShouldWaitForTransitionWhenScreenOn;
 
-    private boolean mInPhysicalDisplayChangeTransition;
+    /**
+     * Current physical display change Shell transition that we are waiting for.
+     * Whenever another physical display change comes while we haven't finished processing
+     * the previous one, this field will be overwritten by the latest transition.
+     */
+    @Nullable
+    private Transition mPhysicalDisplayChangeTransition;
 
     /** True if we are waiting for the IKeyguardDrawnCallback which will eventually invoke
      *  {@link DeferredDisplayUpdater#waitForTransition(Message)}}
      */
     private boolean mPendingKeyguardDrawing;
     private final List<ReadyCondition> mWaitingForKeyguardDrawnConditions = new ArrayList<>();
+    private final Runnable mMeetKeyguardDrawnConditions = () -> {
+        for (int i = 0; i < mWaitingForKeyguardDrawnConditions.size(); i++) {
+            mWaitingForKeyguardDrawnConditions.get(i).meet();
+        }
+        mWaitingForKeyguardDrawnConditions.clear();
+    };
 
     /** The message to notify PhoneWindowManager#finishWindowsDrawn. */
     @Nullable
@@ -122,11 +151,12 @@ class DeferredDisplayUpdater {
 
     private final Runnable mScreenUnblockTimeoutRunnable = () -> {
         Slog.e(TAG, "Timeout waiting for the display switch transition to start");
-        continueScreenUnblocking();
+        continueScreenUnblocking(/* fromTransition= */ null);
     };
 
     DeferredDisplayUpdater(@NonNull DisplayContent displayContent) {
         mDisplayContent = displayContent;
+        mHandler = displayContent.mWmService.mH;
         mNonOverrideDisplayInfo.copyFrom(mDisplayContent.getDisplayInfo());
     }
 
@@ -178,7 +208,7 @@ class DeferredDisplayUpdater {
                     "DeferredDisplayUpdater: deferring DisplayInfo(%d x %d) update",
                     displayInfo.logicalWidth, displayInfo.logicalHeight);
 
-            requestDisplayChangeTransition(physicalDisplayUpdated, () -> {
+            requestDisplayChangeTransition(displayInfo, physicalDisplayUpdated, () -> {
                 ProtoLog.d(WM_DEBUG_WINDOW_TRANSITIONS_MIN,
                         "DeferredDisplayUpdater: applying DisplayInfo(%d x %d) after deferring",
                         displayInfo.logicalWidth, displayInfo.logicalHeight);
@@ -199,26 +229,31 @@ class DeferredDisplayUpdater {
     /**
      * Requests a display change Shell transition
      *
+     * @param newDisplayInfo the DisplayInfo reflecting the changes made to the display
      * @param physicalDisplayUpdated if true also starts remote display change
      * @param onStartCollect         called when the Shell transition starts collecting
      */
-    private void requestDisplayChangeTransition(boolean physicalDisplayUpdated,
-            @NonNull Runnable onStartCollect) {
-
+    private void requestDisplayChangeTransition(@NonNull DisplayInfo newDisplayInfo,
+            boolean physicalDisplayUpdated, @NonNull Runnable onStartCollect) {
         final Transition transition = new Transition(TRANSIT_CHANGE,
                 /* flags= */ TRANSIT_FLAG_DISPLAY_LEVEL_TRANSITION,
                 mDisplayContent.mTransitionController,
                 mDisplayContent.mTransitionController.mSyncEngine);
 
-        mDisplayContent.mAtmService.startPowerMode(POWER_MODE_REASON_CHANGE_DISPLAY);
+        if (!powerHintOnDeviceStateChange()) {
+            // if flag is enabled it means power mode was already activated when changing device
+            // state, see FoldableDeviceStateProvider
+            mDisplayContent.mAtmService.startPowerMode(POWER_MODE_REASON_CHANGE_DISPLAY);
+        }
 
         if (physicalDisplayUpdated) {
-            mInPhysicalDisplayChangeTransition = true;
+            mPhysicalDisplayChangeTransition = transition;
+
+            mDisplayContent.mTransitionController.removeDisplayChangesFromQueue();
         }
 
         mDisplayContent.mTransitionController.startCollectOrQueue(transition, deferred -> {
-            final Rect startBounds = new Rect(0, 0, mDisplayContent.mInitialDisplayWidth,
-                    mDisplayContent.mInitialDisplayHeight);
+            final Rect startBounds = new Rect(mDisplayContent.getBounds());
             final int fromRotation = mDisplayContent.getRotation();
             if (physicalDisplayUpdated) {
                 final WindowState notificationShade =
@@ -235,15 +270,43 @@ class DeferredDisplayUpdater {
                     "dispChg", transition);
             mDisplayContent.mAtmService.deferWindowLayout();
             try {
+                final boolean willStopHostingTasks = !newDisplayInfo.canHostTasks
+                        && mLastWmDisplayInfo.canHostTasks
+                        && DesktopExperienceFlags.ENABLE_DISPLAY_DISCONNECT_INTERACTION.isTrue();
+                if (willStopHostingTasks && !physicalDisplayUpdated) {
+                    // Collect the DisplayContent before running onStartCollect so callers
+                    // can refer against whether or not it is a participant.
+                    transition.collect(mDisplayContent);
+                }
                 onStartCollect.run();
 
                 if (physicalDisplayUpdated) {
                     onDisplayUpdated(transition, fromRotation, startBounds);
-                } else {
+                } else if (!transition.mParticipants.isEmpty()) {
                     final TransitionRequestInfo.DisplayChange displayChange =
                             getCurrentDisplayChange(fromRotation, startBounds);
+                    // If the display has become unable to host tasks, identify a potential
+                    // reparent display.
+                    if (willStopHostingTasks) {
+                        final int reparentDisplay = chooseDisplayToReparentTo();
+                        displayChange.setDisconnectReparentDisplay(reparentDisplay);
+                        transition.addDisconnectReparentDisplay(mDisplayContent.getDisplayId(),
+                                reparentDisplay);
+                    }
+
+                    final List<TransitionRequestInfo.DisplayChange> displayChanges =
+                            new ArrayList<>();
+                    displayChanges.add(displayChange);
                     mDisplayContent.mTransitionController.requestStartTransition(transition,
-                            /* startTask= */ null, /* remoteTransition= */ null, displayChange);
+                            /* startTask= */ null, /* remoteTransition= */ null, displayChanges);
+                    if (willStopHostingTasks) {
+                        mDisplayContent.mTransitionController.mStateValidators.add(() -> {
+                            mDisplayContent.updateContentMode();
+                        });
+                    }
+                } else {
+                    // Display change didn't result in any WM changes that need to be animated.
+                    transition.abort();
                 }
             } finally {
                 // Run surface placement after requestStartTransition, so shell side can receive
@@ -252,6 +315,17 @@ class DeferredDisplayUpdater {
                 mDisplayContent.mAtmService.mChainTracker.end();
             }
         });
+    }
+
+    private int chooseDisplayToReparentTo() {
+        final ActivityTaskManagerService atmService = mDisplayContent.mAtmService;
+        int disconnectReparentDisplay = atmService.getUserManagerInternal()
+                .getMainDisplayAssignedToUser(atmService.getCurrentUserId());
+        if (disconnectReparentDisplay == INVALID_DISPLAY) {
+            disconnectReparentDisplay = atmService.mRootWindowContainer
+                .getDefaultDisplay().getDisplayId();
+        }
+        return disconnectReparentDisplay;
     }
 
     /**
@@ -277,8 +351,7 @@ class DeferredDisplayUpdater {
     @NonNull
     private TransitionRequestInfo.DisplayChange getCurrentDisplayChange(int fromRotation,
             @NonNull Rect startBounds) {
-        final Rect endBounds = new Rect(0, 0, mDisplayContent.mInitialDisplayWidth,
-                mDisplayContent.mInitialDisplayHeight);
+        final Rect endBounds = new Rect(mDisplayContent.getBounds());
         final int toRotation = mDisplayContent.getRotation();
 
         final TransitionRequestInfo.DisplayChange displayChange =
@@ -287,6 +360,9 @@ class DeferredDisplayUpdater {
         displayChange.setEndAbsBounds(endBounds);
         displayChange.setStartRotation(fromRotation);
         displayChange.setEndRotation(toRotation);
+        if (com.android.window.flags.Flags.sendNewInsetsStateWithRotation()) {
+            displayChange.setEndInsetsState(mDisplayContent.getInsetsStateForRotation(toRotation));
+        }
         return displayChange;
     }
 
@@ -306,9 +382,11 @@ class DeferredDisplayUpdater {
                 getCurrentDisplayChange(fromRotation, startBounds);
         displayChange.setPhysicalDisplayChanged(true);
 
-        transition.addTransactionPresentedListener(this::continueScreenUnblocking);
+        transition.addTransactionPresentedListener(() -> continueScreenUnblocking(transition));
+        final List<TransitionRequestInfo.DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(displayChange);
         mDisplayContent.mTransitionController.requestStartTransition(transition,
-                /* startTask= */ null, /* remoteTransition= */ null, displayChange);
+                /* startTask= */ null, /* remoteTransition= */ null, displayChanges);
 
         if (mPendingKeyguardDrawing && ensureWallpaperDrawnOnDisplaySwitch()) {
             // Keyguard hasn't reported that it has drawn yet, defer readiness until it draws
@@ -353,7 +431,7 @@ class DeferredDisplayUpdater {
      * properties.
      */
     void onDisplayContentDisplayPropertiesPostChanged() {
-        if (mInPhysicalDisplayChangeTransition) {
+        if (mPhysicalDisplayChangeTransition != null) {
             return;
         }
         // Unblock immediately in case there is no transition. This is unlikely to happen.
@@ -367,6 +445,14 @@ class DeferredDisplayUpdater {
     /**
      * Called with {@code true} when physical display is going to switch. And {@code false} when
      * the display is turned on or the device goes to sleep.
+     * <p>
+     * This method must be called synchronously, which will ensure that we update the state
+     * before both waitForTransition (onScreenTurningOn) and updateDisplayInfo (onDisplayChanged).
+     * These two events could come in any order from the DisplayManager, and
+     * onDisplaySwitching(true) indicates that we should expect to receive these calls.
+     * <p>
+     * This event is invoked from DisplayManager and guarded by
+     * the {@link DisplayManagerService.SyncRoot} lock. Do not invoke code that holds WM lock here.
      */
     void onDisplaySwitching(boolean switching) {
         mShouldWaitForTransitionWhenScreenOn = switching;
@@ -402,18 +488,15 @@ class DeferredDisplayUpdater {
             Trace.beginAsyncSection(TRACE_TAG_WAIT_FOR_TRANSITION, screenUnblocker.hashCode());
         }
 
-        mDisplayContent.mWmService.mH.removeCallbacks(mScreenUnblockTimeoutRunnable);
-        mDisplayContent.mWmService.mH.postDelayed(mScreenUnblockTimeoutRunnable,
+        mHandler.removeCallbacks(mScreenUnblockTimeoutRunnable);
+        mHandler.postDelayed(mScreenUnblockTimeoutRunnable,
                 WAIT_FOR_TRANSITION_TIMEOUT);
         return true;
     }
 
     private void onKeyguardDrawn() {
         mPendingKeyguardDrawing = false;
-        for (int i = 0; i < mWaitingForKeyguardDrawnConditions.size(); i++) {
-            mWaitingForKeyguardDrawnConditions.get(i).meet();
-        }
-        mWaitingForKeyguardDrawnConditions.clear();
+        mHandler.post(mMeetKeyguardDrawnConditions);
     }
 
     /**
@@ -421,9 +504,21 @@ class DeferredDisplayUpdater {
      * a result of surface transaction presented listener or from {@link WindowManagerService#mH}
      * handler in case of timeout
      */
-    private void continueScreenUnblocking() {
+    private void continueScreenUnblocking(@Nullable Transition fromTransition) {
         synchronized (mDisplayContent.mWmService.mGlobalLock) {
-            mInPhysicalDisplayChangeTransition = false;
+            // Do not proceed with unblocking in case if the ready transition doesn't match
+            // the current mPhysicalDisplayChangeTransition, this means that while we were
+            // waiting for a transition, another one was requested. We want to unblock only
+            // when the last transition is ready.
+            final boolean isTimeout = fromTransition == null;
+            final boolean isTransitionMatching = isTimeout
+                    || fromTransition == mPhysicalDisplayChangeTransition;
+
+            if (!isTransitionMatching) {
+                return;
+            }
+
+            mPhysicalDisplayChangeTransition = null;
             mShouldWaitForTransitionWhenScreenOn = false;
             mDisplayContent.mWmService.mH.removeCallbacks(mScreenUnblockTimeoutRunnable);
             if (mScreenUnblocker == null) {
@@ -478,15 +573,14 @@ class DeferredDisplayUpdater {
                 || first.defaultModeId != second.defaultModeId
                 || first.userPreferredModeId != second.userPreferredModeId
                 || !Arrays.equals(first.supportedModes, second.supportedModes)
-                || !Arrays.equals(first.appsSupportedModes, second.appsSupportedModes)
                 || first.colorMode != second.colorMode
                 || !Arrays.equals(first.supportedColorModes, second.supportedColorModes)
+                || !Objects.equals(first.frameRateVelocityMapping, second.frameRateVelocityMapping)
                 || !Objects.equals(first.hdrCapabilities, second.hdrCapabilities)
                 || !Arrays.equals(first.userDisabledHdrTypes, second.userDisabledHdrTypes)
                 || first.minimalPostProcessingSupported != second.minimalPostProcessingSupported
                 || first.appVsyncOffsetNanos != second.appVsyncOffsetNanos
                 || first.presentationDeadlineNanos != second.presentationDeadlineNanos
-                || first.state != second.state
                 || first.committedState != second.committedState
                 || first.ownerUid != second.ownerUid
                 || !Objects.equals(first.ownerPackageName, second.ownerPackageName)
@@ -518,6 +612,7 @@ class DeferredDisplayUpdater {
                 || first.logicalHeight != second.logicalHeight
                 || first.physicalXDpi != second.physicalXDpi
                 || first.physicalYDpi != second.physicalYDpi
+                || first.state != second.state
                 || first.rotation != second.rotation
                 || !Objects.equals(first.displayCutout, second.displayCutout)
                 || first.logicalDensityDpi != second.logicalDensityDpi

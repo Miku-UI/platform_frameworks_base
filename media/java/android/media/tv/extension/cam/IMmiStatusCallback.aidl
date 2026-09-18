@@ -22,7 +22,23 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IMmiStatusCallback {
-    void onMmiEnq(in Bundle request);
-    void onMmiListMenu(in Bundle request);
+    /**
+     * Called when the CAM sends a request to display an enquiry screen, which typically
+     * prompts the user for text input.
+     *
+     * @param enqComponent A Bundle containing the components needed to display the enquiry.
+     *                     Bundle keys as defined in @CamConstants.EnquiryBundleKey.
+     */
+    void onMmiEnquire(in Bundle enqComponent);
+    /**
+     * Called when the CAM sends a request to display a menu or a list of choices.
+     *
+     * @param listMenuComponent A Bundle containing the components needed to display the menu list:
+     *                          Bundle keys as defined in @CamConstants.MenuListBundleKey.
+     */
+    void onMmiListMenu(in Bundle listMenuComponent);
+    /**
+     * Called when the CAM sends a request to close the current MMI screen.
+     */
     void onMmiClose();
 }

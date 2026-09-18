@@ -19,8 +19,13 @@ package com.android.server.display;
 
 import static com.android.internal.display.BrightnessSynchronizer.brightnessIntToFloat;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR;
+import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_CHARGING;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_DEFAULT;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_DOZE;
+import static com.android.server.display.DisplayDeviceConfig.CONFIG_FILE_FORMAT;
+import static com.android.server.display.DisplayDeviceConfig.PORT_SUFFIX_FORMAT;
+import static com.android.server.display.DisplayDeviceConfig.STABLE_FLAG;
+import static com.android.server.display.DisplayDeviceConfig.STABLE_ID_SUFFIX_FORMAT;
 import static com.android.server.display.config.SensorData.TEMPERATURE_TYPE_SKIN;
 import static com.android.server.display.utils.DeviceConfigParsingUtils.ambientBrightnessThresholdsIntToFloat;
 import static com.android.server.display.utils.DeviceConfigParsingUtils.displayBrightnessThresholdsIntToFloat;
@@ -44,9 +49,8 @@ import android.content.res.TypedArray;
 import android.hardware.display.DisplayManagerInternal;
 import android.os.PowerManager;
 import android.os.Temperature;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.util.SparseArray;
 import android.util.Spline;
@@ -57,6 +61,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.internal.display.BrightnessUtils;
+import com.android.server.display.config.DisplayDeviceConfigUtils;
 import com.android.server.display.config.HdrBrightnessData;
 import com.android.server.display.config.HighBrightnessModeData;
 import com.android.server.display.config.HysteresisLevels;
@@ -70,10 +75,12 @@ import com.android.server.display.feature.flags.Flags;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -81,6 +88,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @SmallTest
@@ -106,7 +114,10 @@ public final class DisplayDeviceConfigTest {
     private static final float SMALL_DELTA = 0.0001f;
 
     @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Rule
+    public final TemporaryFolder mTestFolder = new TemporaryFolder();
 
     @Mock
     private Context mContext;
@@ -121,7 +132,6 @@ public final class DisplayDeviceConfigTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         when(mContext.getResources()).thenReturn(mResources);
-        when(mFlags.areAutoBrightnessModesEnabled()).thenReturn(true);
         when(mFlags.isSensorBasedBrightnessThrottlingEnabled()).thenReturn(true);
         mockDeviceConfigs();
     }
@@ -166,6 +176,10 @@ public final class DisplayDeviceConfigTest {
         assertNull(mDisplayDeviceConfig.getTempSensor().name);
         assertTrue(mDisplayDeviceConfig.isAutoBrightnessAvailable());
         assertEquals(0, mDisplayDeviceConfig.getIdleStylusTimeoutMillis());
+        assertNull(mDisplayDeviceConfig.getRefreshRateData().defaultWorkDurations);
+        assertNull(mDisplayDeviceConfig.getRefreshRateData().lowPowerWorkDurations);
+        assertThat(mDisplayDeviceConfig.getThermalThrottlingData()
+                .getThermalThrottlingWorkDurations()).isEmpty();
     }
 
     @Test
@@ -286,28 +300,28 @@ public final class DisplayDeviceConfigTest {
                 defaultThrottlingLevels = new ArrayList<>();
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.light), 800f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.light),
+                        800f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.moderate), 600f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.moderate),
+                        600f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.severe), 400f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.severe),
+                        400f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.critical), 200f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.critical),
+                        200f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.emergency), 100f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.emergency),
+                        100f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.shutdown), 50f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.shutdown),
+                        50f));
 
         DisplayDeviceConfig.PowerThrottlingData defaultThrottlingData =
                 new DisplayDeviceConfig.PowerThrottlingData(defaultThrottlingLevels);
@@ -316,28 +330,28 @@ public final class DisplayDeviceConfigTest {
                 concurrentThrottlingLevels = new ArrayList<>();
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.light), 800f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.light),
+                        800f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.moderate), 600f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.moderate),
+                        600f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.severe), 400f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.severe),
+                        400f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.critical), 200f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.critical),
+                        200f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.emergency), 100f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.emergency),
+                        100f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.PowerThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.shutdown), 50f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.shutdown),
+                        50f));
         DisplayDeviceConfig.PowerThrottlingData concurrentThrottlingData =
                 new DisplayDeviceConfig.PowerThrottlingData(concurrentThrottlingLevels);
 
@@ -559,28 +573,28 @@ public final class DisplayDeviceConfigTest {
                 defaultThrottlingLevels = new ArrayList<>();
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.light), 0.4f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.light),
+                        0.4f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.moderate), 0.3f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.moderate),
+                        0.3f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.severe), 0.2f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.severe),
+                        0.2f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.critical), 0.1f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.critical),
+                        0.1f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.emergency), 0.05f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.emergency),
+                        0.05f));
         defaultThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.shutdown), 0.025f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.shutdown),
+                        0.025f));
 
         DisplayDeviceConfig.ThermalBrightnessThrottlingData defaultThrottlingData =
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData(defaultThrottlingLevels);
@@ -589,28 +603,28 @@ public final class DisplayDeviceConfigTest {
                 concurrentThrottlingLevels = new ArrayList<>();
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.light), 0.2f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.light),
+                        0.2f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.moderate), 0.15f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.moderate),
+                        0.15f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.severe), 0.1f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.severe),
+                        0.1f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.critical), 0.05f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.critical),
+                        0.05f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.emergency), 0.025f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.emergency),
+                        0.025f));
         concurrentThrottlingLevels.add(
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData.ThrottlingLevel(
-                        DisplayDeviceConfig.convertThermalStatus(ThermalStatus.shutdown), 0.0125f
-                ));
+                        DisplayDeviceConfigUtils.convertValidThermalStatus(ThermalStatus.shutdown),
+                        0.0125f));
         DisplayDeviceConfig.ThermalBrightnessThrottlingData concurrentThrottlingData =
                 new DisplayDeviceConfig.ThermalBrightnessThrottlingData(concurrentThrottlingLevels);
 
@@ -984,26 +998,34 @@ public final class DisplayDeviceConfigTest {
                 mDisplayDeviceConfig.getAutoBrightnessBrighteningLevels(
                         AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR,
                         Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_BRIGHT), SMALL_DELTA);
-    }
 
-    @Test
-    public void testAutoBrightnessBrighteningLevels_FeatureFlagOff() throws IOException {
-        when(mFlags.areAutoBrightnessModesEnabled()).thenReturn(false);
-        setupDisplayDeviceConfigFromConfigResourceFile();
-        setupDisplayDeviceConfigFromDisplayConfigFile(getContent(getValidLuxThrottling(),
-                getValidProxSensor(), /* includeIdleMode= */ false, /* enableEvenDimmer= */ false));
-
-        assertArrayEquals(new float[]{brightnessIntToFloat(50), brightnessIntToFloat(100),
-                        brightnessIntToFloat(150)},
-                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevels(
-                        AUTO_BRIGHTNESS_MODE_DEFAULT,
-                        Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_NORMAL), SMALL_DELTA);
-        assertArrayEquals(new float[]{0, 110, 500},
+        // Charging mode curve
+        assertArrayEquals(new float[]{0.0f, 10.0f},
                 mDisplayDeviceConfig.getAutoBrightnessBrighteningLevelsLux(
-                        AUTO_BRIGHTNESS_MODE_DEFAULT,
+                        AUTO_BRIGHTNESS_MODE_CHARGING,
+                        Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_DIM), ZERO_DELTA);
+        assertArrayEquals(new float[]{0.10f, 0.20f},
+                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevels(
+                        AUTO_BRIGHTNESS_MODE_CHARGING,
+                        Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_DIM), SMALL_DELTA);
+
+        assertArrayEquals(new float[]{0.0f, 20.0f},
+                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevelsLux(
+                        AUTO_BRIGHTNESS_MODE_CHARGING,
                         Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_NORMAL), ZERO_DELTA);
-        assertArrayEquals(new float[]{2, 200, 600},
-                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevelsNits(), SMALL_DELTA);
+        assertArrayEquals(new float[]{0.10f, 0.30f},
+                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevels(
+                        AUTO_BRIGHTNESS_MODE_CHARGING,
+                        Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_NORMAL), SMALL_DELTA);
+
+        assertArrayEquals(new float[]{0.0f, 30.0f},
+                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevelsLux(
+                        AUTO_BRIGHTNESS_MODE_CHARGING,
+                        Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_BRIGHT), ZERO_DELTA);
+        assertArrayEquals(new float[]{0.10f, 0.50f},
+                mDisplayDeviceConfig.getAutoBrightnessBrighteningLevels(
+                        AUTO_BRIGHTNESS_MODE_CHARGING,
+                        Settings.System.SCREEN_BRIGHTNESS_AUTOMATIC_BRIGHT), SMALL_DELTA);
     }
 
     @Test
@@ -1024,10 +1046,8 @@ public final class DisplayDeviceConfigTest {
         assertFalse(mDisplayDeviceConfig.isAutoBrightnessAvailable());
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     @Test
     public void testEvenDimmer() throws IOException {
-        when(mFlags.isEvenDimmerEnabled()).thenReturn(true);
         when(mResources.getBoolean(R.bool.config_evenDimmerEnabled)).thenReturn(true);
         setupDisplayDeviceConfigFromDisplayConfigFile(getContent(getValidLuxThrottling(),
                 getValidProxSensor(), /* includeIdleMode= */ false, /* enableEvenDimmer= */ true));
@@ -1108,6 +1128,47 @@ public final class DisplayDeviceConfigTest {
 
         assertEquals(brightnessIntToFloat(90),
                 mDisplayDeviceConfig.getDefaultDozeBrightness(), ZERO_DELTA);
+    }
+
+    @Test
+    public void testLookupOrder() throws IOException {
+        File productDirectory = mTestFolder.newFolder();
+        File vendorDirectory = mTestFolder.newFolder();
+        File ddcDirectory = new File(productDirectory, "/etc/displayconfig");
+
+        long stableId = 12345L | STABLE_FLAG;
+        int port = 72;
+
+        final String stableSuffix = String.format(Locale.ROOT, STABLE_ID_SUFFIX_FORMAT, stableId);
+        final String stableFilename = String.format(Locale.ROOT, CONFIG_FILE_FORMAT, stableSuffix);
+
+
+        final String portSuffix = String.format(Locale.ROOT, PORT_SUFFIX_FORMAT, port);
+        final String portFilename = String.format(Locale.ROOT, CONFIG_FILE_FORMAT, portSuffix);
+
+        // Create files, stable file should be chosen
+        createConfigFile(ddcDirectory, stableFilename, "PhysicalIdFilename");
+        createConfigFile(ddcDirectory, portFilename, "PortFilename");
+
+
+        DisplayDeviceConfig config = DisplayDeviceConfig.createWithoutDefaultValues(
+                productDirectory, vendorDirectory, mContext, stableId, port, false, mFlags);
+        assertEquals("PhysicalIdFilename", config.getName());
+
+        // Delete the stable file, port file should be chosen
+        assertTrue(new File(ddcDirectory, stableFilename).delete());
+        config = DisplayDeviceConfig.createWithoutDefaultValues(productDirectory, vendorDirectory,
+                mContext, stableId, port, false, mFlags);
+        assertEquals("PortFilename", config.getName());
+
+    }
+    private void createConfigFile(File dir, String name, String contentName) throws IOException {
+        File configFile = new File(dir, name);
+        configFile.getParentFile().mkdirs();
+        String content = getContent(getInvalidLuxThrottling(), getValidProxSensor(),
+                /* includeIdleMode= */ true, /* enableEvenDimmer= */ false,
+                contentName);
+        Files.write(configFile.toPath(), content.getBytes(StandardCharsets.UTF_8));
     }
 
     private String getValidLuxThrottling() {
@@ -1437,6 +1498,51 @@ public final class DisplayDeviceConfigTest {
                 +       "</luxToBrightnessMapping>\n";
     }
 
+    private String getChargingModeCurveConfig() {
+        return  "<luxToBrightnessMapping>\n"
+                +           "<mode>charging</mode>\n"
+                +           "<setting>dim</setting>\n"
+                +           "<map>\n"
+                +               "<point>\n"
+                +                   "<first>0</first>\n"
+                +                   "<second>0.1</second>\n"
+                +               "</point>\n"
+                +               "<point>\n"
+                +                   "<first>10</first>\n"
+                +                   "<second>0.2</second>\n"
+                +               "</point>\n"
+                +           "</map>\n"
+                +       "</luxToBrightnessMapping>\n"
+                +       "<luxToBrightnessMapping>\n"
+                +           "<mode>charging</mode>\n"
+                +           "<setting>normal</setting>\n"
+                +           "<map>\n"
+                +               "<point>\n"
+                +                   "<first>0</first>\n"
+                +                   "<second>0.1</second>\n"
+                +               "</point>\n"
+                +               "<point>\n"
+                +                   "<first>20</first>\n"
+                +                   "<second>0.3</second>\n"
+                +               "</point>\n"
+                +           "</map>\n"
+                +       "</luxToBrightnessMapping>\n"
+                +       "<luxToBrightnessMapping>\n"
+                +           "<mode>charging</mode>\n"
+                +           "<setting>bright</setting>\n"
+                +           "<map>\n"
+                +               "<point>\n"
+                +                   "<first>0</first>\n"
+                +                   "<second>0.1</second>\n"
+                +               "</point>\n"
+                +               "<point>\n"
+                +                   "<first>30</first>\n"
+                +                   "<second>0.5</second>\n"
+                +               "</point>\n"
+                +           "</map>\n"
+                +       "</luxToBrightnessMapping>\n";
+    }
+
     private String getPowerThrottlingConfig() {
         return  "<powerThrottlingConfig >\n"
                 +       "<brightnessLowestCapAllowed>0.1</brightnessLowestCapAllowed>\n"
@@ -1513,9 +1619,15 @@ public final class DisplayDeviceConfigTest {
 
     private String getContent(String brightnessCapConfig, String proxSensor,
             boolean includeIdleMode, boolean enableEvenDimmer) {
+        return getContent(brightnessCapConfig, proxSensor, includeIdleMode, enableEvenDimmer,
+                "Example Display");
+    }
+
+    private String getContent(String brightnessCapConfig, String proxSensor,
+            boolean includeIdleMode, boolean enableEvenDimmer, String displayName) {
         return "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                 + "<displayConfiguration>\n"
-                +   "<name>Example Display</name>\n"
+                +   "<name>" + displayName + "</name>\n"
                 +   "<densityMapping>\n"
                 +       "<density>\n"
                 +           "<height>480</height>\n"
@@ -1623,7 +1735,22 @@ public final class DisplayDeviceConfigTest {
                 +           "</map>\n"
                 +       "</luxToBrightnessMapping>\n"
                 +       getBedTimeModeWearCurveConfig()
+                +       getChargingModeCurveConfig()
                 +       "<idleStylusTimeoutMillis>1000</idleStylusTimeoutMillis>\n"
+                +       "<brighteningRampGamma>2.0</brighteningRampGamma>\n"
+                +       "<darkeningRampGamma>3.0</darkeningRampGamma>\n"
+                +       "<luxDeltaToRampLimits>\n"
+                +           "<point>\n"
+                +               "<luxDelta>10</luxDelta>\n"
+                +               "<rampIncreaseMaxMillis>1000</rampIncreaseMaxMillis>\n"
+                +               "<rampDecreaseMaxMillis>2000</rampDecreaseMaxMillis>\n"
+                +           "</point>\n"
+                +           "<point>\n"
+                +               "<luxDelta>100</luxDelta>\n"
+                +               "<rampIncreaseMaxMillis>3000</rampIncreaseMaxMillis>\n"
+                +               "<rampDecreaseMaxMillis>4000</rampDecreaseMaxMillis>\n"
+                +           "</point>\n"
+                +       "</luxDeltaToRampLimits>\n"
                 +   "</autoBrightness>\n"
                 +  getPowerThrottlingConfig()
                 +   "<highBrightnessMode enabled=\"true\">\n"
@@ -2054,6 +2181,27 @@ public final class DisplayDeviceConfigTest {
 
         mDisplayDeviceConfig = DisplayDeviceConfig.create(mContext, /* useConfigXml= */ true,
                 mFlags);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SMART_ADAPTIVE_BRIGHTNESS)
+    public void testAutoBrightnessGammaAndRampLimits() throws IOException {
+        setupDisplayDeviceConfigFromDisplayConfigFile();
+
+        assertEquals(2.0f, mDisplayDeviceConfig.getAutoBrightnessBrighteningRampGamma(),
+                ZERO_DELTA);
+        assertEquals(3.0f, mDisplayDeviceConfig.getAutoBrightnessDarkeningRampGamma(), ZERO_DELTA);
+
+        Spline luxDeltaToRampIncreaseMaxMillis =
+                mDisplayDeviceConfig.getLuxDeltaToRampIncreaseMaxMillis();
+        Spline luxDeltaToRampDecreaseMaxMillis =
+                mDisplayDeviceConfig.getLuxDeltaToRampDecreaseMaxMillis();
+
+        assertEquals(1000, luxDeltaToRampIncreaseMaxMillis.interpolate(10), ZERO_DELTA);
+        assertEquals(3000, luxDeltaToRampIncreaseMaxMillis.interpolate(100), ZERO_DELTA);
+
+        assertEquals(2000, luxDeltaToRampDecreaseMaxMillis.interpolate(10), ZERO_DELTA);
+        assertEquals(4000, luxDeltaToRampDecreaseMaxMillis.interpolate(100), ZERO_DELTA);
     }
 
     private TypedArray createFloatTypedArray(float[] vals) {

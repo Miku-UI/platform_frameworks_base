@@ -18,7 +18,19 @@ package com.android.systemui.screencapture.common.shared.model
 
 sealed interface ScreenCaptureUiState {
 
-    data object Invisible : ScreenCaptureUiState
+    // This isn't an object because we want to distinguish between different instances in the
+    // [tracingCookie] property.
+    class Invisible : ScreenCaptureUiState
 
     data class Visible(val parameters: ScreenCaptureUiParameters) : ScreenCaptureUiState
 }
+
+val ScreenCaptureUiState.tracingCookie
+    get() = this.hashCode()
+
+val ScreenCaptureUiState.methodName
+    get() =
+        when (this) {
+            is ScreenCaptureUiState.Visible -> "ScreenCapture#show"
+            is ScreenCaptureUiState.Invisible -> "ScreenCapture#dismiss"
+        }

@@ -17,10 +17,11 @@
 package com.android.systemui.biometrics.domain.interactor
 
 import android.content.Context
-import android.graphics.Rect
 import android.hardware.biometrics.SensorLocationInternal
+import com.android.systemui.Flags
 import com.android.systemui.biometrics.data.repository.FingerprintPropertyRepository
 import com.android.systemui.biometrics.shared.model.FingerprintSensorInfo
+import com.android.systemui.biometrics.shared.model.PeripheralFingerprintSensorLocation
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
@@ -58,6 +59,34 @@ constructor(
                 initialValue = repository.sensorType.value.isUdfps(),
             )
 
+    /** Side FPS is a power-button sensor on the side of the display. */
+    val isSideFps: Flow<Boolean> =
+        combine(repository.sensorType, repository.peripheralSensorLocation) {
+            sensorType,
+            peripheralSensorLocation ->
+            sensorType.isPowerButton() &&
+                (!Flags.standaloneFingerprintLockScreenUxFix() ||
+                    peripheralSensorLocation.isUnknown())
+        }
+
+    /**
+     * Peripheral FPS is either a standalone sensor or a power-button sensor with peripheral
+     * location.
+     */
+    val isPeripheralFps: Flow<Boolean> =
+        combine(repository.sensorType, repository.peripheralSensorLocation) {
+            sensorType,
+            peripheralSensorLocation ->
+            sensorType.isStandalone() ||
+                (Flags.standaloneFingerprintLockScreenUxFix() &&
+                    sensorType.isPowerButton() &&
+                    !peripheralSensorLocation.isUnknown())
+        }
+
+    /** The sensor peripheral location. */
+    val peripheralSensorLocation: StateFlow<PeripheralFingerprintSensorLocation> =
+        repository.peripheralSensorLocation
+
     /**
      * Devices with multiple physical displays use unique display ids to determine which sensor is
      * on the active physical display. This value represents a unique physical display id.
@@ -92,16 +121,28 @@ constructor(
         }
 
     /** The security strength of sensor (convenience, weak, strong). */
-    val sensorInfo: Flow<FingerprintSensorInfo> =
-        combine(repository.sensorType, repository.strength) { sensorType, sensorStrength ->
-            FingerprintSensorInfo(sensorType, sensorStrength)
-        }
+    val sensorInfo: StateFlow<FingerprintSensorInfo> =
+        combine(repository.sensorType, repository.strength, ::FingerprintSensorInfo)
+            .stateIn(
+                applicationScope,
+                SharingStarted.WhileSubscribed(),
+                FingerprintSensorInfo(repository.sensorType.value, repository.strength.value),
+            )
 
     /**
-     * Sensor location for the:
+     * The sensor display locations relative to each physical display.
+     *
+     * For peripheral location use [peripheralSensorLocation].
+     */
+    val sensorLocations: StateFlow<Map<String, SensorLocationInternal>> = repository.sensorLocations
+
+    /**
+     * The sensor display location relative to the display for the:
      * - current physical display
      * - current screen resolution
      * - device's natural orientation
+     *
+     * For peripheral location use [peripheralSensorLocation]
      */
     val sensorLocation: StateFlow<SensorLocation> =
         combineStates(
@@ -116,6 +157,9 @@ constructor(
                 scale = scale,
             )
         }
+
+    val scaleFactor: Float
+        get() = configurationInteractor.getScaleForResolution()
 
     companion object {
 

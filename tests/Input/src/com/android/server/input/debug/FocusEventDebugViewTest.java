@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.view.InputChannel;
 import android.view.InputDevice;
 import android.view.MotionEvent;
@@ -47,6 +48,7 @@ import org.junit.runner.RunWith;
  * atest FocusEventDebugViewTest
  */
 @RunWith(AndroidJUnit4.class)
+@DisabledOnRavenwood(reason = "View subsystem unsupported", bug = 421246454)
 public class FocusEventDebugViewTest {
 
     private FocusEventDebugView mFocusEventDebugView;

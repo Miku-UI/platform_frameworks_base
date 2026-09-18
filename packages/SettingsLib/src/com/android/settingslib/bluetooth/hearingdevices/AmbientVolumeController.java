@@ -370,8 +370,12 @@ public class AmbientVolumeController implements LocalBluetoothProfileManager.Ser
         public void onGainSettingChanged(int gainSetting) {
             if (mCallback != null) {
                 synchronized (mDeviceAmbientStateMap) {
-                    RemoteAmbientState previousState = mDeviceAmbientStateMap.get(mDevice);
-                    if (previousState == null || previousState.gainSetting != gainSetting) {
+                    RemoteAmbientState previousState = mDeviceAmbientStateMap.getOrDefault(mDevice,
+                            new RemoteAmbientState(INVALID_VOLUME, MUTE_DISABLED));
+                    RemoteAmbientState updatedState = new RemoteAmbientState(gainSetting,
+                            previousState.mute);
+                    mDeviceAmbientStateMap.put(mDevice, updatedState);
+                    if (previousState.gainSetting != gainSetting) {
                         mCallback.onAmbientChanged(mDevice, gainSetting);
                     }
                 }
@@ -390,8 +394,12 @@ public class AmbientVolumeController implements LocalBluetoothProfileManager.Ser
         public void onMuteChanged(int mute) {
             if (mCallback != null) {
                 synchronized (mDeviceAmbientStateMap) {
-                    RemoteAmbientState previousState = mDeviceAmbientStateMap.get(mDevice);
-                    if (previousState == null || previousState.mute != mute) {
+                    RemoteAmbientState previousState = mDeviceAmbientStateMap.getOrDefault(mDevice,
+                            new RemoteAmbientState(INVALID_VOLUME, MUTE_DISABLED));
+                    RemoteAmbientState updatedState = new RemoteAmbientState(
+                            previousState.gainSetting, mute);
+                    mDeviceAmbientStateMap.put(mDevice, updatedState);
+                    if (previousState.mute != mute) {
                         mCallback.onMuteChanged(mDevice, mute);
                     }
                 }

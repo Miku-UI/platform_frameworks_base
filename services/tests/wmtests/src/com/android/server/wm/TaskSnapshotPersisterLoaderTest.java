@@ -81,9 +81,7 @@ public class TaskSnapshotPersisterLoaderTest extends TaskSnapshotPersisterTestBa
         assertNotNull(snapshot);
         assertEquals(MOCK_SNAPSHOT_ID, snapshot.getId());
         assertEquals(TEST_INSETS, snapshot.getContentInsets());
-        assertNotNull(snapshot.getSnapshot());
         assertEquals(Configuration.ORIENTATION_PORTRAIT, snapshot.getOrientation());
-
         snapshot.closeBuffer();
         mPersister.persistSnapshot(1, mTestUserId, snapshot);
         mSnapshotPersistQueue.waitForQueueEmpty();

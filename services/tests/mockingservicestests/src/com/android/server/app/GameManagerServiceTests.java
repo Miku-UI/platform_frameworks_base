@@ -36,7 +36,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
@@ -82,7 +81,6 @@ import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
-import android.server.app.Flags;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
@@ -244,8 +242,6 @@ public class GameManagerServiceTests {
         mPackageName = mMockContext.getPackageName();
         mockAppCategory(mPackageName, DEFAULT_PACKAGE_UID, ApplicationInfo.CATEGORY_GAME, -1);
         LocalServices.addService(PowerManagerInternal.class, mMockPowerManager);
-
-        mSetFlagsRule.enableFlags(Flags.FLAG_GAME_DEFAULT_FRAME_RATE);
     }
 
     private void mockAppCategory(String packageName, int packageUid,
@@ -2489,7 +2485,7 @@ public class GameManagerServiceTests {
     }
 
     @Test
-    public void testGameDefaultFrameRate_FlagOn() throws Exception {
+    public void testGameDefaultFrameRate() throws Exception {
         mFakePermissionEnforcer.grant(Manifest.permission.MANAGE_GAME_MODE);
 
         GameManagerService gameManagerService = Mockito.spy(
@@ -2541,53 +2537,5 @@ public class GameManagerServiceTests {
                 ArgumentMatchers.eq(DEFAULT_PACKAGE_UID), ArgumentMatchers.eq(0.0f));
         Mockito.verify(gameManagerService).setGameDefaultFrameRateOverride(
                 ArgumentMatchers.eq(somePackageId), ArgumentMatchers.eq(0.0f));
-    }
-
-    @Test
-    public void testGameDefaultFrameRate_FlagOff() throws Exception {
-        mSetFlagsRule.disableFlags(Flags.FLAG_GAME_DEFAULT_FRAME_RATE);
-        mFakePermissionEnforcer.grant(Manifest.permission.MANAGE_GAME_MODE);
-
-        GameManagerService gameManagerService = Mockito.spy(
-                new GameManagerService(mMockContext, mTestLooper.getLooper(),
-                        InstrumentationRegistry.getContext().getFilesDir(),
-                        new Injector(){
-                            @Override
-                            public GameManagerServiceSystemPropertiesWrapper
-                                    createSystemPropertiesWrapper() {
-                                return mSysPropsMock;
-                            }
-                        }));
-
-        // Set up a game in the foreground.
-        gameManagerService.mUidObserver.onUidStateChanged(
-                DEFAULT_PACKAGE_UID, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-
-        // Toggle game default frame rate on.
-        when(mSysPropsMock.getInt(
-                ArgumentMatchers.eq(PROPERTY_RO_SURFACEFLINGER_GAME_DEFAULT_FRAME_RATE),
-                anyInt())).thenReturn(60);
-
-        gameManagerService.toggleGameDefaultFrameRate(true);
-
-        // Verify that:
-        // setGameDefaultFrameRateOverride() should never be called if the flag is disabled.
-        Mockito.verify(gameManagerService, never())
-                .setGameDefaultFrameRateOverride(anyInt(), anyFloat());
-
-        // Toggle game default frame rate off.
-        String anotherGamePkg = "another.game";
-        int somePackageId = DEFAULT_PACKAGE_UID + 1;
-        mockAppCategory(anotherGamePkg, somePackageId, ApplicationInfo.CATEGORY_GAME);
-        gameManagerService.mUidObserver.onUidStateChanged(
-                somePackageId, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-        gameManagerService.mUidObserver.onUidStateChanged(
-                somePackageId, ActivityManager.PROCESS_STATE_FOREGROUND_SERVICE, 0, 0);
-
-        gameManagerService.toggleGameDefaultFrameRate(false);
-        // Verify that:
-        // setGameDefaultFrameRateOverride() should never be called if the flag is disabled.
-        Mockito.verify(gameManagerService, never())
-                .setGameDefaultFrameRateOverride(anyInt(), anyFloat());
     }
 }

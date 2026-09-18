@@ -22,8 +22,6 @@ import android.graphics.Insets
 import android.graphics.Rect
 import android.graphics.Region
 import android.hardware.display.DisplayManagerGlobal
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.FlakyTest
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Display
@@ -44,11 +42,9 @@ import com.android.systemui.Gefingerpoken
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.SysuiTestableContext
 import com.android.systemui.res.R
-import com.android.systemui.shade.StatusBarLongPressGestureDetector
-import com.android.systemui.shared.Flags.FLAG_STATUS_BAR_CONNECTED_DISPLAYS
+import com.android.systemui.statusbar.gesture.StatusBarLongPressGestureDetector
 import com.android.systemui.statusbar.window.StatusBarWindowController
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
-import com.android.window.flags.Flags.FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -253,77 +249,6 @@ class PhoneStatusBarViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
-    fun onAttachedToWindow_connectedDisplayFlagOff_updatesWindowHeight() {
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-
-        view.onAttachedToWindow()
-
-        verify(windowController).refreshStatusBarHeight()
-    }
-
-    @Test
-    @DisableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
-    fun onAttachedToWindow_connectedDisplayFlagOff_updatesWindowHeightAfterControllerStoreSet() {
-        // windowControllerStore is not yet set in the view
-        view.onAttachedToWindow()
-
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-
-        verify(windowController).refreshStatusBarHeight()
-    }
-
-    @Test
-    @DisableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
-    fun onAttachedToWindow_connectedDisplayFlagOff_updatesWindowHeightOnceAfterControllerStoreSet() {
-        // windowControllerStore is not yet set in the view
-        view.onAttachedToWindow()
-
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-
-        verify(windowController, times(1)).refreshStatusBarHeight()
-    }
-
-    @Test
-    @EnableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
-    fun onAttachedToWindow_connectedDisplayFlagOn_doesNotUpdateWindowHeight() {
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-
-        view.onAttachedToWindow()
-
-        verify(windowController, never()).refreshStatusBarHeight()
-    }
-
-    @Test
-    @DisableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
-    fun onConfigurationChanged_connectedDisplayFlagOff_updatesWindowHeight() {
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-
-        view.onConfigurationChanged(Configuration())
-        view.onConfigurationChanged(Configuration())
-        view.onConfigurationChanged(Configuration())
-        view.onConfigurationChanged(Configuration())
-
-        verify(windowController, times(4)).refreshStatusBarHeight()
-    }
-
-    @Test
-    @EnableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
-    fun onConfigurationChanged_connectedDisplayFlagOn_neverUpdatesWindowHeight() {
-        view.setStatusBarWindowControllerStore(windowControllerStore)
-
-        view.onConfigurationChanged(Configuration())
-        view.onConfigurationChanged(Configuration())
-        view.onConfigurationChanged(Configuration())
-        view.onConfigurationChanged(Configuration())
-
-        verify(windowController, never()).refreshStatusBarHeight()
-    }
-
-    @Test
     fun onAttachedToWindow_updatesLeftTopRightPaddingsBasedOnInsets() {
         val insets = Insets.of(/* left= */ 10, /* top= */ 20, /* right= */ 30, /* bottom= */ 40)
         view.setInsetsFetcher { insets }
@@ -512,7 +437,6 @@ class PhoneStatusBarViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER)
     fun onTouchEvent_downEventNotHandledIfOutsideTouchableRegion_whenFlagEnabled() {
         val touchableRegion = Region.obtain().apply { set(0, 0, 200, 200) }
         view.updateTouchableRegion(touchableRegion)
@@ -528,22 +452,6 @@ class PhoneStatusBarViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER)
-    fun onTouchEvent_downEventHandledOutsideTouchableRegion_whenFlagDisabled() {
-        val touchableRegion = Region.obtain().apply { set(0, 0, 200, 200) }
-        view.updateTouchableRegion(touchableRegion)
-        val touchEventHandler = mock(Gefingerpoken::class.java)
-        view.setTouchEventHandler(touchEventHandler)
-
-        val event = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 250f, 250f, 0)
-        view.onTouchEvent(event)
-
-        // Assert touch event is consumed by status bar
-        verify(touchEventHandler).onTouchEvent(event)
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER)
     fun onTouchEvent_moveEventHandledEvenIfOutsideTouchableRegion() {
         val touchableRegion = Region.obtain().apply { set(100, 100, 200, 200) }
         view.updateTouchableRegion(touchableRegion)
@@ -558,7 +466,6 @@ class PhoneStatusBarViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER)
     fun onTouchEvent_upEventHandledEvenIfOutsideTouchableRegion() {
         val touchableRegion = Region.obtain().apply { set(100, 100, 200, 200) }
         view.updateTouchableRegion(touchableRegion)

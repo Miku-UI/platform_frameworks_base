@@ -51,6 +51,12 @@ interface ConfigurationInteractor {
      */
     val layoutDirection: Flow<Int>
 
+    /**
+     * Display rotation, one of [Surface.ROTATION_0], [Surface.ROTATION_90], [Surface.ROTATION_180],
+     * [Surface.ROTATION_270]
+     */
+    val displayRotation: Flow<Int>
+
     /** Emit an event on any config change */
     val onAnyConfigurationChange: Flow<Unit>
 
@@ -68,6 +74,8 @@ interface ConfigurationInteractor {
 
     /** Given a set of [resourceId]s, emit Map<ResourceId, DimensionPixelSize> on config change */
     fun dimensionPixelSize(resourceIds: Set<Int>): Flow<Map<Int, Int>>
+
+    fun getScaleForResolution(): Float
 }
 
 class ConfigurationInteractorImpl(private val repository: ConfigurationRepository) :
@@ -95,6 +103,11 @@ class ConfigurationInteractorImpl(private val repository: ConfigurationRepositor
     override val layoutDirection: Flow<Int> =
         repository.configurationValues.map { it.layoutDirection }.distinctUntilChanged()
 
+    override val displayRotation: Flow<Int> =
+        repository.configurationValues
+            .map { it.windowConfiguration.displayRotation }
+            .distinctUntilChanged()
+
     override fun dimensionPixelSize(resourceId: Int): Flow<Int> {
         return onAnyConfigurationChange.mapLatest { repository.getDimensionPixelSize(resourceId) }
     }
@@ -120,4 +133,8 @@ class ConfigurationInteractorImpl(private val repository: ConfigurationRepositor
     override val configurationValues: Flow<Configuration> = repository.configurationValues
 
     override val scaleForResolution: StateFlow<Float> = repository.scaleForResolution
+
+    override fun getScaleForResolution(): Float {
+        return repository.getResolutionScale()
+    }
 }

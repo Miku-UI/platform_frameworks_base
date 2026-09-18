@@ -20,6 +20,7 @@ import static android.hardware.display.DisplayManagerInternal.DisplayPowerReques
 
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_IDLE;
 
+
 import static org.junit.Assert.assertEquals;
 
 import android.hardware.display.BrightnessInfo;
@@ -60,6 +61,8 @@ public final class BrightnessEventTest {
         mBrightnessEvent.setHdrBrightness(0.6f);
         mBrightnessEvent.setRecommendedBrightness(0.6f);
         mBrightnessEvent.setHbmMax(0.62f);
+        mBrightnessEvent.setBrightnessMin(0);
+        mBrightnessEvent.setBrightnessMax(0.62f);
         mBrightnessEvent.setRbcStrength(-1);
         mBrightnessEvent.setThermalMax(0.65f);
         mBrightnessEvent.setPowerFactor(0.2f);
@@ -72,6 +75,8 @@ public final class BrightnessEventTest {
         mBrightnessEvent.setAutoBrightnessMode(AUTO_BRIGHTNESS_MODE_IDLE);
         mBrightnessEvent.setSlowChange(true);
         mBrightnessEvent.setRampSpeed(0.3f);
+        mBrightnessEvent.setAmbientColorTemperature(6500.0f);
+        mBrightnessEvent.setThermalStatus(1);
     }
 
     @Test
@@ -92,7 +97,8 @@ public final class BrightnessEventTest {
                         + "preLux=150.0, wasShortTermModelActive=true, autoBrightness=true (idle), "
                         + "unclampedBrt=0.65, hbmMax=0.62, hbmMode=off, thrmMax=0.65, "
                         + "rbcStrength=-1, powerFactor=0.2, physDisp=display_name(987654321), "
-                        + "logicalId=1, slowChange=true, rampSpeed=0.3";
+                        + "logicalId=1, slowChange=true, rampSpeed=0.3, colorTemp=6500.0, "
+                        + "thermalStatus=light";
         assertEquals(expectedString, actualString);
     }
 
@@ -110,7 +116,8 @@ public final class BrightnessEventTest {
                         + "preLux=150.0, wasShortTermModelActive=true, autoBrightness=true (idle), "
                         + "unclampedBrt=0.65, hbmMax=0.62, hbmMode=off, thrmMax=0.65, "
                         + "rbcStrength=-1, powerFactor=0.2, physDisp=display_name(987654321), "
-                        + "logicalId=1, slowChange=true, rampSpeed=0.3";
+                        + "logicalId=1, slowChange=true, rampSpeed=0.3, colorTemp=6500.0, "
+                        + "thermalStatus=light";
         assertEquals(expectedHdrString, actualString);
     }
 
@@ -126,7 +133,24 @@ public final class BrightnessEventTest {
                         + "autoBrightness=true (idle), unclampedBrt=0.65, hbmMax=0.62, "
                         + "hbmMode=off, thrmMax=0.65, rbcStrength=-1, powerFactor=0.2, "
                         + "physDisp=display_name(987654321), logicalId=1, slowChange=true, "
-                        + "rampSpeed=0.3";
+                        + "rampSpeed=0.3, colorTemp=6500.0, thermalStatus=light";
+        assertEquals(expectedString, actualString);
+    }
+
+    @Test
+    public void testToStringWorksAsExpected_brightnessRange() {
+        mBrightnessEvent.setBrightnessMin(0.05f);
+        mBrightnessEvent.setBrightnessMax(0.3f);
+        String actualString = mBrightnessEvent.toString(false);
+        String expectedString =
+                "BrightnessEvent: brt=0.6(46.5%), nits=893.8, lux=100.0, reason=doze [ "
+                        + "low_pwr ], strat=strategy_name, state=ON, stateReason=DEFAULT_POLICY, "
+                        + "policy=BRIGHT, flags=, initBrt=25.0, rcmdBrt=0.6, preBrt=NaN, "
+                        + "preLux=150.0, wasShortTermModelActive=true, autoBrightness=true (idle), "
+                        + "unclampedBrt=0.65, brtRange=[0.05, 0.3], hbmMax=0.62, hbmMode=off, "
+                        + "thrmMax=0.65, rbcStrength=-1, powerFactor=0.2, "
+                        + "physDisp=display_name(987654321), logicalId=1, slowChange=true, "
+                        + "rampSpeed=0.3, colorTemp=6500.0, thermalStatus=light";
         assertEquals(expectedString, actualString);
     }
 
@@ -151,7 +175,7 @@ public final class BrightnessEventTest {
     }
 
 
-    private BrightnessReason getReason(int reason, int modifier) {
+    private BrightnessReason getReason(int reason, @BrightnessReason.Modifier int modifier) {
         BrightnessReason brightnessReason = new BrightnessReason();
         brightnessReason.setReason(reason);
         brightnessReason.setModifier(modifier);

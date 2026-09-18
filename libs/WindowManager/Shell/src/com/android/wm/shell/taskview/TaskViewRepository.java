@@ -69,19 +69,19 @@ public class TaskViewRepository {
         return -1;
     }
 
-    /** @return if the repository is tracking {@param tv}. */
+    /** @return if the repository is tracking {@code tv}. */
     public boolean contains(TaskViewTaskController tv) {
         return findAndPrune(tv) >= 0;
     }
 
-    /** Start tracking {@param tv}. */
+    /** Start tracking {@code tv}. */
     public void add(TaskViewTaskController tv) {
         ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "Repo.add(): taskView=%d", tv.hashCode());
         if (contains(tv)) return;
         mTaskViews.add(new TaskViewState(tv));
     }
 
-    /** Remove {@param tv} from tracking. */
+    /** Remove {@code tv} from tracking. */
     public void remove(TaskViewTaskController tv) {
         ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "Repo.remove(): taskView=%d", tv.hashCode());
         int idx = findAndPrune(tv);
@@ -99,7 +99,7 @@ public class TaskViewRepository {
         return mTaskViews.isEmpty();
     }
 
-    /** @return the state of {@param tv} if tracked, {@code null} otherwise. */
+    /** @return the state of {@code tv} if tracked, {@code null} otherwise. */
     @Nullable
     public TaskViewState byTaskView(TaskViewTaskController tv) {
         int idx = findAndPrune(tv);
@@ -108,7 +108,7 @@ public class TaskViewRepository {
     }
 
     /**
-     * @return the state of the taskview containing {@param token} if tracked,
+     * @return the state of the taskview containing {@code token} if tracked,
      *         {@code null} otherwise.
      */
     @Nullable

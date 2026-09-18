@@ -15,9 +15,7 @@
  */
 
 #define ATRACE_TAG ATRACE_TAG_VIEW
-#ifdef __linux__
-#include <com_android_graphics_hwui_flags.h>
-#endif
+
 #include <Animator.h>
 #include <DamageAccumulator.h>
 #include <Matrix.h>
@@ -29,6 +27,7 @@
 #include <renderthread/CanvasContext.h>
 
 #include "GraphicsJNI.h"
+#include "Path.h"
 
 namespace android {
 
@@ -38,14 +37,6 @@ using namespace uirenderer;
     (reinterpret_cast<RenderNode*>(renderNodePtr)->mutateStagingProperties().prop(val) \
         ? (reinterpret_cast<RenderNode*>(renderNodePtr)->setPropertyFieldsDirty(dirtyFlag), true) \
         : false)
-
-bool surfaceview_stretch_alignment() {
-#ifdef __linux__
-    return com::android::graphics::hwui::flags::surfaceview_stretch_alignment();
-#else
-    return true;
-#endif
-}
 
 // ----------------------------------------------------------------------------
 // DisplayList view properties
@@ -147,33 +138,41 @@ static jboolean android_view_RenderNode_setProjectionReceiver(CRITICAL_JNI_PARAM
 static jboolean android_view_RenderNode_setOutlineRoundRect(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr,
         jint left, jint top, jint right, jint bottom, jfloat radius, jfloat alpha) {
     RenderNode* renderNode = reinterpret_cast<RenderNode*>(renderNodePtr);
-    renderNode->mutateStagingProperties().mutableOutline().setRoundRect(left, top, right, bottom,
-            radius, alpha);
-    renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
-    return true;
+    if (renderNode->mutateStagingProperties().mutableOutline().setRoundRect(
+                left, top, right, bottom, radius, alpha)) {
+        renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
+        return true;
+    }
+    return false;
 }
 
 static jboolean android_view_RenderNode_setOutlinePath(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr,
         jlong outlinePathPtr, jfloat alpha) {
     RenderNode* renderNode = reinterpret_cast<RenderNode*>(renderNodePtr);
-    SkPath* outlinePath = reinterpret_cast<SkPath*>(outlinePathPtr);
-    renderNode->mutateStagingProperties().mutableOutline().setPath(outlinePath, alpha);
-    renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
-    return true;
+    SkPath* outlinePath = AsSkPath(outlinePathPtr);
+    if (renderNode->mutateStagingProperties().mutableOutline().setPath(outlinePath, alpha)) {
+        renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
+        return true;
+    }
+    return false;
 }
 
 static jboolean android_view_RenderNode_setOutlineEmpty(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr) {
     RenderNode* renderNode = reinterpret_cast<RenderNode*>(renderNodePtr);
-    renderNode->mutateStagingProperties().mutableOutline().setEmpty();
-    renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
-    return true;
+    if (renderNode->mutateStagingProperties().mutableOutline().setEmpty()) {
+        renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
+        return true;
+    }
+    return false;
 }
 
 static jboolean android_view_RenderNode_setOutlineNone(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr) {
     RenderNode* renderNode = reinterpret_cast<RenderNode*>(renderNodePtr);
-    renderNode->mutateStagingProperties().mutableOutline().setNone();
-    renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
-    return true;
+    if (renderNode->mutateStagingProperties().mutableOutline().setNone()) {
+        renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
+        return true;
+    }
+    return false;
 }
 
 static jboolean android_view_RenderNode_clearStretch(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr) {
@@ -192,7 +191,7 @@ static jboolean android_view_RenderNode_stretch(CRITICAL_JNI_PARAMS_COMMA jlong 
                                                 jfloat vX, jfloat vY, jfloat maxX,
                                                 jfloat maxY) {
     auto* renderNode = reinterpret_cast<RenderNode*>(renderNodePtr);
-    StretchEffect effect = StretchEffect({.fX = vX, .fY = vY}, maxX, maxY);
+    uirenderer::StretchEffect effect = uirenderer::StretchEffect({.fX = vX, .fY = vY}, maxX, maxY);
     renderNode->mutateStagingProperties().mutateLayerProperties().mutableStretchEffect().mergeWith(
             effect);
     renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
@@ -228,9 +227,12 @@ static jint android_view_RenderNode_getAmbientShadowColor(CRITICAL_JNI_PARAMS_CO
 static jboolean android_view_RenderNode_setClipToOutline(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr,
         jboolean clipToOutline) {
     RenderNode* renderNode = reinterpret_cast<RenderNode*>(renderNodePtr);
-    renderNode->mutateStagingProperties().mutableOutline().setShouldClip(clipToOutline);
-    renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
-    return true;
+    if (renderNode->mutateStagingProperties().mutableOutline().getShouldClip() != clipToOutline) {
+        renderNode->mutateStagingProperties().mutableOutline().setShouldClip(clipToOutline);
+        renderNode->setPropertyFieldsDirty(RenderNode::GENERIC);
+        return true;
+    }
+    return false;
 }
 
 static jboolean android_view_RenderNode_setRevealClip(CRITICAL_JNI_PARAMS_COMMA jlong renderNodePtr, jboolean shouldClip,
@@ -605,16 +607,19 @@ static void android_view_RenderNode_requestPositionUpdates(JNIEnv* env, jobject,
             Matrix4 transform;
             SkIRect clipBounds;
             uirenderer::Rect initialClipBounds;
+            // Disable auto clip if the RenderNode has an mParentCount greater than 1.
+            bool shouldDisableClip = false;
             if (enableClip) {
                 // SurfaceView never draws beyond its bounds regardless of if it can or not,
                 // so if clip-to-bounds is disabled just use the bounds as the starting point
                 // regardless
                 const auto clipFlags = props.getClippingFlags();
                 props.getClippingRectForFlags(clipFlags | CLIP_TO_BOUNDS, &initialClipBounds);
-                clipBounds =
-                        info.damageAccumulator
-                                ->computeClipAndTransform(initialClipBounds.toSkRect(), &transform)
-                                .roundOut();
+                clipBounds = info.damageAccumulator
+                                     ->computeClipAndTransform(initialClipBounds.toSkRect(),
+                                                               &transform, &shouldDisableClip)
+                                     .roundOut();
+                clipBounds.intersect(initialClipBounds.toSkIRect());
             } else {
                 info.damageAccumulator->computeCurrentTransform(&transform);
             }
@@ -669,7 +674,8 @@ static void android_view_RenderNode_requestPositionUpdates(JNIEnv* env, jobject,
                         static_cast<jint>(bounds.right), static_cast<jint>(bounds.bottom),
                         static_cast<jint>(clipBounds.fLeft), static_cast<jint>(clipBounds.fTop),
                         static_cast<jint>(clipBounds.fRight), static_cast<jint>(clipBounds.fBottom),
-                        static_cast<jint>(props.getWidth()), static_cast<jint>(props.getHeight()));
+                        static_cast<jint>(props.getWidth()), static_cast<jint>(props.getHeight()),
+                        static_cast<jboolean>(shouldDisableClip));
             }
             if (!keepListening) {
                 env->DeleteGlobalRef(mListener);
@@ -717,52 +723,25 @@ static void android_view_RenderNode_requestPositionUpdates(JNIEnv* env, jobject,
             // Search up to find the nearest stretcheffect parent
             const DamageAccumulator::StretchResult result =
                 info.damageAccumulator->findNearestStretchEffect();
-            const StretchEffect* effect = result.stretchEffect;
+            const uirenderer::StretchEffect* effect = result.stretchEffect;
             if (effect) {
-                if (surfaceview_stretch_alignment()) {
-                    auto& parentBounds = result.parentBounds;
-                    auto parentWidth = parentBounds.width();
-                    auto parentHeight = parentBounds.height();
-                    float normalized;
-                    normalized = targetBounds.top / parentHeight;
-                    targetBounds.top = effect->computeStretchedPositionY(normalized) * parentHeight;
-                    normalized = targetBounds.bottom / parentHeight;
-                    targetBounds.bottom =
-                            effect->computeStretchedPositionY(normalized) * parentHeight;
+                auto& parentBounds = result.parentBounds;
+                auto parentWidth = parentBounds.width();
+                auto parentHeight = parentBounds.height();
+                float normalized;
+                normalized = (targetBounds.top - parentBounds.top()) / parentHeight;
+                targetBounds.top = effect->computeStretchedPositionY(normalized) * parentHeight +
+                                   parentBounds.top();
+                normalized = (targetBounds.bottom - parentBounds.top()) / parentHeight;
+                targetBounds.bottom = effect->computeStretchedPositionY(normalized) * parentHeight +
+                                      parentBounds.top();
 
-                    normalized = targetBounds.left / parentWidth;
-                    targetBounds.left = effect->computeStretchedPositionX(normalized) * parentWidth;
-                    normalized = targetBounds.right / parentWidth;
-                    targetBounds.right =
-                            effect->computeStretchedPositionX(normalized) * parentWidth;
-                } else {
-                    // Compute the number of pixels that the stretching container
-                    // scales by.
-                    // Then compute the scale factor that the child would need
-                    // to scale in order to occupy the same pixel bounds.
-                    auto& parentBounds = result.parentBounds;
-                    auto parentWidth = parentBounds.width();
-                    auto parentHeight = parentBounds.height();
-                    auto& stretchDirection = effect->getStretchDirection();
-                    auto stretchX = stretchDirection.x();
-                    auto stretchY = stretchDirection.y();
-                    auto stretchXPixels = parentWidth * std::abs(stretchX);
-                    auto stretchYPixels = parentHeight * std::abs(stretchY);
-                    SkMatrix stretchMatrix;
-
-                    auto childScaleX = 1 + (stretchXPixels / targetBounds.getWidth());
-                    auto childScaleY = 1 + (stretchYPixels / targetBounds.getHeight());
-                    auto pivotX = stretchX > 0 ? targetBounds.left : targetBounds.right;
-                    auto pivotY = stretchY > 0 ? targetBounds.top : targetBounds.bottom;
-                    stretchMatrix.setScale(childScaleX, childScaleY, pivotX, pivotY);
-                    SkRect rect = SkRect::MakeLTRB(targetBounds.left, targetBounds.top,
-                                                   targetBounds.right, targetBounds.bottom);
-                    SkRect dst = stretchMatrix.mapRect(rect);
-                    targetBounds.left = dst.left();
-                    targetBounds.top = dst.top();
-                    targetBounds.right = dst.right();
-                    targetBounds.bottom = dst.bottom();
-                }
+                normalized = (targetBounds.left - parentBounds.left()) / parentWidth;
+                targetBounds.left = effect->computeStretchedPositionX(normalized) * parentWidth +
+                                    parentBounds.left();
+                normalized = (targetBounds.right - parentBounds.left()) / parentWidth;
+                targetBounds.right = effect->computeStretchedPositionX(normalized) * parentWidth +
+                                     parentBounds.left();
             } else {
                 return;
             }
@@ -918,7 +897,7 @@ int register_android_view_RenderNode(JNIEnv* env) {
     gPositionListener.callPositionChanged = GetStaticMethodIDOrDie(
             env, clazz, "callPositionChanged", "(Ljava/lang/ref/WeakReference;JIIII)Z");
     gPositionListener.callPositionChanged2 = GetStaticMethodIDOrDie(
-            env, clazz, "callPositionChanged2", "(Ljava/lang/ref/WeakReference;JIIIIIIIIII)Z");
+            env, clazz, "callPositionChanged2", "(Ljava/lang/ref/WeakReference;JIIIIIIIIIIZ)Z");
     gPositionListener.callApplyStretch = GetStaticMethodIDOrDie(
             env, clazz, "callApplyStretch", "(Ljava/lang/ref/WeakReference;JFFFFFFFFFF)Z");
     gPositionListener.callPositionLost = GetStaticMethodIDOrDie(
@@ -926,5 +905,4 @@ int register_android_view_RenderNode(JNIEnv* env) {
     return RegisterMethodsOrDie(env, kClassPathName, gMethods, NELEM(gMethods));
 }
 
-};
-
+};  // namespace android

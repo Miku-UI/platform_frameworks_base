@@ -18,6 +18,7 @@ package com.android.server.security.advancedprotection.features;
 
 import static android.security.advancedprotection.AdvancedProtectionManager.ADVANCED_PROTECTION_SYSTEM_ENTITY;
 import static android.security.advancedprotection.AdvancedProtectionManager.FEATURE_ID_DISALLOW_CELLULAR_2G;
+import static android.security.advancedprotection.AdvancedProtectionManager.FeatureId;
 
 import android.annotation.NonNull;
 import android.app.admin.DevicePolicyManager;
@@ -25,34 +26,36 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.UserManager;
 import android.security.advancedprotection.AdvancedProtectionFeature;
+import android.telephony.TelephonyManager;
 import android.util.Slog;
 
 /** @hide */
 public final class DisallowCellular2GAdvancedProtectionHook extends AdvancedProtectionHook {
     private static final String TAG = "AdvancedProtectionDisallowCellular2G";
 
-    private final AdvancedProtectionFeature mFeature =
-            new AdvancedProtectionFeature(FEATURE_ID_DISALLOW_CELLULAR_2G);
     private final DevicePolicyManager mDevicePolicyManager;
     private final PackageManager mPackageManager;
+    private final TelephonyManager mTelephonyManager;
 
     public DisallowCellular2GAdvancedProtectionHook(@NonNull Context context, boolean enabled) {
         super(context, enabled);
         mDevicePolicyManager = context.getSystemService(DevicePolicyManager.class);
         mPackageManager = context.getPackageManager();
+        mTelephonyManager = context.getSystemService(TelephonyManager.class);
 
         onAdvancedProtectionChanged(enabled);
     }
 
-    @NonNull
     @Override
-    public AdvancedProtectionFeature getFeature() {
-        return mFeature;
+    public @FeatureId int getFeatureId() {
+        return FEATURE_ID_DISALLOW_CELLULAR_2G;
     }
 
     @Override
     public boolean isAvailable() {
-        return mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY);
+        return mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
+            && mTelephonyManager.isRadioInterfaceCapabilitySupported(
+                TelephonyManager.CAPABILITY_USES_ALLOWED_NETWORK_TYPES_BITMASK);
     }
 
     @Override

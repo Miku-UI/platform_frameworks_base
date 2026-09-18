@@ -15,6 +15,8 @@
  */
 package android.app.admin;
 
+import static android.app.admin.DevicePolicyManager.MultiuserManagedDeviceProvisioningState;
+
 import android.annotation.UserIdInt;
 
 import com.android.server.LocalServices;
@@ -45,6 +47,17 @@ public abstract class DeviceStateCache {
     public abstract boolean isDeviceProvisioned();
 
     /**
+     * See {@link DevicePolicyManager#isDeviceManaged}
+     */
+    public abstract boolean isDeviceManaged();
+
+    /**
+     * See {@link DevicePolicyManager#getMultiuserManagedDeviceProvisioningState}
+     */
+    public abstract @MultiuserManagedDeviceProvisioningState int
+            getMultiuserManagedDeviceProvisioningState();
+
+    /**
      * True if either the entire device or the user is organization managed.
      */
     public abstract boolean isUserOrganizationManaged(@UserIdInt int userHandle);
@@ -66,6 +79,17 @@ public abstract class DeviceStateCache {
         @Override
         public boolean isDeviceProvisioned() {
             return false;
+        }
+
+        @Override
+        public boolean isDeviceManaged() {
+            return false;
+        }
+
+        @Override
+        public @MultiuserManagedDeviceProvisioningState int
+                getMultiuserManagedDeviceProvisioningState() {
+            return DevicePolicyManager.MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE_UNMANAGED;
         }
 
         @Override

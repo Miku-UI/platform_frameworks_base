@@ -1,0 +1,12 @@
+# Ignore one-off class defined out in core/java/
+rule com.android.server.LocalServices @0
+rule com.android.server.pm.pkg.AndroidPackage @0
+rule com.android.server.pm.pkg.AndroidPackageSplit @0
+
+# We reference some of the classes in services.core from the Ravenwood core code
+# (e.g. RavenwoodSystemServer.java). However, we rename all classes in services.jar
+# using hoststubgen (check ravenwood-services-rename-policies.txt), so we need to
+# also rename all such references here. We choose to use jarjar to achieve it.
+# This same rule will also apply the same rename to the service.fakes classes,
+# which are directly included in ravenwood-junit-impl.
+rule com.android.server.** repackaged.ravenwood.services.@0

@@ -106,7 +106,7 @@ class FacePropertyRepositoryImplTest : SysuiTestCase() {
             dispatcher,
             manager,
             cameraManager,
-            displayStateRepository,
+            { displayStateRepository },
             configurationRepository,
         )
 

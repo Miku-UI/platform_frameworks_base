@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository.prod
 
 import android.testing.TestableLooper
 import androidx.test.filters.SmallTest
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.launchKairosNetwork
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeCarrierConfigRepository
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepositoryKairosAdapter
@@ -30,7 +29,7 @@ import org.junit.Ignore
 import org.mockito.Mockito
 import org.mockito.kotlin.mock
 
-@OptIn(ExperimentalKairosApi::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 // This is required because our [SubscriptionManager.OnSubscriptionsChangedListener] uses a looper
 // to run the callback and this makes the looper place nicely with TestScope etc.

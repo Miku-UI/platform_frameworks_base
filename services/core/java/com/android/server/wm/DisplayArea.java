@@ -34,6 +34,7 @@ import static android.window.DisplayAreaOrganizer.FEATURE_WINDOW_TOKENS;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_ORIENTATION;
 import static com.android.internal.util.Preconditions.checkState;
 
+import android.annotation.CallSuper;
 import android.annotation.Nullable;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ActivityInfo.ScreenOrientation;
@@ -352,8 +353,11 @@ public class DisplayArea<T extends WindowContainer> extends WindowContainer<T> {
         return mName + "@" + System.identityHashCode(this);
     }
 
+    @CallSuper
     @Override
-    public void dumpDebug(ProtoOutputStream proto, long fieldId, int logLevel) {
+    public void dumpDebug(ProtoOutputStream proto, long fieldId,
+            @WindowTracingLogLevel int logLevel) {
+        // Critical log level logs only visible elements to mitigate performance overheard
         if (logLevel == WindowTracingLogLevel.CRITICAL && !isVisible()) {
             return;
         }
@@ -815,13 +819,6 @@ public class DisplayArea<T extends WindowContainer> extends WindowContainer<T> {
 
         Dimmable(WindowManagerService wms, Type type, String name, int featureId) {
             super(wms, type, name, featureId);
-        }
-
-        // It is replaced by WindowState#getDimController().
-        @Deprecated
-        @Override
-        Dimmer getDimmer() {
-            return mDimmer;
         }
 
         @Override

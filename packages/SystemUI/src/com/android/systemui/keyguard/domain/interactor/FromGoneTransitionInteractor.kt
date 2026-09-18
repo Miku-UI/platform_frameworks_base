@@ -25,6 +25,7 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyguard.KeyguardWmStateRefactor
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
+import com.android.systemui.keyguard.shared.model.DozeStateModel.Companion.isDozeOff
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionModeOnCanceled
 import com.android.systemui.power.domain.interactor.PowerInteractor
@@ -71,6 +72,7 @@ constructor(
     }
 
     fun showKeyguard() {
+        if (SceneContainerFlag.isEnabled) return
         scope.launch("$TAG#showKeyguard") {
             startTransitionTo(KeyguardState.LOCKSCREEN, ownerReason = "showKeyguard()")
         }
@@ -137,7 +139,9 @@ constructor(
     private fun listenForGoneToDreaming() {
         scope.launch("$TAG#listenForGoneToDreaming") {
             keyguardInteractor.isDreaming
-                .filterRelevantKeyguardStateAnd { isDreaming -> isDreaming }
+                .filterRelevantKeyguardStateAnd { isDreaming ->
+                    isDreaming && isDozeOff(keyguardInteractor.dozeTransitionModel.value.to)
+                }
                 .collect { startTransitionTo(KeyguardState.DREAMING) }
         }
     }

@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"Ierīces parole"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"SIM kartes PIN apgabals"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"SIM kartes PUK apgabals"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"nospiediet un turiet, lai dzēstu visu"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"Dzēšanas taustiņš"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"Atspējot eSIM karti"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"Nevar atspējot eSIM karti"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"Nevar autorizēt ar pirksta nospiedumu. Pārāk daudz mēģinājumu."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"Uzticamības pārbaudes programma nav pieejama"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"Pārāk daudz mēģinājumu ar nepareizu PIN."</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"Šis PIN jau ir izmēģināts. Izmēģiniet citu!"</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"Šī kombinācija jau ir izmēģināta. Izmēģiniet citu!"</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"Šī parole jau ir izmēģināta. Izmēģiniet citu!"</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"Pārāk daudz mēģinājumu ar nepareizu kombināciju."</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"Pārāk daudz mēģinājumu ar nepareizu paroli."</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"Pārāk daudz mēģinājumu ar nepareizu PIN.\nUzziniet vairāk vietnē <xliff:g id="SHORTLINK">{shortlink}</xliff:g>."</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"Pārāk daudz mēģinājumu ar nepareizu kombināciju.\nUzziniet vairāk vietnē <xliff:g id="SHORTLINK">{shortlink}</xliff:g>."</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"Pārāk daudz mēģinājumu ar nepareizu paroli.\nUzziniet vairāk vietnē <xliff:g id="SHORTLINK">{shortlink}</xliff:g>."</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{Mēģiniet vēlreiz pēc # sekundes.}zero{Mēģiniet vēlreiz pēc # sekundēm.}one{Mēģiniet vēlreiz pēc # sekundes.}other{Mēģiniet vēlreiz pēc # sekundēm.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{Mēģiniet vēlreiz pēc # sekundes.}zero{Mēģiniet vēlreiz pēc # sekundēm.}one{Mēģiniet vēlreiz pēc # sekundes.}other{Mēģiniet vēlreiz pēc # sekundēm.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{Mēģiniet vēlreiz pēc # minūtes.}zero{Mēģiniet vēlreiz pēc # minūtēm.}one{Mēģiniet vēlreiz pēc # minūtes.}other{Mēģiniet vēlreiz pēc # minūtēm.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{Mēģiniet vēlreiz pēc # stundas.}zero{Mēģiniet vēlreiz pēc # stundām.}one{Mēģiniet vēlreiz pēc # stundas.}other{Mēģiniet vēlreiz pēc # stundām.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{Mēģiniet vēlreiz pēc # dienas.}zero{Mēģiniet vēlreiz pēc # dienām.}one{Mēģiniet vēlreiz pēc # dienas.}other{Mēģiniet vēlreiz pēc # dienām.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{Mēģiniet vēlreiz pēc # gada.}zero{Mēģiniet vēlreiz pēc # gadiem.}one{Mēģiniet vēlreiz pēc # gada.}other{Mēģiniet vēlreiz pēc # gadiem.}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"Ievadiet SIM kartes PIN kodu."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"Ievadiet SIM kartes “<xliff:g id="CARRIER">%1$s</xliff:g>” PIN kodu."</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> Atspējojiet eSIM karti, lai ierīci varētu izmantot bez mobilā pakalpojuma."</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"Pēc ierīces restartēšanas ir jāuzzīmē kombinācija"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"Pēc ierīces restartēšanas ir jāievada PIN"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"Pēc ierīces restartēšanas ir jāievada parole"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"Lai pierakstītos, ir jāievada kombinācija"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"Lai pierakstītos, nepieciešams PIN"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"Lai pierakstītos, ir nepieciešama parole"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"Papildu drošībai izmantojiet kombināciju"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"Papildu drošībai izmantojiet PIN"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"Papildu drošībai izmantojiet paroli"</string>

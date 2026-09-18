@@ -374,7 +374,7 @@ class BLASTSyncEngine {
                     && wc.mSyncState != WindowContainer.SYNC_STATE_NONE) {
                 mWm.mAnimator.mPendingState = WindowAnimator.PENDING_STATE_NEED_APPLY;
             }
-            if (mReady) {
+            if (mReady && !mWm.mWindowPlacerLocked.isInLayout()) {
                 mWm.mWindowPlacerLocked.requestTraversal();
             }
         }
@@ -408,26 +408,38 @@ class BLASTSyncEngine {
         private void onTimeout() {
             if (!mActiveSyncs.contains(this)) return;
             boolean allFinished = true;
+            final ArrayList<ActivityRecord> loggedActivities = new ArrayList<>();
+            final int[] loggedDisplayId = new int[] {-1};
             for (int i = mRootMembers.size() - 1; i >= 0; --i) {
                 final WindowContainer<?> wc = mRootMembers.valueAt(i);
-                if (!wc.isSyncFinished(this)) {
-                    allFinished = false;
-                    Slog.i(TAG, "Unfinished container: " + wc);
-                    wc.forAllActivities(a -> {
-                        if (a.isVisibleRequested()) {
-                            if (a.isRelaunching()) {
-                                Slog.i(TAG, "  " + a + " is relaunching");
-                            }
-                            a.forAllWindows(w -> {
-                                Slog.i(TAG, "  " + w + " " + w.mWinAnimator.drawStateToString());
-                            }, true /* traverseTopToBottom */);
-                        } else if (a.mDisplayContent != null && !a.mDisplayContent
-                                .mUnknownAppVisibilityController.allResolved()) {
-                            Slog.i(TAG, "  UnknownAppVisibility: " + a.mDisplayContent
-                                    .mUnknownAppVisibilityController.getDebugMessage());
-                        }
-                    });
+                if (wc.isSyncFinished(this)) {
+                    continue;
                 }
+                allFinished = false;
+                Slog.i(TAG, "Unfinished container: " + wc);
+                wc.forAllActivities(a -> {
+                    if (loggedActivities.contains(a)) {
+                        return;
+                    }
+                    loggedActivities.add(a);
+                    if (a.isVisibleRequested()) {
+                        if (a.isRelaunching()) {
+                            Slog.i(TAG, "  " + a + " is relaunching");
+                        }
+                        a.forAllWindows(w -> {
+                            Slog.i(TAG, "  " + w + " " + w.mWinAnimator.drawStateToString()
+                                    + " syncState=" + w.mSyncState
+                                    + " syncFinished=" + w.isSyncFinished(this));
+                        }, true /* traverseTopToBottom */);
+                    }
+                    if (a.mDisplayContent != null && !a.mDisplayContent
+                            .mUnknownAppVisibilityController.allResolved()
+                            && loggedDisplayId[0] != a.mDisplayContent.mDisplayId) {
+                        loggedDisplayId[0] = a.mDisplayContent.mDisplayId;
+                        Slog.i(TAG, "  UnknownAppVisibility: " + a.mDisplayContent
+                                .mUnknownAppVisibilityController.getDebugMessage());
+                    }
+                });
             }
 
             for (int i = mDependencies.size() - 1; i >= 0; --i) {

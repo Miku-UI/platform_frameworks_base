@@ -18,6 +18,7 @@ package com.android.server;
 
 import static android.Manifest.permission.NETWORK_STACK;
 import static android.net.platform.flags.Flags.deleteVpnProfileWhenAppUninstalled;
+import static android.provider.Flags.exposeVpnAppExclusionSettings;
 
 import static com.android.net.module.util.PermissionUtils.enforceAnyPermissionOf;
 import static com.android.net.module.util.PermissionUtils.enforceNetworkStackPermission;
@@ -95,6 +96,7 @@ public class VpnManagerService extends IVpnManager.Stub {
     private final INetd mNetd;
     private final UserManager mUserManager;
     private final int mMainUserId;
+    private final boolean mExposeVpnAppExclusionSettings;
 
     @VisibleForTesting
     @GuardedBy("mVpns")
@@ -167,6 +169,7 @@ public class VpnManagerService extends IVpnManager.Stub {
         mNetd = mDeps.getNetd();
         mUserManager = mContext.getSystemService(UserManager.class);
         mMainUserId = mDeps.getMainUserId();
+        mExposeVpnAppExclusionSettings = exposeVpnAppExclusionSettings();
         registerReceivers();
         log("VpnManagerService starting up");
     }
@@ -557,7 +560,7 @@ public class VpnManagerService extends IVpnManager.Stub {
     }
 
     /**
-     * Starts the always-on VPN {@link VpnService} for user {@param userId}, which should perform
+     * Starts the always-on VPN {@link VpnService} for user {@code userId}, which should perform
      * some setup and then call {@code establish()} to connect.
      *
      * @return {@code true} if the service was started, the service was already connected, or there
@@ -710,6 +713,10 @@ public class VpnManagerService extends IVpnManager.Stub {
         intentFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
         intentFilter.addAction(Intent.ACTION_PACKAGE_REPLACED);
         intentFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        if (mExposeVpnAppExclusionSettings) {
+            intentFilter.addAction(Intent.ACTION_PACKAGE_DATA_CLEARED);
+        }
+
         intentFilter.addDataScheme("package");
         mUserAllContext.registerReceiver(
                 mIntentReceiver,
@@ -763,6 +770,9 @@ public class VpnManagerService extends IVpnManager.Stub {
                 final boolean isReplacing = intent.getBooleanExtra(
                         Intent.EXTRA_REPLACING, false);
                 onPackageAdded(packageName, uid, isReplacing);
+            } else if (Intent.ACTION_PACKAGE_DATA_CLEARED.equals(action)
+                    && mExposeVpnAppExclusionSettings) {
+                onPackageDataCleared(packageName, uid);
             } else {
                 Log.wtf(TAG, "received unexpected intent: " + action);
             }
@@ -897,6 +907,9 @@ public class VpnManagerService extends IVpnManager.Stub {
                 vpn.deleteVpnProfileDueToAppRemoval(packageName, uid);
             }
 
+            // No-op if the package doesn't own an app exclusion list.
+            clearAppExclusionList(vpn, packageName);
+
             vpn.refreshPlatformVpnAppExclusionList();
         }
     }
@@ -912,7 +925,45 @@ public class VpnManagerService extends IVpnManager.Stub {
             final Vpn vpn = mVpns.get(userId);
 
             if (vpn != null && !isReplacing) {
+                // No-op if the package doesn't own an app exclusion list.
+                clearAppExclusionList(vpn, packageName);
+
                 vpn.refreshPlatformVpnAppExclusionList();
+            }
+        }
+    }
+
+    private void onPackageDataCleared(String packageName, int uid) {
+        if (TextUtils.isEmpty(packageName) || uid < 0) {
+            Log.wtf(TAG, "Invalid package in onPackageDataCleared: " + packageName + " | " + uid);
+            return;
+        }
+
+        final int userId = UserHandle.getUserId(uid);
+        synchronized (mVpns) {
+            final Vpn vpn = mVpns.get(userId);
+            if (vpn != null) {
+                // No-op if the package doesn't own an app exclusion list.
+                clearAppExclusionList(vpn, packageName);
+            }
+        }
+    }
+
+    /**
+     * Clears the application exclusion list for the specified package.
+     *
+     * <p>This method delegates to the underlying {@link Vpn#clearAppExclusionList(String)}.
+     * It is typically called internally by the system in response to package events (e.g., data
+     * cleared, package added/removed) to ensure that VPN exclusion lists are properly managed.
+     *
+     * @param vpn The {@link Vpn} object managing the VPN state for the target user.
+     * @param packageName The package name for which the exclusion list should be cleared.
+     */
+    private void clearAppExclusionList(Vpn vpn, String packageName) {
+        if (mExposeVpnAppExclusionSettings) {
+            boolean cleared = vpn.clearAppExclusionList(packageName);
+            if (cleared) {
+                log("clearAppExclusionList cleared for " + packageName);
             }
         }
     }

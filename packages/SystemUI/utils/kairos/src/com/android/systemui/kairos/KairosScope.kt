@@ -23,4 +23,4 @@ package com.android.systemui.kairos
  * Base scope for all Kairos scopes. Used to prevent implicitly capturing other scopes from inner
  * lambdas.
  */
-@KairosScopeMarker @ExperimentalKairosApi interface KairosScope
+@KairosScopeMarker interface KairosScope

@@ -28,8 +28,8 @@ constexpr const char SCRIPT_CODES[][4] = {
     /* 3  */ {'A', 'r', 'm', 'i'},
     /* 4  */ {'A', 'r', 'm', 'n'},
     /* 5  */ {'A', 'v', 's', 't'},
-    /* 6  */ {'B', 'a', 'm', 'u'},
-    /* 7  */ {'B', 'a', 's', 's'},
+    /* 6  */ {'B', 'a', 'l', 'i'},
+    /* 7  */ {'B', 'a', 'm', 'u'},
     /* 8  */ {'B', 'a', 't', 'k'},
     /* 9  */ {'B', 'e', 'n', 'g'},
     /* 10 */ {'B', 'o', 'p', 'o'},
@@ -67,84 +67,82 @@ constexpr const char SCRIPT_CODES[][4] = {
     /* 42 */ {'J', 'p', 'a', 'n'},
     /* 43 */ {'K', 'a', 'l', 'i'},
     /* 44 */ {'K', 'a', 'n', 'a'},
-    /* 45 */ {'K', 'a', 'w', 'i'},
-    /* 46 */ {'K', 'h', 'a', 'r'},
-    /* 47 */ {'K', 'h', 'm', 'r'},
-    /* 48 */ {'K', 'i', 't', 's'},
-    /* 49 */ {'K', 'n', 'd', 'a'},
-    /* 50 */ {'K', 'o', 'r', 'e'},
-    /* 51 */ {'L', 'a', 'n', 'a'},
-    /* 52 */ {'L', 'a', 'o', 'o'},
-    /* 53 */ {'L', 'a', 't', 'f'},
-    /* 54 */ {'L', 'a', 't', 'g'},
-    /* 55 */ {'L', 'a', 't', 'n'},
-    /* 56 */ {'L', 'e', 'p', 'c'},
-    /* 57 */ {'L', 'i', 'n', 'a'},
-    /* 58 */ {'L', 'i', 'n', 'b'},
-    /* 59 */ {'L', 'i', 's', 'u'},
-    /* 60 */ {'L', 'y', 'c', 'i'},
-    /* 61 */ {'L', 'y', 'd', 'i'},
-    /* 62 */ {'M', 'a', 'n', 'd'},
-    /* 63 */ {'M', 'a', 'n', 'i'},
-    /* 64 */ {'M', 'a', 'r', 'c'},
-    /* 65 */ {'M', 'e', 'd', 'f'},
-    /* 66 */ {'M', 'e', 'r', 'c'},
-    /* 67 */ {'M', 'l', 'y', 'm'},
-    /* 68 */ {'M', 'o', 'd', 'i'},
-    /* 69 */ {'M', 'o', 'n', 'g'},
-    /* 70 */ {'M', 'r', 'o', 'o'},
-    /* 71 */ {'M', 't', 'e', 'i'},
-    /* 72 */ {'M', 'y', 'm', 'r'},
-    /* 73 */ {'N', 'a', 'r', 'b'},
-    /* 74 */ {'N', 'e', 'w', 'a'},
-    /* 75 */ {'N', 'k', 'o', 'o'},
-    /* 76 */ {'N', 's', 'h', 'u'},
-    /* 77 */ {'O', 'g', 'a', 'm'},
-    /* 78 */ {'O', 'l', 'c', 'k'},
-    /* 79 */ {'O', 'r', 'k', 'h'},
-    /* 80 */ {'O', 'r', 'y', 'a'},
-    /* 81 */ {'O', 's', 'g', 'e'},
-    /* 82 */ {'O', 'u', 'g', 'r'},
-    /* 83 */ {'P', 'a', 'u', 'c'},
-    /* 84 */ {'P', 'h', 'l', 'i'},
-    /* 85 */ {'P', 'h', 'n', 'x'},
-    /* 86 */ {'P', 'l', 'r', 'd'},
-    /* 87 */ {'P', 'r', 't', 'i'},
-    /* 88 */ {'R', 'j', 'n', 'g'},
-    /* 89 */ {'R', 'o', 'h', 'g'},
-    /* 90 */ {'R', 'u', 'n', 'r'},
-    /* 91 */ {'S', 'a', 'm', 'r'},
-    /* 92 */ {'S', 'a', 'r', 'b'},
-    /* 93 */ {'S', 'a', 'u', 'r'},
-    /* 94 */ {'S', 'g', 'n', 'w'},
-    /* 95 */ {'S', 'i', 'n', 'h'},
-    /* 96 */ {'S', 'o', 'g', 'd'},
-    /* 97 */ {'S', 'o', 'r', 'a'},
-    /* 98 */ {'S', 'o', 'y', 'o'},
-    /* 99 */ {'S', 'u', 'n', 'u'},
-    /* 100 */ {'S', 'y', 'r', 'c'},
-    /* 101 */ {'T', 'a', 'g', 'b'},
-    /* 102 */ {'T', 'a', 'k', 'r'},
-    /* 103 */ {'T', 'a', 'l', 'e'},
-    /* 104 */ {'T', 'a', 'l', 'u'},
-    /* 105 */ {'T', 'a', 'm', 'l'},
-    /* 106 */ {'T', 'a', 'n', 'g'},
-    /* 107 */ {'T', 'a', 'v', 't'},
-    /* 108 */ {'T', 'e', 'l', 'u'},
-    /* 109 */ {'T', 'f', 'n', 'g'},
-    /* 110 */ {'T', 'h', 'a', 'a'},
-    /* 111 */ {'T', 'h', 'a', 'i'},
-    /* 112 */ {'T', 'i', 'b', 't'},
-    /* 113 */ {'T', 'n', 's', 'a'},
-    /* 114 */ {'T', 'o', 't', 'o'},
-    /* 115 */ {'U', 'g', 'a', 'r'},
-    /* 116 */ {'V', 'a', 'i', 'i'},
-    /* 117 */ {'W', 'c', 'h', 'o'},
-    /* 118 */ {'X', 'p', 'e', 'o'},
-    /* 119 */ {'X', 's', 'u', 'x'},
-    /* 120 */ {'Y', 'i', 'i', 'i'},
-    /* 121 */ {'~', '~', '~', 'A'},
-    /* 122 */ {'~', '~', '~', 'B'},
+    /* 45 */ {'K', 'h', 'a', 'r'},
+    /* 46 */ {'K', 'h', 'm', 'r'},
+    /* 47 */ {'K', 'i', 't', 's'},
+    /* 48 */ {'K', 'n', 'd', 'a'},
+    /* 49 */ {'K', 'o', 'r', 'e'},
+    /* 50 */ {'L', 'a', 'n', 'a'},
+    /* 51 */ {'L', 'a', 'o', 'o'},
+    /* 52 */ {'L', 'a', 't', 'f'},
+    /* 53 */ {'L', 'a', 't', 'g'},
+    /* 54 */ {'L', 'a', 't', 'n'},
+    /* 55 */ {'L', 'e', 'p', 'c'},
+    /* 56 */ {'L', 'i', 'n', 'a'},
+    /* 57 */ {'L', 'i', 'n', 'b'},
+    /* 58 */ {'L', 'i', 's', 'u'},
+    /* 59 */ {'L', 'y', 'c', 'i'},
+    /* 60 */ {'L', 'y', 'd', 'i'},
+    /* 61 */ {'M', 'a', 'n', 'd'},
+    /* 62 */ {'M', 'a', 'n', 'i'},
+    /* 63 */ {'M', 'a', 'r', 'c'},
+    /* 64 */ {'M', 'e', 'd', 'f'},
+    /* 65 */ {'M', 'e', 'r', 'c'},
+    /* 66 */ {'M', 'l', 'y', 'm'},
+    /* 67 */ {'M', 'o', 'd', 'i'},
+    /* 68 */ {'M', 'o', 'n', 'g'},
+    /* 69 */ {'M', 'r', 'o', 'o'},
+    /* 70 */ {'M', 't', 'e', 'i'},
+    /* 71 */ {'M', 'y', 'm', 'r'},
+    /* 72 */ {'N', 'a', 'r', 'b'},
+    /* 73 */ {'N', 'e', 'w', 'a'},
+    /* 74 */ {'N', 'k', 'o', 'o'},
+    /* 75 */ {'O', 'g', 'a', 'm'},
+    /* 76 */ {'O', 'l', 'c', 'k'},
+    /* 77 */ {'O', 'r', 'k', 'h'},
+    /* 78 */ {'O', 'r', 'y', 'a'},
+    /* 79 */ {'O', 's', 'g', 'e'},
+    /* 80 */ {'O', 'u', 'g', 'r'},
+    /* 81 */ {'P', 'a', 'u', 'c'},
+    /* 82 */ {'P', 'h', 'l', 'i'},
+    /* 83 */ {'P', 'h', 'n', 'x'},
+    /* 84 */ {'P', 'l', 'r', 'd'},
+    /* 85 */ {'P', 'r', 't', 'i'},
+    /* 86 */ {'R', 'j', 'n', 'g'},
+    /* 87 */ {'R', 'o', 'h', 'g'},
+    /* 88 */ {'R', 'u', 'n', 'r'},
+    /* 89 */ {'S', 'a', 'm', 'r'},
+    /* 90 */ {'S', 'a', 'r', 'b'},
+    /* 91 */ {'S', 'a', 'u', 'r'},
+    /* 92 */ {'S', 'g', 'n', 'w'},
+    /* 93 */ {'S', 'i', 'd', 't'},
+    /* 94 */ {'S', 'i', 'n', 'h'},
+    /* 95 */ {'S', 'o', 'g', 'd'},
+    /* 96 */ {'S', 'o', 'r', 'a'},
+    /* 97 */ {'S', 'o', 'y', 'o'},
+    /* 98 */ {'S', 'y', 'r', 'c'},
+    /* 99 */ {'T', 'a', 'g', 'b'},
+    /* 100 */ {'T', 'a', 'k', 'r'},
+    /* 101 */ {'T', 'a', 'l', 'e'},
+    /* 102 */ {'T', 'a', 'l', 'u'},
+    /* 103 */ {'T', 'a', 'm', 'l'},
+    /* 104 */ {'T', 'a', 'n', 'g'},
+    /* 105 */ {'T', 'a', 'v', 't'},
+    /* 106 */ {'T', 'e', 'l', 'u'},
+    /* 107 */ {'T', 'f', 'n', 'g'},
+    /* 108 */ {'T', 'h', 'a', 'a'},
+    /* 109 */ {'T', 'h', 'a', 'i'},
+    /* 110 */ {'T', 'i', 'b', 't'},
+    /* 111 */ {'T', 'n', 's', 'a'},
+    /* 112 */ {'T', 'o', 't', 'o'},
+    /* 113 */ {'U', 'g', 'a', 'r'},
+    /* 114 */ {'V', 'a', 'i', 'i'},
+    /* 115 */ {'W', 'c', 'h', 'o'},
+    /* 116 */ {'X', 'p', 'e', 'o'},
+    /* 117 */ {'X', 's', 'u', 'x'},
+    /* 118 */ {'Y', 'i', 'i', 'i'},
+    /* 119 */ {'~', '~', '~', 'A'},
+    /* 120 */ {'~', '~', '~', 'B'},
 };
 
 
@@ -228,6 +226,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xD1260000u: // gju -> Arab
         case 0x9D660000u: // glh -> Arab
         case 0xA9660000u: // glk -> Arab
+        case 0xC6260000u: // grr -> Arab
         case 0x8AC60000u: // gwc -> Arab
         case 0x96C60000u: // gwf -> Arab
         case 0xCEC60000u: // gwt -> Arab
@@ -262,6 +261,8 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xE58A0000u: // kmz -> Arab
         case 0x6B730000u: // ks -> Arab
         case 0xAE6A0000u: // ktl -> Arab
+        case 0x6B754951u: // ku-IQ -> Arab
+        case 0x6B754952u: // ku-IR -> Arab
         case 0x6B754C42u: // ku-LB -> Arab
         case 0xDEAA0000u: // kvx -> Arab
         case 0xBEEA0000u: // kxp -> Arab
@@ -277,6 +278,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xE68B0000u: // luz -> Arab
         case 0xE02C0000u: // mby -> Arab
         case 0x906C0000u: // mde -> Arab
+        case 0xE08C0000u: // mey -> Arab
         case 0x80AC0000u: // mfa -> Arab
         case 0xA0AC0000u: // mfi -> Arab
         case 0xA4EC0000u: // mhj -> Arab
@@ -285,6 +287,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x6D734343u: // ms-CC -> Arab
         case 0x92AC0000u: // mve -> Arab
         case 0xE2AC0000u: // mvy -> Arab
+        case 0x872C0000u: // mzb -> Arab
         case 0xB72C0000u: // mzn -> Arab
         case 0xA16D0000u: // nli -> Arab
         case 0xB16D0000u: // nlm -> Arab
@@ -374,9 +377,9 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
             return SCRIPT_CODES[ 4u];
         case 0x61650000u: // ae -> Avst
             return SCRIPT_CODES[ 5u];
-        case 0xDC010000u: // bax -> Bamu
+        case 0xD80A0000u: // kaw -> Bali
             return SCRIPT_CODES[ 6u];
-        case 0xC2410000u: // bsq -> Bass
+        case 0xDC010000u: // bax -> Bamu
             return SCRIPT_CODES[ 7u];
         case 0x8E610000u: // btd -> Batk
         case 0xB2610000u: // btm -> Batk
@@ -432,9 +435,9 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xBDC20000u: // cop -> Copt
             return SCRIPT_CODES[18u];
         case 0xE0440000u: // ecy -> Cprt
-        case 0x8A260000u: // grc -> Cprt
             return SCRIPT_CODES[19u];
         case 0x61620000u: // ab -> Cyrl
+        case 0xC0200000u: // abq -> Cyrl
         case 0xE0600000u: // ady -> Cyrl
         case 0xDCC00000u: // agx -> Cyrl
         case 0xD5400000u: // akv -> Cyrl
@@ -490,6 +493,10 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xE1EA0000u: // kpy -> Cyrl
         case 0x8A2A0000u: // krc -> Cyrl
         case 0xAA2A0000u: // krk -> Cyrl
+        case 0x6B75414Du: // ku-AM -> Cyrl
+        case 0x6B75415Au: // ku-AZ -> Cyrl
+        case 0x6B754745u: // ku-GE -> Cyrl
+        case 0x6B75544Du: // ku-TM -> Cyrl
         case 0xB28A0000u: // kum -> Cyrl
         case 0x6B760000u: // kv -> Cyrl
         case 0x82AA0000u: // kva -> Cyrl
@@ -515,6 +522,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xD62E0000u: // orv -> Cyrl
         case 0x6F730000u: // os -> Cyrl
         case 0xC00F0000u: // paq -> Cyrl
+        case 0xCDAF5255u: // pnt-RU -> Cyrl
         case 0xAA510000u: // rsk -> Cyrl
         case 0x72750000u: // ru -> Cyrl
         case 0x92910000u: // rue -> Cyrl
@@ -584,6 +592,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB8E10000u: // bho -> Deva
         case 0xCCE10000u: // bht -> Deva
         case 0xD0E10000u: // bhu -> Deva
+        case 0xDD010000u: // bix -> Deva
         case 0xE1010000u: // biy -> Deva
         case 0xA5210000u: // bjj -> Deva
         case 0xA5810000u: // bmj -> Deva
@@ -598,12 +607,12 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x9C620000u: // cdh -> Deva
         case 0xA4620000u: // cdj -> Deva
         case 0xB0620000u: // cdm -> Deva
+        case 0xB4620000u: // cdn -> Deva
         case 0xDCE20000u: // chx -> Deva
         case 0x9D020000u: // cih -> Deva
         case 0xB6620000u: // ctn -> Deva
         case 0xC0030000u: // daq -> Deva
         case 0xA0E30000u: // dhi -> Deva
-        case 0xB8E30000u: // dho -> Deva
         case 0xD8E30000u: // dhw -> Deva
         case 0xA1C30000u: // doi -> Deva
         case 0xC2230000u: // drq -> Deva
@@ -649,7 +658,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xDCAA0000u: // kfx -> Deva
         case 0xE0AA0000u: // kfy -> Deva
         case 0xA4CA0000u: // kgj -> Deva
-        case 0xE0CA0000u: // kgy -> Deva
         case 0xB4EA0000u: // khn -> Deva
         case 0x950A0000u: // kif -> Deva
         case 0xBD0A0000u: // kip -> Deva
@@ -665,6 +673,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xD22A0000u: // kru -> Deva
         case 0xE64A0000u: // ksz -> Deva
         case 0x926A0000u: // kte -> Deva
+        case 0xDECA0000u: // kwx -> Deva
         case 0xD70A0000u: // kyv -> Deva
         case 0xDB0A0000u: // kyw -> Deva
         case 0x900B0000u: // lae -> Deva
@@ -706,6 +715,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x98CF0000u: // pgg -> Deva
         case 0x8CEF0000u: // phd -> Deva
         case 0xD8EF0000u: // phw -> Deva
+        case 0x7069494Eu: // pi-IN -> Deva
         case 0xB28F0000u: // pum -> Deva
         case 0xC6CF0000u: // pwr -> Deva
         case 0x80110000u: // raa -> Deva
@@ -726,9 +736,11 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xA5520000u: // skj -> Deva
         case 0xA1D20000u: // soi -> Deva
         case 0xDE320000u: // srx -> Deva
+        case 0xE6920000u: // suz -> Deva
         case 0xD6D20000u: // swv -> Deva
         case 0xDB120000u: // syw -> Deva
         case 0xA4130000u: // taj -> Deva
+        case 0xB4530000u: // tcn -> Deva
         case 0x84730000u: // tdb -> Deva
         case 0x98730000u: // tdg -> Deva
         case 0x9C730000u: // tdh -> Deva
@@ -743,7 +755,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x85530000u: // tkb -> Deva
         case 0xCD530000u: // tkt -> Deva
         case 0xE6730000u: // ttz -> Deva
-        case 0xB2D30000u: // twm -> Deva
         case 0xC5B44E50u: // unr-NP -> Deva
         case 0x9C150000u: // vah -> Deva
         case 0xC8150000u: // vas -> Deva
@@ -799,6 +810,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xAC210000u: // bbl -> Geor
         case 0x90C90000u: // jge -> Geor
         case 0x6B610000u: // ka -> Geor
+        case 0xE72B4745u: // lzz-GE -> Geor
         case 0xD40E0000u: // oav -> Geor
         case 0x82B20000u: // sva -> Geor
         case 0x95970000u: // xmf -> Geor
@@ -816,6 +828,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x99E20000u: // cpg -> Grek
         case 0xC4440000u: // ecr -> Grek
         case 0x656C0000u: // el -> Grek
+        case 0x8A260000u: // grc -> Grek
         case 0xCDAF0000u: // pnt -> Grek
         case 0xDC520000u: // scx -> Grek
         case 0x8E530000u: // tsd -> Grek
@@ -825,6 +838,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
             return SCRIPT_CODES[30u];
         case 0xA0620000u: // cdi -> Gujr
         case 0xB4E30000u: // dhn -> Gujr
+        case 0xB8E30000u: // dho -> Gujr
         case 0x86830000u: // dub -> Gujr
         case 0xC8060000u: // gas -> Gujr
         case 0xAC260000u: // gbl -> Gujr
@@ -859,14 +873,20 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x9F220000u: // czh -> Hans
         case 0xB4060000u: // gan -> Hans
         case 0xA8070000u: // hak -> Hans
+        case 0xB1A70000u: // hnm -> Hans
         case 0xB6470000u: // hsn -> Hans
-        case 0x9F2B0000u: // lzh -> Hans
+        case 0x9E8B0000u: // luh -> Hans
         case 0xB40D0000u: // nan -> Hans
+        case 0x89320000u: // sjc -> Hans
         case 0xD2960000u: // wuu -> Hans
         case 0x9298434Eu: // yue-CN -> Hans
         case 0x7A680000u: // zh -> Hans
             return SCRIPT_CODES[35u];
+        case 0xA8075457u: // hak-TW -> Hant
         case 0x8A6B0000u: // ltc -> Hant
+        case 0x9F2B0000u: // lzh -> Hant
+        case 0xB40D4D4Fu: // nan-MO -> Hant
+        case 0xB40D5457u: // nan-TW -> Hant
         case 0x92980000u: // yue -> Hant
         case 0x7A684155u: // zh-AU -> Hant
         case 0x7A68424Eu: // zh-BN -> Hant
@@ -930,11 +950,8 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB5000000u: // ain -> Kana
         case 0xD3110000u: // ryu -> Kana
             return SCRIPT_CODES[44u];
-        case 0xD80A0000u: // kaw -> Kawi
-            return SCRIPT_CODES[45u];
         case 0x8CCF0000u: // pgd -> Khar
-        case 0x822F0000u: // pra -> Khar
-            return SCRIPT_CODES[46u];
+            return SCRIPT_CODES[45u];
         case 0x86210000u: // brb -> Khmr
         case 0x6B6D0000u: // km -> Khmr
         case 0xC62A0000u: // krr -> Khmr
@@ -945,9 +962,9 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xD1920000u: // smu -> Khmr
         case 0xD1F30000u: // tpu -> Khmr
         case 0xB0F70000u: // xhm -> Khmr
-            return SCRIPT_CODES[47u];
+            return SCRIPT_CODES[46u];
         case 0xCD590000u: // zkt -> Kits
-            return SCRIPT_CODES[48u];
+            return SCRIPT_CODES[47u];
         case 0xDA210000u: // brw -> Knda
         case 0x80AA0000u: // kfa -> Knda
         case 0x8CAA0000u: // kfd -> Knda
@@ -955,13 +972,14 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x6B6E0000u: // kn -> Knda
         case 0xE0530000u: // tcy -> Knda
         case 0x8D950000u: // vmd -> Knda
-            return SCRIPT_CODES[49u];
+            return SCRIPT_CODES[48u];
         case 0x6B6F0000u: // ko -> Kore
-            return SCRIPT_CODES[50u];
+            return SCRIPT_CODES[49u];
         case 0xD2820000u: // cuu -> Lana
         case 0x9D4A0000u: // kkh -> Lana
         case 0x8DCD0000u: // nod -> Lana
-            return SCRIPT_CODES[51u];
+        case 0xD2720000u: // stu -> Lana
+            return SCRIPT_CODES[50u];
         case 0xA9600000u: // alk -> Laoo
         case 0xD6210000u: // brv -> Laoo
         case 0x992A0000u: // kjg -> Laoo
@@ -970,17 +988,18 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x6C6F0000u: // lo -> Laoo
         case 0xC04D0000u: // ncq -> Laoo
         case 0xCCCD0000u: // ngt -> Laoo
+        case 0x870E0000u: // oyb -> Laoo
         case 0xB8EF0000u: // pho -> Laoo
         case 0xCC520000u: // sct -> Laoo
         case 0xC2120000u: // sqq -> Laoo
         case 0xCA520000u: // sss -> Laoo
         case 0x9E730000u: // tth -> Laoo
         case 0xBA730000u: // tto -> Laoo
-            return SCRIPT_CODES[52u];
+            return SCRIPT_CODES[51u];
         case 0xAD860000u: // gml -> Latf
-            return SCRIPT_CODES[53u];
+            return SCRIPT_CODES[52u];
         case 0x80CC0000u: // mga -> Latg
-            return SCRIPT_CODES[54u];
+            return SCRIPT_CODES[53u];
         case 0x61610000u: // aa -> Latn
         case 0x80000000u: // aaa -> Latn
         case 0x84000000u: // aab -> Latn
@@ -1012,6 +1031,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB4200000u: // abn -> Latn
         case 0xB8200000u: // abo -> Latn
         case 0xBC200000u: // abp -> Latn
+        case 0xC0205452u: // abq-TR -> Latn
         case 0xC4200000u: // abr -> Latn
         case 0xC8200000u: // abs -> Latn
         case 0xCC200000u: // abt -> Latn
@@ -1057,6 +1077,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xAC800000u: // ael -> Latn
         case 0xB0800000u: // aem -> Latn
         case 0xC4800000u: // aer -> Latn
+        case 0xC8800000u: // aes -> Latn
         case 0xD0800000u: // aeu -> Latn
         case 0xD8800000u: // aew -> Latn
         case 0xE0800000u: // aey -> Latn
@@ -1264,6 +1285,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xBE200000u: // arp -> Latn
         case 0xC6200000u: // arr -> Latn
         case 0xD2200000u: // aru -> Latn
+        case 0xD6200000u: // arv -> Latn
         case 0xDA200000u: // arw -> Latn
         case 0xDE200000u: // arx -> Latn
         case 0x82400000u: // asa -> Latn
@@ -1747,6 +1769,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB6410000u: // bsn -> Latn
         case 0xBA410000u: // bso -> Latn
         case 0xBE410000u: // bsp -> Latn
+        case 0xC2410000u: // bsq -> Latn
         case 0xC6410000u: // bsr -> Latn
         case 0xCA410000u: // bss -> Latn
         case 0xD2410000u: // bsu -> Latn
@@ -2197,7 +2220,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x90830000u: // dee -> Latn
         case 0x98830000u: // deg -> Latn
         case 0xA0830000u: // dei -> Latn
-        case 0xA8830000u: // dek -> Latn
         case 0xAC830000u: // del -> Latn
         case 0xB0830000u: // dem -> Latn
         case 0xB4830000u: // den -> Latn
@@ -3546,6 +3568,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xA62A0000u: // krj -> Latn
         case 0xAE2A0000u: // krl -> Latn
         case 0xB62A0000u: // krn -> Latn
+        case 0xBA2A0000u: // kro -> Latn
         case 0xBE2A0000u: // krp -> Latn
         case 0xCA2A0000u: // krs -> Latn
         case 0xCE2A0000u: // krt -> Latn
@@ -4107,7 +4130,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xD08C0000u: // meu -> Latn
         case 0xD48C0000u: // mev -> Latn
         case 0xD88C0000u: // mew -> Latn
-        case 0xE08C0000u: // mey -> Latn
+        case 0xE08C534Eu: // mey-SN -> Latn
         case 0xE48C0000u: // mez -> Latn
         case 0x84AC0000u: // mfb -> Latn
         case 0x88AC0000u: // mfc -> Latn
@@ -4229,7 +4252,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xC54C0000u: // mkr -> Latn
         case 0xC94C0000u: // mks -> Latn
         case 0xCD4C0000u: // mkt -> Latn
-        case 0xD14C0000u: // mku -> Latn
         case 0xD54C0000u: // mkv -> Latn
         case 0xD94C0000u: // mkw -> Latn
         case 0xDD4C0000u: // mkx -> Latn
@@ -4247,7 +4269,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB56C0000u: // mln -> Latn
         case 0xB96C0000u: // mlo -> Latn
         case 0xBD6C0000u: // mlp -> Latn
-        case 0xC16C0000u: // mlq -> Latn
         case 0xC56C0000u: // mlr -> Latn
         case 0xC96C0000u: // mls -> Latn
         case 0xD16C0000u: // mlu -> Latn
@@ -4284,6 +4305,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x95AC0000u: // mnf -> Latn
         case 0x99AC0000u: // mng -> Latn
         case 0x9DAC0000u: // mnh -> Latn
+        case 0xA9AC0000u: // mnk -> Latn
         case 0xADAC0000u: // mnl -> Latn
         case 0xB1AC0000u: // mnm -> Latn
         case 0xB5AC0000u: // mnn -> Latn
@@ -4360,6 +4382,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xC20C0000u: // mqq -> Latn
         case 0xC60C0000u: // mqr -> Latn
         case 0xCA0C0000u: // mqs -> Latn
+        case 0xCE0C0000u: // mqt -> Latn
         case 0xD20C0000u: // mqu -> Latn
         case 0xD60C0000u: // mqv -> Latn
         case 0xDA0C0000u: // mqw -> Latn
@@ -4387,7 +4410,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xE62C0000u: // mrz -> Latn
         case 0x6D730000u: // ms -> Latn
         case 0x864C0000u: // msb -> Latn
-        case 0x8A4C0000u: // msc -> Latn
         case 0x924C0000u: // mse -> Latn
         case 0x964C0000u: // msf -> Latn
         case 0x9A4C0000u: // msg -> Latn
@@ -4879,7 +4901,6 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xE24D0000u: // nsy -> Latn
         case 0xE64D0000u: // nsz -> Latn
         case 0x8E6D0000u: // ntd -> Latn
-        case 0x926D0000u: // nte -> Latn
         case 0x9A6D0000u: // ntg -> Latn
         case 0xA26D0000u: // nti -> Latn
         case 0xA66D0000u: // ntj -> Latn
@@ -4931,6 +4952,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x92ED0000u: // nxe -> Latn
         case 0x9AED0000u: // nxg -> Latn
         case 0xA2ED0000u: // nxi -> Latn
+        case 0xAAED0000u: // nxk -> Latn
         case 0xAEED0000u: // nxl -> Latn
         case 0xB6ED0000u: // nxn -> Latn
         case 0xBAED0000u: // nxo -> Latn
@@ -5165,6 +5187,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x98EF0000u: // phg -> Latn
         case 0x9CEF0000u: // phh -> Latn
         case 0xB0EF0000u: // phm -> Latn
+        case 0x70690000u: // pi -> Latn
         case 0x810F0000u: // pia -> Latn
         case 0x850F0000u: // pib -> Latn
         case 0x890F0000u: // pic -> Latn
@@ -5247,6 +5270,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xC1AF0000u: // pnq -> Latn
         case 0xC5AF0000u: // pnr -> Latn
         case 0xC9AF0000u: // pns -> Latn
+        case 0xCDAF5452u: // pnt-TR -> Latn
         case 0xD5AF0000u: // pnv -> Latn
         case 0xD9AF0000u: // pnw -> Latn
         case 0xE1AF0000u: // pny -> Latn
@@ -5603,6 +5627,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x90B20000u: // sfe -> Latn
         case 0xD8B20000u: // sfw -> Latn
         case 0x73670000u: // sg -> Latn
+        case 0x80D20000u: // sga -> Latn
         case 0x84D20000u: // sgb -> Latn
         case 0x88D20000u: // sgc -> Latn
         case 0x8CD20000u: // sgd -> Latn
@@ -6979,6 +7004,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB5980000u: // ymn -> Latn
         case 0xB9980000u: // ymo -> Latn
         case 0xBD980000u: // ymp -> Latn
+        case 0x85B80000u: // ynb -> Latn
         case 0x8DB80000u: // ynd -> Latn
         case 0x99B80000u: // yng -> Latn
         case 0xADB80000u: // ynl -> Latn
@@ -7175,31 +7201,31 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xA7190000u: // zyj -> Latn
         case 0xBF190000u: // zyp -> Latn
         case 0x83390000u: // zza -> Latn
-            return SCRIPT_CODES[55u];
+            return SCRIPT_CODES[54u];
         case 0xBC8B0000u: // lep -> Lepc
-            return SCRIPT_CODES[56u];
+            return SCRIPT_CODES[55u];
         case 0x840B0000u: // lab -> Lina
-            return SCRIPT_CODES[57u];
+            return SCRIPT_CODES[56u];
         case 0xE1860000u: // gmy -> Linb
-            return SCRIPT_CODES[58u];
+            return SCRIPT_CODES[57u];
         case 0xC90B0000u: // lis -> Lisu
-            return SCRIPT_CODES[59u];
+            return SCRIPT_CODES[58u];
         case 0xE1880000u: // imy -> Lyci
         case 0x89770000u: // xlc -> Lyci
-            return SCRIPT_CODES[60u];
+            return SCRIPT_CODES[59u];
         case 0x8D770000u: // xld -> Lydi
-            return SCRIPT_CODES[61u];
+            return SCRIPT_CODES[60u];
         case 0x8D0C0000u: // mid -> Mand
         case 0xE70C0000u: // myz -> Mand
-            return SCRIPT_CODES[62u];
+            return SCRIPT_CODES[61u];
         case 0xB5970000u: // xmn -> Mani
-            return SCRIPT_CODES[63u];
+            return SCRIPT_CODES[62u];
         case 0x9F370000u: // xzh -> Marc
-            return SCRIPT_CODES[64u];
+            return SCRIPT_CODES[63u];
         case 0x95830000u: // dmf -> Medf
-            return SCRIPT_CODES[65u];
+            return SCRIPT_CODES[64u];
         case 0xC5970000u: // xmr -> Merc
-            return SCRIPT_CODES[66u];
+            return SCRIPT_CODES[65u];
         case 0x94000000u: // aaf -> Mlym
         case 0xAD600000u: // all -> Mlym
         case 0xD48A0000u: // kev -> Mlym
@@ -7213,18 +7239,18 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xC54F0000u: // pkr -> Mlym
         case 0x98740000u: // udg -> Mlym
         case 0x80980000u: // yea -> Mlym
-            return SCRIPT_CODES[67u];
+            return SCRIPT_CODES[66u];
         case 0xC58E0000u: // omr -> Modi
-            return SCRIPT_CODES[68u];
+            return SCRIPT_CODES[67u];
         case 0xD2E10000u: // bxu -> Mong
         case 0x6D6E434Eu: // mn-CN -> Mong
         case 0x89AC0000u: // mnc -> Mong
         case 0x96AC0000u: // mvf -> Mong
-            return SCRIPT_CODES[69u];
+            return SCRIPT_CODES[68u];
         case 0xBA2C0000u: // mro -> Mroo
-            return SCRIPT_CODES[70u];
+            return SCRIPT_CODES[69u];
         case 0xBD8E0000u: // omp -> Mtei
-            return SCRIPT_CODES[71u];
+            return SCRIPT_CODES[70u];
         case 0xB9000000u: // aio -> Mymr
         case 0xA9610000u: // blk -> Mymr
         case 0x92C10000u: // bwe -> Mymr
@@ -7249,6 +7275,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xDD8E0000u: // omx -> Mymr
         case 0x904F0000u: // pce -> Mymr
         case 0xA8EF0000u: // phk -> Mymr
+        case 0x70694D4Du: // pi-MM -> Mymr
         case 0xAD6F0000u: // pll -> Mymr
         case 0xBACF0000u: // pwo -> Mymr
         case 0xDF0F0000u: // pyx -> Mymr
@@ -7259,23 +7286,20 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB8530000u: // tco -> Mymr
         case 0xAD330000u: // tjl -> Mymr
         case 0xB6B30000u: // tvn -> Mymr
-            return SCRIPT_CODES[72u];
+            return SCRIPT_CODES[71u];
         case 0x81B70000u: // xna -> Narb
-            return SCRIPT_CODES[73u];
+            return SCRIPT_CODES[72u];
         case 0x8ACD0000u: // nwc -> Newa
-            return SCRIPT_CODES[74u];
+            return SCRIPT_CODES[73u];
         case 0xBA0D0000u: // nqo -> Nkoo
-            return SCRIPT_CODES[75u];
-        case 0xDCF90000u: // zhx -> Nshu
-            return SCRIPT_CODES[76u];
+            return SCRIPT_CODES[74u];
         case 0xACCF0000u: // pgl -> Ogam
-        case 0x80D20000u: // sga -> Ogam
         case 0xA1F70000u: // xpi -> Ogam
-            return SCRIPT_CODES[77u];
+            return SCRIPT_CODES[75u];
         case 0xCC120000u: // sat -> Olck
-            return SCRIPT_CODES[78u];
+            return SCRIPT_CODES[76u];
         case 0xAA6E0000u: // otk -> Orkh
-            return SCRIPT_CODES[79u];
+            return SCRIPT_CODES[77u];
         case 0xD4610000u: // bdv -> Orya
         case 0xD8A10000u: // bfw -> Orya
         case 0xBA430000u: // dso -> Orya
@@ -7292,18 +7316,18 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xA1540000u: // uki -> Orya
         case 0xC9170000u: // xis -> Orya
         case 0x9A390000u: // zrg -> Orya
-            return SCRIPT_CODES[80u];
+            return SCRIPT_CODES[78u];
         case 0x824E0000u: // osa -> Osge
-            return SCRIPT_CODES[81u];
+            return SCRIPT_CODES[79u];
         case 0xA28E0000u: // oui -> Ougr
-            return SCRIPT_CODES[82u];
+            return SCRIPT_CODES[80u];
         case 0x8E620000u: // ctd -> Pauc
-            return SCRIPT_CODES[83u];
+            return SCRIPT_CODES[81u];
         case 0xAC0F0000u: // pal -> Phli
-            return SCRIPT_CODES[84u];
+            return SCRIPT_CODES[82u];
         case 0xB02E0000u: // obm -> Phnx
         case 0xB4EF0000u: // phn -> Phnx
-            return SCRIPT_CODES[85u];
+            return SCRIPT_CODES[83u];
         case 0x8D870000u: // hmd -> Plrd
         case 0xBE6A0000u: // ktp -> Plrd
         case 0xB9EB0000u: // lpo -> Plrd
@@ -7313,37 +7337,37 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xE2580000u: // ysy -> Plrd
         case 0xC2D80000u: // ywq -> Plrd
         case 0xD2D80000u: // ywu -> Plrd
-            return SCRIPT_CODES[86u];
+            return SCRIPT_CODES[84u];
         case 0xC5F70000u: // xpr -> Prti
-            return SCRIPT_CODES[87u];
+            return SCRIPT_CODES[85u];
         case 0xAC200000u: // abl -> Rjng
-            return SCRIPT_CODES[88u];
+            return SCRIPT_CODES[86u];
         case 0x98F10000u: // rhg -> Rohg
-            return SCRIPT_CODES[89u];
+            return SCRIPT_CODES[87u];
         case 0xB5CD0000u: // non -> Runr
         case 0xB62D0000u: // nrn -> Runr
         case 0xD2F20000u: // sxu -> Runr
-            return SCRIPT_CODES[90u];
+            return SCRIPT_CODES[88u];
         case 0xB0120000u: // sam -> Samr
         case 0xBD920000u: // smp -> Samr
-            return SCRIPT_CODES[91u];
+            return SCRIPT_CODES[89u];
         case 0x82570000u: // xsa -> Sarb
-            return SCRIPT_CODES[92u];
+            return SCRIPT_CODES[90u];
         case 0xE4120000u: // saz -> Saur
-            return SCRIPT_CODES[93u];
+            return SCRIPT_CODES[91u];
         case 0x92400000u: // ase -> Sgnw
-            return SCRIPT_CODES[94u];
-        case 0x70690000u: // pi -> Sinh
+            return SCRIPT_CODES[92u];
+        case 0x8E570000u: // xsd -> Sidt
+            return SCRIPT_CODES[93u];
+        case 0x70694C4Bu: // pi-LK -> Sinh
         case 0x73690000u: // si -> Sinh
-            return SCRIPT_CODES[95u];
+            return SCRIPT_CODES[94u];
         case 0x99D20000u: // sog -> Sogd
-            return SCRIPT_CODES[96u];
+            return SCRIPT_CODES[95u];
         case 0x86320000u: // srb -> Sora
-            return SCRIPT_CODES[97u];
+            return SCRIPT_CODES[96u];
         case 0x99820000u: // cmg -> Soyo
-            return SCRIPT_CODES[98u];
-        case 0xE6920000u: // suz -> Sunu
-            return SCRIPT_CODES[99u];
+            return SCRIPT_CODES[97u];
         case 0xA1000000u: // aii -> Syrc
         case 0xD9800000u: // amw -> Syrc
         case 0xB4E10000u: // bhn -> Syrc
@@ -7356,18 +7380,19 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB7120000u: // syn -> Syrc
         case 0xC7120000u: // syr -> Syrc
         case 0xC5930000u: // tmr -> Syrc
-            return SCRIPT_CODES[100u];
+            return SCRIPT_CODES[98u];
         case 0xA8330000u: // tbk -> Tagb
-            return SCRIPT_CODES[101u];
+            return SCRIPT_CODES[99u];
         case 0xA1070000u: // hii -> Takr
         case 0x81A90000u: // jna -> Takr
         case 0xD0520000u: // scu -> Takr
-            return SCRIPT_CODES[102u];
+            return SCRIPT_CODES[100u];
+        case 0xD272434Eu: // stu-CN -> Tale
         case 0x8C730000u: // tdd -> Tale
         case 0xA0F30000u: // thi -> Tale
-            return SCRIPT_CODES[103u];
+            return SCRIPT_CODES[101u];
         case 0x84EA0000u: // khb -> Talu
-            return SCRIPT_CODES[104u];
+            return SCRIPT_CODES[102u];
         case 0xC0A10000u: // bfq -> Taml
         case 0xCE620000u: // ctt -> Taml
         case 0xE2620000u: // cty -> Taml
@@ -7381,13 +7406,13 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x80150000u: // vaa -> Taml
         case 0x86970000u: // xub -> Taml
         case 0xA6970000u: // xuj -> Taml
-            return SCRIPT_CODES[105u];
+            return SCRIPT_CODES[103u];
         case 0x9AF30000u: // txg -> Tang
-            return SCRIPT_CODES[106u];
+            return SCRIPT_CODES[104u];
         case 0xCD610000u: // blt -> Tavt
         case 0x81D20000u: // soa -> Tavt
         case 0xC7130000u: // tyr -> Tavt
-            return SCRIPT_CODES[107u];
+            return SCRIPT_CODES[105u];
         case 0x90620000u: // cde -> Telu
         case 0xD0060000u: // gau -> Telu
         case 0xE08A0000u: // key -> Telu
@@ -7400,15 +7425,15 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x74650000u: // te -> Telu
         case 0xC0360000u: // wbq -> Telu
         case 0xD0980000u: // yeu -> Telu
-            return SCRIPT_CODES[108u];
+            return SCRIPT_CODES[106u];
         case 0xB8E60000u: // gho -> Tfng
         case 0xA0F20000u: // shi -> Tfng
         case 0x80730000u: // tda -> Tfng
         case 0xB4990000u: // zen -> Tfng
         case 0x9CD90000u: // zgh -> Tfng
-            return SCRIPT_CODES[109u];
+            return SCRIPT_CODES[107u];
         case 0x64760000u: // dv -> Thaa
-            return SCRIPT_CODES[110u];
+            return SCRIPT_CODES[108u];
         case 0xA3210000u: // bzi -> Thai
         case 0xB4220000u: // cbn -> Thai
         case 0x99C20000u: // cog -> Thai
@@ -7427,6 +7452,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xDB0D0000u: // nyw -> Thai
         case 0xCCEF0000u: // pht -> Thai
         case 0xD0EF0000u: // phu -> Thai
+        case 0x70695448u: // pi-TH -> Thai
         case 0xCE2F0000u: // prt -> Thai
         case 0xDACF0000u: // pww -> Thai
         case 0x85520000u: // skb -> Thai
@@ -7437,7 +7463,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xB8D40000u: // ugo -> Thai
         case 0xAA340000u: // urk -> Thai
         case 0xE1D80000u: // yoy -> Thai
-            return SCRIPT_CODES[111u];
+            return SCRIPT_CODES[109u];
         case 0xDC600000u: // adx -> Tibt
         case 0xD0A10000u: // bfu -> Tibt
         case 0xA9410000u: // bkk -> Tibt
@@ -7454,6 +7480,7 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x80690000u: // jda -> Tibt
         case 0x83090000u: // jya -> Tibt
         case 0x982A0000u: // kbg -> Tibt
+        case 0xE0CA0000u: // kgy -> Tibt
         case 0x98EA0000u: // khg -> Tibt
         case 0xE52A0000u: // kjz -> Tibt
         case 0x954A0000u: // kkf -> Tibt
@@ -7470,30 +7497,30 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0xCCD20000u: // sgt -> Tibt
         case 0xBD120000u: // sip -> Tibt
         case 0xCDF20000u: // spt -> Tibt
-        case 0xB4530000u: // tcn -> Tibt
         case 0x94D30000u: // tgf -> Tibt
         case 0xA6530000u: // tsj -> Tibt
+        case 0xB2D30000u: // twm -> Tibt
         case 0x95570000u: // xkf -> Tibt
         case 0xD0190000u: // zau -> Tibt
-            return SCRIPT_CODES[112u];
+            return SCRIPT_CODES[110u];
         case 0xCE4D0000u: // nst -> Tnsa
-            return SCRIPT_CODES[113u];
+            return SCRIPT_CODES[111u];
         case 0xBAF30000u: // txo -> Toto
-            return SCRIPT_CODES[114u];
+            return SCRIPT_CODES[112u];
         case 0x80D40000u: // uga -> Ugar
-            return SCRIPT_CODES[115u];
+            return SCRIPT_CODES[113u];
         case 0xA0150000u: // vai -> Vaii
-            return SCRIPT_CODES[116u];
+            return SCRIPT_CODES[114u];
         case 0xBDAD0000u: // nnp -> Wcho
-            return SCRIPT_CODES[117u];
+            return SCRIPT_CODES[115u];
         case 0xB88F0000u: // peo -> Xpeo
-            return SCRIPT_CODES[118u];
+            return SCRIPT_CODES[116u];
         case 0xA9400000u: // akk -> Xsux
         case 0xCD070000u: // hit -> Xsux
         case 0xDE670000u: // htx -> Xsux
         case 0xA08D0000u: // nei -> Xsux
         case 0xCCEE0000u: // oht -> Xsux
-            return SCRIPT_CODES[119u];
+            return SCRIPT_CODES[117u];
         case 0x69690000u: // ii -> Yiii
         case 0xC9CD0000u: // nos -> Yiii
         case 0x8E4D0000u: // nsd -> Yiii
@@ -7506,11 +7533,11 @@ const char* lookupLikelyScript(uint32_t packed_lang_region) {
         case 0x8E580000u: // ysd -> Yiii
         case 0xB6580000u: // ysn -> Yiii
         case 0xBE580000u: // ysp -> Yiii
-            return SCRIPT_CODES[120u];
+            return SCRIPT_CODES[118u];
         case 0x656E5841u: // en-XA -> ~~~A
-            return SCRIPT_CODES[121u];
+            return SCRIPT_CODES[119u];
         case 0x61725842u: // ar-XB -> ~~~B
-            return SCRIPT_CODES[122u];
+            return SCRIPT_CODES[120u];
         default:
             return nullptr;
      }
@@ -7565,6 +7592,8 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB4204E474C61746ELLU: // abn_Latn_NG
         case 0xB8204E474C61746ELLU: // abo_Latn_NG
         case 0xBC2050484C61746ELLU: // abp_Latn_PH
+        case 0xC02052554379726CLLU: // abq_Cyrl_RU
+        case 0xC02054524C61746ELLU: // abq_Latn_TR
         case 0xC42047484C61746ELLU: // abr_Latn_GH
         case 0xC82049444C61746ELLU: // abs_Latn_ID
         case 0xCC2050474C61746ELLU: // abt_Latn_PG
@@ -7623,6 +7652,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB080564E4C61746ELLU: // aem_Latn_VN
         case 0xC080504B41726162LLU: // aeq_Arab_PK
         case 0xC48041554C61746ELLU: // aer_Latn_AU
+        case 0xC88055534C61746ELLU: // aes_Latn_US
         case 0xD080434E4C61746ELLU: // aeu_Latn_CN
         case 0xD88050474C61746ELLU: // aew_Latn_PG
         case 0xE08050474C61746ELLU: // aey_Latn_PG
@@ -7820,7 +7850,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE5C049444C61746ELLU: // aoz_Latn_ID
         case 0x85E053424C61746ELLU: // apb_Latn_SB
         case 0x89E0535941726162LLU: // apc_Arab_SY
-        case 0x8DE0544741726162LLU: // apd_Arab_TG
+        case 0x8DE0534441726162LLU: // apd_Arab_SD
         case 0x91E050474C61746ELLU: // ape_Latn_PG
         case 0x95E050484C61746ELLU: // apf_Latn_PH
         case 0x99E049444C61746ELLU: // apg_Latn_ID
@@ -7870,6 +7900,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xC62042524C61746ELLU: // arr_Latn_BR
         case 0xCA20534141726162LLU: // ars_Arab_SA
         case 0xD22042524C61746ELLU: // aru_Latn_BR
+        case 0xD62045544C61746ELLU: // arv_Latn_ET
         case 0xDA2053524C61746ELLU: // arw_Latn_SR
         case 0xDE2042524C61746ELLU: // arx_Latn_BR
         case 0xE2204D4141726162LLU: // ary_Arab_MA
@@ -8210,6 +8241,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xD101494E4C61746ELLU: // biu_Latn_IN
         case 0xD50147484C61746ELLU: // biv_Latn_GH
         case 0xD901434D4C61746ELLU: // biw_Latn_CM
+        case 0xDD01494E44657661LLU: // bix_Deva_IN
         case 0xE101494E44657661LLU: // biy_Deva_IN
         case 0xE50143444C61746ELLU: // biz_Latn_CD
         case 0x812143444C61746ELLU: // bja_Latn_CD
@@ -8439,7 +8471,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB641434F4C61746ELLU: // bsn_Latn_CO
         case 0xBA4154444C61746ELLU: // bso_Latn_TD
         case 0xBE41474E4C61746ELLU: // bsp_Latn_GN
-        case 0xC2414C5242617373LLU: // bsq_Bass_LR
+        case 0xC2414C524C61746ELLU: // bsq_Latn_LR
         case 0xC6414E474C61746ELLU: // bsr_Latn_NG
         case 0xCA41434D4C61746ELLU: // bss_Latn_CM
         case 0xCE41455445746869LLU: // bst_Ethi_ET
@@ -8663,6 +8695,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA062494E47756A72LLU: // cdi_Gujr_IN
         case 0xA462494E44657661LLU: // cdj_Deva_IN
         case 0xB0624E5044657661LLU: // cdm_Deva_NP
+        case 0xB462494E44657661LLU: // cdn_Deva_IN
         case 0xB862434E48616E73LLU: // cdo_Hans_CN
         case 0xC4624E474C61746ELLU: // cdr_Latn_NG
         case 0xE462494E42656E67LLU: // cdz_Beng_IN
@@ -8957,7 +8990,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x98834E474C61746ELLU: // deg_Latn_NG
         case 0x9C83504B41726162LLU: // deh_Arab_PK
         case 0xA08349444C61746ELLU: // dei_Latn_ID
-        case 0xA883434D4C61746ELLU: // dek_Latn_CM
         case 0xAC8355534C61746ELLU: // del_Latn_US
         case 0xB08349444C61746ELLU: // dem_Latn_ID
         case 0xB48343414C61746ELLU: // den_Latn_CA
@@ -8988,7 +9020,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xACE341554C61746ELLU: // dhl_Latn_AU
         case 0xB0E3414F4C61746ELLU: // dhm_Latn_AO
         case 0xB4E3494E47756A72LLU: // dhn_Gujr_IN
-        case 0xB8E3494E44657661LLU: // dho_Deva_IN
+        case 0xB8E3494E47756A72LLU: // dho_Gujr_IN
         case 0xC4E341554C61746ELLU: // dhr_Latn_AU
         case 0xC8E3545A4C61746ELLU: // dhs_Latn_TZ
         case 0xD0E341554C61746ELLU: // dhu_Latn_AU
@@ -9597,8 +9629,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xC60654444C61746ELLU: // gqr_Latn_TD
         case 0x8226494E44657661LLU: // gra_Deva_IN
         case 0x86264C524C61746ELLU: // grb_Latn_LR
-        case 0x8A26435943707274LLU: // grc_Cprt_CY
-        case 0x8A2647524C696E62LLU: // grc_Linb_GR
+        case 0x8A2647524772656BLLU: // grc_Grek_GR
         case 0x8E264E474C61746ELLU: // grd_Latn_NG
         case 0x9A2650474C61746ELLU: // grg_Latn_PG
         case 0x9E264E474C61746ELLU: // grh_Latn_NG
@@ -9606,6 +9637,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA6264C524C61746ELLU: // grj_Latn_LR
         case 0xB2264D594C61746ELLU: // grm_Latn_MY
         case 0xC22650474C61746ELLU: // grq_Latn_PG
+        case 0xC626445A41726162LLU: // grr_Arab_DZ
         case 0xCA2649444C61746ELLU: // grs_Latn_ID
         case 0xCE26494E42656E67LLU: // grt_Beng_IN
         case 0xD226455445746869LLU: // gru_Ethi_ET
@@ -9700,6 +9732,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA00743414C61746ELLU: // hai_Latn_CA
         case 0xA407494E4C61746ELLU: // haj_Latn_IN
         case 0xA807434E48616E73LLU: // hak_Hans_CN
+        case 0xA807545748616E74LLU: // hak_Hant_TW
         case 0xAC07564E4C61746ELLU: // hal_Latn_VN
         case 0xB00750474C61746ELLU: // ham_Latn_PG
         case 0xB407545A4C61746ELLU: // han_Latn_TZ
@@ -9782,6 +9815,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA1A7434E4C61746ELLU: // hni_Latn_CN
         case 0xA5A74C41486D6E67LLU: // hnj_Hmng_LA
         case 0xA5A75553486D6E70LLU: // hnj_Hmnp_US
+        case 0xB1A7434E48616E73LLU: // hnm_Hans_CN
         case 0xB5A750484C61746ELLU: // hnn_Latn_PH
         case 0xB9A7504B41726162LLU: // hno_Arab_PK
         case 0xC9A753524C61746ELLU: // hns_Latn_SR
@@ -10160,7 +10194,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xBC0A52554379726CLLU: // kap_Cyrl_RU
         case 0xC00A50454C61746ELLU: // kaq_Latn_PE
         case 0xD40A42524C61746ELLU: // kav_Latn_BR
-        case 0xD80A49444B617769LLU: // kaw_Kawi_ID
+        case 0xD80A494442616C69LLU: // kaw_Bali_ID
         case 0xDC0A49444C61746ELLU: // kax_Latn_ID
         case 0xE00A42524C61746ELLU: // kay_Latn_BR
         case 0x802A41554C61746ELLU: // kba_Latn_AU
@@ -10298,7 +10332,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xD4CA49444C61746ELLU: // kgv_Latn_ID
         case 0xD8CA49444C61746ELLU: // kgw_Latn_ID
         case 0xDCCA49444C61746ELLU: // kgx_Latn_ID
-        case 0xE0CA4E5044657661LLU: // kgy_Deva_NP
+        case 0xE0CA4E5054696274LLU: // kgy_Tibt_NP
         case 0x80EA494E4C61746ELLU: // kha_Latn_IN
         case 0x84EA434E54616C75LLU: // khb_Talu_CN
         case 0x88EA49444C61746ELLU: // khc_Latn_ID
@@ -10556,6 +10590,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xAA2A52554379726CLLU: // krk_Cyrl_RU
         case 0xAE2A52554C61746ELLU: // krl_Latn_RU
         case 0xB62A4C524C61746ELLU: // krn_Latn_LR
+        case 0xBA2A4C524C61746ELLU: // kro_Latn_LR
         case 0xBE2A4E474C61746ELLU: // krp_Latn_NG
         case 0xC62A4B484B686D72LLU: // krr_Khmr_KH
         case 0xCA2A53534C61746ELLU: // krs_Latn_SS
@@ -10617,6 +10652,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE26A43444C61746ELLU: // kty_Latn_CD
         case 0xE66A4E414C61746ELLU: // ktz_Latn_NA
         case 0x6B75495141726162LLU: // ku_Arab_IQ
+        case 0x6B75414D4379726CLLU: // ku_Cyrl_AM
         case 0x6B7554524C61746ELLU: // ku_Latn_TR
         case 0x6B75474559657A69LLU: // ku_Yezi_GE
         case 0x868A4E474C61746ELLU: // kub_Latn_NG
@@ -10690,6 +10726,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xD2CA434D4C61746ELLU: // kwu_Latn_CM
         case 0xD6CA54444C61746ELLU: // kwv_Latn_TD
         case 0xDACA53524C61746ELLU: // kww_Latn_SR
+        case 0xDECA494E44657661LLU: // kwx_Deva_IN
         case 0xE2CA414F4C61746ELLU: // kwy_Latn_AO
         case 0xE6CA414F4C61746ELLU: // kwz_Latn_AO
         case 0x82EA50474C61746ELLU: // kxa_Latn_PG
@@ -10836,7 +10873,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA88B50474C61746ELLU: // lek_Latn_PG
         case 0xAC8B43444C61746ELLU: // lel_Latn_CD
         case 0xB08B434D4C61746ELLU: // lem_Latn_CM
-        case 0xB48B484E4C61746ELLU: // len_Latn_HN
+        case 0xB48B53564C61746ELLU: // len_Latn_SV
         case 0xB88B434D4C61746ELLU: // leo_Latn_CM
         case 0xBC8B494E4C657063LLU: // lep_Lepc_IN
         case 0xC08B50474C61746ELLU: // leq_Latn_PG
@@ -11040,6 +11077,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x8E8B52554C61746ELLU: // lud_Latn_RU
         case 0x928B5A4D4C61746ELLU: // lue_Latn_ZM
         case 0x968B50474C61746ELLU: // luf_Latn_PG
+        case 0x9E8B434E48616E73LLU: // luh_Hans_CN
         case 0xA28B55534C61746ELLU: // lui_Latn_US
         case 0xA68B43444C61746ELLU: // luj_Latn_CD
         case 0xAA8B425454696274LLU: // luk_Tibt_BT
@@ -11075,9 +11113,10 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB2EB50474C61746ELLU: // lxm_Latn_PG
         case 0x830B425454696274LLU: // lya_Tibt_BT
         case 0xB70B5A4D4C61746ELLU: // lyn_Latn_ZM
-        case 0x9F2B434E48616E73LLU: // lzh_Hans_CN
+        case 0x9F2B434E48616E74LLU: // lzh_Hant_CN
         case 0xAF2B56554C61746ELLU: // lzl_Latn_VU
         case 0xB72B4D4D4C61746ELLU: // lzn_Latn_MM
+        case 0xE72B474547656F72LLU: // lzz_Geor_GE
         case 0xE72B54524C61746ELLU: // lzz_Latn_TR
         case 0x800C4D584C61746ELLU: // maa_Latn_MX
         case 0x840C4D584C61746ELLU: // mab_Latn_MX
@@ -11193,6 +11232,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xD08C50474C61746ELLU: // meu_Latn_PG
         case 0xD48C4C524C61746ELLU: // mev_Latn_LR
         case 0xD88C4E474C61746ELLU: // mew_Latn_NG
+        case 0xE08C445A41726162LLU: // mey_Arab_DZ
         case 0xE08C534E4C61746ELLU: // mey_Latn_SN
         case 0xE48C55534C61746ELLU: // mez_Latn_US
         case 0x80AC544841726162LLU: // mfa_Arab_TH
@@ -11333,7 +11373,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xC54C50474C61746ELLU: // mkr_Latn_PG
         case 0xC94C4D584C61746ELLU: // mks_Latn_MX
         case 0xCD4C4E434C61746ELLU: // mkt_Latn_NC
-        case 0xD14C474E4C61746ELLU: // mku_Latn_GN
         case 0xD54C56554C61746ELLU: // mkv_Latn_VU
         case 0xD94C43474C61746ELLU: // mkw_Latn_CG
         case 0xDD4C50484C61746ELLU: // mkx_Latn_PH
@@ -11353,7 +11392,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB56C53424C61746ELLU: // mln_Latn_SB
         case 0xB96C534E4C61746ELLU: // mlo_Latn_SN
         case 0xBD6C50474C61746ELLU: // mlp_Latn_PG
-        case 0xC16C534E4C61746ELLU: // mlq_Latn_SN
         case 0xC56C434D4C61746ELLU: // mlr_Latn_CM
         case 0xC96C53444C61746ELLU: // mls_Latn_SD
         case 0xD16C53424C61746ELLU: // mlu_Latn_SB
@@ -11395,6 +11433,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x9DAC43444C61746ELLU: // mnh_Latn_CD
         case 0xA1AC494E42656E67LLU: // mni_Beng_IN
         case 0xA5AC414641726162LLU: // mnj_Arab_AF
+        case 0xA9AC474D4C61746ELLU: // mnk_Latn_GM
         case 0xADAC56554C61746ELLU: // mnl_Latn_VU
         case 0xB1AC50474C61746ELLU: // mnm_Latn_PG
         case 0xB5AC564E4C61746ELLU: // mnn_Latn_VN
@@ -11474,6 +11513,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xC20C4D594C61746ELLU: // mqq_Latn_MY
         case 0xC60C49444C61746ELLU: // mqr_Latn_ID
         case 0xCA0C49444C61746ELLU: // mqs_Latn_ID
+        case 0xCE0C54484C61746ELLU: // mqt_Latn_TH
         case 0xD20C53534C61746ELLU: // mqu_Latn_SS
         case 0xD60C50474C61746ELLU: // mqv_Latn_PG
         case 0xDA0C50474C61746ELLU: // mqw_Latn_PG
@@ -11507,7 +11547,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE62C49444C61746ELLU: // mrz_Latn_ID
         case 0x6D734D594C61746ELLU: // ms_Latn_MY
         case 0x864C50484C61746ELLU: // msb_Latn_PH
-        case 0x8A4C474E4C61746ELLU: // msc_Latn_GN
         case 0x924C54444C61746ELLU: // mse_Latn_TD
         case 0x964C49444C61746ELLU: // msf_Latn_ID
         case 0x9A4C49444C61746ELLU: // msg_Latn_ID
@@ -11664,6 +11703,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE30C434F4C61746ELLU: // myy_Latn_CO
         case 0xE70C49524D616E64LLU: // myz_Mand_IR
         case 0x832C4D584C61746ELLU: // mza_Latn_MX
+        case 0x872C445A41726162LLU: // mzb_Arab_DZ
         case 0x8F2C434D4C61746ELLU: // mzd_Latn_CM
         case 0x932C50474C61746ELLU: // mze_Latn_PG
         case 0x9F2C41524C61746ELLU: // mzh_Latn_AR
@@ -11695,6 +11735,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xAC0D50474C61746ELLU: // nal_Latn_PG
         case 0xB00D41554C61746ELLU: // nam_Latn_AU
         case 0xB40D434E48616E73LLU: // nan_Hans_CN
+        case 0xB40D545748616E74LLU: // nan_Hant_TW
         case 0xB80D4E5044657661LLU: // nao_Deva_NP
         case 0xBC0D49544C61746ELLU: // nap_Latn_IT
         case 0xC00D4E414C61746ELLU: // naq_Latn_NA
@@ -12049,7 +12090,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE24D49444C61746ELLU: // nsy_Latn_ID
         case 0xE64D55534C61746ELLU: // nsz_Latn_US
         case 0x8E6D4D594C61746ELLU: // ntd_Latn_MY
-        case 0x926D4D5A4C61746ELLU: // nte_Latn_MZ
         case 0x9A6D41554C61746ELLU: // ntg_Latn_AU
         case 0xA26D42464C61746ELLU: // nti_Latn_BF
         case 0xA66D41554C61746ELLU: // ntj_Latn_AU
@@ -12065,7 +12105,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x828D4E434C61746ELLU: // nua_Latn_NC
         case 0x8A8D42524C61746ELLU: // nuc_Latn_BR
         case 0x8E8D50474C61746ELLU: // nud_Latn_PG
-        case 0x928D43444C61746ELLU: // nue_Latn_CD
+        case 0x928D43464C61746ELLU: // nue_Latn_CF
         case 0x968D434E4C61746ELLU: // nuf_Latn_CN
         case 0x9A8D41554C61746ELLU: // nug_Latn_AU
         case 0x9E8D4E474C61746ELLU: // nuh_Latn_NG
@@ -12105,6 +12145,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x92ED49444C61746ELLU: // nxe_Latn_ID
         case 0x9AED49444C61746ELLU: // nxg_Latn_ID
         case 0xA2ED545A4C61746ELLU: // nxi_Latn_TZ
+        case 0xAAED4D4D4C61746ELLU: // nxk_Latn_MM
         case 0xAEED49444C61746ELLU: // nxl_Latn_ID
         case 0xB6ED41554C61746ELLU: // nxn_Latn_AU
         case 0xBAED47414C61746ELLU: // nxo_Latn_GA
@@ -12296,6 +12337,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x8EAE53454C61746ELLU: // ovd_Latn_SE
         case 0xA2CE50474C61746ELLU: // owi_Latn_PG
         case 0xAECE47424C61746ELLU: // owl_Latn_GB
+        case 0x870E4C414C616F6FLLU: // oyb_Laoo_LA
         case 0x8F0E45544C61746ELLU: // oyd_Latn_ET
         case 0xB30E42524C61746ELLU: // oym_Latn_BR
         case 0xE30E50474C61746ELLU: // oyy_Latn_PG
@@ -12404,7 +12446,11 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xD0EF544854686169LLU: // phu_Thai_TH
         case 0xD4EF414641726162LLU: // phv_Arab_AF
         case 0xD8EF4E5044657661LLU: // phw_Deva_NP
-        case 0x7069494E53696E68LLU: // pi_Sinh_IN
+        case 0x7069494E44657661LLU: // pi_Deva_IN
+        case 0x706947424C61746ELLU: // pi_Latn_GB
+        case 0x70694D4D4D796D72LLU: // pi_Mymr_MM
+        case 0x70694C4B53696E68LLU: // pi_Sinh_LK
+        case 0x7069544854686169LLU: // pi_Thai_TH
         case 0x810F4D584C61746ELLU: // pia_Latn_MX
         case 0x850F50454C61746ELLU: // pib_Latn_PE
         case 0x890F47414C61746ELLU: // pic_Latn_GA
@@ -12492,7 +12538,9 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xC1AF42464C61746ELLU: // pnq_Latn_BF
         case 0xC5AF50474C61746ELLU: // pnr_Latn_PG
         case 0xC9AF49444C61746ELLU: // pns_Latn_ID
+        case 0xCDAF52554379726CLLU: // pnt_Cyrl_RU
         case 0xCDAF47524772656BLLU: // pnt_Grek_GR
+        case 0xCDAF54524C61746ELLU: // pnt_Latn_TR
         case 0xD5AF41554C61746ELLU: // pnv_Latn_AU
         case 0xD9AF41554C61746ELLU: // pnw_Latn_AU
         case 0xE1AF434D4C61746ELLU: // pny_Latn_CM
@@ -12527,7 +12575,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xCDEF50474C61746ELLU: // ppt_Latn_PG
         case 0x820F4E474C61746ELLU: // pqa_Latn_NG
         case 0xB20F43414C61746ELLU: // pqm_Latn_CA
-        case 0x822F504B4B686172LLU: // pra_Khar_PK
         case 0x8A2F414641726162LLU: // prc_Arab_AF
         case 0x8E2F495241726162LLU: // prd_Arab_IR
         case 0x922F53544C61746ELLU: // pre_Latn_ST
@@ -12914,7 +12961,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB0B2434E506C7264LLU: // sfm_Plrd_CN
         case 0xD8B247484C61746ELLU: // sfw_Latn_GH
         case 0x736743464C61746ELLU: // sg_Latn_CF
-        case 0x80D249454F67616DLLU: // sga_Ogam_IE
+        case 0x80D249454C61746ELLU: // sga_Latn_IE
         case 0x84D250484C61746ELLU: // sgb_Latn_PH
         case 0x88D24B454C61746ELLU: // sgc_Latn_KE
         case 0x8CD250484C61746ELLU: // sgd_Latn_PH
@@ -12979,6 +13026,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE512454741726162LLU: // siz_Arab_EG
         case 0x8132434F4C61746ELLU: // sja_Latn_CO
         case 0x853249444C61746ELLU: // sjb_Latn_ID
+        case 0x8932434E48616E73LLU: // sjc_Hans_CN
         case 0x8D3252554379726CLLU: // sjd_Cyrl_RU
         case 0x913253454C61746ELLU: // sje_Latn_SE
         case 0x993254444C61746ELLU: // sjg_Latn_TD
@@ -13183,6 +13231,8 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xC67243414C61746ELLU: // str_Latn_CA
         case 0xCA72414641726162LLU: // sts_Arab_AF
         case 0xCE72564E4C61746ELLU: // stt_Latn_VN
+        case 0xD2724D4D4C616E61LLU: // stu_Lana_MM
+        case 0xD272434E54616C65LLU: // stu_Tale_CN
         case 0xD672455445746869LLU: // stv_Ethi_ET
         case 0xDA72464D4C61746ELLU: // stw_Latn_FM
         case 0xE27252554379726CLLU: // sty_Cyrl_RU
@@ -13203,7 +13253,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xD692494E4C61746ELLU: // suv_Latn_IN
         case 0xDA92545A4C61746ELLU: // suw_Latn_TZ
         case 0xE29242524C61746ELLU: // suy_Latn_BR
-        case 0xE6924E5053756E75LLU: // suz_Sunu_NP
+        case 0xE6924E5044657661LLU: // suz_Deva_NP
         case 0x737653454C61746ELLU: // sv_Latn_SE
         case 0x82B2474547656F72LLU: // sva_Geor_GE
         case 0x86B250474C61746ELLU: // svb_Latn_PG
@@ -13317,7 +13367,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA05350474C61746ELLU: // tci_Latn_PG
         case 0xA85347414C61746ELLU: // tck_Latn_GA
         case 0xB05349444C61746ELLU: // tcm_Latn_ID
-        case 0xB4534E5054696274LLU: // tcn_Tibt_NP
+        case 0xB4534E5044657661LLU: // tcn_Deva_NP
         case 0xB8534D4D4D796D72LLU: // tco_Mymr_MM
         case 0xBC534D4D4C61746ELLU: // tcp_Latn_MM
         case 0xC05349444C61746ELLU: // tcq_Latn_ID
@@ -13693,7 +13743,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0x9AD349444C61746ELLU: // twg_Latn_ID
         case 0x9ED3564E4C61746ELLU: // twh_Latn_VN
         case 0xAED34D5A4C61746ELLU: // twl_Latn_MZ
-        case 0xB2D3494E44657661LLU: // twm_Deva_IN
+        case 0xB2D3494E54696274LLU: // twm_Tibt_IN
         case 0xB6D3434D4C61746ELLU: // twn_Latn_CM
         case 0xBAD342574C61746ELLU: // two_Latn_BW
         case 0xBED350474C61746ELLU: // twp_Latn_PG
@@ -14327,6 +14377,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xDA3750474C61746ELLU: // xrw_Latn_PG
         case 0x8257594553617262LLU: // xsa_Sarb_YE
         case 0x865750484C61746ELLU: // xsb_Latn_PH
+        case 0x8E57545253696474LLU: // xsd_Sidt_TR
         case 0x925749444C61746ELLU: // xse_Latn_ID
         case 0x9E574E474C61746ELLU: // xsh_Latn_NG
         case 0xA25750474C61746ELLU: // xsi_Latn_PG
@@ -14499,6 +14550,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xB99850474C61746ELLU: // ymo_Latn_PG
         case 0xBD9850474C61746ELLU: // ymp_Latn_PG
         case 0x81B8434E506C7264LLU: // yna_Plrd_CN
+        case 0x85B850474C61746ELLU: // ynb_Latn_PG
         case 0x8DB841554C61746ELLU: // ynd_Latn_AU
         case 0x99B843444C61746ELLU: // yng_Latn_CD
         case 0xA9B852554379726CLLU: // ynk_Cyrl_RU
@@ -14622,7 +14674,6 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xA0F94E474C61746ELLU: // zhi_Latn_NG
         case 0xB4F9434E4C61746ELLU: // zhn_Latn_CN
         case 0xD8F9434D4C61746ELLU: // zhw_Latn_CM
-        case 0xDCF9434E4E736875LLU: // zhx_Nshu_CN
         case 0x811950474C61746ELLU: // zia_Latn_PG
         case 0xA91950474C61746ELLU: // zik_Latn_PG
         case 0xAD19474E4C61746ELLU: // zil_Latn_GN
@@ -14639,7 +14690,7 @@ bool isLocaleRepresentative(uint32_t language_and_region, const char* script) {
         case 0xE55952554379726CLLU: // zkz_Cyrl_RU
         case 0x817943444C61746ELLU: // zla_Latn_CD
         case 0xA579434E48616E69LLU: // zlj_Hani_CN
-        case 0xB17954474C61746ELLU: // zlm_Latn_TG
+        case 0xB1794D594C61746ELLU: // zlm_Latn_MY
         case 0xB579434E48616E69LLU: // zln_Hani_CN
         case 0xC179434E48616E69LLU: // zlq_Hani_CN
         case 0xD1794E474C61746ELLU: // zlu_Latn_NG
@@ -14806,6 +14857,7 @@ static uint32_t findLatnParent(uint32_t packed_lang_region) {
         case 0x656E4748u: // en-GH -> en-001
         case 0x656E4749u: // en-GI -> en-001
         case 0x656E474Du: // en-GM -> en-001
+        case 0x656E4753u: // en-GS -> en-001
         case 0x656E4759u: // en-GY -> en-001
         case 0x656E484Bu: // en-HK -> en-001
         case 0x656E4944u: // en-ID -> en-001
@@ -14872,11 +14924,15 @@ static uint32_t findLatnParent(uint32_t packed_lang_region) {
         case 0x656E435Au: // en-CZ -> en-150
         case 0x656E4445u: // en-DE -> en-150
         case 0x656E444Bu: // en-DK -> en-150
+        case 0x656E4545u: // en-EE -> en-150
         case 0x656E4553u: // en-ES -> en-150
         case 0x656E4649u: // en-FI -> en-150
         case 0x656E4652u: // en-FR -> en-150
+        case 0x656E4745u: // en-GE -> en-150
         case 0x656E4855u: // en-HU -> en-150
         case 0x656E4954u: // en-IT -> en-150
+        case 0x656E4C54u: // en-LT -> en-150
+        case 0x656E4C56u: // en-LV -> en-150
         case 0x656E4E4Cu: // en-NL -> en-150
         case 0x656E4E4Fu: // en-NO -> en-150
         case 0x656E504Cu: // en-PL -> en-150
@@ -14885,6 +14941,7 @@ static uint32_t findLatnParent(uint32_t packed_lang_region) {
         case 0x656E5345u: // en-SE -> en-150
         case 0x656E5349u: // en-SI -> en-150
         case 0x656E534Bu: // en-SK -> en-150
+        case 0x656E5541u: // en-UA -> en-150
             return 0x656E80A1u;
         case 0x65734152u: // es-AR -> es-419
         case 0x6573424Fu: // es-BO -> es-419

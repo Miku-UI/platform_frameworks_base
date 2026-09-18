@@ -30,8 +30,8 @@ import java.io.PrintWriter;
 import java.util.Objects;
 
 /**
- * A Unix epoch time value with an associated reading from the elapsed realtime clock.
- * When representing a device's system clock time, the Unix epoch time can be obtained using {@link
+ * A Unix epoch time value with an associated reading from the elapsed realtime clock. When
+ * representing a device's system clock time, the Unix epoch time can be obtained using {@link
  * System#currentTimeMillis()}. The Unix epoch time might also come from an external source
  * depending on usage.
  *
@@ -45,8 +45,8 @@ public final class UnixEpochTime implements Parcelable {
     @ElapsedRealtimeLong private final long mElapsedRealtimeMillis;
     @CurrentTimeMillisLong private final long mUnixEpochTimeMillis;
 
-    public UnixEpochTime(@ElapsedRealtimeLong long elapsedRealtimeMillis,
-            long unixEpochTimeMillis) {
+    public UnixEpochTime(
+            @ElapsedRealtimeLong long elapsedRealtimeMillis, long unixEpochTimeMillis) {
         mElapsedRealtimeMillis = elapsedRealtimeMillis;
         mUnixEpochTimeMillis = unixEpochTimeMillis;
     }
@@ -59,17 +59,11 @@ public final class UnixEpochTime implements Parcelable {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--elapsed_realtime": {
-                    elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--unix_epoch_time": {
-                    unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--elapsed_realtime" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--unix_epoch_time" ->
+                        unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -124,24 +118,27 @@ public final class UnixEpochTime implements Parcelable {
     @Override
     public String toString() {
         return "UnixEpochTime{"
-                + "mElapsedRealtimeMillis=" + mElapsedRealtimeMillis
-                + ", mUnixEpochTimeMillis=" + mUnixEpochTimeMillis
+                + "mElapsedRealtimeMillis="
+                + mElapsedRealtimeMillis
+                + ", mUnixEpochTimeMillis="
+                + mUnixEpochTimeMillis
                 + '}';
     }
 
-    public static final @NonNull Creator<UnixEpochTime> CREATOR = new Creator<>() {
-        @Override
-        public UnixEpochTime createFromParcel(@NonNull Parcel source) {
-            long elapsedRealtimeMillis = source.readLong();
-            long unixEpochTimeMillis = source.readLong();
-            return new UnixEpochTime(elapsedRealtimeMillis, unixEpochTimeMillis);
-        }
+    public static final @NonNull Creator<UnixEpochTime> CREATOR =
+            new Creator<>() {
+                @Override
+                public UnixEpochTime createFromParcel(@NonNull Parcel source) {
+                    long elapsedRealtimeMillis = source.readLong();
+                    long unixEpochTimeMillis = source.readLong();
+                    return new UnixEpochTime(elapsedRealtimeMillis, unixEpochTimeMillis);
+                }
 
-        @Override
-        public UnixEpochTime[] newArray(int size) {
-            return new UnixEpochTime[size];
-        }
-    };
+                @Override
+                public UnixEpochTime[] newArray(int size) {
+                    return new UnixEpochTime[size];
+                }
+            };
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {

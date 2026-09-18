@@ -67,6 +67,7 @@ fun AmbientCueContainer(
     val expanded = viewModel.isExpanded
     val actions = viewModel.actions
     val pillStyle = viewModel.pillStyle
+    val imeVisible = viewModel.isImeVisible
 
     LaunchedEffect(expanded) {
         if (expanded) {
@@ -122,6 +123,7 @@ fun AmbientCueContainer(
                     actions = actions,
                     visible = visible,
                     expanded = expanded,
+                    imeVisible = imeVisible,
                     pillPositionInWindow = pillPositionInWindow,
                     onShouldInterceptTouches = onShouldInterceptTouches,
                     modifier =
@@ -135,6 +137,7 @@ fun AmbientCueContainer(
                 )
             }
             is PillStyleViewModel.Uninitialized -> {}
+            is PillStyleViewModel.NoPillStyle -> {}
         }
     }
 }
@@ -145,6 +148,7 @@ private fun TaskBarAnd3ButtonAmbientCue(
     actions: List<ActionViewModel>,
     visible: Boolean,
     expanded: Boolean,
+    imeVisible: Boolean,
     pillPositionInWindow: Rect?,
     onShouldInterceptTouches: (Boolean, Rect?) -> Unit,
     modifier: Modifier = Modifier,
@@ -157,8 +161,8 @@ private fun TaskBarAnd3ButtonAmbientCue(
     var pillSize by remember { mutableStateOf(Size(0)) }
     val screenWidthPx = LocalWindowInfo.current.containerSize.width
     var touchableRegion by remember { mutableStateOf<Rect?>(null) }
-    LaunchedEffect(expanded, touchableRegion) {
-        onShouldInterceptTouches(true, if (expanded) null else touchableRegion)
+    LaunchedEffect(expanded, imeVisible, touchableRegion) {
+        onShouldInterceptTouches(!imeVisible, if (expanded) null else touchableRegion)
     }
     val content = LocalContext.current
     val rotation = content.display.rotation

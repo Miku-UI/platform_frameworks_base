@@ -16,9 +16,13 @@
 
 package android.processor.devicepolicy;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 /**
  * Metadata for a enum policy. Represented by an Integer.
  */
+@Retention(RetentionPolicy.SOURCE)
 public @interface EnumPolicyDefinition {
     /**
      * Base data for all policies.
@@ -29,6 +33,11 @@ public @interface EnumPolicyDefinition {
      * Indicates which IntDef represents this enum.
      */
     Class<?> intDef();
+
+    /**
+     * Indicates the conflict resolution mechanism used by this enum.
+     */
+    EnumResolutionMechanism resolutionMechanism();
 
     /**
      * Indicates the default value of this policy when unset or cleared.

@@ -45,6 +45,7 @@ import com.android.wm.shell.desktopmode.ToggleResizeDesktopTaskTransitionHandler
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import com.android.wm.shell.shared.annotations.ShellMainThreadImmediate
 import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
@@ -59,7 +60,7 @@ import kotlinx.coroutines.MainCoroutineDispatcher
 class DesktopTilingDecorViewModel(
     private val context: Context,
     @ShellMainThread private val mainDispatcher: MainCoroutineDispatcher,
-    @ShellMainThread private val mainScope: CoroutineScope,
+    @ShellMainThreadImmediate private val mainImmediateScope: CoroutineScope,
     @ShellBackgroundThread private val bgScope: CoroutineScope,
     private val displayController: DisplayController,
     private val rootTdaOrganizer: RootTaskDisplayAreaOrganizer,
@@ -108,7 +109,7 @@ class DesktopTilingDecorViewModel(
                     DesktopTilingWindowDecoration(
                             context,
                             mainDispatcher,
-                            mainScope,
+                            mainImmediateScope,
                             bgScope,
                             syncQueue,
                             displayController,
@@ -151,6 +152,24 @@ class DesktopTilingDecorViewModel(
         return tilingHandlerByUserAndDeskId[currentUserId]
             ?.get(deskId)
             ?.moveTiledPairToFront(taskInfo.taskId, isFocusedOnDisplay = true) ?: false
+    }
+
+    fun onTaskLaunchStarted() {
+        val activeUserHandlers = tilingHandlerByUserAndDeskId[currentUserId] ?: return
+        for (tilingHandler in activeUserHandlers.valueIterator()) {
+            tilingHandler.onTaskLaunchStarted()
+        }
+    }
+
+    fun onDeskSwitchAnimationStarting(displayId: Int, fromDeskId: Int, toDeskId: Int) {
+        val userHandlers = tilingHandlerByUserAndDeskId[currentUserId] ?: return
+        userHandlers[fromDeskId]?.hideDividerBar()
+        userHandlers[toDeskId]?.hideDividerBar()
+    }
+
+    fun onDeskSwitchAnimationEnded(displayId: Int, deskId: Int) {
+        val userHandlers = tilingHandlerByUserAndDeskId[currentUserId] ?: return
+        userHandlers[deskId]?.showDividerBar(isTilingVisibleAfterRecents = false)
     }
 
     fun onOverviewAnimationEndedToSameDesk() {
@@ -297,10 +316,14 @@ class DesktopTilingDecorViewModel(
     fun getCurrentActiveDeskForDisplay(displayId: Int): Int? =
         desktopUserRepositories.current.getActiveDeskId(displayId)
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
         ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logE(msg: String, vararg arguments: Any?) {
         ProtoLog.e(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

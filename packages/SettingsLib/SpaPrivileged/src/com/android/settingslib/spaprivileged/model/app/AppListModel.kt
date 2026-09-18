@@ -18,6 +18,7 @@ package com.android.settingslib.spaprivileged.model.app
 
 import android.content.pm.ApplicationInfo
 import android.icu.text.CollationKey
+import android.os.UserHandle
 import androidx.compose.runtime.Composable
 import com.android.settingslib.spa.widget.ui.SpinnerOption
 import com.android.settingslib.spaprivileged.template.app.AppListItem
@@ -71,6 +72,7 @@ interface AppListModel<T : AppRecord> {
     fun getComparator(option: Int): Comparator<AppEntry<T>> = compareBy(
         { it.labelCollationKey },
         { it.record.app.packageName },
+        { if (it.record.app.userId == UserHandle.myUserId()) 0 else 1 },
         { it.record.app.uid },
     )
 

@@ -17,7 +17,7 @@
 package com.android.systemui.statusbar.notification.row
 
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.util.mockito.mock
+import com.android.systemui.log.logcatLogBuffer
 
 val Kosmos.notificationRowContentBinderLogger: NotificationRowContentBinderLogger by
-    Kosmos.Fixture { mock<NotificationRowContentBinderLogger>() }
+    Kosmos.Fixture { NotificationRowContentBinderLogger(logcatLogBuffer("NotifBind")) }

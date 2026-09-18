@@ -16,8 +16,8 @@
 
 package android.libcore.regression;
 
-import android.perftests.utils.BenchmarkState;
-import android.perftests.utils.PerfStatusReporter;
+import androidx.benchmark.BenchmarkState;
+import androidx.benchmark.junit4.BenchmarkRule;
 
 import androidx.test.filters.LargeTest;
 import androidx.test.runner.AndroidJUnit4;
@@ -41,11 +41,11 @@ import java.util.Locale;
 @RunWith(AndroidJUnit4.class)
 @LargeTest
 public class ExpensiveObjectsPerfTest {
-    @Rule public PerfStatusReporter mPerfStatusReporter = new PerfStatusReporter();
+    @Rule public BenchmarkRule mBenchmarkRule = new BenchmarkRule();
 
     @Test
     public void timeNewDateFormatTimeInstance() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             DateFormat df = DateFormat.getTimeInstance(DateFormat.SHORT);
             df.format(System.currentTimeMillis());
@@ -55,7 +55,7 @@ public class ExpensiveObjectsPerfTest {
     @Test(timeout = 900000)
     public void timeClonedDateFormatTimeInstance() {
         DateFormat df = DateFormat.getTimeInstance(DateFormat.SHORT);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             ((DateFormat) df.clone()).format(System.currentTimeMillis());
         }
@@ -64,7 +64,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeReusedDateFormatTimeInstance() {
         DateFormat df = DateFormat.getTimeInstance(DateFormat.SHORT);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             synchronized (df) {
                 df.format(System.currentTimeMillis());
@@ -74,7 +74,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test(timeout = 900000)
     public void timeNewCollator() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         int i = 0;
         while (state.keepRunning()) {
             Collator.getInstance(Locale.US);
@@ -94,7 +94,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeClonedCollator() {
         Collator c = Collator.getInstance(Locale.US);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         int i = 0;
         while (state.keepRunning()) {
             c.clone();
@@ -113,7 +113,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test
     public void timeNewDateFormatSymbols() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             new DateFormatSymbols(Locale.US);
         }
@@ -122,7 +122,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeClonedDateFormatSymbols() {
         DateFormatSymbols dfs = new DateFormatSymbols(Locale.US);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             dfs.clone();
         }
@@ -130,7 +130,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test
     public void timeNewDecimalFormatSymbols() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             new DecimalFormatSymbols(Locale.US);
         }
@@ -139,7 +139,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeClonedDecimalFormatSymbols() {
         DecimalFormatSymbols dfs = new DecimalFormatSymbols(Locale.US);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             dfs.clone();
         }
@@ -147,7 +147,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test
     public void timeNewNumberFormat() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             NumberFormat.getInstance(Locale.US);
         }
@@ -156,7 +156,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeClonedNumberFormat() {
         NumberFormat nf = NumberFormat.getInstance(Locale.US);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             nf.clone();
         }
@@ -164,7 +164,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test
     public void timeLongToString() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             Long.toString(1024L);
         }
@@ -173,7 +173,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeNumberFormatTrivialFormatDouble() {
         NumberFormat nf = NumberFormat.getInstance(Locale.US);
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             nf.format(1024.0);
         }
@@ -181,7 +181,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test
     public void timeNewSimpleDateFormat() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             new SimpleDateFormat();
         }
@@ -189,7 +189,7 @@ public class ExpensiveObjectsPerfTest {
 
     @Test
     public void timeNewGregorianCalendar() {
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             new GregorianCalendar();
         }
@@ -198,7 +198,7 @@ public class ExpensiveObjectsPerfTest {
     @Test
     public void timeClonedGregorianCalendar() {
         GregorianCalendar gc = new GregorianCalendar();
-        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final BenchmarkState state = mBenchmarkRule.getState();
         while (state.keepRunning()) {
             gc.clone();
         }

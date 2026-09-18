@@ -62,7 +62,7 @@ float MinikinFontSkia::GetHorizontalAdvance(uint32_t glyph_id, const minikin::Mi
     uint16_t glyph16 = glyph_id;
     SkScalar skWidth;
     MinikinFontSkia_SetSkiaFont(this, &skFont, paint, fakery);
-    skFont.getWidths(&glyph16, 1, &skWidth);
+    skFont.getWidths({&glyph16, 1}, {&skWidth, 1});
 #ifdef VERBOSE
     ALOGD("width for typeface %d glyph %d = %f", mTypeface->uniqueID(), glyph_id, skWidth);
 #endif
@@ -75,7 +75,7 @@ void MinikinFontSkia::GetHorizontalAdvances(uint16_t* glyph_ids, uint32_t count,
                                             float* outAdvances) const {
     SkFont skFont;
     MinikinFontSkia_SetSkiaFont(this, &skFont, paint, fakery);
-    skFont.getWidths(glyph_ids, count, outAdvances);
+    skFont.getWidths({glyph_ids, count}, {outAdvances, count});
 }
 
 void MinikinFontSkia::GetBounds(minikin::MinikinRect* bounds, uint32_t glyph_id,
@@ -85,7 +85,7 @@ void MinikinFontSkia::GetBounds(minikin::MinikinRect* bounds, uint32_t glyph_id,
     uint16_t glyph16 = glyph_id;
     SkRect skBounds;
     MinikinFontSkia_SetSkiaFont(this, &skFont, paint, fakery);
-    skFont.getWidths(&glyph16, 1, nullptr, &skBounds);
+    skFont.getBounds({&glyph16, 1}, {&skBounds, 1}, nullptr);
     bounds->mLeft = skBounds.fLeft;
     bounds->mTop = skBounds.fTop;
     bounds->mRight = skBounds.fRight;

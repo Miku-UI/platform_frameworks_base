@@ -1,0 +1,9 @@
+package: "com.android.server.adb.flags"
+container: "system"
+
+flag {
+    name: "use_pairing_server_v2"
+    namespace: "adb"
+    description: "When enabled, use libadb_pairing_server V2 APIs if available."
+    bug: "399469788"
+}

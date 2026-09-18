@@ -14,33 +14,30 @@
  * limitations under the License.
  */
 
-@file:OptIn(ExperimentalKairosApi::class)
-
 package com.android.systemui.shade.ui.viewmodel
 
+import android.app.ActivityManager
 import android.content.Intent
 import android.provider.Settings
 import android.view.ViewGroup
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.IntRect
-import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.battery.BatteryMeterViewController
 import com.android.systemui.clock.domain.interactor.ClockInteractor
 import com.android.systemui.desktop.domain.interactor.DesktopInteractor
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.plugins.ActivityStarter
-import com.android.systemui.privacy.OngoingPrivacyChip
+import com.android.systemui.privacy.AbstractOngoingPrivacyChip
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.scene.domain.interactor.DualShadeEducationInteractor
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.domain.model.DualShadeEducationModel
 import com.android.systemui.scene.shared.model.DualShadeEducationElement
 import com.android.systemui.scene.shared.model.Overlays
-import com.android.systemui.scene.shared.model.TransitionKeys.SlightlyFasterShadeCollapse
+import com.android.systemui.scene.shared.model.TransitionKeys.SlightlyFasterShadeTransition
+import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.PrivacyChipInteractor
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
@@ -50,30 +47,32 @@ import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
 import com.android.systemui.statusbar.phone.domain.interactor.ShadeDarkIconInteractor
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
+import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.CarrierTextInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModelKairos
+import com.android.systemui.statusbar.systemstatusicons.domain.interactor.EmptySystemStatusIconBlockListInteractor
 import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.SystemStatusIconsViewModel
+import com.android.systemui.statusbar.ui.SystemBarUtilsState
+import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 /** Models UI state for the shade header. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class ShadeHeaderViewModel
 @AssistedInject
 constructor(
     private val activityStarter: ActivityStarter,
     private val sceneInteractor: SceneInteractor,
     private val shadeInteractor: ShadeInteractor,
+    private val carrierTextInteractor: CarrierTextInteractor,
     private val shadeModeInteractor: ShadeModeInteractor,
     shadeDarkIconInteractor: ShadeDarkIconInteractor,
     mobileIconsInteractor: MobileIconsInteractor,
-    val mobileIconsViewModel: MobileIconsViewModel,
+    val mobileIconsViewModel: dagger.Lazy<MobileIconsViewModel>,
+    val systemStatusIconsBlockListInteractor: EmptySystemStatusIconBlockListInteractor,
     private val privacyChipInteractor: PrivacyChipInteractor,
     private val clockInteractor: ClockInteractor,
     private val batteryMeterViewControllerFactory: BatteryMeterViewController.Factory,
@@ -83,17 +82,13 @@ constructor(
     val kairosNetwork: KairosNetwork,
     val mobileIconsViewModelKairos: dagger.Lazy<MobileIconsViewModelKairos>,
     private val dualShadeEducationInteractor: DualShadeEducationInteractor,
-    private val desktopInteractor: DesktopInteractor,
-) : ExclusiveActivatable() {
-
-    private val hydrator = Hydrator("ShadeHeaderViewModel.hydrator")
+    desktopInteractor: DesktopInteractor,
+    @ShadeDisplayAware systemBarUtilsState: SystemBarUtilsState,
+    @Assisted private val ignoreTestHarness: Boolean,
+) : HydratedActivatable() {
 
     val isShadeAreaDark: IsAreaDark by
-        hydrator.hydratedStateOf(
-            traceName = "isShadeAreaDark",
-            initialValue = IsAreaDark { true },
-            source = shadeDarkIconInteractor.isShadeAreaDark,
-        )
+        shadeDarkIconInteractor.isShadeAreaDark.hydratedStateOf(initialValue = IsAreaDark { true })
 
     val createBatteryMeterViewController:
         (ViewGroup, StatusBarLocation) -> BatteryMeterViewController =
@@ -101,43 +96,28 @@ constructor(
 
     /** True if there is exactly one mobile connection. */
     val isSingleCarrier: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isSingleCarrier",
-            initialValue = mobileIconsInteractor.isSingleCarrier.value,
-            source = mobileIconsInteractor.isSingleCarrier,
+        mobileIconsInteractor.isSingleCarrier.hydratedStateOf(
+            initialValue = mobileIconsInteractor.isSingleCarrier.value
         )
 
     /** The list of subscription Ids for current mobile connections. */
     val mobileSubIds: List<Int> by
-        hydrator.hydratedStateOf(
-            traceName = "mobileSubIds",
-            initialValue = emptyList(),
-            source =
-                mobileIconsInteractor.filteredSubscriptions.map { list ->
-                    list.map { it.subscriptionId }
-                },
-        )
+        mobileIconsInteractor.filteredSubscriptions
+            .map { list -> list.map { it.subscriptionId } }
+            .hydratedStateOf(initialValue = emptyList())
+
+    val carrierText: CharSequence? by carrierTextInteractor.carrierText.hydratedStateOf()
 
     /** The list of PrivacyItems to be displayed by the privacy chip. */
-    val privacyItems: List<PrivacyItem> by
-        hydrator.hydratedStateOf(
-            traceName = "privacyItems",
-            source = privacyChipInteractor.privacyItems,
-        )
+    val privacyItems: List<PrivacyItem> by privacyChipInteractor.privacyItems.hydratedStateOf()
 
     /** Whether or not mic & camera indicators are enabled in the device privacy config. */
     val isMicCameraIndicationEnabled: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isMicCameraIndicationEnabled",
-            source = privacyChipInteractor.isMicCameraIndicationEnabled,
-        )
+        privacyChipInteractor.isMicCameraIndicationEnabled.hydratedStateOf()
 
     /** Whether or not location indicators are enabled in the device privacy config. */
     val isLocationIndicationEnabled: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isLocationIndicationEnabled",
-            source = privacyChipInteractor.isLocationIndicationEnabled,
-        )
+        privacyChipInteractor.isLocationIndicationEnabled.hydratedStateOf()
 
     /** Whether or not the privacy chip should be visible. */
     val isPrivacyChipVisible: Boolean by derivedStateOf { privacyItems.isNotEmpty() }
@@ -147,37 +127,36 @@ constructor(
         isMicCameraIndicationEnabled || isLocationIndicationEnabled
     }
 
+    /**
+     * Avoid showing the dual shade educational tooltips in test harness mode and not explicitly
+     * allowed, as the tooltip may interfere with test automation.
+     */
+    private val disableEducationTooltips =
+        !ignoreTestHarness && ActivityManager.isRunningInUserTestHarness()
+
     val animateNotificationsChipBounce: Boolean
         get() =
-            dualShadeEducationInteractor.education == DualShadeEducationModel.ForNotificationsShade
+            !disableEducationTooltips &&
+                dualShadeEducationInteractor.education ==
+                    DualShadeEducationModel.ForNotificationsShade
 
     val animateSystemIconChipBounce: Boolean
         get() =
-            dualShadeEducationInteractor.education == DualShadeEducationModel.ForQuickSettingsShade
+            !disableEducationTooltips &&
+                dualShadeEducationInteractor.education ==
+                    DualShadeEducationModel.ForQuickSettingsShade
 
     val longerDateText: String by
-        hydrator.hydratedStateOf(
-            traceName = "longerDateText",
-            initialValue = "",
-            source =
-                combine(clockInteractor.longerDateFormat, clockInteractor.currentTime) {
-                    format,
-                    time ->
-                    format.format(time)
-                },
-        )
+        combine(clockInteractor.longerDateFormat, clockInteractor.currentTime) { format, time ->
+                format.format(time)
+            }
+            .hydratedStateOf(initialValue = "")
 
     val shorterDateText: String by
-        hydrator.hydratedStateOf(
-            traceName = "shorterDateText",
-            initialValue = "",
-            source =
-                combine(clockInteractor.shorterDateFormat, clockInteractor.currentTime) {
-                    format,
-                    time ->
-                    format.format(time)
-                },
-        )
+        combine(clockInteractor.shorterDateFormat, clockInteractor.currentTime) { format, time ->
+                format.format(time)
+            }
+            .hydratedStateOf(initialValue = "")
 
     val inactiveChipHighlight: ChipHighlightModel
         get() =
@@ -187,23 +166,19 @@ constructor(
                 ChipHighlightModel.Weak
             }
 
-    private val useDesktopStatusBar: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "useDesktopStatusBar",
-            initialValue = desktopInteractor.useDesktopStatusBar.value,
-            source = desktopInteractor.useDesktopStatusBar,
+    val statusBarHeightPx: Int by
+        systemBarUtilsState.statusBarHeight.hydratedStateOf(
+            traceName = "ShadeHeader#statusBarHeight",
+            initialValue = 0,
         )
 
-    override suspend fun onActivated(): Nothing {
-        coroutineScope {
-            launch { hydrator.activate() }
-
-            awaitCancellation()
-        }
-    }
+    private val useDesktopStatusBar: Boolean by
+        desktopInteractor.useDesktopStatusBar.hydratedStateOf(
+            initialValue = desktopInteractor.useDesktopStatusBar.value
+        )
 
     /** Notifies that the privacy chip was clicked. */
-    fun onPrivacyChipClicked(privacyChip: OngoingPrivacyChip) {
+    fun onPrivacyChipClicked(privacyChip: AbstractOngoingPrivacyChip) {
         privacyChipInteractor.onPrivacyChipClicked(privacyChip)
     }
 
@@ -238,7 +213,7 @@ constructor(
         if (Overlays.NotificationsShade in currentOverlays) {
             shadeInteractor.collapseNotificationsShade(
                 loggingReason = loggingReason,
-                transitionKey = SlightlyFasterShadeCollapse,
+                transitionKey = SlightlyFasterShadeTransition,
             )
             if (launchClockActivityOnCollapse) {
                 clockInteractor.launchClockActivity()
@@ -256,7 +231,7 @@ constructor(
             if (Overlays.QuickSettingsShade in currentOverlays) {
                 shadeInteractor.collapseQuickSettingsShade(
                     loggingReason = loggingReason,
-                    transitionKey = SlightlyFasterShadeCollapse,
+                    transitionKey = SlightlyFasterShadeTransition,
                 )
             } else {
                 shadeInteractor.expandQuickSettingsShade(loggingReason)
@@ -264,7 +239,7 @@ constructor(
         } else {
             shadeInteractor.collapseEitherShade(
                 loggingReason = loggingReason,
-                transitionKey = SlightlyFasterShadeCollapse,
+                transitionKey = SlightlyFasterShadeTransition,
             )
         }
     }
@@ -286,6 +261,6 @@ constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(): ShadeHeaderViewModel
+        fun create(ignoreTestHarness: Boolean = false): ShadeHeaderViewModel
     }
 }

@@ -20,6 +20,7 @@ import android.annotation.SuppressLint
 import android.media.AudioAttributes
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
+import android.view.View
 import com.android.systemui.statusbar.VibratorHelper
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.time.FakeSystemClock
@@ -32,9 +33,10 @@ class FakeVibratorHelper : VibratorHelper(EmptyVibrator(), FakeExecutor(FakeSyst
     val primitiveDurations: HashMap<Int, Int> = ALL_PRIMITIVE_DURATIONS
 
     private val vibrationEffectHistory = ArrayList<VibrationEffect>()
+    private val hapticFeedbackConstantsHistory = ArrayList<Int>()
 
     val totalVibrations: Int
-        get() = vibrationEffectHistory.size
+        get() = vibrationEffectHistory.size + hapticFeedbackConstantsHistory.size
 
     var timesCancelled = 0
         private set
@@ -62,11 +64,18 @@ class FakeVibratorHelper : VibratorHelper(EmptyVibrator(), FakeExecutor(FakeSyst
         timesCancelled++
     }
 
+    override fun performHapticFeedback(view: View, hapticFeedbackConstant: Int) {
+        hapticFeedbackConstantsHistory.add(hapticFeedbackConstant)
+    }
+
     fun hasVibratedWithEffects(vararg effects: VibrationEffect): Boolean =
         vibrationEffectHistory.containsAll(effects.toList())
 
     fun timesVibratedWithEffect(effect: VibrationEffect): Int =
         vibrationEffectHistory.count { it == effect }
+
+    fun timesVibratedWithHapticFeedbackConstant(hapticFeedbackConstant: Int): Int =
+        hapticFeedbackConstantsHistory.count { it == hapticFeedbackConstant }
 
     companion object {
         val ALL_PRIMITIVE_DURATIONS =
@@ -83,3 +92,6 @@ class FakeVibratorHelper : VibratorHelper(EmptyVibrator(), FakeExecutor(FakeSyst
             )
     }
 }
+
+val VibratorHelper.fake: FakeVibratorHelper
+    get() = this as FakeVibratorHelper

@@ -82,7 +82,7 @@ constructor(
             duration = FromPrimaryBouncerTransitionInteractor.TO_AOD_DURATION,
             onStep = { step ->
                 transitionProgressToBlurRadius(
-                    starBlurRadius = blurConfig.maxBlurRadiusPx,
+                    startBlurRadius = blurConfig.maxBlurRadiusPx,
                     endBlurRadius = blurConfig.minBlurRadiusPx,
                     transitionProgress = step,
                 )

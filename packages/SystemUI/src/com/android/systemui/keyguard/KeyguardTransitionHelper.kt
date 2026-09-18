@@ -27,6 +27,9 @@ import android.window.IRemoteTransitionFinishedCallback
 import android.window.TransitionInfo
 import com.android.systemui.animation.RemoteTransitionHelper
 import com.android.wm.shell.shared.CounterRotator
+import com.android.wm.shell.shared.TransitionUtil
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * RemoteTransitionHelper that initializes changes with particular attention to Keyguard
@@ -37,6 +40,11 @@ class KeyguardTransitionHelper : RemoteTransitionHelper {
         private const val TAG = "DefaultTransitionHelper"
     }
 
+    // Finish callbacks for ongoing transitions. These are cached so the original transition can be
+    // finished correctly when a merge request comes in.
+    private val finishCallbacks = mutableMapOf<IBinder, (SurfaceControl.Transaction) -> Unit>()
+    private val finishCallbacksLock = ReentrantLock()
+
     private val wallpaperRotators = mutableMapOf<IBinder, CounterRotator>()
 
     override fun setUpAnimation(
@@ -45,9 +53,27 @@ class KeyguardTransitionHelper : RemoteTransitionHelper {
         transaction: SurfaceControl.Transaction,
         finishCallback: IRemoteTransitionFinishedCallback?,
     ) {
+        finishCallbacksLock.withLock {
+            finishCallbacks[token] = { transaction ->
+                wallpaperRotators.remove(token)?.let { rotator ->
+                    rotator.surface?.let { if (it.isValid) rotator.cleanUp(transaction) }
+                }
+
+                if (finishCallback != null) {
+                    finishCallback.onTransitionFinished(null, transaction)
+                } else {
+                    transaction.apply()
+                }
+            }
+        }
+
+        val leafTaskFilter = TransitionUtil.LeafTaskFilter(info)
         info.changes.forEach { change ->
+            val isApp = leafTaskFilter.test(change)
+            val isWallpaper = TransitionUtil.isWallpaper(change)
+
             // Make sure the wallpaper is rotated correctly.
-            if ((change.flags and TransitionInfo.FLAG_IS_WALLPAPER) != 0) {
+            if (isWallpaper) {
                 val rotationDelta =
                     RotationUtils.deltaRotation(change.startRotation, change.endRotation)
                 val wallpaperParent = change?.parent
@@ -79,7 +105,9 @@ class KeyguardTransitionHelper : RemoteTransitionHelper {
                 }
             }
 
-            if (RemoteTransitionHelper.OPENING_MODES.contains(change.mode)) {
+            if (
+                (isApp || isWallpaper) && RemoteTransitionHelper.OPENING_MODES.contains(change.mode)
+            ) {
                 transaction.setAlpha(change.leash, 0f)
             } else if (TransitionInfo.isIndependent(change, info)) {
                 // Set alpha back to 1 for the independent changes because we will be animating
@@ -101,8 +129,20 @@ class KeyguardTransitionHelper : RemoteTransitionHelper {
         transaction.apply()
     }
 
-    override fun cleanUpAnimation(token: IBinder, transaction: SurfaceControl.Transaction) {
-        wallpaperRotators.remove(token)?.cleanUp(transaction)
-        transaction.apply()
+    override fun mergeAnimation(
+        info: TransitionInfo?,
+        transaction: SurfaceControl.Transaction?,
+        mergeTarget: IBinder?,
+    ): Boolean {
+        return mergeTarget?.let { cleanUpAnimation(mergeTarget, transaction) } ?: false
+    }
+
+    override fun cleanUpAnimation(
+        token: IBinder,
+        transaction: SurfaceControl.Transaction?,
+    ): Boolean {
+        val finishTransaction = transaction ?: SurfaceControl.Transaction()
+        finishCallbacksLock.withLock { finishCallbacks.remove(token)?.invoke(finishTransaction) }
+        return true
     }
 }

@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.notification.collection.coordinator
 import android.util.Log
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
+import com.android.systemui.log.core.LogLevel.ERROR
 import com.android.systemui.log.dagger.NotificationHeadsUpLog
 import javax.inject.Inject
 
@@ -163,6 +164,18 @@ class HeadsUpCoordinatorLogger(private val buffer: LogBuffer, private val verbos
             LogLevel.DEBUG,
             { str1 = key },
             { "could not find promoted entry, so not showing heads up: $str1" },
+        )
+    }
+
+    fun logNotifEntryMismatch(method: String, key: String) {
+        buffer.log(
+            TAG,
+            ERROR,
+            {
+                str1 = method
+                str2 = key
+            },
+            { "NotificationEntry mismatch in $str1 for key $str2" },
         )
     }
 }

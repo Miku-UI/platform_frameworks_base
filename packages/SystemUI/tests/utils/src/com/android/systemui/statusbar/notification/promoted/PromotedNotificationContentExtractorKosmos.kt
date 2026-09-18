@@ -20,10 +20,10 @@ import android.app.Notification
 import android.content.applicationContext
 import android.content.testableContext
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.notifications.content.icon.appIconProvider
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.REDACTION_TYPE_PUBLIC
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.row.RowImageInflater
-import com.android.systemui.statusbar.notification.row.icon.appIconProvider
 import com.android.systemui.statusbar.notification.row.icon.notificationIconStyleProvider
 import com.android.systemui.statusbar.notification.row.shared.skeletonImageTransform
 import com.android.systemui.util.time.systemClock

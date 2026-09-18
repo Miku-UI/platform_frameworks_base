@@ -17,6 +17,7 @@
 package com.android.systemui.compose
 
 import androidx.compose.runtime.snapshots.Snapshot
+import kotlin.time.Duration
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 
@@ -28,11 +29,15 @@ import kotlinx.coroutines.test.runTest
  * Note that this isn't needed in a Compose test environment, e.g. if you use the
  * `Compose(Content)TestRule`.
  */
-fun TestScope.runTestWithSnapshots(block: suspend TestScope.() -> Unit) {
+fun TestScope.runTestWithSnapshots(timeout: Duration? = null, block: suspend TestScope.() -> Unit) {
     val handle = Snapshot.registerGlobalWriteObserver { Snapshot.sendApplyNotifications() }
 
     try {
-        runTest { block() }
+        if (timeout != null) {
+            runTest(timeout) { block() }
+        } else {
+            runTest { block() }
+        }
     } finally {
         handle.dispose()
     }

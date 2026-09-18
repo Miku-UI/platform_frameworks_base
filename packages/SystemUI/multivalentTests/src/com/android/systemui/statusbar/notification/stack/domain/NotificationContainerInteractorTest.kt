@@ -18,15 +18,13 @@ package com.android.systemui.statusbar.notification.stack.domain
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.statusbar.notification.data.repository.UnconfinedFakeHeadsUpRowRepository
 import com.android.systemui.statusbar.notification.headsup.PinnedStatus
 import com.android.systemui.statusbar.notification.stack.data.repository.headsUpNotificationRepository
@@ -34,7 +32,6 @@ import com.android.systemui.statusbar.notification.stack.domain.interactor.notif
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -44,21 +41,16 @@ import org.junit.runner.RunWith
 class NotificationContainerInteractorTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
+    private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
     private val underTest
         get() = kosmos.notificationContainerInteractor
 
     private fun expandShade() {
-        kosmos.sceneInteractor.snapToScene(Scenes.Shade, "test")
-        kosmos.sceneInteractor.setTransitionState(
-            flowOf(ObservableTransitionState.Idle(Scenes.Shade))
-        )
+        shadeTestUtil.setShadeExpansion(1f)
     }
 
     private fun collapseShade() {
-        kosmos.sceneInteractor.snapToScene(Scenes.Lockscreen, "test")
-        kosmos.sceneInteractor.setTransitionState(
-            flowOf(ObservableTransitionState.Idle(Scenes.Lockscreen))
-        )
+        shadeTestUtil.setShadeExpansion(0f)
     }
 
     private fun pinNotif() {

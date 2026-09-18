@@ -23,7 +23,9 @@ set -e
 # Tests that shouldn't be in presubmit:
 # - See b/440069724 for CarSystemUIRavenTests and CarLibHostUnitTest
 # - RavenwoodUiTest_exp uses experimental APIs, so it shouldn't be executed.
-EXEMPT='^(SystemUiRavenTests|CtsViewTestCasesRavenwood|CarSystemUIRavenTests|CarLibHostUnitTest|RavenwoodUiTest_exp)$'
+# - AdServicesSharedLibrariesUnitTestsRavenwood is for b/458068031
+#   (not actively maintained anyway)
+EXEMPT='^(SystemUiRavenTests|CtsViewTestCasesRavenwood|CarSystemUIRavenTests|CarLibHostUnitTest|RavenwoodUiTest_exp|AdServicesSharedLibrariesUnitTestsRavenwood)$'
 
 is_car() {
     local module="$1"

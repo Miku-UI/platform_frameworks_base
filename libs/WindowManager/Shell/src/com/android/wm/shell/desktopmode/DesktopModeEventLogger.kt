@@ -60,7 +60,7 @@ class DesktopModeEventLogger {
         if (deskToSessionId.containsKey(deskId)) {
             ProtoLog.w(
                 WM_SHELL_DESKTOP_MODE,
-                "DesktopModeLogger: Existing desktop session: %s found on desk: %s mode enter",
+                "DesktopModeLogger: Existing desktop session: %d found on desk: %d mode enter",
                 deskToSessionId[deskId],
                 deskId,
             )
@@ -78,7 +78,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging session enter, session: %s deskId: %s reason: %s",
+            "DesktopModeLogger: Logging session enter, session: %d deskId: %d reason: %s",
             sessionId,
             deskId,
             reason.name,
@@ -104,15 +104,15 @@ class DesktopModeEventLogger {
         if (previousSessionId != NO_SESSION_ID) {
             ProtoLog.w(
                 WM_SHELL_DESKTOP_MODE,
-                "DesktopModeLogger: Existing desktop mode session id: %s found on desktop " +
-                        "mode enter",
+                "DesktopModeLogger: Existing desktop mode session id: %d found on desktop " +
+                    "mode enter",
                 previousSessionId,
             )
         }
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging session enter, session: %s reason: %s",
+            "DesktopModeLogger: Logging session enter, session: %d reason: %s",
             sessionId,
             enterReason.name,
         )
@@ -132,7 +132,7 @@ class DesktopModeEventLogger {
         deskToSessionId.forEach { deskId, sessionId ->
             ProtoLog.v(
                 WM_SHELL_DESKTOP_MODE,
-                "DesktopModeLogger: Logging session exit, session: %s deskId: %s reason: %s",
+                "DesktopModeLogger: Logging session exit, session: %d deskId: %d reason: %s",
                 sessionId,
                 deskId,
                 exitReason.name,
@@ -156,7 +156,7 @@ class DesktopModeEventLogger {
         if (sessionId == NO_SESSION_ID) {
             ProtoLog.w(
                 WM_SHELL_DESKTOP_MODE,
-                "DesktopModeLogger: No session id found for logging exit from deskId: %s",
+                "DesktopModeLogger: No session id found for logging exit from deskId: %d",
                 deskId,
             )
             return
@@ -164,7 +164,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging session pending exit, session: %s deskId: %s reason: %s",
+            "DesktopModeLogger: Logging session pending exit, session: %d deskId: %d reason: %s",
             sessionId,
             deskId,
             exitReason.name,
@@ -180,7 +180,7 @@ class DesktopModeEventLogger {
             if (sessionId != NO_SESSION_ID) {
                 ProtoLog.v(
                     WM_SHELL_DESKTOP_MODE,
-                    "DesktopModeLogger: Logging session exit, session: %s deskId: %s reason: %s",
+                    "DesktopModeLogger: Logging session exit, session: %d deskId: %d reason: %s",
                     sessionId,
                     deskId,
                     exitReason.name,
@@ -216,7 +216,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging session exit, session: %s reason: %s",
+            "DesktopModeLogger: Logging session exit, session: %d reason: %s",
             sessionId,
             exitReason.name,
         )
@@ -239,7 +239,7 @@ class DesktopModeEventLogger {
         if (sessionId == NO_SESSION_ID) {
             ProtoLog.w(
                 WM_SHELL_DESKTOP_MODE,
-                "DesktopModeLogger: No session id found for logging task added in deskId: %s",
+                "DesktopModeLogger: No session id found for logging task added in deskId: %d",
                 deskId,
             )
             return
@@ -247,7 +247,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging task added, session: %s taskId: %s",
+            "DesktopModeLogger: Logging task added, session: %d taskId: %d",
             sessionId,
             taskUpdate.instanceId,
         )
@@ -267,7 +267,7 @@ class DesktopModeEventLogger {
         if (sessionId == NO_SESSION_ID) {
             ProtoLog.w(
                 WM_SHELL_DESKTOP_MODE,
-                "DesktopModeLogger: No session id found for logging task removed in deskId: %s",
+                "DesktopModeLogger: No session id found for logging task removed in deskId: %d",
                 deskId,
             )
             return
@@ -275,7 +275,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging task remove, session: %s taskId: %s",
+            "DesktopModeLogger: Logging task remove, session: %d taskId: %d",
             sessionId,
             taskUpdate.instanceId,
         )
@@ -302,7 +302,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging task info changed, session: %s taskId: %s",
+            "DesktopModeLogger: Logging task info changed, session: %d taskId: %d",
             sessionId,
             taskUpdate.instanceId,
         )
@@ -352,7 +352,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging task resize is starting, session: %s, taskSizeUpdate: %s",
+            "DesktopModeLogger: Logging task resize is starting, session: %d, taskSizeUpdate: %s",
             sessionId,
             taskSizeUpdate,
         )
@@ -401,7 +401,7 @@ class DesktopModeEventLogger {
 
         ProtoLog.v(
             WM_SHELL_DESKTOP_MODE,
-            "DesktopModeLogger: Logging task resize is ending, session: %s, taskSizeUpdate: %s",
+            "DesktopModeLogger: Logging task resize is ending, session: %d, taskSizeUpdate: %s",
             sessionId,
             taskSizeUpdate,
         )
@@ -663,6 +663,10 @@ class DesktopModeEventLogger {
             MULTI_ACTIVITY_PIP(
                 FrameworkStatsLog
                     .DESKTOP_MODE_SESSION_TASK_UPDATE__MINIMIZE_REASON__MINIMIZE_MULTI_ACTIVITY_PIP
+            ),
+            TASKBAR_ICON_TAP(
+                FrameworkStatsLog
+                    .DESKTOP_MODE_SESSION_TASK_UPDATE__MINIMIZE_REASON__MINIMIZE_TASKBAR_ICON_TAP
             ),
         }
 

@@ -45,9 +45,7 @@ data class LetterboxTaskInfoState(
 @WMSingleton
 class LetterboxTaskInfoRepository @Inject constructor() :
     GenericRepository<Int, LetterboxTaskInfoState> by MemoryRepositoryImpl(
-        logger = { msg ->
-            ProtoLog.v(WM_SHELL_APP_COMPAT, "%s: %s", "TaskInfoMemoryRepository", msg)
-        }
+        logger = { msg -> ProtoLog.v(WM_SHELL_APP_COMPAT, "TaskInfoMemoryRepository: %s", msg) }
     )
 
 /**

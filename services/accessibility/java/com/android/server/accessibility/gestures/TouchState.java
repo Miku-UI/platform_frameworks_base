@@ -36,7 +36,7 @@ import com.android.server.accessibility.AccessibilityManagerService;
  * dispatch.
  */
 public class TouchState {
-    private static final String LOG_TAG = "TouchState";
+    private static final String LOG_TAG = TouchState.class.getSimpleName();
     // Pointer-related constants
     // This constant captures the current implementation detail that
     // pointer IDs are between 0 and 31 inclusive (subject to change).
@@ -158,9 +158,6 @@ public class TouchState {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
                 mInjectedPointersDown &= ~pointerFlag;
-                if (mInjectedPointersDown == 0) {
-                    mLastInjectedDownEventTime = 0;
-                }
                 break;
             case MotionEvent.ACTION_HOVER_ENTER:
             case MotionEvent.ACTION_HOVER_MOVE:
@@ -200,7 +197,7 @@ public class TouchState {
                 break;
             case AccessibilityEvent.TYPE_VIEW_HOVER_ENTER:
             case AccessibilityEvent.TYPE_VIEW_HOVER_EXIT:
-                mLastTouchedWindowId = event.getWindowId();
+                mLastTouchedWindowId = event.getRealWindowId();
                 break;
             case AccessibilityEvent.TYPE_TOUCH_INTERACTION_END:
                 mAms.moveNonProxyTopFocusedDisplayToTopIfNeeded();

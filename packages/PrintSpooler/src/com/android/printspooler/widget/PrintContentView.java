@@ -25,15 +25,15 @@ import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 
 import com.android.printspooler.R;
+import com.android.printspooler.flags.Flags;
 
 /**
- * This class is a layout manager for the print screen. It has a sliding
- * area that contains the print options. If the sliding area is open the
- * print options are visible and if it is closed a summary of the print
- * job is shown. Under the sliding area there is a place for putting
- * arbitrary content such as preview, error message, progress indicator,
- * etc. The sliding area is covering the content holder under it when
- * the former is opened.
+ * This class is a layout manager for the print screen. It has a sliding area that contains the
+ * print options. If the sliding area is open the print options are visible and if it is closed a
+ * summary of the print job is shown. Under the sliding area there is a place for putting arbitrary
+ * content such as preview, error message, progress indicator, etc. The sliding area is covering the
+ * content holder under it when the former is opened. Below the content area is a row containing
+ * action buttons.
  */
 @SuppressWarnings("unused")
 public final class PrintContentView extends ViewGroup implements View.OnClickListener {
@@ -54,6 +54,7 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
 
     private View mDraggableContent;
     private View mPrintButton;
+    private View mActionRow;
     private View mMoreOptionsButton;
     private ViewGroup mOptionsContainer;
 
@@ -141,7 +142,11 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
         mSummaryContent = findViewById(R.id.summary_content);
         mDynamicContent = findViewById(R.id.dynamic_content);
         mDraggableContent = findViewById(R.id.draggable_content);
-        mPrintButton = findViewById(R.id.print_button);
+        if (Flags.updatedButtonLayout()) {
+            mActionRow = findViewById(R.id.action_row);
+        } else {
+            mPrintButton = findViewById(R.id.print_button);
+        }
         mMoreOptionsButton = findViewById(R.id.more_options_button);
         mOptionsContainer = findViewById(R.id.options_container);
         mEmbeddedContentContainer = findViewById(R.id.embedded_content_container);
@@ -233,7 +238,11 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
 
         measureChild(mDynamicContent, widthMeasureSpec, heightMeasureSpec);
 
-        measureChild(mPrintButton, widthMeasureSpec, heightMeasureSpec);
+        if (Flags.updatedButtonLayout()) {
+            measureChild(mActionRow, widthMeasureSpec, heightMeasureSpec);
+        } else {
+            measureChild(mPrintButton, widthMeasureSpec, heightMeasureSpec);
+        }
 
         // The height of the draggable content may change and if that happens
         // we have to adjust the sliding area closed state offset.
@@ -249,9 +258,13 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
         // The content host must be maximally large size that fits entirely
         // on the screen when the options are collapsed.
         ViewGroup.LayoutParams params = mEmbeddedContentContainer.getLayoutParams();
-        params.height = heightSize - mStaticContent.getMeasuredHeight()
-                - mSummaryContent.getMeasuredHeight() - mDynamicContent.getMeasuredHeight()
-                + mDraggableContent.getMeasuredHeight();
+        params.height =
+                heightSize
+                        - mStaticContent.getMeasuredHeight()
+                        - mSummaryContent.getMeasuredHeight()
+                        - mDynamicContent.getMeasuredHeight()
+                        - (Flags.updatedButtonLayout() ? mActionRow.getMeasuredHeight() : 0)
+                        + mDraggableContent.getMeasuredHeight();
 
         // The height of the draggable content may change and if that happens
         // we have to adjust the current offset to ensure the sliding area is
@@ -289,26 +302,40 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
 
         mDynamicContent.layout(childLeft, dynContentTop, childRight, dynContentBottom);
 
-        MarginLayoutParams params = (MarginLayoutParams) mPrintButton.getLayoutParams();
-
-        final int printButtonLeft;
-        if (getLayoutDirection() == View.LAYOUT_DIRECTION_LTR) {
-            printButtonLeft = childRight - mPrintButton.getMeasuredWidth()
-                    - params.getMarginStart();
+        if (Flags.updatedButtonLayout()) {
+            MarginLayoutParams params = (MarginLayoutParams) mActionRow.getLayoutParams();
+            mActionRow.layout(
+                    childLeft,
+                    bottom - mPaddingBottom - mActionRow.getMeasuredHeight(),
+                    childRight,
+                    bottom - mPaddingBottom);
         } else {
-            printButtonLeft = childLeft + params.getMarginStart();
-        }
-        final int printButtonTop = dynContentBottom - mPrintButton.getMeasuredHeight() / 2;
-        final int printButtonRight = printButtonLeft + mPrintButton.getMeasuredWidth();
-        final int printButtonBottom = printButtonTop + mPrintButton.getMeasuredHeight();
+            MarginLayoutParams params = (MarginLayoutParams) mPrintButton.getLayoutParams();
 
-        mPrintButton.layout(printButtonLeft, printButtonTop, printButtonRight, printButtonBottom);
+            final int printButtonLeft;
+            if (getLayoutDirection() == View.LAYOUT_DIRECTION_LTR) {
+                printButtonLeft =
+                        childRight - mPrintButton.getMeasuredWidth() - params.getMarginStart();
+            } else {
+                printButtonLeft = childLeft + params.getMarginStart();
+            }
+            final int printButtonTop = dynContentBottom - mPrintButton.getMeasuredHeight() / 2;
+            final int printButtonRight = printButtonLeft + mPrintButton.getMeasuredWidth();
+            final int printButtonBottom = printButtonTop + mPrintButton.getMeasuredHeight();
+
+            mPrintButton.layout(
+                    printButtonLeft, printButtonTop, printButtonRight, printButtonBottom);
+        }
 
         final int embContentTop = mPaddingTop
                 + mStaticContent.getMeasuredHeight()
                 + mClosedOptionsOffsetY + mDynamicContent.getMeasuredHeight();
-        final int embContentBottom = embContentTop + mEmbeddedContentContainer.getMeasuredHeight()
-                -  mPaddingBottom;
+        final int embContentBottom =
+                Flags.updatedButtonLayout()
+                        ? bottom - mPaddingBottom - mActionRow.getMeasuredHeight()
+                        : (embContentTop
+                                + mEmbeddedContentContainer.getMeasuredHeight()
+                                - mPaddingBottom);
 
         mEmbeddedContentContainer.layout(childLeft, embContentTop, childRight, embContentBottom);
     }
@@ -417,7 +444,9 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
             final float progress = ((float) top - getOpenedOptionsY())
                     / (getClosedOptionsY() - getOpenedOptionsY());
 
-            mPrintButton.offsetTopAndBottom(dy);
+            if (!Flags.updatedButtonLayout()) {
+                mPrintButton.offsetTopAndBottom(dy);
+            }
 
             mDraggableContent.notifySubtreeAccessibilityStateChangedIfNeeded();
 

@@ -539,7 +539,7 @@ public class WebViewUpdateServiceTest {
         UNINSTALL, DISABLE, HIDE
     }
 
-    private PackageRemovalType[] REMOVAL_TYPES = PackageRemovalType.class.getEnumConstants();
+    private PackageRemovalType[] REMOVAL_TYPES = PackageRemovalType.values();
 
     private void checkRemovingSecondarySelectsPrimary(boolean multiUser,
             PackageRemovalType removalType) {

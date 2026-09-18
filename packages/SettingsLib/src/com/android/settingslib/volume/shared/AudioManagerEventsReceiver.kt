@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.os.Handler
 import android.util.Log
 import com.android.settingslib.volume.shared.model.AudioManagerEvent
 import com.android.settingslib.volume.shared.model.AudioStream
@@ -47,6 +48,7 @@ class AudioManagerEventsReceiverImpl(
     private val context: Context,
     coroutineScope: CoroutineScope,
     backgroundCoroutineContext: CoroutineContext,
+    private val backgroundHandler: Handler?,
 ) : AudioManagerEventsReceiver {
 
     private val allActions: Collection<String>
@@ -74,7 +76,9 @@ class AudioManagerEventsReceiverImpl(
                         for (action in allActions) {
                             addAction(action)
                         }
-                    }
+                    },
+                    /* broadcastPermission= */ null,
+                    backgroundHandler,
                 )
 
                 awaitClose { context.unregisterReceiver(receiver) }

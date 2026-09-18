@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.location {
 
   @FlaggedApi("android.location.flags.gnss_assistance_interface") public final class AuxiliaryInformation implements android.os.Parcelable {
@@ -15,7 +16,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.AuxiliaryInformation> CREATOR;
   }
 
-  public static final class AuxiliaryInformation.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class AuxiliaryInformation.Builder {
     ctor public AuxiliaryInformation.Builder();
     method @NonNull public android.location.AuxiliaryInformation build();
     method @NonNull public android.location.AuxiliaryInformation.Builder setAvailableSignalTypes(@NonNull java.util.List<android.location.GnssSignalType>);
@@ -44,7 +45,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.BeidouAssistance> CREATOR;
   }
 
-  public static final class BeidouAssistance.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouAssistance.Builder {
     ctor public BeidouAssistance.Builder();
     method @NonNull public android.location.BeidouAssistance build();
     method @NonNull public android.location.BeidouAssistance.Builder setAlmanac(@Nullable android.location.GnssAlmanac);
@@ -69,7 +70,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.BeidouSatelliteEphemeris> CREATOR;
   }
 
-  public static final class BeidouSatelliteEphemeris.BeidouSatelliteClockModel implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.BeidouSatelliteClockModel implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-0.00977F, to=0.00977f) public double getAf0();
     method @FloatRange(from=-1.87E-9F, to=1.87E-9f) public double getAf1();
@@ -82,7 +83,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.BeidouSatelliteEphemeris.BeidouSatelliteClockModel> CREATOR;
   }
 
-  public static final class BeidouSatelliteEphemeris.BeidouSatelliteClockModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.BeidouSatelliteClockModel.Builder {
     ctor public BeidouSatelliteEphemeris.BeidouSatelliteClockModel.Builder();
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteClockModel build();
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteClockModel.Builder setAf0(@FloatRange(from=-0.00977F, to=0.00977f) double);
@@ -94,7 +95,7 @@ package android.location {
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteClockModel.Builder setTimeOfClockSeconds(@IntRange(from=0) long);
   }
 
-  public static final class BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime implements android.os.Parcelable {
     method public int describeContents();
     method @IntRange(from=0, to=31) public int getAode();
     method @IntRange(from=0) public int getBeidouWeekNumber();
@@ -103,7 +104,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime> CREATOR;
   }
 
-  public static final class BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime.Builder {
     ctor public BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime.Builder();
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime build();
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime.Builder setAode(int);
@@ -111,7 +112,7 @@ package android.location {
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteEphemerisTime.Builder setToeSeconds(@IntRange(from=0, to=604792) int);
   }
 
-  public static final class BeidouSatelliteEphemeris.BeidouSatelliteHealth implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.BeidouSatelliteHealth implements android.os.Parcelable {
     method public int describeContents();
     method @IntRange(from=0, to=1) public int getSatH1();
     method @FloatRange(from=0.0f, to=8192.0f) public double getSvAccur();
@@ -119,14 +120,14 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.BeidouSatelliteEphemeris.BeidouSatelliteHealth> CREATOR;
   }
 
-  public static final class BeidouSatelliteEphemeris.BeidouSatelliteHealth.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.BeidouSatelliteHealth.Builder {
     ctor public BeidouSatelliteEphemeris.BeidouSatelliteHealth.Builder();
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteHealth build();
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteHealth.Builder setSatH1(int);
     method @NonNull public android.location.BeidouSatelliteEphemeris.BeidouSatelliteHealth.Builder setSvAccur(double);
   }
 
-  public static final class BeidouSatelliteEphemeris.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class BeidouSatelliteEphemeris.Builder {
     ctor public BeidouSatelliteEphemeris.Builder();
     method @NonNull public android.location.BeidouSatelliteEphemeris build();
     method @NonNull public android.location.BeidouSatelliteEphemeris.Builder setSatelliteClockModel(@NonNull android.location.BeidouSatelliteEphemeris.BeidouSatelliteClockModel);
@@ -188,7 +189,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GalileoAssistance> CREATOR;
   }
 
-  public static final class GalileoAssistance.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoAssistance.Builder {
     ctor public GalileoAssistance.Builder();
     method @NonNull public android.location.GalileoAssistance build();
     method @NonNull public android.location.GalileoAssistance.Builder setAlmanac(@Nullable android.location.GnssAlmanac);
@@ -211,7 +212,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GalileoIonosphericModel> CREATOR;
   }
 
-  public static final class GalileoIonosphericModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoIonosphericModel.Builder {
     ctor public GalileoIonosphericModel.Builder();
     method @NonNull public android.location.GalileoIonosphericModel build();
     method @NonNull public android.location.GalileoIonosphericModel.Builder setAi0(@FloatRange(from=0.0f, to=512.0f) double);
@@ -230,7 +231,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GalileoSatelliteEphemeris> CREATOR;
   }
 
-  public static final class GalileoSatelliteEphemeris.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoSatelliteEphemeris.Builder {
     ctor public GalileoSatelliteEphemeris.Builder();
     method @NonNull public android.location.GalileoSatelliteEphemeris build();
     method @NonNull public android.location.GalileoSatelliteEphemeris.Builder setSatelliteClockModels(@NonNull java.util.List<android.location.GalileoSatelliteEphemeris.GalileoSatelliteClockModel>);
@@ -240,7 +241,7 @@ package android.location {
     method @NonNull public android.location.GalileoSatelliteEphemeris.Builder setSvid(@IntRange(from=1, to=36) int);
   }
 
-  public static final class GalileoSatelliteEphemeris.GalileoSatelliteClockModel implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoSatelliteEphemeris.GalileoSatelliteClockModel implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-0.0625F, to=0.0625f) public double getAf0();
     method @FloatRange(from=-1.5E-8F, to=1.5E-8f) public double getAf1();
@@ -256,7 +257,7 @@ package android.location {
     field public static final int TYPE_UNDEFINED = 0; // 0x0
   }
 
-  public static final class GalileoSatelliteEphemeris.GalileoSatelliteClockModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoSatelliteEphemeris.GalileoSatelliteClockModel.Builder {
     ctor public GalileoSatelliteEphemeris.GalileoSatelliteClockModel.Builder();
     method @NonNull public android.location.GalileoSatelliteEphemeris.GalileoSatelliteClockModel build();
     method @NonNull public android.location.GalileoSatelliteEphemeris.GalileoSatelliteClockModel.Builder setAf0(@FloatRange(from=-0.0625F, to=0.0625f) double);
@@ -268,7 +269,7 @@ package android.location {
     method @NonNull public android.location.GalileoSatelliteEphemeris.GalileoSatelliteClockModel.Builder setTimeOfClockSeconds(@IntRange(from=0) long);
   }
 
-  public static final class GalileoSatelliteEphemeris.GalileoSvHealth implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoSatelliteEphemeris.GalileoSvHealth implements android.os.Parcelable {
     method public int describeContents();
     method public int getDataValidityStatusE1b();
     method public int getDataValidityStatusE5a();
@@ -286,7 +287,7 @@ package android.location {
     field public static final int HEALTH_STATUS_OUT_OF_SERVICE = 1; // 0x1
   }
 
-  public static final class GalileoSatelliteEphemeris.GalileoSvHealth.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GalileoSatelliteEphemeris.GalileoSvHealth.Builder {
     ctor public GalileoSatelliteEphemeris.GalileoSvHealth.Builder();
     method @NonNull public android.location.GalileoSatelliteEphemeris.GalileoSvHealth build();
     method @NonNull public android.location.GalileoSatelliteEphemeris.GalileoSvHealth.Builder setDataValidityStatusE1b(int);
@@ -306,7 +307,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GlonassAlmanac> CREATOR;
   }
 
-  public static final class GlonassAlmanac.GlonassSatelliteAlmanac implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassAlmanac.GlonassSatelliteAlmanac implements android.os.Parcelable {
     method public int describeContents();
     method @IntRange(from=1, to=1461) public int getCalendarDayNumber();
     method @FloatRange(from=-0.067F, to=0.067f) public double getDeltaI();
@@ -325,7 +326,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GlonassAlmanac.GlonassSatelliteAlmanac> CREATOR;
   }
 
-  public static final class GlonassAlmanac.GlonassSatelliteAlmanac.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassAlmanac.GlonassSatelliteAlmanac.Builder {
     ctor public GlonassAlmanac.GlonassSatelliteAlmanac.Builder();
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac build();
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setCalendarDayNumber(@IntRange(from=1, to=1461) int);
@@ -356,7 +357,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GlonassAssistance> CREATOR;
   }
 
-  public static final class GlonassAssistance.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassAssistance.Builder {
     ctor public GlonassAssistance.Builder();
     method @NonNull public android.location.GlonassAssistance build();
     method @NonNull public android.location.GlonassAssistance.Builder setAlmanac(@Nullable android.location.GlonassAlmanac);
@@ -385,7 +386,7 @@ package android.location {
     field public static final int HEALTH_STATUS_UNHEALTHY = 1; // 0x1
   }
 
-  public static final class GlonassSatelliteEphemeris.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassSatelliteEphemeris.Builder {
     ctor public GlonassSatelliteEphemeris.Builder();
     method @NonNull public android.location.GlonassSatelliteEphemeris build();
     method @NonNull public android.location.GlonassSatelliteEphemeris.Builder setAgeInDays(@IntRange(from=0, to=31) int);
@@ -399,7 +400,7 @@ package android.location {
     method @NonNull public android.location.GlonassSatelliteEphemeris.Builder setUpdateIntervalOdd(boolean);
   }
 
-  public static final class GlonassSatelliteEphemeris.GlonassSatelliteClockModel implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassSatelliteEphemeris.GlonassSatelliteClockModel implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-0.002F, to=0.002f) public double getClockBias();
     method @FloatRange(from=-9.32E-10F, to=9.32E-10f) public double getFrequencyBias();
@@ -411,7 +412,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GlonassSatelliteEphemeris.GlonassSatelliteClockModel> CREATOR;
   }
 
-  public static final class GlonassSatelliteEphemeris.GlonassSatelliteClockModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassSatelliteEphemeris.GlonassSatelliteClockModel.Builder {
     ctor public GlonassSatelliteEphemeris.GlonassSatelliteClockModel.Builder();
     method @NonNull public android.location.GlonassSatelliteEphemeris.GlonassSatelliteClockModel build();
     method @NonNull public android.location.GlonassSatelliteEphemeris.GlonassSatelliteClockModel.Builder setClockBias(@FloatRange(from=-0.002F, to=0.002f) double);
@@ -422,7 +423,7 @@ package android.location {
     method @NonNull public android.location.GlonassSatelliteEphemeris.GlonassSatelliteClockModel.Builder setTimeOfClockSeconds(@IntRange(from=0) long);
   }
 
-  public static final class GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-27000.0F, to=27000.0f) public double getX();
     method @FloatRange(from=-6.2E-9F, to=6.2E-9f) public double getXAccel();
@@ -437,7 +438,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel> CREATOR;
   }
 
-  public static final class GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel.Builder {
     ctor public GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel.Builder();
     method @NonNull public android.location.GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel build();
     method @NonNull public android.location.GlonassSatelliteEphemeris.GlonassSatelliteOrbitModel.Builder setX(@FloatRange(from=-27000.0F, to=27000.0f) double);
@@ -463,7 +464,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssAlmanac> CREATOR;
   }
 
-  public static final class GnssAlmanac.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssAlmanac.Builder {
     ctor public GnssAlmanac.Builder();
     method @NonNull public android.location.GnssAlmanac build();
     method @NonNull public android.location.GnssAlmanac.Builder setCompleteAlmanacProvided(boolean);
@@ -474,7 +475,7 @@ package android.location {
     method @NonNull public android.location.GnssAlmanac.Builder setWeekNumber(@IntRange(from=0) int);
   }
 
-  public static final class GnssAlmanac.GnssSatelliteAlmanac implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssAlmanac.GnssSatelliteAlmanac implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-0.0625F, to=0.0625f) public double getAf0();
     method @FloatRange(from=-1.5E-8F, to=1.5E-8f) public double getAf1();
@@ -492,7 +493,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssAlmanac.GnssSatelliteAlmanac> CREATOR;
   }
 
-  public static final class GnssAlmanac.GnssSatelliteAlmanac.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssAlmanac.GnssSatelliteAlmanac.Builder {
     ctor public GnssAlmanac.GnssSatelliteAlmanac.Builder();
     method @NonNull public android.location.GnssAlmanac.GnssSatelliteAlmanac build();
     method @NonNull public android.location.GnssAlmanac.GnssSatelliteAlmanac.Builder setAf0(@FloatRange(from=-0.0625F, to=0.0625f) double);
@@ -521,7 +522,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssAssistance> CREATOR;
   }
 
-  public static final class GnssAssistance.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssAssistance.Builder {
     ctor public GnssAssistance.Builder();
     method @NonNull public android.location.GnssAssistance build();
     method @NonNull public android.location.GnssAssistance.Builder setBeidouAssistance(@Nullable android.location.BeidouAssistance);
@@ -532,7 +533,7 @@ package android.location {
     method @NonNull public android.location.GnssAssistance.Builder setQzssAssistance(@Nullable android.location.QzssAssistance);
   }
 
-  public static final class GnssAssistance.GnssSatelliteCorrections implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssAssistance.GnssSatelliteCorrections implements android.os.Parcelable {
     ctor public GnssAssistance.GnssSatelliteCorrections(@IntRange(from=1, to=206) int, @NonNull java.util.List<android.location.IonosphericCorrection>);
     method public int describeContents();
     method @NonNull public java.util.List<android.location.IonosphericCorrection> getIonosphericCorrections();
@@ -557,7 +558,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssCorrectionComponent> CREATOR;
   }
 
-  public static final class GnssCorrectionComponent.GnssInterval implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssCorrectionComponent.GnssInterval implements android.os.Parcelable {
     ctor public GnssCorrectionComponent.GnssInterval(@IntRange(from=0) long, @IntRange(from=0) long);
     method public int describeContents();
     method @IntRange(from=0) public long getEndMillisSinceGpsEpoch();
@@ -566,7 +567,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssCorrectionComponent.GnssInterval> CREATOR;
   }
 
-  public static final class GnssCorrectionComponent.PseudorangeCorrection implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GnssCorrectionComponent.PseudorangeCorrection implements android.os.Parcelable {
     ctor public GnssCorrectionComponent.PseudorangeCorrection(double, double, double);
     method public int describeContents();
     method public double getCorrectionMeters();
@@ -735,7 +736,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GpsAssistance> CREATOR;
   }
 
-  public static final class GpsAssistance.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsAssistance.Builder {
     ctor public GpsAssistance.Builder();
     method @NonNull public android.location.GpsAssistance build();
     method @NonNull public android.location.GpsAssistance.Builder setAlmanac(@Nullable android.location.GnssAlmanac);
@@ -986,7 +987,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GpsSatelliteEphemeris> CREATOR;
   }
 
-  public static final class GpsSatelliteEphemeris.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.Builder {
     ctor public GpsSatelliteEphemeris.Builder();
     method @NonNull public android.location.GpsSatelliteEphemeris build();
     method @NonNull public android.location.GpsSatelliteEphemeris.Builder setGpsL2Params(@NonNull android.location.GpsSatelliteEphemeris.GpsL2Params);
@@ -997,7 +998,7 @@ package android.location {
     method @NonNull public android.location.GpsSatelliteEphemeris.Builder setSvid(@IntRange(from=1, to=32) int);
   }
 
-  public static final class GpsSatelliteEphemeris.GpsL2Params implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.GpsL2Params implements android.os.Parcelable {
     method public int describeContents();
     method @IntRange(from=0, to=3) public int getL2Code();
     method @IntRange(from=0, to=1) public int getL2Flag();
@@ -1005,14 +1006,14 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GpsSatelliteEphemeris.GpsL2Params> CREATOR;
   }
 
-  public static final class GpsSatelliteEphemeris.GpsL2Params.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.GpsL2Params.Builder {
     ctor public GpsSatelliteEphemeris.GpsL2Params.Builder();
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsL2Params build();
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsL2Params.Builder setL2Code(@IntRange(from=0, to=3) int);
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsL2Params.Builder setL2Flag(@IntRange(from=0, to=1) int);
   }
 
-  public static final class GpsSatelliteEphemeris.GpsSatelliteClockModel implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.GpsSatelliteClockModel implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-0.00977F, to=0.00977f) public double getAf0();
     method @FloatRange(from=-3.73E-9F, to=3.73E-9f) public double getAf1();
@@ -1024,7 +1025,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GpsSatelliteEphemeris.GpsSatelliteClockModel> CREATOR;
   }
 
-  public static final class GpsSatelliteEphemeris.GpsSatelliteClockModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.GpsSatelliteClockModel.Builder {
     ctor public GpsSatelliteEphemeris.GpsSatelliteClockModel.Builder();
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsSatelliteClockModel build();
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsSatelliteClockModel.Builder setAf0(@FloatRange(from=-0.00977F, to=0.00977f) double);
@@ -1035,7 +1036,7 @@ package android.location {
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsSatelliteClockModel.Builder setTimeOfClockSeconds(@IntRange(from=0) long);
   }
 
-  public static final class GpsSatelliteEphemeris.GpsSatelliteHealth implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.GpsSatelliteHealth implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=0.0f) public double getFitInt();
     method @FloatRange(from=0.0f, to=8192.0f) public double getSvAccur();
@@ -1044,7 +1045,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GpsSatelliteEphemeris.GpsSatelliteHealth> CREATOR;
   }
 
-  public static final class GpsSatelliteEphemeris.GpsSatelliteHealth.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class GpsSatelliteEphemeris.GpsSatelliteHealth.Builder {
     ctor public GpsSatelliteEphemeris.GpsSatelliteHealth.Builder();
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsSatelliteHealth build();
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsSatelliteHealth.Builder setFitInt(@FloatRange(from=0.0f) double);
@@ -1060,7 +1061,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance> CREATOR;
   }
 
-  public static final class IonexAssistance.Axes implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.Axes implements android.os.Parcelable {
     ctor public IonexAssistance.Axes(@NonNull android.location.IonexAssistance.Axis, @NonNull android.location.IonexAssistance.Axis);
     method public int describeContents();
     method @NonNull public android.location.IonexAssistance.Axis getLatitudeAxis();
@@ -1069,7 +1070,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.Axes> CREATOR;
   }
 
-  public static final class IonexAssistance.Axis implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.Axis implements android.os.Parcelable {
     ctor public IonexAssistance.Axis(@FloatRange(from=-180.0F, to=180.0f) double, @FloatRange(from=-180.0F, to=180.0f) double, @IntRange(from=0) int);
     method public int describeContents();
     method @FloatRange(from=-180.0F, to=180.0f) public double getDeltaDeg();
@@ -1079,14 +1080,14 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.Axis> CREATOR;
   }
 
-  public static final class IonexAssistance.Builder {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.Builder {
     ctor public IonexAssistance.Builder();
     method @NonNull public android.location.IonexAssistance build();
     method @NonNull public android.location.IonexAssistance.Builder setHeader(@NonNull android.location.IonexAssistance.Header);
     method @NonNull public android.location.IonexAssistance.Builder setTecMapSnapshot(@NonNull android.location.IonexAssistance.TecMapSnapshot);
   }
 
-  public static final class IonexAssistance.Header implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.Header implements android.os.Parcelable {
     method public int describeContents();
     method @NonNull public android.location.IonexAssistance.Axes getAxesInfo();
     method @FloatRange(from=0.0, fromInclusive=false) public float getBaseRadiusKm();
@@ -1099,7 +1100,7 @@ package android.location {
     field public static final int MAPPING_FUNCTION_QFAC = 2; // 0x2
   }
 
-  public static final class IonexAssistance.Header.Builder {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.Header.Builder {
     ctor public IonexAssistance.Header.Builder();
     method @NonNull public android.location.IonexAssistance.Header build();
     method @NonNull public android.location.IonexAssistance.Header.Builder setAxesInfo(@NonNull android.location.IonexAssistance.Axes);
@@ -1108,21 +1109,22 @@ package android.location {
     method @NonNull public android.location.IonexAssistance.Header.Builder setMappingFunction(int);
   }
 
-  public static final class IonexAssistance.TecMapSnapshot implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.TecMapSnapshot implements android.os.Parcelable {
     method public int describeContents();
     method @IntRange(from=0) public long getEpochTimeSeconds();
-    method @NonNull public java.util.List<java.lang.Float> getRmsMap();
-    method @NonNull public java.util.List<java.lang.Float> getTecMap();
+    method @NonNull public short[] getRmsMap();
+    method @NonNull public short[] getTecMap();
     method public void writeToParcel(@NonNull android.os.Parcel, int);
     field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.TecMapSnapshot> CREATOR;
+    field public static final short UNAVAILABLE_TEC = 9999; // 0x270f
   }
 
-  public static final class IonexAssistance.TecMapSnapshot.Builder {
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public static final class IonexAssistance.TecMapSnapshot.Builder {
     ctor public IonexAssistance.TecMapSnapshot.Builder();
     method @NonNull public android.location.IonexAssistance.TecMapSnapshot build();
     method @IntRange(from=0) @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setEpochTimeSeconds(@IntRange(from=0) long);
-    method @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setRmsMap(@NonNull java.util.List<java.lang.Float>);
-    method @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setTecMap(@NonNull java.util.List<java.lang.Float>);
+    method @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setRmsMap(@NonNull short[]);
+    method @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setTecMap(@NonNull short[]);
   }
 
   @FlaggedApi("android.location.flags.gnss_assistance_interface") public final class IonosphericCorrection implements android.os.Parcelable {
@@ -1150,7 +1152,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.KeplerianOrbitModel> CREATOR;
   }
 
-  public static final class KeplerianOrbitModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class KeplerianOrbitModel.Builder {
     ctor public KeplerianOrbitModel.Builder();
     method @NonNull public android.location.KeplerianOrbitModel build();
     method @NonNull public android.location.KeplerianOrbitModel.Builder setDeltaN(@FloatRange(from=-1.18E-8F, to=1.18E-8f) double);
@@ -1165,7 +1167,7 @@ package android.location {
     method @NonNull public android.location.KeplerianOrbitModel.Builder setSecondOrderHarmonicPerturbation(@NonNull android.location.KeplerianOrbitModel.SecondOrderHarmonicPerturbation);
   }
 
-  public static final class KeplerianOrbitModel.SecondOrderHarmonicPerturbation implements android.os.Parcelable {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class KeplerianOrbitModel.SecondOrderHarmonicPerturbation implements android.os.Parcelable {
     method public int describeContents();
     method @FloatRange(from=-6.11E-5F, to=6.11E-5f) public double getCic();
     method @FloatRange(from=-6.11E-5F, to=6.11E-5f) public double getCis();
@@ -1177,7 +1179,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.KeplerianOrbitModel.SecondOrderHarmonicPerturbation> CREATOR;
   }
 
-  public static final class KeplerianOrbitModel.SecondOrderHarmonicPerturbation.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class KeplerianOrbitModel.SecondOrderHarmonicPerturbation.Builder {
     ctor public KeplerianOrbitModel.SecondOrderHarmonicPerturbation.Builder();
     method @NonNull public android.location.KeplerianOrbitModel.SecondOrderHarmonicPerturbation build();
     method @NonNull public android.location.KeplerianOrbitModel.SecondOrderHarmonicPerturbation.Builder setCic(@FloatRange(from=-6.11E-5F, to=6.11E-5f) double);
@@ -1202,7 +1204,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.KlobucharIonosphericModel> CREATOR;
   }
 
-  public static final class KlobucharIonosphericModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class KlobucharIonosphericModel.Builder {
     ctor public KlobucharIonosphericModel.Builder();
     method @NonNull public android.location.KlobucharIonosphericModel build();
     method @NonNull public android.location.KlobucharIonosphericModel.Builder setAlpha0(@FloatRange(from=-1.193E-7F, to=1.193E-7f) double);
@@ -1243,7 +1245,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.LeapSecondsModel> CREATOR;
   }
 
-  public static final class LeapSecondsModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class LeapSecondsModel.Builder {
     ctor public LeapSecondsModel.Builder();
     method @NonNull public android.location.LeapSecondsModel build();
     method @NonNull public android.location.LeapSecondsModel.Builder setDayNumberLeapSecondsFuture(@IntRange(from=0) int);
@@ -1270,9 +1272,9 @@ package android.location {
     method @Deprecated @RequiresPermission(allOf={android.Manifest.permission.LOCATION_HARDWARE, android.Manifest.permission.UPDATE_APP_OPS_STATS}) public boolean registerGnssBatchedLocationCallback(long, boolean, @NonNull android.location.BatchedLocationCallback, @Nullable android.os.Handler);
     method @Deprecated @RequiresPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) public boolean registerGnssMeasurementsCallback(@NonNull android.location.GnssRequest, @NonNull java.util.concurrent.Executor, @NonNull android.location.GnssMeasurementsEvent.Callback);
     method @Deprecated @FlaggedApi("android.location.flags.deprecate_provider_request_apis") @RequiresPermission(android.Manifest.permission.LOCATION_HARDWARE) public void removeProviderRequestChangedListener(@NonNull android.location.provider.ProviderRequest.ChangedListener);
+    method @Deprecated @RequiresPermission(anyOf={android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION}) public void requestLocationUpdates(@Nullable android.location.LocationRequest, @NonNull android.app.PendingIntent);
     method @Deprecated @RequiresPermission(anyOf={android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION}) public void requestLocationUpdates(@Nullable android.location.LocationRequest, @NonNull android.location.LocationListener, @Nullable android.os.Looper);
     method @Deprecated @RequiresPermission(anyOf={android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION}) public void requestLocationUpdates(@Nullable android.location.LocationRequest, @NonNull java.util.concurrent.Executor, @NonNull android.location.LocationListener);
-    method @Deprecated @RequiresPermission(anyOf={android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION}) public void requestLocationUpdates(@Nullable android.location.LocationRequest, @NonNull android.app.PendingIntent);
     method @RequiresPermission(android.Manifest.permission.LOCATION_BYPASS) public void setAdasGnssLocationEnabled(boolean);
     method @RequiresPermission(android.Manifest.permission.LOCATION_HARDWARE) public void setExtraLocationControllerPackage(@Nullable String);
     method @RequiresPermission(android.Manifest.permission.LOCATION_HARDWARE) public void setExtraLocationControllerPackageEnabled(boolean);
@@ -1345,7 +1347,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.QzssAssistance> CREATOR;
   }
 
-  public static final class QzssAssistance.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class QzssAssistance.Builder {
     ctor public QzssAssistance.Builder();
     method @NonNull public android.location.QzssAssistance build();
     method @NonNull public android.location.QzssAssistance.Builder setAlmanac(@Nullable android.location.GnssAlmanac);
@@ -1371,7 +1373,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.QzssSatelliteEphemeris> CREATOR;
   }
 
-  public static final class QzssSatelliteEphemeris.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class QzssSatelliteEphemeris.Builder {
     ctor public QzssSatelliteEphemeris.Builder();
     method @NonNull public android.location.QzssSatelliteEphemeris build();
     method @NonNull public android.location.QzssSatelliteEphemeris.Builder setGpsL2Params(@NonNull android.location.GpsSatelliteEphemeris.GpsL2Params);
@@ -1395,7 +1397,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.RealTimeIntegrityModel> CREATOR;
   }
 
-  public static final class RealTimeIntegrityModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class RealTimeIntegrityModel.Builder {
     ctor public RealTimeIntegrityModel.Builder();
     method @NonNull public android.location.RealTimeIntegrityModel build();
     method @NonNull public android.location.RealTimeIntegrityModel.Builder setAdvisoryNumber(@NonNull String);
@@ -1416,7 +1418,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.SatelliteEphemerisTime> CREATOR;
   }
 
-  public static final class SatelliteEphemerisTime.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class SatelliteEphemerisTime.Builder {
     ctor public SatelliteEphemerisTime.Builder();
     method @NonNull public android.location.SatelliteEphemerisTime build();
     method @NonNull public android.location.SatelliteEphemerisTime.Builder setIode(@IntRange(from=0, to=1023) int);
@@ -1509,7 +1511,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.TimeModel> CREATOR;
   }
 
-  public static final class TimeModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class TimeModel.Builder {
     ctor public TimeModel.Builder();
     method @NonNull public android.location.TimeModel build();
     method @NonNull public android.location.TimeModel.Builder setA0(@FloatRange(from=-1.0F, to=1.0f) double);
@@ -1529,7 +1531,7 @@ package android.location {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.UtcModel> CREATOR;
   }
 
-  public static final class UtcModel.Builder {
+  @FlaggedApi("android.location.flags.gnss_assistance_interface") public static final class UtcModel.Builder {
     ctor public UtcModel.Builder();
     method @NonNull public android.location.UtcModel build();
     method @NonNull public android.location.UtcModel.Builder setA0(@FloatRange(from=-2.0F, to=2.0f) double);
@@ -1558,7 +1560,7 @@ package android.location.provider {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.provider.ForwardGeocodeRequest> CREATOR;
   }
 
-  public static final class ForwardGeocodeRequest.Builder {
+  @FlaggedApi("android.location.flags.new_geocoder") public static final class ForwardGeocodeRequest.Builder {
     ctor public ForwardGeocodeRequest.Builder(@NonNull String, @FloatRange(from=-90.0, to=90.0) double, @FloatRange(from=-180.0, to=180.0) double, @FloatRange(from=-90.0, to=90.0) double, @FloatRange(from=-180.0, to=180.0) double, @IntRange(from=1) int, @NonNull java.util.Locale, int, @NonNull String);
     method @NonNull public android.location.provider.ForwardGeocodeRequest build();
     method @NonNull public android.location.provider.ForwardGeocodeRequest.Builder setCallingAttributionTag(@NonNull String);
@@ -1567,15 +1569,15 @@ package android.location.provider {
   @FlaggedApi("android.location.flags.new_geocoder") public abstract class GeocodeProviderBase {
     ctor public GeocodeProviderBase(@NonNull android.content.Context, @NonNull String);
     method @NonNull public final android.os.IBinder getBinder();
-    method public abstract void onForwardGeocode(@NonNull android.location.provider.ForwardGeocodeRequest, @NonNull android.os.OutcomeReceiver<java.util.List<android.location.Address>,java.lang.Throwable>);
-    method public abstract void onReverseGeocode(@NonNull android.location.provider.ReverseGeocodeRequest, @NonNull android.os.OutcomeReceiver<java.util.List<android.location.Address>,java.lang.Throwable>);
+    method public abstract void onForwardGeocode(@NonNull android.location.provider.ForwardGeocodeRequest, @NonNull android.os.OutcomeReceiver<java.util.List<android.location.Address>, Throwable>);
+    method public abstract void onReverseGeocode(@NonNull android.location.provider.ReverseGeocodeRequest, @NonNull android.os.OutcomeReceiver<java.util.List<android.location.Address>, Throwable>);
     field public static final String ACTION_GEOCODE_PROVIDER = "com.android.location.service.GeocodeProvider";
   }
 
   @FlaggedApi("android.location.flags.gnss_assistance_interface") public abstract class GnssAssistanceProviderBase {
     ctor public GnssAssistanceProviderBase(@NonNull android.content.Context, @NonNull String);
     method @NonNull public final android.os.IBinder getBinder();
-    method public abstract void onRequest(@NonNull android.os.OutcomeReceiver<android.location.GnssAssistance,java.lang.Throwable>);
+    method public abstract void onRequest(@NonNull android.os.OutcomeReceiver<android.location.GnssAssistance, Throwable>);
     field public static final String ACTION_GNSS_ASSISTANCE_PROVIDER = "android.location.provider.action.GNSS_ASSISTANCE_PROVIDER";
   }
 
@@ -1600,11 +1602,11 @@ package android.location.provider {
     method public void onFlushComplete();
   }
 
-  @FlaggedApi("android.location.flags.population_density_provider") public abstract class PopulationDensityProviderBase {
+  public abstract class PopulationDensityProviderBase {
     ctor public PopulationDensityProviderBase(@NonNull android.content.Context, @NonNull String);
     method @Nullable public final android.os.IBinder getBinder();
-    method public abstract void onGetCoarsenedS2Cells(double, double, @IntRange(from=0) int, @NonNull android.os.OutcomeReceiver<long[],java.lang.Throwable>);
-    method public abstract void onGetDefaultCoarseningLevel(@NonNull android.os.OutcomeReceiver<java.lang.Integer,java.lang.Throwable>);
+    method public abstract void onGetCoarsenedS2Cells(double, double, @IntRange(from=0) int, @NonNull android.os.OutcomeReceiver<long[], Throwable>);
+    method public abstract void onGetDefaultCoarseningLevel(@NonNull android.os.OutcomeReceiver<Integer, Throwable>);
     field public static final String ACTION_POPULATION_DENSITY_PROVIDER = "com.android.location.service.PopulationDensityProvider";
   }
 
@@ -1651,7 +1653,7 @@ package android.location.provider {
     field @NonNull public static final android.os.Parcelable.Creator<android.location.provider.ReverseGeocodeRequest> CREATOR;
   }
 
-  public static final class ReverseGeocodeRequest.Builder {
+  @FlaggedApi("android.location.flags.new_geocoder") public static final class ReverseGeocodeRequest.Builder {
     ctor public ReverseGeocodeRequest.Builder(@FloatRange(from=-90.0, to=90.0) double, @FloatRange(from=-180.0, to=180.0) double, @IntRange(from=0) int, @NonNull java.util.Locale, int, @NonNull String);
     method @NonNull public android.location.provider.ReverseGeocodeRequest build();
     method @NonNull public android.location.provider.ReverseGeocodeRequest.Builder setCallingAttributionTag(@NonNull String);

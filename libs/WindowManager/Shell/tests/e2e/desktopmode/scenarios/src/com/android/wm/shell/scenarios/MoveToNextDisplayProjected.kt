@@ -37,22 +37,17 @@ import org.junit.Rule
 import org.junit.Test
 import platform.test.desktop.SimulatedConnectedDisplayTestRule
 
-/**
- * Base scenario test for moving a projected task to another display via the keyboard shortcut.
- */
+/** Base scenario test for moving a projected task to another display via the keyboard shortcut. */
 @Ignore("Test Base Class")
-@RequiresFlagsEnabled(
-    Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-    Flags.FLAG_ENABLE_MOVE_TO_NEXT_DISPLAY_SHORTCUT,
-    Flags.FLAG_MOVE_TO_NEXT_DISPLAY_SHORTCUT_WITH_PROJECTED_MODE,
-)
+@RequiresFlagsEnabled(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
 abstract class MoveToNextDisplayProjected {
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(getInstrumentation())
     private val testApp = DesktopModeAppHelper(SimpleAppHelper(getInstrumentation()))
 
     @get:Rule(order = 0) val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
-    @get:Rule(order = 1) val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, Rotation.ROTATION_0)
+    @get:Rule(order = 1)
+    val testSetupRule = Utils.testSetupRuleFunctional(NavBar.MODE_GESTURAL, Rotation.ROTATION_0)
     @get:Rule(order = 2) val connectedDisplayRule = SimulatedConnectedDisplayTestRule()
 
     @Before

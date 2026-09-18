@@ -15,8 +15,8 @@
  */
 package com.android.internal.widget.remotecompose.player.state;
 
-
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.graphics.Bitmap;
 
 /** Methods to update the state of a {@link RemoteContext}. */
@@ -28,43 +28,52 @@ public interface StateUpdater {
      * @param name the name of the float to override
      * @param value Override the default float
      */
-    void setNamedLong(@NonNull String name, long value);
+    void setNamedLong(@NonNull String name, @Nullable Long value);
 
     /**
-     * Calls {@link RemoteContext#setNamedIntegerOverride(String, int)}
-     * adding {@link RemoteDomains#USER} as a prefix to the integerName.
+     * Calls {@link RemoteContext#setNamedFloatOverride(String, float)} adding {@link
+     * RemoteDomains#USER} as a prefix to the floatName.
+     *
+     * @param floatName the original name of the float parameter.
+     * @param value the float value to set.
+     */
+    void setUserLocalFloat(@NonNull String floatName, @Nullable Float value);
+
+    /**
+     * Calls {@link RemoteContext#setNamedIntegerOverride(String, int)} adding {@link
+     * RemoteDomains#USER} as a prefix to the integerName.
      *
      * @param integerName the original name of the integer parameter.
      * @param value the integer value to set.
      */
-    void setUserLocalInt(@NonNull String integerName, int value);
+    void setUserLocalInt(@NonNull String integerName, @Nullable Integer value);
 
     /**
-     * Calls {@link RemoteContext#setNamedColorOverride(String, int)}
-     * adding {@link RemoteDomains#USER} as a prefix to the name.
+     * Calls {@link RemoteContext#setNamedColorOverride(String, int)} adding {@link
+     * RemoteDomains#USER} as a prefix to the name.
      *
      * @param name the original name of the color parameter.
      * @param value the color value to set (as an int).
      */
-    void setUserLocalColor(@NonNull String name, int value);
+    void setUserLocalColor(@NonNull String name, @Nullable Integer value);
 
     /**
-     * Calls {@link RemoteContext#setNamedDataOverride(String, Object)}
-     * adding {@link RemoteDomains#USER} as a prefix to the name.
+     * Calls {@link RemoteContext#setNamedDataOverride(String, Object)} adding {@link
+     * RemoteDomains#USER} as a prefix to the name.
      *
      * @param name the original name of the data parameter.
-     * @param content the {@link android.graphics.Bitmap} content to set.
+     * @param content the {@link Bitmap} content to set.
      */
-    void setUserLocalBitmap(@NonNull String name, @NonNull Bitmap content);
+    void setUserLocalBitmap(@NonNull String name, @Nullable Bitmap content);
 
     /**
-     * Calls {@link RemoteContext#setNamedStringOverride(String,
-     * String)} adding {@link RemoteDomains#USER} as a prefix to the stringName.
+     * Calls {@link RemoteContext#setNamedStringOverride(String, String)} adding {@link
+     * RemoteDomains#USER} as a prefix to the stringName.
      *
      * @param stringName the original name of the string parameter.
      * @param value the string value to set.
      */
-    void setUserLocalString(@NonNull String stringName, @NonNull String value);
+    void setUserLocalString(@NonNull String stringName, @Nullable String value);
 
     /**
      * Returns the user domain string for the given parameter name.
@@ -72,7 +81,7 @@ public interface StateUpdater {
      * @param name the original name of the parameter.
      * @return the user domain string for the given parameter name.
      */
-    static String getUserDomainString(@NonNull String name) {
+    static @NonNull String getUserDomainString(@NonNull String name) {
         return RemoteDomains.USER + ":" + name;
     }
 }

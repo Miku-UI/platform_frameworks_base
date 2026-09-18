@@ -16,16 +16,18 @@
 
 package com.android.systemui.touchpad.tutorial.ui.gesture
 
+import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.Error
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.Finished
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.InProgress
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.NotStarted
+import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.PartialSuccess
 import com.android.systemui.touchpad.tutorial.ui.gesture.MultiFingerGesture.Companion.SWIPE_DISTANCE
 import com.android.systemui.touchpad.tutorial.ui.gesture.RecentAppsGestureRecognizerTest.Companion.FAST
-import com.android.systemui.touchpad.tutorial.ui.gesture.RecentAppsGestureRecognizerTest.Companion.SLOW
 import com.android.systemui.touchpad.tutorial.ui.gesture.RecentAppsGestureRecognizerTest.Companion.THRESHOLD_VELOCITY_PX_PER_MS
 import com.android.systemui.touchpad.ui.gesture.FakeVelocityTracker
 import com.google.common.truth.Truth.assertThat
@@ -37,10 +39,11 @@ import platform.test.runner.parameterized.Parameters
 
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
+@EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
 class ThreeFingerGestureRecognizerTest(
     private val recognizer: GestureRecognizer,
-    private val validGestures: Set<List<MotionEvent>>,
-    private val tooShortGesture: List<MotionEvent>,
+    private val validGestures: () -> Set<List<MotionEvent>>,
+    private val tooShortGesture: () -> List<MotionEvent>,
     @Suppress("UNUSED_PARAMETER") testSuffix: String, // here just for nicer test names
 ) : SysuiTestCase() {
 
@@ -52,8 +55,14 @@ class ThreeFingerGestureRecognizerTest(
     }
 
     @Test
-    fun triggersGestureFinishedForValidGestures() {
-        validGestures.forEach { assertStateAfterEvents(events = it, expectedState = Finished) }
+    fun triggersExpectedStateForValidGestures() {
+        validGestures().forEach {
+            assertStateAfterEvents(
+                events = it,
+                expectedState =
+                    if (recognizer is HomeGestureRecognizer) PartialSuccess else Finished,
+            )
+        }
     }
 
     @Test
@@ -66,7 +75,7 @@ class ThreeFingerGestureRecognizerTest(
 
     @Test
     fun triggersGestureError_onGestureDistanceTooShort() {
-        assertStateAfterEvents(events = tooShortGesture, expectedState = Error)
+        assertStateAfterEvents(events = tooShortGesture(), expectedState = Error)
     }
 
     @Test
@@ -78,7 +87,8 @@ class ThreeFingerGestureRecognizerTest(
                 ThreeFingerGesture.swipeLeft(),
                 ThreeFingerGesture.swipeRight(),
             )
-        val invalidGestures = allThreeFingerGestures.filter { it.differentFromAnyOf(validGestures) }
+        val invalidGestures =
+            allThreeFingerGestures.filter { it.differentFromAnyOf(validGestures()) }
         invalidGestures.forEach { assertStateAfterEvents(events = it, expectedState = Error) }
     }
 
@@ -132,8 +142,8 @@ class ThreeFingerGestureRecognizerTest(
                 listOf(
                         GestureTestData(
                             recognizer = BackGestureRecognizer(SWIPE_DISTANCE.toInt()),
-                            validGestures = setOf(swipeRight(), swipeLeft()),
-                            tooShortGesture = swipeRight(SWIPE_DISTANCE / 2),
+                            validGestures = { setOf(swipeRight(), swipeLeft()) },
+                            tooShortGesture = { swipeRight(SWIPE_DISTANCE / 2) },
                             testSuffix = "back gesture",
                         ),
                         GestureTestData(
@@ -143,8 +153,8 @@ class ThreeFingerGestureRecognizerTest(
                                     THRESHOLD_VELOCITY_PX_PER_MS,
                                     FakeVelocityTracker(velocity = FAST),
                                 ),
-                            validGestures = setOf(swipeUp()),
-                            tooShortGesture = swipeUp(SWIPE_DISTANCE / 2),
+                            validGestures = { setOf(swipeUp()) },
+                            tooShortGesture = { swipeUp(SWIPE_DISTANCE / 2) },
                             testSuffix = "home gesture",
                         ),
                         GestureTestData(
@@ -152,10 +162,10 @@ class ThreeFingerGestureRecognizerTest(
                                 RecentAppsGestureRecognizer(
                                     SWIPE_DISTANCE.toInt(),
                                     THRESHOLD_VELOCITY_PX_PER_MS,
-                                    FakeVelocityTracker(velocity = SLOW),
+                                    FakeVelocityTracker(velocity = FAST),
                                 ),
-                            validGestures = setOf(swipeUp()),
-                            tooShortGesture = swipeUp(SWIPE_DISTANCE / 2),
+                            validGestures = { setOf(swipeUp()) },
+                            tooShortGesture = { swipeUp(SWIPE_DISTANCE / 2) },
                             testSuffix = "recent apps gesture",
                         ),
                     )
@@ -167,8 +177,8 @@ class ThreeFingerGestureRecognizerTest(
 
     class GestureTestData(
         val recognizer: GestureRecognizer,
-        val validGestures: Set<List<MotionEvent>>,
-        val tooShortGesture: List<MotionEvent>,
+        val validGestures: () -> Set<List<MotionEvent>>,
+        val tooShortGesture: () -> List<MotionEvent>,
         val testSuffix: String,
     )
 }

@@ -37,7 +37,6 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.Process;
-import android.os.UserHandle;
 import android.security.Flags;
 import android.util.Log;
 import android.util.LogPrinter;
@@ -294,7 +293,7 @@ public class SaferIntentUtils {
             final ComponentInfo info = resolveInfos.get(i).getComponentInfo();
 
             // Skip filter matching when the caller is targeting the same app
-            if (UserHandle.isSameApp(args.callingUid, info.applicationInfo.uid)) {
+            if (computer.isCallerSameApp(info.packageName, args.callingUid)) {
                 continue;
             }
 
@@ -393,7 +392,7 @@ public class SaferIntentUtils {
             final ComponentInfo info = resolveInfos.get(i).getComponentInfo();
 
             // Skip filter matching when the caller is targeting the same app
-            if (UserHandle.isSameApp(args.callingUid, info.applicationInfo.uid)) {
+            if (computer.isCallerSameApp(info.packageName, args.callingUid)) {
                 continue;
             }
 

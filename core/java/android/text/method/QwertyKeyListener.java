@@ -231,7 +231,7 @@ public class QwertyKeyListener extends BaseKeyListener {
             content.setSpan(OLD_SEL_START, selStart, selStart,
                             Spannable.SPAN_MARK_MARK);
 
-            content.replace(selStart, selEnd, String.valueOf((char) i));
+            replaceText(content, selStart, selEnd, String.valueOf((char) i), event);
 
             int oldStart = content.getSpanStart(OLD_SEL_START);
             selEnd = Selection.getSelectionEnd(content);

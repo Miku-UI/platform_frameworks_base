@@ -18,8 +18,8 @@ package com.android.systemui.scene.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
-import com.android.systemui.statusbar.disableflags.domain.interactor.disableFlagsInteractor
+import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
 
 val Kosmos.disabledContentInteractor by Fixture {
-    DisabledContentInteractor(disableFlagsInteractor = disableFlagsInteractor)
+    DisabledContentInteractor(shadeStatusBarComponentsInteractor)
 }

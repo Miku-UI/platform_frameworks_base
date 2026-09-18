@@ -51,6 +51,8 @@ import android.os.ServiceManager;
 import android.os.ShellCommand;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.tracing.perfetto.DataSource;
+import android.tracing.perfetto.DataSourceParams;
 import android.tracing.perfetto.InitArguments;
 import android.tracing.perfetto.Producer;
 import android.tracing.perfetto.TracingContext;
@@ -63,9 +65,7 @@ import android.util.proto.ProtoOutputStream;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.IProtoLogConfigurationService.RegisterClientArgs;
-import com.android.internal.protolog.ProtoLogDataSource.Instance.TracingFlushCallback;
-import com.android.internal.protolog.ProtoLogDataSource.Instance.TracingInstanceStartCallback;
-import com.android.internal.protolog.ProtoLogDataSource.Instance.TracingInstanceStopCallback;
+import com.android.internal.protolog.ProtoLogDataSource.Instance.ProtoLogTracingInstanceStartCallback;
 import com.android.internal.protolog.common.ILogger;
 import com.android.internal.protolog.common.IProtoLog;
 import com.android.internal.protolog.common.IProtoLogGroup;
@@ -75,7 +75,6 @@ import com.android.internal.protolog.common.LogLevel;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -83,9 +82,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -95,17 +97,27 @@ import java.util.stream.Stream;
  * A service for the ProtoLog logging system.
  */
 public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implements IProtoLog,
-        TracingInstanceStartCallback, TracingInstanceStopCallback, TracingFlushCallback {
+        ProtoLogTracingInstanceStartCallback,
+        ProtoLogDataSource.Instance.ProtoLogTracingInstanceStopCallback,
+        DataSource.TracingInstanceFlushCallback {
     private static final String LOG_TAG = "ProtoLog";
     public static final String NULL_STRING = "null";
     @VisibleForTesting
     public static int MAX_INTERNED_STRINGS_SIZE_BYTES_BEFORE_RESET = 4 * 1024 * 1024; // 4MB
     private final AtomicInteger mTracingInstances = new AtomicInteger();
 
+    private final Object mAsyncInitLock = new Object();
+    private volatile boolean mAsyncInitInProgress = false;
+    private volatile boolean mEnabledCalled = false;
+    private final Object mEnableLock = new Object();
+
     @NonNull
     protected final ProtoLogDataSource mDataSource;
     @Nullable
-    private final IProtoLogConfigurationService mConfigurationService;
+    @Deprecated
+    private IProtoLogConfigurationService mConfigurationService;
+    @Nullable
+    private ProtoLogConfigurationClient mConfigurationClient;
 
     @NonNull
     private final Object mLogGroupsLock = new Object();
@@ -145,11 +157,16 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
     @NonNull
     private final Set<Integer> mActiveTracingInstances = new ArraySet<>();
 
+    @NonNull
+    private final CountDownLatch mFirstTracingInstanceStartLatch = new CountDownLatch(1);
+
+
     // A single-threaded executor to ensure that all background tasks are processed sequentially.
     // This is crucial for operations like connecting to the configuration service before other
     // logging activities, and synchronizing queued logging tasks on tracing start and stop.
     @VisibleForTesting
-    public final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
+    public final ExecutorService mSingleThreadedExecutor;
+    private final LinkedBlockingDeque<Runnable> mExecutorQueue = new LinkedBlockingDeque<>();
 
     // Set to true once this is ready to accept protolog to logcat requests.
     private boolean mLogcatReady = false;
@@ -158,17 +175,11 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
             @NonNull ProtoLogDataSource dataSource,
             @NonNull ProtoLogCacheUpdater cacheUpdater,
             @NonNull IProtoLogGroup[] groups) {
-        this(dataSource, cacheUpdater, groups, getConfigurationService());
-    }
-
-    protected PerfettoProtoLogImpl(
-            @NonNull ProtoLogDataSource dataSource,
-            @NonNull ProtoLogCacheUpdater cacheUpdater,
-            @NonNull IProtoLogGroup[] groups,
-            @Nullable IProtoLogConfigurationService configurationService) {
+        mSingleThreadedExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                mExecutorQueue, (r) -> new Thread(r, "ProtoLogBackground"));
         mDataSource = dataSource;
         mCacheUpdater = cacheUpdater;
-        mConfigurationService = configurationService;
+        mConfigurationService = null;
 
         registerGroupsLocally(groups);
     }
@@ -178,26 +189,150 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
      * the expected ProtoLog components.
      */
     public void enable() {
-        Producer.init(InitArguments.DEFAULTS);
+        enable(false, null);
+    }
 
-        if (mConfigurationService != null) {
-            synchronized (mLogGroupsLock) {
-                // Get the values on the main thread instead of the background worker thread because
-                // if we register more groups in the future this might happen before the task
-                // executes on the background thread leading to double registration of groups.
-                final var groups = mLogGroups.values().toArray(new IProtoLogGroup[0]);
-                connectToConfigurationServiceAsync(groups);
+    /**
+     * To be called to enable the ProtoLogImpl to start tracing to ProtoLog and register with all
+     * the expected ProtoLog components.
+     * @param async if true, the initialization will happen on a background thread.
+     */
+    public void enable(boolean async) {
+        enable(async, null);
+    }
+
+    /**
+     * To be called to enable the ProtoLogImpl to start tracing to ProtoLog and register with all
+     * the expected ProtoLog components.
+     * @param async if true, the initialization will happen on a background thread.
+     * @param service an optional service to use for testing.
+     */
+    public void enable(boolean async, @Nullable IProtoLogConfigurationService service) {
+        synchronized (mEnableLock) {
+            if (mEnabledCalled) {
+                return;
             }
+            mEnabledCalled = true;
         }
 
-        mDataSource.registerOnStartCallback(this);
-        mDataSource.registerOnFlushCallback(this);
-        mDataSource.registerOnStopCallback(this);
+        if (async) {
+            mAsyncInitInProgress = true;
+        }
+
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            ProtoLogNative.init();
+        }
+
+        final IProtoLogGroup[] groups;
+        synchronized (mLogGroupsLock) {
+            // Get the values on the caller thread before another task is posted
+            // to the same executor. This is to ensure that we register all groups that
+            // have been added so far.
+            groups = mLogGroups.values().toArray(new IProtoLogGroup[0]);
+        }
+
+        final Runnable backgroundTasks = () -> {
+            if (async && !android.tracing.Flags.javaNativeProtolog()) {
+                Producer.init(InitArguments.DEFAULTS);
+                DataSourceParams params =
+                        new DataSourceParams.Builder()
+                                .setBufferExhaustedPolicy(
+                                        DataSourceParams
+                                                .PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP)
+                                .build();
+                mDataSource.register(params);
+            }
+
+            if (android.tracing.Flags.javaNativeProtolog()) {
+                if (mConfigurationClient == null) {
+                    mConfigurationClient = new ProtoLogConfigurationClient(getViewerConfigPath(),
+                            (enabled, groupsToToggle) -> {
+                                final ILogger logger = (message) -> Log.d(LOG_TAG, message);
+                                if (enabled) {
+                                    startLoggingToLogcat(groupsToToggle, logger);
+                                } else {
+                                    stopLoggingToLogcat(groupsToToggle, logger);
+                                }
+                            });
+                }
+                mConfigurationClient.start(groups, async, service);
+            } else {
+                if (service != null) {
+                    mConfigurationService = service;
+                } else if (mConfigurationService == null) {
+                    mConfigurationService = getConfigurationService();
+                }
+
+                if (mConfigurationService != null) {
+                    try {
+                        var args = createConfigurationServiceRegisterClientArgs();
+                        args.groups = new String[groups.length];
+                        args.groupsDefaultLogcatStatus = new boolean[groups.length];
+
+                        for (var i = 0; i < groups.length; i++) {
+                            var group = groups[i];
+                            args.groups[i] = group.name();
+                            args.groupsDefaultLogcatStatus[i] = group.isLogToLogcat();
+                        }
+
+                        mConfigurationService.registerClient(this, args);
+                    } catch (RemoteException e) {
+                        Log.wtf(LOG_TAG, "Failed to register ProtoLog client", e);
+                    }
+                }
+            }
+
+            if (async && !android.tracing.Flags.javaNativeProtolog()) {
+                // A datasource instance has 5 seconds to report starting before we process the
+                // rest of the queue. We block here because it's possible that a datasource instance
+                // is already running and takes a bit of time to report the onTracingInstanceStart,
+                // in which case we want to block here before executed queued protolog messages in
+                // the background thread, so that we don't miss reporting them because they execute
+                // before the onTracingInstanceStart finishes executing.
+                // This is not 100% guaranteed to work if for whatever reason the registration of
+                // the datasource is slower to trigger the tracingInstanceStart callback.
+                try {
+                    var dsInstanceRunning =
+                            mFirstTracingInstanceStartLatch.await(5, TimeUnit.SECONDS);
+                    if (!dsInstanceRunning) {
+                        Log.w(LOG_TAG, "Timed out waiting for first tracing instance start. "
+                                + "This is expected if there we no active tracing sessions before "
+                                + "the async initialization. If there was a tracing session "
+                                + "running then this will likely lead to a loss of some ProtoLog "
+                                + "messages.");
+                    }
+                } catch (InterruptedException e) {
+                    Log.wtf(LOG_TAG,
+                            "Interrupted while waiting for first tracing instance start", e);
+                } finally {
+                    synchronized (mAsyncInitLock) {
+                        mAsyncInitInProgress = false;
+                    }
+                }
+            }
+        };
+
+        if (async) {
+            mSingleThreadedExecutor.execute(backgroundTasks);
+        } else {
+            backgroundTasks.run();
+        }
+
+        mDataSource.registerOnStartCallback(this::onTracingInstanceStart);
+        mDataSource.registerOnFlushCallback(this::onTracingFlush);
+        mDataSource.registerOnStopCallback(this::onTracingInstanceStop);
     }
 
     @Override
     public void registerGroups(@NonNull IProtoLogGroup... groups) {
         registerGroupsLocally(groups);
+
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            if (mConfigurationClient != null) {
+                mConfigurationClient.addGroups(groups);
+            }
+            return;
+        }
 
         if (mConfigurationService != null) {
             // Because this will execute with a slight delay it means that we might be in sync with
@@ -225,29 +360,6 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
             // that does not have access to the configuration service.
             return null;
         }
-    }
-
-    private void connectToConfigurationServiceAsync(@NonNull IProtoLogGroup... groups) {
-        Objects.requireNonNull(mConfigurationService,
-                "A null ProtoLog Configuration Service was provided!");
-
-        mSingleThreadedExecutor.execute(() -> {
-            try {
-                var args = createConfigurationServiceRegisterClientArgs();
-                args.groups = new String[groups.length];
-                args.groupsDefaultLogcatStatus = new boolean[groups.length];
-
-                for (var i = 0; i < groups.length; i++) {
-                    var group = groups[i];
-                    args.groups[i] = group.name();
-                    args.groupsDefaultLogcatStatus[i] = group.isLogToLogcat();
-                }
-
-                mConfigurationService.registerClient(this, args);
-            } catch (RemoteException e) {
-                Log.wtf(LOG_TAG, "Failed to register ProtoLog client", e);
-            }
-        });
     }
 
     private void registerGroupsWithConfigurationServiceAsync(@NonNull IProtoLogGroup... groups) {
@@ -289,6 +401,13 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
     }
 
     private void disconnectFromConfigurationServiceAsync() {
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            if (mConfigurationClient != null) {
+                mConfigurationClient.stop();
+            }
+            return;
+        }
+
         Objects.requireNonNull(mConfigurationService,
                 "A null ProtoLog Configuration Service was provided!");
 
@@ -310,7 +429,7 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
     @VisibleForTesting
     @Override
     public void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
-            int paramsMask, @Nullable Object[] args) {
+            long paramsMask, @Nullable Object[] args) {
         log(logLevel, group, new Message(messageHash, paramsMask), args);
     }
 
@@ -362,6 +481,11 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
 
     @Override
     public void toggleLogcat(boolean enabled, @NonNull String[] groups) {
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            throw new RuntimeException("toggleLogcat should not be called on PerfettoProtoLogImpl"
+                    + " when javaNativeProtolog flag is enabled");
+        }
+
         final ILogger logger = (message) -> Log.d(LOG_TAG, message);
         if (enabled) {
             startLoggingToLogcat(groups, logger);
@@ -392,6 +516,15 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
 
     @Override
     public boolean isEnabled(@NonNull IProtoLogGroup group, @NonNull LogLevel level) {
+        if (mAsyncInitInProgress) {
+            // Post everything to the background thread to be traced if we are in the
+            // mAsyncInitInProgress state. This means we might capture more data than intended but
+            // at least we will not lose anything. It's only the case we will have more data if we
+            // start a tracing instance between the time we call ProtoLog.init() and the time the
+            // datasource is registered in the background handler thread.
+            return true;
+        }
+
         var readLock = mConfigUpdaterLock.readLock();
         readLock.lock();
         try {
@@ -457,7 +590,17 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
 
     private void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group,
             @NonNull Message message, @Nullable Object[] args) {
-        if (isProtoEnabled()) {
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            logToProtoNative(logLevel, group, message, args);
+
+            if (group.isLogToLogcat()) {
+                logToLogcat(group.getTag(), logLevel, message, args);
+            }
+
+            return;
+        }
+
+        if (isProtoEnabled() || mAsyncInitInProgress) {
             long tsNanos = SystemClock.elapsedRealtimeNanos();
             final String stacktrace;
             if (logLevel == LogLevel.WTF
@@ -473,7 +616,7 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
                 snapshotMutableArgsToStringInPlace(args);
             }
 
-            mSingleThreadedExecutor.execute(() -> {
+            Runnable traceInBackground = () -> {
                 try {
                     logToProto(logLevel, group, message, args, tsNanos, stacktrace);
                 } catch (RuntimeException e) {
@@ -499,10 +642,24 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
 
                     Log.wtf(LOG_TAG, sb.toString(), e);
                 }
-            });
+            };
+
+            mSingleThreadedExecutor.execute(traceInBackground);
         }
         if (group.isLogToLogcat()) {
             logToLogcat(group.getTag(), logLevel, message, args);
+        }
+    }
+
+    private void logToProtoNative(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group,
+            @NonNull Message message, @Nullable Object[] args) {
+        final int level = logLevel.ordinal() + 1;
+        final Object[] argsSafety = args == null ? new Object[0] : args;
+        if (message.mMessageHash != null) {
+            ProtoLogNative.log(level, group.getTag(), message.mMessageHash,
+                    message.getMessageMask(), argsSafety);
+        } else {
+            ProtoLogNative.log(level, group.getTag(), message.getMessage(), argsSafety);
         }
     }
 
@@ -525,6 +682,11 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
 
     @Deprecated
     abstract void dumpViewerConfig();
+
+    @Nullable
+    protected String getViewerConfigPath() {
+        return null;
+    }
 
     @NonNull
     abstract String getLogcatMessageString(@NonNull Message message);
@@ -584,7 +746,9 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
                 // trace processing easier.
                 int argIndex = 0;
                 for (Object o : args) {
-                    int type = LogDataType.bitmaskToLogDataType(message.getMessageMask(), argIndex);
+                    long type =
+                            LogDataType.bitmaskToLogDataType(
+                                    message.getMessageMask(), argIndex);
                     if (type == LogDataType.STRING) {
                         needsIncrementalState = true;
                         if (o == null) {
@@ -899,11 +1063,20 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
         // incorrectly attributed to this new tracing session.
         queueTracingInstanceAddition(instanceIdx);
 
+        // Must be called after all setup is queued.
+        mFirstTracingInstanceStartLatch.countDown();
         Log.d(LOG_TAG, "Finished onTracingInstanceStart");
     }
 
     private void queueTracingInstanceAddition(int instanceIdx) {
-        mSingleThreadedExecutor.execute(() -> mActiveTracingInstances.add(instanceIdx));
+        final Runnable r = () -> mActiveTracingInstances.add(instanceIdx);
+        if (mAsyncInitInProgress) {
+            // Push to the front of the queue to make sure this is executes immediately
+            // before any queued up tracing. To make sure we don't miss any logs.
+            mExecutorQueue.addFirst(r);
+        } else {
+            mSingleThreadedExecutor.execute(r);
+        }
     }
 
     private void onTracingInstanceStartLocked(@NonNull ProtoLogDataSource.ProtoLogConfig config) {
@@ -1007,11 +1180,11 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
     protected static class Message {
         @Nullable
         private final Long mMessageHash;
-        private final int mMessageMask;
+        private final long mMessageMask;
         @Nullable
         private final String mMessageString;
 
-        private Message(long messageHash, int messageMask) {
+        private Message(long messageHash, long messageMask) {
             this.mMessageHash = messageHash;
             this.mMessageMask = messageMask;
             this.mMessageString = null;
@@ -1024,7 +1197,7 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
             this.mMessageString = messageString;
         }
 
-        private int getMessageMask() {
+        private long getMessageMask() {
             return mMessageMask;
         }
 
@@ -1067,13 +1240,12 @@ public abstract class PerfettoProtoLogImpl extends IProtoLogClient.Stub implemen
      * done. Because unit tests are sensitive to concurrent accesses.
      */
     @VisibleForTesting
-    public static void waitForInitialization() {
-        final IProtoLog currentInstance = ProtoLog.getSingleInstance();
-        if (!(currentInstance instanceof PerfettoProtoLogImpl protoLog)) {
-            return;
-        }
+    public void waitForInitialization() {
+        waitForExistingBackgroundTasksToComplete();
 
-        protoLog.waitForExistingBackgroundTasksToComplete();
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            mConfigurationClient.waitForRegistration();
+        }
     }
 }
 

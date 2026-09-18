@@ -23,7 +23,6 @@ import androidx.test.filters.SmallTest
 import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.TelephonyIcons
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.kairos
 import com.android.systemui.kairos.map
@@ -55,7 +54,6 @@ import platform.test.runner.parameterized.Parameters
  * verifies that passing the given model to [DemoMobileConnectionsRepositoryKairos] results in the
  * correct flows emitting from the given connection.
  */
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 internal class DemoMobileConnectionKairosParameterizedTest(private val testCase: TestCase) :

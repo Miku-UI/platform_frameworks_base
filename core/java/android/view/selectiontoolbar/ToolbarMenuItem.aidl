@@ -21,6 +21,7 @@ import android.graphics.drawable.Icon;
 /**
  * @hide
  */
+@JavaDerive(toString=true, equals=true)
 parcelable ToolbarMenuItem {
 
     /**

@@ -21,6 +21,8 @@ import static android.content.flags.Flags.FLAG_STOP_VOICE_COMMAND;
 import static android.os.Flags.FLAG_ALLOW_PRIVATE_PROFILE;
 import static android.security.Flags.FLAG_PREVENT_INTENT_REDIRECT;
 import static android.security.Flags.preventIntentRedirect;
+import static android.timezone.flags.Flags.FLAG_ENABLE_HOME_TIME_ZONE_API;
+import static android.timezone.flags.Flags.FLAG_ENABLE_TIME_ZONE_OFFSET_CHANGE_BROADCAST;
 
 import static com.android.internal.util.FrameworkStatsLog.IMPLICIT_URI_GRANT_EVENT_REPORTED;
 import static com.android.internal.util.FrameworkStatsLog.IMPLICIT_URI_GRANT_EVENT_REPORTED__ACCESS_TYPE__READ;
@@ -586,6 +588,7 @@ import java.util.function.Consumer;
  *     <li> {@link #ACTION_TIME_TICK}
  *     <li> {@link #ACTION_TIME_CHANGED}
  *     <li> {@link #ACTION_TIMEZONE_CHANGED}
+ *     <li> {@link #ACTION_TIMEZONE_OFFSET_CHANGED}
  *     <li> {@link #ACTION_BOOT_COMPLETED}
  *     <li> {@link #ACTION_PACKAGE_ADDED}
  *     <li> {@link #ACTION_PACKAGE_CHANGED}
@@ -794,6 +797,14 @@ public class Intent implements Parcelable, Cloneable {
      */
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_PICK = "android.intent.action.PICK";
+
+    /**
+     * Activity Action: Confirm an action with the system's wellbeing app using a speedbump.
+     *
+     * @hide
+     */
+    public static final String ACTION_WELLBEING_CONFIRM_WITH_SPEEDBUMP =
+            "android.intent.action.WELLBEING_CONFIRM_WITH_SPEEDBUMP";
 
     /**
      * Activity Action: Creates a reminder.
@@ -1525,10 +1536,8 @@ public class Intent implements Parcelable, Cloneable {
      * An optional field on {@link #ACTION_ASSIST} containing the display id
      * that should be used to invoke the assist. If not set, invoke the assist on the default
      * display is suggested.
-     *
-     * @hide
      */
-    @FlaggedApi(com.android.window.flags.Flags.FLAG_SUPPORT_GEMINI_ON_MULTI_DISPLAY)
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ASSIST_DISPLAY_ID_PUBLIC)
     public static final String EXTRA_ASSIST_DISPLAY_ID =
             "android.intent.extra.ASSIST_DISPLAY_ID";
 
@@ -1938,7 +1947,7 @@ public class Intent implements Parcelable, Cloneable {
      * Used as an int extra field with {@link #ACTION_INSTALL_PACKAGE} and
      * {@link #ACTION_VIEW} to indicate the uid of the package that initiated the install
      * Currently only a system app that hosts the provider authority "downloads" or holds the
-     * permission {@link android.Manifest.permission.MANAGE_DOCUMENTS} can use this.
+     * permission {@link android.Manifest.permission#MANAGE_DOCUMENTS} can use this.
      * @hide
      */
     @SystemApi
@@ -1968,8 +1977,8 @@ public class Intent implements Parcelable, Cloneable {
             = "android.intent.extra.RETURN_RESULT";
 
     /**
-     * Package manager install result code.  @hide because result codes are not
-     * yet ready to be exposed.
+     * Package manager install result code.
+     * @hide because result codes are not yet ready to be exposed.
      */
     @SystemApi
     public static final String EXTRA_INSTALL_RESULT = "android.intent.extra.INSTALL_RESULT";
@@ -2721,6 +2730,41 @@ public class Intent implements Parcelable, Cloneable {
      */
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_TIMEZONE_CHANGED = "android.intent.action.TIMEZONE_CHANGED";
+
+    /**
+     * Broadcast Action: Indicates that the system's time zone offset has changed without the time
+     * zone having changed. This happens for example during seasonal clock changes, or when a
+     * region changes offset.
+     *
+     * <ul>
+     *   <li>{@link #EXTRA_OLD_TIMEZONE_OFFSET} - The old time zone offset in seconds.
+     *   <li>{@link #EXTRA_NEW_TIMEZONE_OFFSET} - The new time zone offset in seconds.
+     * </ul>
+     *
+     * <p class="note">This is a protected intent that can only be sent by the system.
+     */
+    @FlaggedApi(FLAG_ENABLE_TIME_ZONE_OFFSET_CHANGE_BROADCAST)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    @BroadcastBehavior(includeBackground = true, protectedBroadcast = true)
+    public static final String ACTION_TIMEZONE_OFFSET_CHANGED =
+            "android.intent.action.TIMEZONE_OFFSET_CHANGED";
+
+    /**
+     * Broadcast Action: The user's home timezone has changed. The intent will have the
+     * following extra values:</p>
+     *
+     * <ul>
+     *   <li>{@link #EXTRA_HOME_TIME_ZONE_ID} - The time zone ID string value of the new time zone.
+     * </ul>
+     *
+     * <p class="note">This is a protected intent that can only be sent by the system.
+     */
+    @FlaggedApi(FLAG_ENABLE_HOME_TIME_ZONE_API)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    @BroadcastBehavior(includeBackground = true, protectedBroadcast = true)
+    public static final String ACTION_HOME_TIME_ZONE_CHANGED =
+            "android.intent.action.HOME_TIME_ZONE_CHANGED";
+
     /**
      * Alarm Changed Action: This is broadcast when the AlarmClock
      * application's alarm is set or unset.  It is used by the
@@ -2970,7 +3014,6 @@ public class Intent implements Parcelable, Cloneable {
      * @see #ACTION_PACKAGE_RESTARTED
      */
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
-    @FlaggedApi(android.content.pm.Flags.FLAG_STAY_STOPPED)
     public static final String ACTION_PACKAGE_UNSTOPPED = "android.intent.action.PACKAGE_UNSTOPPED";
 
     /**
@@ -3550,9 +3593,8 @@ public class Intent implements Parcelable, Cloneable {
     public static final String ACTION_POWER_DISCONNECTED =
             "android.intent.action.ACTION_POWER_DISCONNECTED";
     /**
-     * Broadcast Action:  Device is shutting down.
-     * This is broadcast when the device is being shut down (completely turned
-     * off, not sleeping).  Once the broadcast is complete, the final shutdown
+     * Broadcast Action:  This is broadcast when the user is being shut down.
+     * Once the broadcast is complete, the final shutdown
      * will proceed and all unsaved data lost.  Apps will not normally need
      * to handle this, since the foreground activity will be paused as well.
      * <p>As of {@link Build.VERSION_CODES#P} this broadcast is only sent to receivers registered
@@ -5578,6 +5620,31 @@ public class Intent implements Parcelable, Cloneable {
     @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     public static final String ACTION_UNARCHIVE_PACKAGE = "android.intent.action.UNARCHIVE_PACKAGE";
 
+    /**
+     * Broadcast Action: Sent when the personal context data collection mode of an application is
+     * changed.
+     *
+     * <p>This broadcast is sent to the application for which the setting was modified as well as
+     * the configured content capture service whenever a call to {@link
+     * android.service.personalcontext.PersonalContextManager#setPersonalContextModeEnabled(String,
+     * boolean)} changes an application's personal context data collection setting.
+     *
+     * <p>The package name of the application is included in the {@link #EXTRA_PACKAGE_NAME} extra.
+     *
+     * <p>The current personal context collection state of an application can be retrieved by
+     * calling {@link
+     * android.service.personalcontext.PersonalContextManager#isPersonalContextModeEnabled(String)}.
+     *
+     * <p class="note">This is a protected intent that can only be sent by the system.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    @BroadcastBehavior(protectedBroadcast = true)
+    public static final String ACTION_PERSONAL_CONTEXT_MODE_CHANGED =
+            "android.intent.action.PERSONAL_CONTEXT_MODE_CHANGED";
+
     // ---------------------------------------------------------------------
     // ---------------------------------------------------------------------
     // Standard intent categories (see addCategory()).
@@ -6966,6 +7033,36 @@ public class Intent implements Parcelable, Cloneable {
     public static final String EXTRA_TIMEZONE = "time-zone";
 
     /**
+     * Extra sent with {@link #ACTION_TIMEZONE_OFFSET_CHANGED} specifying the time zone offset of
+     * the device after the time zone offset change.
+     *
+     * <p>Type: int, the offset in seconds.
+     */
+    @FlaggedApi(FLAG_ENABLE_TIME_ZONE_OFFSET_CHANGE_BROADCAST)
+    public static final String EXTRA_NEW_TIMEZONE_OFFSET =
+            "android.intent.extra.NEW_TIMEZONE_OFFSET";
+
+    /**
+     * Extra sent with {@link #ACTION_TIMEZONE_OFFSET_CHANGED} specifying the time zone offset of
+     * the device before the time zone offset change.
+     *
+     * <p>Type: int, the offset in seconds.
+     */
+    @FlaggedApi(FLAG_ENABLE_TIME_ZONE_OFFSET_CHANGE_BROADCAST)
+    public static final String EXTRA_OLD_TIMEZONE_OFFSET =
+            "android.intent.extra.OLD_TIMEZONE_OFFSET";
+
+    /**
+     * Extra sent with {@link #ACTION_HOME_TIME_ZONE_CHANGED} specifying the new home time zone of
+     * the device.
+     *
+     * <p>Type: String, the same as returned by {@link java.util.TimeZone#getID()} to identify time
+     * zones. This extra will be {@code null} if the user disables the home time zone feature.
+     */
+    @FlaggedApi(FLAG_ENABLE_HOME_TIME_ZONE_API)
+    public static final String EXTRA_HOME_TIME_ZONE_ID = "android.intent.extra.HOME_TIME_ZONE_ID";
+
+    /**
      * Optional int extra for {@link #ACTION_TIME_CHANGED} that indicates the
      * user has set their time format preference. See {@link #EXTRA_TIME_PREF_VALUE_USE_12_HOUR},
      * {@link #EXTRA_TIME_PREF_VALUE_USE_24_HOUR} and
@@ -7158,6 +7255,28 @@ public class Intent implements Parcelable, Cloneable {
      */
     @FlaggedApi(com.android.eyedropper.Flags.FLAG_ENABLE_EYE_DROPPER_API)
     public static final String EXTRA_COLOR = "android.intent.extra.COLOR";
+
+
+    /**
+     * Optional boolean extra indicating if the system contacts picker should be invoked
+     * with {@link #ACTION_PICK}, if data field is set as one of:
+     * <ul>
+     *    <li> data android:mimeType="vnd.android.cursor.dir/contact"</li>
+     *    <li> data android:mimeType="vnd.android.cursor.dir/phone_v2"</li>
+     *    <li> data android:mimeType="vnd.android.cursor.dir/postal-address_v2"</li>
+     *    <li> data android:mimeType="vnd.android.cursor.dir/email_v2"</li>
+     * </ul>
+     *
+     * <p>Has an effect only on {@link #ACTION_PICK} with the mentioned data filed values, starting
+     * Android 17 (API 37)
+     *
+     * @see #ACTION_PICK
+     * @see #setData(Uri)
+     * @see android.provider.ContactsPickerSessionContract#ACTION_PICK_CONTACTS
+     */
+    @FlaggedApi(android.content.flags.Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    public static final String EXTRA_USE_SYSTEM_CONTACTS_PICKER =
+            "android.intent.extra.USE_SYSTEM_CONTACTS_PICKER";
 
     // ---------------------------------------------------------------------
     // ---------------------------------------------------------------------
@@ -13306,7 +13425,11 @@ public class Intent implements Parcelable, Cloneable {
                 && hasExtra(BluetoothDevice.EXTRA_DEVICE)) {
             final BluetoothDevice device = getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
             if (device != null) {
-                device.prepareToEnterProcess(source);
+                AttributionSource sanitizedSource =
+                    source.getDeviceId() != Context.DEVICE_ID_DEFAULT
+                        ? source.withDeviceId(Context.DEVICE_ID_DEFAULT)
+                        : source;
+                device.prepareToEnterProcess(sanitizedSource);
             }
         }
     }
@@ -13349,7 +13472,7 @@ public class Intent implements Parcelable, Cloneable {
      * <ul>
      *     <li> {@link BroadcastReceiver#onReceive(Context, Intent)}
      *     <li> {@link Activity#getIntent()}
-     *     <li> {@link Activity#onNewIntent)}
+     *     <li> {@link Activity#onNewIntent(Intent)}
      *     <li> {@link android.app.Service#onStartCommand(Intent, int, int)}
      *     <li> {@link android.app.Service#onBind(Intent)}
      * </ul>
@@ -13473,12 +13596,21 @@ public class Intent implements Parcelable, Cloneable {
                             new ClipData.Item(text, htmlText, null, stream));
                     setClipData(clipData);
                     if (stream != null && isMissingGrantFlag(FLAG_GRANT_READ_URI_PERMISSION)) {
+                        String errorMessage =
+                                "Implicit URI grant for " + ACTION_SEND + " action will be "
+                                        + "discontinued from Android 18 onwards. Please set the "
+                                        + "grant explicitly in the app.";
+                        if (android.security.Flags.strictModeViolationForImplicitUriGrantsEnabled()
+                                && StrictMode.vmImplicitUriPermissionGrantEnabled()) {
+                            StrictMode.onImplicitUriPermissionGrant(errorMessage);
+                        }
                         int grantType;
                         if (android.security.Flags.implicitUriGrantsRestrictedForSendAction()) {
                             Log.e(TAG, "Skipping implicit URI grants for " + ACTION_SEND
-                                    + " action because it is restricted");
+                                    + " action because it is restricted", new Throwable());
                             grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__RESTRICTED;
                         } else {
+                            Log.e(TAG, errorMessage, new Throwable());
                             addFlags(FLAG_GRANT_READ_URI_PERMISSION);
                             grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__GRANTED;
                         }
@@ -13528,13 +13660,22 @@ public class Intent implements Parcelable, Cloneable {
 
                     setClipData(clipData);
                     if (streams != null && isMissingGrantFlag(FLAG_GRANT_READ_URI_PERMISSION)) {
+                        String errorMessage = "Implicit URI grant for " + ACTION_SEND_MULTIPLE
+                                + " action will be discontinued from Android 18 onwards. Please"
+                                + " set the grant explicitly in the app.";
+                        if (android.security.Flags.strictModeViolationForImplicitUriGrantsEnabled()
+                                && StrictMode.vmImplicitUriPermissionGrantEnabled()) {
+                            StrictMode.onImplicitUriPermissionGrant(errorMessage);
+                        }
                         int grantType;
                         if (android.security.Flags
                                 .implicitUriGrantsRestrictedForSendmultipleImagecaptureActions()) {
                             Log.e(TAG, "Skipping implicit URI grants for "
-                                    + ACTION_SEND_MULTIPLE + " action because it is restricted");
+                                    + ACTION_SEND_MULTIPLE + " action because it is restricted",
+                                    new Throwable());
                             grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__RESTRICTED;
                         } else {
+                            Log.e(TAG, errorMessage, new Throwable());
                             addFlags(FLAG_GRANT_READ_URI_PERMISSION);
                             grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__GRANTED;
                         }
@@ -13564,14 +13705,22 @@ public class Intent implements Parcelable, Cloneable {
                 setClipData(ClipData.newRawUri("", output));
 
                 if (isMissingGrantFlag(FLAG_GRANT_READ_URI_PERMISSION)) {
+                    String errorMessage = "Implicit URI read grant for ImageCapture action will be "
+                                    + "discontinued from Android 18 onwards. Please set the grant"
+                                    + " explicitly in the app.";
+                    if (android.security.Flags.strictModeViolationForImplicitUriGrantsEnabled()
+                            && StrictMode.vmImplicitUriPermissionGrantEnabled()) {
+                        StrictMode.onImplicitUriPermissionGrant(errorMessage);
+                    }
                     int grantType;
                     if (android.security.Flags
                             .implicitUriGrantsRestrictedForSendmultipleImagecaptureActions()) {
                         Log.e(TAG,
                                 "Skipping implicit URI read grants for ImageCapture action "
-                                        + "because it is restricted");
+                                        + "because it is restricted", new Throwable());
                         grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__RESTRICTED;
                     } else {
+                        Log.e(TAG, errorMessage, new Throwable());
                         addFlags(FLAG_GRANT_READ_URI_PERMISSION);
                         grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__GRANTED;
                     }
@@ -13582,14 +13731,23 @@ public class Intent implements Parcelable, Cloneable {
                             IMPLICIT_URI_GRANT_EVENT_REPORTED__ACTION_TYPE__IMAGE_CAPTURE);
                 }
                 if (isMissingGrantFlag(FLAG_GRANT_WRITE_URI_PERMISSION)) {
+                    String errorMessage =
+                            "Implicit URI write grant for ImageCapture action will be "
+                                    + "discontinued from Android 18 onwards. Please set the grant"
+                                    + " explicitly in the app.";
+                    if (android.security.Flags.strictModeViolationForImplicitUriGrantsEnabled()
+                            && StrictMode.vmImplicitUriPermissionGrantEnabled()) {
+                        StrictMode.onImplicitUriPermissionGrant(errorMessage);
+                    }
                     int grantType;
                     if (android.security.Flags
                             .implicitUriGrantsRestrictedForSendmultipleImagecaptureActions()) {
                         Log.e(TAG,
                                 "Skipping implicit URI write grants for ImageCapture action "
-                                        + "because it is restricted");
+                                        + "because it is restricted", new Throwable());
                         grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__RESTRICTED;
                     } else {
+                        Log.e(TAG, errorMessage, new Throwable());
                         addFlags(FLAG_GRANT_WRITE_URI_PERMISSION);
                         grantType = IMPLICIT_URI_GRANT_EVENT_REPORTED__GRANT_TYPE__GRANTED;
                     }

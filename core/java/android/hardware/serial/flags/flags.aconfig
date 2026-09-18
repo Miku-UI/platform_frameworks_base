@@ -8,3 +8,10 @@ flag {
     bug: "369155426"
     is_exported: true
 }
+
+flag {
+    name: "persistent_access"
+    namespace: "web_apps_on_chromeos_and_android"
+    description: "Enable persistent grants and denials to serial ports that last across reboots."
+    bug: "474657010"
+}

@@ -198,7 +198,8 @@ public class WatchRangingServiceTest {
         mWatchRangingService.isWatchRangingAvailable(mProximityResultCallback);
         waitForIdle();
 
-        verify(mProximityResultCallback).onError(
+        //TestableContext triggers onServiceDisconnected -> onError when unbindService is called
+        verify(mProximityResultCallback, times(2)).onError(
                 eq(ProximityResultCode.PRIMARY_DEVICE_RANGING_NOT_SUPPORTED));
     }
 

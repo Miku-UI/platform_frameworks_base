@@ -39,6 +39,7 @@ public class CreateUserActivity extends Activity {
     public static final String EXTRA_USER_ICON_PATH = "user_icon_path";
     private static final String DIALOG_STATE_KEY = "create_user_dialog_state";
     private static final String EXTRA_CAN_CREATE_ADMIN = "can_create_admin";
+    private static final String EXTRA_CAN_EDIT_USER_INFO = "can_edit_user_info";
     private static final String EXTRA_FILE_AUTHORITY = "file_authority";
 
     private CreateUserDialogController mCreateUserDialogController;
@@ -49,10 +50,14 @@ public class CreateUserActivity extends Activity {
     /**
      * Creates intent to start CreateUserActivity
      */
-    public static @NonNull Intent createIntentForStart(@NonNull Context context,
-            boolean canCreateAdminUser, @NonNull String fileAuth) {
+    public static @NonNull Intent createIntentForStart(
+            @NonNull Context context,
+            boolean canCreateAdminUser,
+            boolean canEditUserInfo,
+            @NonNull String fileAuth) {
         Intent intent = new Intent(context, CreateUserActivity.class);
         intent.putExtra(EXTRA_CAN_CREATE_ADMIN, canCreateAdminUser);
+        intent.putExtra(EXTRA_CAN_EDIT_USER_INFO, canEditUserInfo);
         intent.putExtra(EXTRA_FILE_AUTHORITY, fileAuth);
         return intent;
     }
@@ -68,7 +73,10 @@ public class CreateUserActivity extends Activity {
         if (savedInstanceState != null) {
             mCreateUserDialogController.onRestoreInstanceState(savedInstanceState);
         }
-        mSetupUserDialog = createDialog(intent.getBooleanExtra(EXTRA_CAN_CREATE_ADMIN, false));
+        mSetupUserDialog =
+                createDialog(
+                        intent.getBooleanExtra(EXTRA_CAN_CREATE_ADMIN, false),
+                        intent.getBooleanExtra(EXTRA_CAN_EDIT_USER_INFO, true));
         mSetupUserDialog.show();
     }
 
@@ -81,11 +89,12 @@ public class CreateUserActivity extends Activity {
         }
     }
 
-    private Dialog createDialog(boolean canCreateAdminUser) {
+    private Dialog createDialog(boolean canCreateAdminUser, boolean canEditUserInfo) {
         return mCreateUserDialogController.createDialog(
                 this,
                 this::startActivity,
                 canCreateAdminUser,
+                canEditUserInfo,
                 this::setSuccessResult,
                 this::cancel
         );

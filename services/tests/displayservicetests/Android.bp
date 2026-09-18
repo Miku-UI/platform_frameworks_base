@@ -33,11 +33,17 @@ android_test {
         "mockingservicestests-utils-mockito",
         "platform-compat-test-rules",
         "platform-test-annotations",
+        "platformprotoslite",
         "service-permission.stubs.system_server",
         "services.core",
         "servicestests-utils",
+        "statsdprotolite",
+        "StatsdTestUtils",
+        "surfaceflinger_flags_java_lib",
         "testables",
         "TestParameterInjector",
+        "desktop-test-lib",
+        "platform-test-rules",
     ],
 
     defaults: [

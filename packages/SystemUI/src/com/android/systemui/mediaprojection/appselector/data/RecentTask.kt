@@ -20,6 +20,8 @@ import android.annotation.ColorInt
 import android.annotation.UserIdInt
 import android.app.TaskInfo
 import android.content.ComponentName
+import android.content.Intent
+import com.android.users.UserType
 import com.android.wm.shell.shared.split.SplitBounds
 
 data class RecentTask(
@@ -28,6 +30,7 @@ data class RecentTask(
     @UserIdInt val userId: Int,
     val topActivityComponent: ComponentName?,
     val baseIntentComponent: ComponentName?,
+    val baseIntent: Intent?,
     @ColorInt val colorBackground: Int?,
     val isForegroundTask: Boolean,
     val userType: UserType,
@@ -37,23 +40,17 @@ data class RecentTask(
         taskInfo: TaskInfo,
         isForegroundTask: Boolean,
         userType: UserType,
-        splitBounds: SplitBounds? = null
+        splitBounds: SplitBounds? = null,
     ) : this(
         taskInfo.taskId,
         taskInfo.displayId,
         taskInfo.userId,
         taskInfo.topActivity,
         taskInfo.baseIntent?.component,
+        taskInfo.baseIntent,
         taskInfo.taskDescription?.backgroundColor,
         isForegroundTask,
         userType,
-        splitBounds
+        splitBounds,
     )
-
-    enum class UserType {
-        STANDARD,
-        WORK,
-        PRIVATE,
-        CLONED
-    }
 }

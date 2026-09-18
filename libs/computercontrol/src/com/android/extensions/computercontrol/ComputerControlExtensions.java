@@ -20,6 +20,7 @@ import android.Manifest;
 import android.annotation.CallbackExecutor;
 import android.annotation.RequiresPermission;
 import android.app.role.RoleManager;
+import android.companion.virtual.CompanionDeviceId;
 import android.companion.virtual.VirtualDeviceManager;
 import android.companion.virtual.computercontrol.ComputerControlSessionParams;
 import android.content.Context;
@@ -27,11 +28,9 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.os.UserHandle;
 import android.util.ArrayMap;
-import android.view.accessibility.AccessibilityManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import java.util.List;
 import java.util.Objects;
@@ -40,24 +39,26 @@ import java.util.concurrent.Executor;
 /**
  * Extensions for Computer Control features.
  *
- * Internally relies on multiple system features that may be unavailable. Getting an instance via
+ * <p>Internally relies on multiple system features that may be unavailable. Getting an instance via
  * {@link #getInstance(Context)} will enable the creation of new {@link ComputerControlSession}s
- * that enable inputs and outputs for computer control features.
+ * that enable inputs and outputs for computer control features.</p>
  */
 public class ComputerControlExtensions {
-    @VisibleForTesting static final int EXTENSIONS_VERSION = 1;
-
     private final ArrayMap<AutomatedPackageListener,
             android.companion.virtual.computercontrol.AutomatedPackageListener> mListeners =
             new ArrayMap<>();
 
-    private ComputerControlExtensions() {}
+    private final int mTargetComputerControlVersion;
+
+    private ComputerControlExtensions(int targetComputerControlVersion) {
+        mTargetComputerControlVersion = targetComputerControlVersion;
+    }
 
     /**
      * Retrieve the current version of the extensions.
      */
     public static int getVersion() {
-        return EXTENSIONS_VERSION;
+        return VirtualDeviceManager.COMPUTER_CONTROL_VERSION;
     }
 
     /**
@@ -68,13 +69,38 @@ public class ComputerControlExtensions {
      * @param context Context to fetch system features
      * @return An instance of ComputerControlExtensions, or {@code null} if the extensions are
      * unavailable.
+     *
+     * @deprecated with ComputerControl v5. Use {@link #getInstance(Context, int)} instead.
+     *
      */
+    // TODO(b/489808412) force this method to getVersion() when finalizing v5
+    @Deprecated
     @Nullable
-    public static ComputerControlExtensions getInstance(Context context) {
+    public static ComputerControlExtensions getInstance(@NonNull Context context) {
         if (!isAvailable(context)) {
             return null;
         }
-        return new ComputerControlExtensions();
+        // Hardcode version 4 to prevent backwards incompatibilities
+        return new ComputerControlExtensions(4);
+    }
+
+    /**
+     * Gets an instance of the ComputerControlExtensions. These extensions can be unavailable on
+     * devices. In such cases {@code null} is returned and the extensions won't be available on this
+     * device.
+     *
+     * @param context Context to fetch system features
+     * @param targetComputerControlVersion target version for the ComputerControl extensions
+     * @return An instance of ComputerControlExtensions, or {@code null} if the extensions are
+     * unavailable.
+     */
+    @Nullable
+    public static ComputerControlExtensions getInstance(@NonNull Context context,
+            int targetComputerControlVersion) {
+        if (!isAvailable(context)) {
+            return null;
+        }
+        return new ComputerControlExtensions(targetComputerControlVersion);
     }
 
     /**
@@ -85,22 +111,38 @@ public class ComputerControlExtensions {
      * @param executor An executor to run the callback on.
      * @param callback A callback to get notified about the result of this operation.
      */
-    @RequiresPermission(Manifest.permission.ACCESS_COMPUTER_CONTROL)
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_COMPUTER_CONTROL,
+            Manifest.permission.POST_NOTIFICATIONS})
     public void requestSession(@NonNull ComputerControlSession.Params params,
-            @NonNull Executor executor, @NonNull ComputerControlSession.Callback callback) {
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull ComputerControlSession.Callback callback) {
         Objects.requireNonNull(params, "Missing ComputerControlSession.Params");
         Objects.requireNonNull(executor, "Missing Executor");
         Objects.requireNonNull(callback, "Missing ComputerControlSession.Callback");
 
+        CompanionDeviceId companionDeviceId = null;
+        if (params.getCompanionDeviceId() != null) {
+            companionDeviceId = new CompanionDeviceId(params.getCompanionDeviceId());
+        }
+
+        ComputerControlSession.NotificationParams notificationParams =
+                params.getNotificationParams();
+        ComputerControlSessionParams.NotificationParams systemNotificationParams =
+                notificationParams == null ? null
+                        : new ComputerControlSessionParams.NotificationParams.Builder(
+                                notificationParams.getNotification(),
+                                notificationParams.getNotificationId())
+                                .setNotificationTag(notificationParams.getNotificationTag())
+                                .build();
         ComputerControlSessionParams sessionParams =
                 new ComputerControlSessionParams.Builder()
                         .setName(params.getName())
+                        .setTargetComputerControlVersion(mTargetComputerControlVersion)
                         .setTargetPackageNames(params.getTargetPackageNames())
-                        .setDisplayWidthPx(params.getDisplayWidthPx())
-                        .setDisplayHeightPx(params.getDisplayHeightPx())
-                        .setDisplayDpi(params.getDisplayDpi())
-                        .setDisplaySurface(params.getDisplaySurface())
-                        .setDisplayAlwaysUnlocked(params.isDisplayAlwaysUnlocked())
+                        .setPreviewIntent(params.getPreviewIntent())
+                        .setAppInteractionAttribution(params.getAppInteractionAttribution())
+                        .setCompanionDeviceId(companionDeviceId)
+                        .setNotificationParams(systemNotificationParams)
                         .build();
 
         var sessionCallback =
@@ -108,24 +150,13 @@ public class ComputerControlExtensions {
 
                     @Override
                     public void onSessionPending(@NonNull IntentSender intentSender) {
-                        // TODO(b/437901655): Pass this to the caller.
-                        try {
-                            params.getContext().startIntentSender(intentSender, null, 0, 0, 0);
-                        } catch (IntentSender.SendIntentException e) {
-                            callback.onSessionCreationFailed(
-                                    android.companion.virtual.computercontrol
-                                            .ComputerControlSession.ERROR_PERMISSION_DENIED);
-                        }
+                        callback.onSessionPending(intentSender);
                     }
-
                     @Override
                     public void onSessionCreated(
                             @NonNull android.companion.virtual.computercontrol
                                     .ComputerControlSession session) {
-                        AccessibilityManager accessibilityManager =
-                                params.getContext().getSystemService(AccessibilityManager.class);
-                        callback.onSessionCreated(
-                                new ComputerControlSession(session, params, accessibilityManager));
+                        callback.onSessionCreated(new ComputerControlSession(session));
                     }
 
                     @Override
@@ -153,6 +184,7 @@ public class ComputerControlExtensions {
      * @param listener The listener to add.
      * @throws SecurityException if the caller does not hold the {@link RoleManager#ROLE_HOME} role.
      * @see #unregisterAutomatedPackageListener
+     * @hide
      */
     public void registerAutomatedPackageListener(
             @NonNull Context context,
@@ -180,6 +212,7 @@ public class ComputerControlExtensions {
      * @param listener The listener to unregister.
      * @throws SecurityException if the caller does not hold the {@link RoleManager#ROLE_HOME} role.
      * @see #registerAutomatedPackageListener
+     * @hide
      */
     public void unregisterAutomatedPackageListener(
             @NonNull Context context, @NonNull AutomatedPackageListener listener) {
@@ -202,5 +235,35 @@ public class ComputerControlExtensions {
         }
 
         return context.getSystemService(VirtualDeviceManager.class) != null;
+    }
+
+    /**
+     * @return {@code true} if computer control functionality is available on the device and the
+     * caller is allowed to access session creation functionality with the given {@link Context}.
+     *
+     * @deprecated with ComputerControl v5. Use {@link #isSessionCreationAvailable(Context, int)}
+     * instead.
+     */
+    // TODO(b/489808412) remove this method to getVersion() when finalizing v5
+    // This method was only added in v5 technically, but used in Trunkfood hence keeping it
+    // to allow for migration.
+    @Deprecated
+    public static boolean isSessionCreationAvailable(@NonNull Context context) {
+        // Hardcoded to 4 to ensure existing callers remain compatible
+        return isSessionCreationAvailable(context, 4);
+    }
+
+    /**
+     * @return {@code true} if computer control functionality is available on the device and the
+     * caller is allowed to access session creation functionality with the given {@link Context}
+     * and the given {@code targetComputerControlVersion}.
+     */
+    public static boolean isSessionCreationAvailable(@NonNull Context context,
+            int targetComputerControlVersion) {
+        if (!isAvailable(context)) {
+            return false;
+        }
+        return context.getSystemService(VirtualDeviceManager.class).isComputerControlAvailable(
+                targetComputerControlVersion);
     }
 }

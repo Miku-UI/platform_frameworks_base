@@ -31,8 +31,15 @@
     <bool name="config_evenDimmerEnabled">false</bool>
     <!-- Jar file path to look for PluginProvider -->
     <string name="config_pluginsProviderJarPath"/>
+    <!-- Controls whether the 'vote size' is disabled for the app resolution switching logic -->
+    <bool name="config_appResolutionSwitchVoteDisabled">false</bool>
     <!-- Indicate available EM_VALUE options -->
     <integer-array name="config_availableEMValueOptions">
         <item>0</item> <!-- DEFAULT -->
     </integer-array>
+    <!-- Whether High Brightness Mode Controller is overridden or not -->
+    <bool name="config_highBrightnessModeControllerOverridden">false</bool>
+    <!-- Whether async sensor readings are enabled for DisplayBrightnessReporter -->
+    <bool name="config_displayBrightnessAsyncSensorReadingEnabled">false</bool>
+
 </resources>

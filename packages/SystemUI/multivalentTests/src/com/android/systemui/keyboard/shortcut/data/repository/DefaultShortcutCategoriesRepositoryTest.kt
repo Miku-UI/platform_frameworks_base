@@ -321,6 +321,29 @@ class DefaultShortcutCategoriesRepositoryTest : SysuiTestCase() {
         }
     }
 
+    @Test
+    fun categories_keyCodeI_turkishLocale_mappedToDotlessI() =
+        testScope.runTest {
+            val turkishConfig = android.content.res.Configuration(context.resources.configuration)
+            turkishConfig.setLocales(android.os.LocaleList.forLanguageTags("tr"))
+            context.resources.updateConfiguration(turkishConfig, context.resources.displayMetrics)
+
+            fakeSystemSource.setGroups(simpleGroup(simpleShortcutInfo(android.view.KeyEvent.KEYCODE_I)))
+
+            helper.toggle(deviceId = 123)
+            val categories by collectLastValue(repo.categories)
+
+            val systemCategory = categories?.firstOrNull { it.type == ShortcutCategoryType.System }
+
+            val expectedCategory =
+                ShortcutCategory(
+                    type = ShortcutCategoryType.System,
+                    simpleSubCategory(simpleShortcut("\u0130")),
+                )
+
+            assertThat(systemCategory).isEqualTo(expectedCategory)
+        }
+
     private fun simpleSubCategory(vararg shortcuts: Shortcut) =
         ShortcutSubCategory(simpleGroupLabel, shortcuts.asList())
 

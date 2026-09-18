@@ -16,14 +16,25 @@
 
 package com.android.systemui.plugins.keyguard.ui.composable.elements
 
-import com.android.compose.animation.scene.DefaultElementContentPicker
+import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ElementKey
+import com.android.compose.animation.scene.HighestZIndexContentPicker
 import com.android.compose.animation.scene.MovableElementKey
+import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
+import com.android.compose.animation.scene.StaticElementContentPicker
+import com.android.compose.animation.scene.content.state.TransitionState
 
-/** Keys for lockscreen scenes that our movable elements may appear in */
-object LockscreenSceneKeys {
-    val Lockscreen = SceneKey("lockscreen") // Non-nested top-level scene
+/** Keys for scenes and overlays that our movable elements may appear in */
+object LockscreenMovableParentKeys {
+    /** Non-nested top-level scene */
+    val Lockscreen = SceneKey("lockscreen")
+
+    /**
+     * The notifications shade is not part of lockscreen, but we render the small clock within it,
+     * so we must be able to reference it when creating movable element keys for the clock.
+     */
+    val NotificationsShade = OverlayKey("notifications_shade")
 
     /** Subscenes used by the UpperRegion layouts */
     object UpperRegion {
@@ -56,17 +67,35 @@ object LockscreenElementKeys {
      * copies of the wrapped view cannot be created at the same time.
      */
     val ContentPicker =
-        DefaultElementContentPicker(
-            contents =
+        // TODO(b/b/454283910 ): Replace this by DefaultElementContentPicker and stop sharing the
+        // same picker for all elements. Each element should have its own picker, with the exact set
+        // of scenes in which the element *is* composed.
+        object : StaticElementContentPicker {
+            override val contents: Set<ContentKey> =
                 setOf(
-                    LockscreenSceneKeys.Lockscreen,
-                    LockscreenSceneKeys.UpperRegion.NarrowLayout.LargeClock,
-                    LockscreenSceneKeys.UpperRegion.NarrowLayout.SmallClock,
-                    LockscreenSceneKeys.UpperRegion.WideLayout.CenteredClock,
-                    LockscreenSceneKeys.UpperRegion.WideLayout.TwoColumn.LargeClock,
-                    LockscreenSceneKeys.UpperRegion.WideLayout.TwoColumn.SmallClock,
+                    LockscreenMovableParentKeys.Lockscreen,
+                    LockscreenMovableParentKeys.NotificationsShade,
+                    LockscreenMovableParentKeys.UpperRegion.NarrowLayout.LargeClock,
+                    LockscreenMovableParentKeys.UpperRegion.NarrowLayout.SmallClock,
+                    LockscreenMovableParentKeys.UpperRegion.WideLayout.CenteredClock,
+                    LockscreenMovableParentKeys.UpperRegion.WideLayout.TwoColumn.LargeClock,
+                    LockscreenMovableParentKeys.UpperRegion.WideLayout.TwoColumn.SmallClock,
                 )
-        )
+
+            override fun contentDuringTransition(
+                element: ElementKey,
+                transition: TransitionState.Transition,
+                fromContentZIndex: Long,
+                toContentZIndex: Long,
+            ): ContentKey {
+                return HighestZIndexContentPicker.contentDuringTransition(
+                    element,
+                    transition,
+                    fromContentZIndex,
+                    toContentZIndex,
+                )
+            }
+        }
 
     /** Root element of the entire lockcsreen */
     val Root = ElementKey("LockscreenRoot")
@@ -95,7 +124,7 @@ object LockscreenElementKeys {
 
         object AOD {
             /** Icon shelf for AOD display */
-            val IconShelf = ElementKey("AODNotificationIconShelf")
+            val IconShelf = MovableElementKey("AODNotificationIconShelf", ContentPicker)
 
             /** Notifications for the AOD Promoted Region */
             val Promoted = ElementKey("AODPromotedNotifications")

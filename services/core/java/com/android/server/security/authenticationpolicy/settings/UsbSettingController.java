@@ -84,22 +84,19 @@ class UsbSettingController implements SettingController<Map<String, Boolean>> {
             return;
         }
 
+        mUsbManagerInternal.enableUsbDataSignal(true, USB_DISABLE_REASON_LOCKDOWN_MODE);
+
         List<UsbPort> ports = mUsbManager.getPorts();
         Map<String, Boolean> originalPortStates = state.getOriginalValue();
 
         if (originalPortStates != null) {
             for (UsbPort port : ports) {
-                boolean shouldEnablePort = originalPortStates.getOrDefault(port.getId(), false);
-                if (shouldEnablePort) {
-                    int result = port.enableUsbData(true);
-                    if (result == UsbPort.ENABLE_USB_DATA_SUCCESS) {
-                        Slog.i(TAG, "Re-enabled USB data signal on port " + port);
-                    } else {
-                        Slog.w(TAG, "Failed to re-enable USB data signal on port " + port);
-                    }
+                boolean wasEnabled = originalPortStates.getOrDefault(port.getId(), false);
+                int result = port.enableUsbData(wasEnabled);
+                if (result == UsbPort.ENABLE_USB_DATA_SUCCESS) {
+                    Slog.i(TAG, "USB data signal port " + port + " restored to " + wasEnabled);
                 } else {
-                    Slog.i(TAG, "USB data signal on port " + port.getId() + " was already "
-                            + "disabled prior to secure lock device, leave unchanged.");
+                    Slog.w(TAG, "Failed to restore port " + port.getId() + " to " + wasEnabled);
                 }
             }
         }

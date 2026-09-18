@@ -16,7 +16,8 @@
 
 package com.android.server;
 
-import static android.os.Flags.batteryServiceSupportCurrentAdbCommand;
+import static android.os.Flags.batteryChargingInfoApi;
+import static android.os.Flags.batteryManufacturerDiagnosticsApi;
 import static android.os.Flags.stateOfHealthPublic;
 
 import static com.android.internal.logging.nano.MetricsProto.MetricsEvent;
@@ -26,6 +27,7 @@ import static java.lang.Math.abs;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
@@ -38,6 +40,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
+import android.hardware.health.BatteryChargingPolicy;
 import android.hardware.health.HealthInfo;
 import android.hardware.health.V2_1.BatteryCapacityLevel;
 import android.metrics.LogMaker;
@@ -268,11 +271,11 @@ public final class BatteryService extends SystemService {
      */
     private int mLastBroadcastInvalidCharger;
     /**
-     * The last seen charging policy. This requires the
+     * The last seen charging policy after translation from HAL. This requires the
      * {@link android.Manifest.permission#BATTERY_STATS} permission and should therefore not be
      * included in the ACTION_BATTERY_CHANGED intent extras.
      */
-    private int mLastChargingPolicy;
+    private @BatteryManager.BatteryChargingPolicy int mLastChargingPolicy;
 
     private int mSequence = 1;
 
@@ -681,7 +684,7 @@ public final class BatteryService extends SystemService {
                 }
 
                 if (mContext.checkPermission(android.Manifest.permission.SHUTDOWN, 0,
-                        ri.activityInfo.applicationInfo.uid) != PackageManager.PERMISSION_GRANTED) {
+                        ri.activityInfo.getUid()) != PackageManager.PERMISSION_GRANTED) {
                     Slog.w(TAG, "Shutdown activity " + ri.activityInfo.getComponentName()
                             + " does not have permission " + android.Manifest.permission.SHUTDOWN);
                     continue;
@@ -736,9 +739,29 @@ public final class BatteryService extends SystemService {
         }
     }
 
+    private @BatteryManager.BatteryChargingPolicy int translateHalChargingPolicy(int halPolicy) {
+        if (!batteryChargingInfoApi()) {
+            return halPolicy;
+        }
+
+        return switch (halPolicy) {
+            case BatteryChargingPolicy.LONG_LIFE ->
+                BatteryManager.CHARGING_POLICY_ADAPTIVE_LONGLIFE;
+
+            case BatteryChargingPolicy.ADAPTIVE ->
+                BatteryManager.CHARGING_POLICY_ADAPTIVE_AC;
+
+            case BatteryChargingPolicy.FORCE_FULL_CHARGE ->
+                BatteryManager.CHARGING_POLICY_FORCE_FULL_CHARGE;
+
+            default -> BatteryManager.CHARGING_POLICY_DEFAULT;
+        };
+    }
+
     private void processValuesLocked(boolean force) {
         boolean logOutlier = false;
         long dischargeDuration = 0;
+        @BatteryManager.BatteryChargingPolicy int translatedChargingPolicy;
 
         mBatteryLevelCritical =
                 mHealthInfo.batteryStatus != BatteryManager.BATTERY_STATUS_UNKNOWN
@@ -771,14 +794,12 @@ public final class BatteryService extends SystemService {
         shutdownIfNoPowerLocked();
         shutdownIfOverTempLocked();
 
-        if (force || mHealthInfo.chargingPolicy != mLastChargingPolicy) {
-            mLastChargingPolicy = mHealthInfo.chargingPolicy;
+        translatedChargingPolicy = translateHalChargingPolicy(mHealthInfo.chargingPolicy);
+
+        if (force || translatedChargingPolicy != mLastChargingPolicy) {
+            mLastChargingPolicy = translatedChargingPolicy;
             mHandler.post(this::notifyChargingPolicyChanged);
         }
-
-        final boolean includeChargeCounter =
-                !com.android.server.flags.Flags.rateLimitBatteryChangedBroadcast()
-                        && mHealthInfo.batteryChargeCounterUah != mLastBroadcastChargeCounter;
 
         if (force
                 || (mHealthInfo.batteryStatus != mLastBroadcastBatteryStatus
@@ -790,7 +811,6 @@ public final class BatteryService extends SystemService {
                 || mHealthInfo.batteryTemperatureTenthsCelsius != mLastBroadcastBatteryTemperature
                 || mHealthInfo.maxChargingCurrentMicroamps != mLastBroadcastMaxChargingCurrent
                 || mHealthInfo.maxChargingVoltageMicrovolts != mLastBroadcastMaxChargingVoltage
-                || includeChargeCounter
                 || mInvalidCharger != mLastBroadcastInvalidCharger
                 || mHealthInfo.batteryCycleCount != mLastBroadcastBatteryCycleCount
                 || mHealthInfo.chargingState != mLastBroadcastChargingState
@@ -1241,9 +1261,6 @@ public final class BatteryService extends SystemService {
      * Rate limit's the broadcast based on the changes in temp, voltage and chargeCounter.
      */
     private boolean rateLimitBatteryChangedBroadcast(boolean forceUpdate) {
-        if (!com.android.server.flags.Flags.rateLimitBatteryChangedBroadcast()) {
-            return false;
-        }
         if (mIsFirstBatteryChangedUpdate) {
             mLastBroadcastVoltageUpdateTime = SystemClock.elapsedRealtime();
             mLastBroadcastMaxChargingCurrentUpdateTime = SystemClock.elapsedRealtime();
@@ -1346,9 +1363,7 @@ public final class BatteryService extends SystemService {
         pw.println("  help");
         pw.println("    Print this help text.");
         String getSetOptions = "ac|usb|wireless|dock|status|level|temp|present|counter|invalid";
-        if (batteryServiceSupportCurrentAdbCommand()) {
-            getSetOptions += "|current_now|current_average";
-        }
+        getSetOptions += "|current_now|current_average";
         pw.println("  get [-f] [" + getSetOptions + "]");
         pw.println("    Gets the value of a battery state.");
         pw.println("    -f: force to get the latest property value.");
@@ -1433,14 +1448,10 @@ public final class BatteryService extends SystemService {
                         pw.println(mHealthInfo.batteryChargeCounterUah);
                         break;
                     case "current_now":
-                        if (batteryServiceSupportCurrentAdbCommand()) {
-                            pw.println(mHealthInfo.batteryCurrentMicroamps);
-                        }
+                        pw.println(mHealthInfo.batteryCurrentMicroamps);
                         break;
                     case "current_average":
-                        if (batteryServiceSupportCurrentAdbCommand()) {
-                            pw.println(mHealthInfo.batteryCurrentAverageMicroamps);
-                        }
+                        pw.println(mHealthInfo.batteryCurrentAverageMicroamps);
                         break;
                     case "temp":
                         pw.println(mHealthInfo.batteryTemperatureTenthsCelsius);
@@ -1500,15 +1511,11 @@ public final class BatteryService extends SystemService {
                             mHealthInfo.batteryChargeCounterUah = Integer.parseInt(value);
                             break;
                         case "current_now":
-                            if (batteryServiceSupportCurrentAdbCommand()) {
-                                mHealthInfo.batteryCurrentMicroamps = Integer.parseInt(value);
-                            }
+                            mHealthInfo.batteryCurrentMicroamps = Integer.parseInt(value);
                             break;
                         case "current_average":
-                            if (batteryServiceSupportCurrentAdbCommand()) {
-                                mHealthInfo.batteryCurrentAverageMicroamps =
-                                        Integer.parseInt(value);
-                            }
+                            mHealthInfo.batteryCurrentAverageMicroamps = Integer.parseInt(value);
+                            break;
                         case "temp":
                             mHealthInfo.batteryTemperatureTenthsCelsius = Integer.parseInt(value);
                             break;
@@ -1819,6 +1826,7 @@ public final class BatteryService extends SystemService {
     // in BatteryManager and enforce permissions.
     private final class BatteryPropertiesRegistrar extends IBatteryPropertiesRegistrar.Stub {
         @Override
+        @RequiresPermission(value = android.Manifest.permission.BATTERY_STATS, conditional = true)
         public int getProperty(int id, final BatteryProperty prop) throws RemoteException {
             switch (id) {
                 case BatteryManager.BATTERY_PROPERTY_STATE_OF_HEALTH:
@@ -1828,13 +1836,32 @@ public final class BatteryService extends SystemService {
 
                 case BatteryManager.BATTERY_PROPERTY_MANUFACTURING_DATE:
                 case BatteryManager.BATTERY_PROPERTY_FIRST_USAGE_DATE:
-                case BatteryManager.BATTERY_PROPERTY_CHARGING_POLICY:
                 case BatteryManager.BATTERY_PROPERTY_SERIAL_NUMBER:
                 case BatteryManager.BATTERY_PROPERTY_PART_STATUS:
                     mContext.enforceCallingPermission(
                             android.Manifest.permission.BATTERY_STATS, null);
                     break;
+                case BatteryManager.BATTERY_PROPERTY_CHARGING_POLICY:
+                    mContext.enforceCallingPermission(
+                            android.Manifest.permission.BATTERY_STATS, null);
+                    if (!batteryChargingInfoApi()) {
+                        break;
+                    }
+                    synchronized (mLock) {
+                        prop.setLong(mLastChargingPolicy);
+                        return 0;
+                    }
+                case BatteryManager.BATTERY_PROPERTY_MANUFACTURER:
+                case BatteryManager.BATTERY_PROPERTY_MODEL_NAME:
+                case BatteryManager.BATTERY_PROPERTY_VOLTAGE_MIN_DESIGN:
+                    mContext.enforceCallingPermission(
+                            android.Manifest.permission.BATTERY_STATS, null);
+                    if (!batteryManufacturerDiagnosticsApi()) {
+                        return -1;
+                    }
+                    break;
             }
+
             return mHealthServiceWrapper.getProperty(id, prop);
         }
         @Override

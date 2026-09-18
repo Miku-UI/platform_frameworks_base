@@ -16,6 +16,9 @@
 
 package com.android.systemui.statusbar.pipeline.shared.ui.viewmodel
 
+import android.os.UserHandle
+import android.platform.test.annotations.EnableFlags
+import android.text.Html
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.AccessibilityContentDescriptions.WIFI_OTHER_DEVICE_CONNECTION
@@ -35,6 +38,7 @@ import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplane
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.fake
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.ethernet.domain.EthernetInteractor
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionRepository
@@ -45,6 +49,7 @@ import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsPro
 import com.android.systemui.statusbar.pipeline.shared.data.model.DefaultConnectionModel
 import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
 import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
+import com.android.systemui.statusbar.pipeline.shared.ui.model.InternetTileModel
 import com.android.systemui.statusbar.pipeline.shared.ui.model.SignalIcon
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.InternetTileViewModel.Companion.NOT_CONNECTED_NETWORKS_UNAVAILABLE
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
@@ -68,6 +73,7 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class InternetTileViewModelTest : SysuiTestCase() {
+    private val testUser = UserHandle.of(1)
     private val kosmos = testKosmos()
 
     private lateinit var underTest: InternetTileViewModel
@@ -147,7 +153,7 @@ class InternetTileViewModelTest : SysuiTestCase() {
         testScope.runTest {
             val latest by collectLastValue(underTest.tileModel)
 
-            connectivityRepository.defaultConnections.value = DefaultConnectionModel()
+            connectivityRepository.resolvedConnections.value = DefaultConnectionModel()
 
             assertThat(latest?.secondaryLabel)
                 .isEqualTo(Text.Resource(R.string.quick_settings_networks_unavailable))
@@ -176,8 +182,7 @@ class InternetTileViewModelTest : SysuiTestCase() {
 
             assertThat(latest?.secondaryTitle).isEqualTo("test ssid")
             assertThat(latest?.secondaryLabel).isNull()
-            assertThat(latest?.icon)
-                .isEqualTo(ResourceIcon.get(WifiIcons.WIFI_NO_INTERNET_ICONS[4]))
+            assertThat(latest?.icon).isEqualTo(ResourceIcon.get(WifiIcons.WIFI_FULL_ICONS[4]))
             assertThat(latest?.iconId).isNull()
             assertThat(latest?.contentDescription.loadContentDescription(context))
                 .isEqualTo("$internet,test ssid")
@@ -201,8 +206,7 @@ class InternetTileViewModelTest : SysuiTestCase() {
             wifiRepository.setIsWifiDefault(true)
             wifiRepository.setWifiNetwork(networkModel)
 
-            assertThat(latest?.icon)
-                .isEqualTo(ResourceIcon.get(WifiIcons.WIFI_NO_INTERNET_ICONS[4]))
+            assertThat(latest?.icon).isEqualTo(ResourceIcon.get(WifiIcons.WIFI_FULL_ICONS[4]))
             assertThat(latest?.stateDescription.loadContentDescription(context))
                 .doesNotContain(context.getString(WIFI_OTHER_DEVICE_CONNECTION))
         }
@@ -396,6 +400,83 @@ class InternetTileViewModelTest : SysuiTestCase() {
                 .isEqualTo(latest?.secondaryLabel.loadText(context))
         }
 
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun activeConnection_satellite_showsSatelliteText() =
+        testScope.runTest {
+            val output by collectLastValue(underTest.tileModel)
+            val mobileConnectionRepo =
+                FakeMobileConnectionRepository(SUB_2_ID, logcatTableLogBuffer(kosmos))
+            mobileConnectionsRepository.setMobileConnectionRepositoryMap(
+                mapOf(SUB_2_ID to mobileConnectionRepo)
+            )
+            mobileConnectionsRepository.setActiveMobileDataSubscriptionId(SUB_2_ID)
+            val networkName = "test network"
+            mobileConnectionRepo.networkName.value =
+                NetworkNameModel.SubscriptionDerived(networkName)
+            mobileConnectionRepo.dataConnectionState.value = DataConnectionState.Connected
+            mobileConnectionRepo.isNonTerrestrial.value = true
+
+            connectivityRepository.setMobileConnected(default = true, validated = true)
+
+            val expected =
+                Html.fromHtml(
+                    context.getString(
+                        R.string.mobile_carrier_text_format,
+                        networkName,
+                        context.getString(com.android.internal.R.string.satellite_indicator),
+                    ),
+                    0,
+                )
+            assertThat(output).isInstanceOf(InternetTileModel.Active::class.java)
+            val activeModel = output as InternetTileModel.Active
+            assertThat(activeModel.secondaryTitle.toString()).isEqualTo(expected.toString())
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun satellite_viaConstrainedFlow_showsSatelliteIcon() =
+        testScope.runTest {
+            // Collect the final UI model from the ViewModel.
+            val latest by collectLastValue(underTest.tileModel)
+
+            // Populate the repository with a valid default mobile connection via the constrained
+            // flow.
+            connectivityRepository.resolvedConnections.value =
+                DefaultConnectionModel(
+                    mobile = DefaultConnectionModel.Mobile(isDefault = true),
+                    isValidated = true,
+                )
+
+            // Define the network characteristics (Name and Signal Level).
+            val networkName = "Satellite Network"
+            val satelliteLevel = 4
+
+            // Configure the Mobile Connections Repository to reflect an active Satellite
+            // connection.
+            mobileConnectionsRepository.mobileIsDefault.value = true
+            mobileConnectionsRepository.activeMobileDataSubscriptionId.value = SUB_1_ID
+
+            mobileConnectionRepository.apply {
+                isInService.value = true
+                dataConnectionState.value = DataConnectionState.Connected
+                isNonTerrestrial.value = true
+                this.networkName.value = NetworkNameModel.Default(networkName)
+                this.satelliteLevel.value = satelliteLevel
+            }
+
+            // Assertions on the resulting UI Model.
+            // It should be an 'Active' state model.
+            assertThat(latest).isInstanceOf(InternetTileModel.Active::class.java)
+            val activeModel = latest as InternetTileModel.Active
+
+            // The label should contain the satellite network name.
+            assertThat(activeModel.secondaryTitle.toString()).contains(networkName)
+
+            // The icon type should be a SignalIcon (which supports satellite levels).
+            assertThat(activeModel.icon).isInstanceOf(SignalIcon::class.java)
+        }
+
     private fun setWifiNetworkWithHotspot(hotspot: WifiNetworkModel.HotspotDeviceType) {
         val networkModel =
             WifiNetworkModel.Active.of(level = 4, ssid = "test ssid", hotspotDeviceType = hotspot)
@@ -407,5 +488,6 @@ class InternetTileViewModelTest : SysuiTestCase() {
 
     companion object {
         const val SUB_1_ID = 1
+        const val SUB_2_ID = 2
     }
 }

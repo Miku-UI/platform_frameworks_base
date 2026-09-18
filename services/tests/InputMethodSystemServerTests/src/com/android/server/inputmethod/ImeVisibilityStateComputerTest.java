@@ -53,8 +53,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
 /**
- * Test the behavior of {@link ImeVisibilityStateComputer} and {@link DefaultImeVisibilityApplier}
- * when requesting the IME visibility.
+ * Test the behavior of {@link ImeVisibilityStateComputer} when requesting the IME visibility.
  *
  * <p> Build/Install/Run:
  * atest FrameworksInputMethodSystemServerTests:ImeVisibilityStateComputerTest
@@ -67,17 +66,21 @@ public class ImeVisibilityStateComputerTest extends InputMethodManagerServiceTes
     @Before
     public void setUp() throws RemoteException {
         super.setUp();
-        ImeVisibilityStateComputer.Injector injector = new ImeVisibilityStateComputer.Injector() {
+        final var injector = new ImeVisibilityStateComputer.Injector() {
+
+            @NonNull
             @Override
             public UserManagerInternal getUserManagerService() {
                 return mMockUserManagerInternal;
             }
 
+            @NonNull
             @Override
             public WindowManagerInternal getWmService() {
                 return mMockWindowManagerInternal;
             }
 
+            @NonNull
             @Override
             public ImeDisplayValidator getImeValidator() {
                 return displayId -> mImeDisplayPolicy;
@@ -178,26 +181,24 @@ public class ImeVisibilityStateComputerTest extends InputMethodManagerServiceTes
     @Test
     public void testComputeImeDisplayId() {
         synchronized (ImfLock.class) {
-            final ImeTargetWindowState state = mComputer.getOrCreateWindowState(mWindowToken);
-
             mImeDisplayPolicy = DISPLAY_IME_POLICY_LOCAL;
-            mComputer.computeImeDisplayId(state, DEFAULT_DISPLAY);
+            int imeDisplayId = mComputer.computeImeDisplayId(DEFAULT_DISPLAY);
             assertThat(mComputer.getImePolicy().isImeHiddenByDisplayPolicy()).isFalse();
-            assertThat(state.getImeDisplayId()).isEqualTo(DEFAULT_DISPLAY);
+            assertThat(imeDisplayId).isEqualTo(DEFAULT_DISPLAY);
 
-            mComputer.computeImeDisplayId(state, 10 /* displayId */);
+            imeDisplayId = mComputer.computeImeDisplayId(10 /* displayId */);
             assertThat(mComputer.getImePolicy().isImeHiddenByDisplayPolicy()).isFalse();
-            assertThat(state.getImeDisplayId()).isEqualTo(10);
+            assertThat(imeDisplayId).isEqualTo(10);
 
             mImeDisplayPolicy = DISPLAY_IME_POLICY_HIDE;
-            mComputer.computeImeDisplayId(state, 10 /* displayId */);
+            imeDisplayId = mComputer.computeImeDisplayId(10 /* displayId */);
             assertThat(mComputer.getImePolicy().isImeHiddenByDisplayPolicy()).isTrue();
-            assertThat(state.getImeDisplayId()).isEqualTo(INVALID_DISPLAY);
+            assertThat(imeDisplayId).isEqualTo(INVALID_DISPLAY);
 
             mImeDisplayPolicy = DISPLAY_IME_POLICY_FALLBACK_DISPLAY;
-            mComputer.computeImeDisplayId(state, 10 /* displayId */);
+            imeDisplayId = mComputer.computeImeDisplayId(10 /* displayId */);
             assertThat(mComputer.getImePolicy().isImeHiddenByDisplayPolicy()).isFalse();
-            assertThat(state.getImeDisplayId()).isEqualTo(FALLBACK_DISPLAY_ID);
+            assertThat(imeDisplayId).isEqualTo(FALLBACK_DISPLAY_ID);
         }
     }
 

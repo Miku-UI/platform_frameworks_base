@@ -2004,10 +2004,10 @@ static sp<TiffWriter> DngCreator_setup(JNIEnv* env, jobject thiz, uint32_t image
                 v.push_back(x);
                 v.push_back(y);
             }
-            const uint32_t* badPixels = &v[0];
             uint32_t badPixelCount = v.size();
 
             if (badPixelCount > 0) {
+                const uint32_t* badPixels = &v[0];
                 err = builder.addBadPixelListForMetadata(badPixels, badPixelCount, opcodeCfaLayout);
 
                 if (err != OK) {

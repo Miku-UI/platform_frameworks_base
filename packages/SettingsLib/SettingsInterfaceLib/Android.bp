@@ -1,0 +1,12 @@
+package {
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_library {
+    name: "SettingsInterfaceLib",
+    static_libs: [],
+    srcs: [
+        "src/**/*.kt",
+        "src/**/I*.aidl",
+    ],
+}

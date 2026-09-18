@@ -51,7 +51,7 @@
     <string name="title_restore" msgid="8934911753892124574">"Obnovit tuto aplikaci?"</string>
     <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Je vyžadována akce"</string>
     <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Nedostatek úložného prostoru"</string>
-    <string name="title_restore_error_offline" msgid="4611160277876184886">"Nejste připojeni k internetu"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Nemáte připojení k internetu"</string>
     <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> je zakázán"</string>
     <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Aplikace <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> není nainstalována"</string>
     <string name="title_restore_error_generic" msgid="3675732737839176301">"Něco se pokazilo"</string>
@@ -86,7 +86,7 @@
     <string name="message_archive" msgid="943853731737315850">"Vaše data aplikace se uloží"</string>
     <string name="message_archive_all_users" msgid="4664139369764501351">"Všechna data aplikace se uloží"</string>
     <string name="message_archive_other_user" msgid="6465828676043191175">"Data aplikace se uloží"</string>
-    <string name="message_archive_work_profile" msgid="7601504268820630858">"Tato aplikace bude z vašeho z vašeho pracovního prostoru přesunuta do archivu. Vaše data aplikace se uloží."</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Tato aplikace bude z vašeho pracovního prostoru přesunuta do archivu. Vaše data aplikace se uloží."</string>
     <string name="message_archive_private_space" msgid="4873651645762576624">"Tato aplikace bude z vašeho soukromého prostoru přesunuta do archivu. Vaše data aplikace se uloží."</string>
     <string name="message_restore" msgid="8402726798623569969">"Tato aplikace se bude na pozadí stahovat z obchodu <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
     <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> potřebuje k obnovení této aplikace další informace."</string>

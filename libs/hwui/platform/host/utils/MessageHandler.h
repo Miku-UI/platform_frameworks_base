@@ -19,7 +19,10 @@
 #include <utils/RefBase.h>
 
 struct Message {
-    Message(int w) {}
+    int what;
+
+    Message(int w) : what(w) {}
+    Message() : what(0) {}
 };
 
 class MessageHandler : public virtual android::RefBase {

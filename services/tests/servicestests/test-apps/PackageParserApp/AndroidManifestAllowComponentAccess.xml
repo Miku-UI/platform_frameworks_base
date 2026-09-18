@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.servicestests.apps.packageparserapp">
+
+    <allow-component-access>
+        <package android:name="com.example.partner" />
+
+        <package android:name="com.example.signed"
+            android:certDigest="AA:BB:CC:DD" />
+    </allow-component-access>
+
+    <application>
+        <activity android:name=".MyActivity" />
+    </application>
+</manifest>

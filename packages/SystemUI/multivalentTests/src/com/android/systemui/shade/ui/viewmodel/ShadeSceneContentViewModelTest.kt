@@ -17,20 +17,19 @@
 package com.android.systemui.shade.ui.viewmodel
 
 import android.app.StatusBarManager.DISABLE2_QUICK_SETTINGS
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
-import com.android.compose.animation.scene.SceneKey
+import com.android.compose.animation.scene.content.state.TransitionState
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pin
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
-import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runCurrent
@@ -43,6 +42,9 @@ import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.remedia.data.repository.mediaPipelineRepository
 import com.android.systemui.qs.panels.domain.interactor.tileSquishinessInteractor
 import com.android.systemui.res.R
+import com.android.systemui.scene.SceneHelper.setDeviceEntered
+import com.android.systemui.scene.data.repository.Transition
+import com.android.systemui.scene.data.repository.setSceneTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
@@ -54,11 +56,11 @@ import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.disableflags.data.repository.fakeDisableFlagsRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.unfold.fakeUnfoldTransitionProgressProvider
+import com.android.systemui.window.data.repository.fakeWindowRootViewBlurRepository
 import com.google.common.truth.Truth.assertThat
 import java.util.Locale
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,11 +73,15 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private val underTest: ShadeSceneContentViewModel by lazy { kosmos.shadeSceneContentViewModel }
+    private val Kosmos.underTest: ShadeSceneContentViewModel by
+        Kosmos.Fixture { shadeSceneContentViewModel }
 
     @Before
     fun setUp() {
-        underTest.activateIn(kosmos.testScope)
+        with(kosmos) {
+            underTest.activateIn(testScope)
+            testScope.backgroundScope.launch { underTest.detectShadeModeChanges() }
+        }
     }
 
     @Test
@@ -85,7 +91,7 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
             fakeAuthenticationRepository.setAuthenticationMethod(Pin)
             setDeviceEntered(true)
 
-            assertThat(underTest.isEmptySpaceClickable).isFalse()
+            assertThat(underTest.isEmptySpaceClickable(sceneInteractor.transitionState)).isFalse()
         }
 
     @Test
@@ -94,7 +100,7 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
             enableSingleShade()
             fakeAuthenticationRepository.setAuthenticationMethod(Pin)
 
-            assertThat(underTest.isEmptySpaceClickable).isTrue()
+            assertThat(underTest.isEmptySpaceClickable(sceneInteractor.transitionState)).isTrue()
         }
 
     @Test
@@ -104,9 +110,22 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
             val currentScene by collectLastValue(sceneInteractor.currentScene)
             fakeAuthenticationRepository.setAuthenticationMethod(Pin)
 
-            underTest.onEmptySpaceClicked()
+            underTest.onEmptySpaceClicked(sceneInteractor.transitionState)
 
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+        }
+
+    @Test
+    fun isEmptySpaceClickable_deviceLocked_transitioningToQs_false() =
+        kosmos.runTest {
+            enableSingleShade()
+            fakeAuthenticationRepository.setAuthenticationMethod(Pin)
+            setDeviceEntered(false)
+            runCurrent()
+            assertThat(underTest.isEmptySpaceClickable(sceneInteractor.transitionState)).isTrue()
+
+            setSceneTransition(Transition(Scenes.Shade, Scenes.QuickSettings))
+            assertThat(underTest.isEmptySpaceClickable(sceneInteractor.transitionState)).isFalse()
         }
 
     @Test
@@ -127,19 +146,29 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun shadeMode() =
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun shadeMode_dualShadeFlagOff() =
         kosmos.runTest {
             enableSplitShade()
             assertThat(underTest.shadeMode).isEqualTo(ShadeMode.Split)
 
             enableSingleShade()
             assertThat(underTest.shadeMode).isEqualTo(ShadeMode.Single)
-
-            enableDualShade()
-            assertThat(underTest.shadeMode).isEqualTo(ShadeMode.Dual)
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun shadeMode_dualShadeFlagOn() =
+        kosmos.runTest {
+            enableDualShade()
+            assertThat(underTest.shadeMode).isEqualTo(ShadeMode.Dual)
+
+            enableSingleShade()
+            assertThat(underTest.shadeMode).isEqualTo(ShadeMode.Single)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun shadeModeChange_dualOnLockscreen_switchToOverlay() =
         kosmos.runTest {
             setDeviceEntered(false)
@@ -159,6 +188,7 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun shadeModeChange_dualOnGone_switchToOverlay() =
         kosmos.runTest {
             setDeviceEntered(true)
@@ -234,34 +264,62 @@ class ShadeSceneContentViewModelTest : SysuiTestCase() {
             assertThat(squishiness).isEqualTo(1f)
         }
 
+    @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun isBlurred_whenBouncerOverlayShowingOverShadeAndBlurSupported_isTrue() =
+        kosmos.runTest {
+            assertThat(
+                    underTest.calculateBlur(
+                        transitionState =
+                            TransitionState.Idle(
+                                currentScene = Scenes.Lockscreen,
+                                currentOverlays = setOf(Overlays.Bouncer),
+                            )
+                    )
+                )
+                .isEqualTo(0f)
+
+            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
+            kosmos.runCurrent()
+            assertThat(
+                    underTest.calculateBlur(
+                        transitionState =
+                            TransitionState.Idle(
+                                currentScene = Scenes.Lockscreen,
+                                currentOverlays = setOf(Overlays.Bouncer),
+                            )
+                    )
+                )
+                .isEqualTo(0f)
+
+            assertThat(
+                    underTest.calculateBlur(
+                        transitionState =
+                            TransitionState.Idle(
+                                currentScene = Scenes.Shade,
+                                currentOverlays = setOf(Overlays.Bouncer),
+                            )
+                    )
+                )
+                .isEqualTo(kosmos.blurConfig.maxBlurRadiusPx)
+
+            assertThat(
+                    underTest.calculateBlur(
+                        transitionState = TransitionState.Idle(currentScene = Scenes.Shade)
+                    )
+                )
+                .isEqualTo(0)
+        }
+
     private fun Kosmos.prepareConfiguration(): Int {
         val configuration = context.resources.configuration
         configuration.setLayoutDirection(Locale.US)
         fakeConfigurationRepository.onConfigurationChange(configuration)
         val maxTranslation = 10
         fakeConfigurationRepository.setDimensionPixelSize(
-            R.dimen.notification_side_paddings,
+            R.dimen.notification_side_paddings_single,
             maxTranslation,
         )
         return maxTranslation
-    }
-
-    private fun Kosmos.setDeviceEntered(isEntered: Boolean) {
-        if (isEntered) {
-            // Unlock the device marking the device has entered.
-            val isDeviceUnlocked by
-                collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus.map { it.isUnlocked })
-            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
-            )
-            assertThat(isDeviceUnlocked).isTrue()
-        }
-        setScene(if (isEntered) Scenes.Gone else Scenes.Lockscreen)
-        assertThat(kosmos.deviceEntryInteractor.isDeviceEntered.value).isEqualTo(isEntered)
-    }
-
-    private fun Kosmos.setScene(key: SceneKey) {
-        sceneInteractor.changeScene(key, "test")
-        sceneInteractor.setTransitionState(flowOf(ObservableTransitionState.Idle(key)))
     }
 }

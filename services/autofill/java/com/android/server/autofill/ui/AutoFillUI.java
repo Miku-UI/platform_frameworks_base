@@ -36,6 +36,7 @@ import android.os.RemoteException;
 import android.service.autofill.Dataset;
 import android.service.autofill.FillEventHistory;
 import android.service.autofill.FillResponse;
+import android.service.autofill.Flags;
 import android.service.autofill.SaveInfo;
 import android.service.autofill.ValueFinder;
 import android.text.TextUtils;
@@ -79,7 +80,6 @@ public final class AutoFillUI {
 
     private final MetricsLogger mMetricsLogger = new MetricsLogger();
 
-    private final @NonNull OverlayControl mOverlayControl;
     private final @NonNull UiModeManagerInternal mUiModeMgr;
 
     private @Nullable Runnable mCreateFillUiRunnable;
@@ -107,8 +107,11 @@ public final class AutoFillUI {
 
     public AutoFillUI(@NonNull Context context) {
         mContext = context;
-        mOverlayControl = new OverlayControl(context);
         mUiModeMgr = LocalServices.getService(UiModeManagerInternal.class);
+    }
+
+    public Context getContext() {
+        return mContext;
     }
 
     public void setCallback(@NonNull AutoFillUiCallback callback) {
@@ -201,7 +204,8 @@ public final class AutoFillUI {
      * @param serviceIcon icon of autofill service
      * @param callback identifier for the caller
      * @param userId the user associated wit the session
-     * @param context context with the proper state (like display id) to show the UI
+     * @param context context with the proper state (like display id) to show the UI.
+     *                TODO(b/375500806): remove it once supportMultiUserMultiDisplay is enabled
      * @param sessionId id of the autofill session
      * @param compatMode whether the app is being autofilled in compatibility mode.
      * @param maxInputLengthForAutofill max user input to provide suggestion
@@ -230,7 +234,7 @@ public final class AutoFillUI {
                 return;
             }
             hideAllUiThread(callback);
-            mFillUi = new FillUi(context, response, focusedId, filterText, mOverlayControl,
+            mFillUi = new FillUi(context, response, focusedId, filterText,
                     serviceLabel, serviceIcon, mUiModeMgr.isNightMode(context.getDisplayId()),
                     maxInputLengthForAutofill,
                     new FillUi.Callback() {
@@ -334,6 +338,7 @@ public final class AutoFillUI {
 
     /**
      * Shows the UI asking the user to save for autofill.
+     * TODO(b/375500806): remove context parameter once supportMultiUserMultiDisplay is enabled.
      */
     public void showSaveUi(@NonNull CharSequence serviceLabel, @NonNull Drawable serviceIcon,
             @Nullable String servicePackageName, @NonNull SaveInfo info,
@@ -341,9 +346,10 @@ public final class AutoFillUI {
             @NonNull AutoFillUiCallback callback, @NonNull Context context,
             @NonNull PendingUi pendingSaveUi, boolean isUpdate, boolean compatMode,
             boolean showServiceIcon, @Nullable SaveEventLogger mSaveEventLogger) {
+        Context saveContext = Flags.expressiveSaveDialog() ? mContext : context;
         if (sVerbose) {
             Slogf.v(TAG, "showSaveUi(update=%b) for %s and display %d: %s", isUpdate,
-                    componentName.toShortString(), context.getDisplayId(), info);
+                    componentName.toShortString(), saveContext.getDisplayId(), info);
         }
         int numIds = 0;
         numIds += info.getRequiredIds() == null ? 0 : info.getRequiredIds().length;
@@ -361,59 +367,83 @@ public final class AutoFillUI {
             if (callback != mCallback) {
                 return;
             }
+
+            // hideAllUiThread only hides UI created by the session that is passed in as parameter
+            // of callback.
             hideAllUiThread(callback);
+            // If mSaveUi is not null, it means there is a save dialog showing for
+            // a previous session. Framework needs to destroy it before showing the next one
+            // as current AutoFillUi logic only supports showing one save dialog at a time.
+            //
+            // Note: Make sure this destroy happens before updating and mSaveUiCallback,
+            // otherwise the wrong session will be destroyed
+            if (Flags.destroySaveUiBeforeShowingNextOne() && mSaveUi != null) {
+                if (sDebug) {
+                    Slog.d(
+                            TAG,
+                            "showSaveUi(): save dialog is showing when AutofillUi tries to"
+                                    + " show another one. Destroying previous save dialog");
+                }
+                destroySaveUiUiThread(mSaveUi.getPendingUi(), /* notifyClient= */ true);
+                if (sDebug) {
+                    Slog.d(
+                            TAG,
+                            "showSaveUi(): finished destroying previous save "
+                                    + "dialog, continue to show the new save dialog");
+                }
+            }
             mSaveUiCallback = callback;
-            mSaveUi = new SaveUi(context, pendingSaveUi, serviceLabel, serviceIcon,
-                    servicePackageName, componentName, info, valueFinder, mOverlayControl,
+            mSaveUi = new SaveUi(saveContext, pendingSaveUi, serviceLabel, serviceIcon,
+                    servicePackageName, componentName, info, valueFinder,
                     new SaveUi.OnSaveListener() {
-                @Override
-                public void onSave() {
-                    log.setType(MetricsEvent.TYPE_ACTION);
-                    if (mSaveEventLogger != null) {
-                        mSaveEventLogger.maybeSetSaveButtonClicked(true);
-                    }
-                    hideSaveUiUiThread(callback);
-                    callback.save();
-                    destroySaveUiUiThread(pendingSaveUi, true);
-                }
-
-                @Override
-                public void onCancel(IntentSender listener) {
-                    log.setType(MetricsEvent.TYPE_DISMISS);
-                    if (mSaveEventLogger != null) {
-                        mSaveEventLogger.maybeSetCancelButtonClicked(true);
-                    }
-                    hideSaveUiUiThread(callback);
-                    if (listener != null) {
-                        try {
-                            listener.sendIntent(mContext, 0, null, null, null);
-                        } catch (IntentSender.SendIntentException e) {
-                            Slog.e(TAG, "Error starting negative action listener: "
-                                    + listener, e);
+                        @Override
+                        public void onSave() {
+                            log.setType(MetricsEvent.TYPE_ACTION);
+                            if (mSaveEventLogger != null) {
+                                mSaveEventLogger.maybeSetSaveButtonClicked(true);
+                            }
+                            hideSaveUiUiThread(callback);
+                            callback.save();
+                            destroySaveUiUiThread(pendingSaveUi, true);
                         }
-                    }
-                    callback.cancelSave();
-                    destroySaveUiUiThread(pendingSaveUi, true);
-                }
 
-                @Override
-                public void onDestroy() {
-                    if (log.getType() == MetricsEvent.TYPE_UNKNOWN) {
-                        log.setType(MetricsEvent.TYPE_CLOSE);
+                        @Override
+                        public void onCancel(IntentSender listener) {
+                            log.setType(MetricsEvent.TYPE_DISMISS);
+                            if (mSaveEventLogger != null) {
+                                mSaveEventLogger.maybeSetCancelButtonClicked(true);
+                            }
+                            hideSaveUiUiThread(callback);
+                            if (listener != null) {
+                                try {
+                                    listener.sendIntent(mContext, 0, null, null, null);
+                                } catch (IntentSender.SendIntentException e) {
+                                    Slog.e(TAG, "Error starting negative action listener: "
+                                            + listener, e);
+                                }
+                            }
+                            callback.cancelSave();
+                            destroySaveUiUiThread(pendingSaveUi, true);
+                        }
 
-                        callback.cancelSave();
-                    }
-                    mMetricsLogger.write(log);
-                    if (mSaveEventLogger != null) {
-                        mSaveEventLogger.maybeSetDialogDismissed(true);
-                    }
-                }
+                        @Override
+                        public void onDestroy() {
+                            if (log.getType() == MetricsEvent.TYPE_UNKNOWN) {
+                                log.setType(MetricsEvent.TYPE_CLOSE);
 
-                @Override
-                public void startIntentSender(IntentSender intentSender, Intent intent) {
-                    callback.startIntentSender(intentSender, intent);
-                }
-            }, mUiModeMgr.isNightMode(context.getDisplayId()), isUpdate, compatMode,
+                                callback.cancelSave();
+                            }
+                            mMetricsLogger.write(log);
+                            if (mSaveEventLogger != null) {
+                                mSaveEventLogger.maybeSetDialogDismissed(true);
+                            }
+                        }
+
+                        @Override
+                        public void startIntentSender(IntentSender intentSender, Intent intent) {
+                            callback.startIntentSender(intentSender, intent);
+                        }
+                    }, mUiModeMgr.isNightMode(saveContext.getDisplayId()), isUpdate, compatMode,
                     showServiceIcon);
 
             mSaveEventLogger.maybeSetLatencySaveUiDisplayMillis();
@@ -448,7 +478,7 @@ public final class AutoFillUI {
             }
             hideAllUiThread(callback);
             mFillDialog = new DialogFillUi(mContext, response, focusedId, filterText,
-                    serviceIcon, servicePackageName, componentName, mOverlayControl,
+                    serviceIcon, servicePackageName, componentName,
                     mUiModeMgr.isNightMode(mContext.getDisplayId()), new DialogFillUi.UiCallback() {
                         @Override
                         public void onResponsePicked(FillResponse response) {
@@ -565,7 +595,8 @@ public final class AutoFillUI {
     }
 
     public void dump(PrintWriter pw) {
-        pw.println("Autofill UI");
+        pw.println("Autofill UI (user:" + mContext.getUserId() + ", display:"
+                + mContext.getDisplayId() + ")");
         final String prefix = "  ";
         final String prefix2 = "    ";
         pw.print(prefix); pw.print("Night mode: ");
@@ -601,9 +632,15 @@ public final class AutoFillUI {
     @android.annotation.UiThread
     @Nullable
     private PendingUi hideSaveUiUiThread(@Nullable AutoFillUiCallback callback) {
-        if (sVerbose) {
-            Slog.v(TAG, "hideSaveUiUiThread(): mSaveUi=" + mSaveUi + ", callback=" + callback
-                    + ", mCallback=" + mCallback);
+        if (sDebug) {
+            Slog.d(
+                    TAG,
+                    "hideSaveUiUiThread(): mSaveUi="
+                            + mSaveUi
+                            + ", callback="
+                            + callback
+                            + ", mSaveUiCallback="
+                            + mSaveUiCallback);
         }
 
         if (mSaveUi != null && mSaveUiCallback == callback) {
@@ -627,6 +664,29 @@ public final class AutoFillUI {
             // first call is made after the SaveUI is hidden and the second when the session is
             // finished.
             if (sDebug) Slog.d(TAG, "destroySaveUiUiThread(): already destroyed");
+            return;
+        }
+
+        // This guards against a race condition during session switching, an example scenario is as
+        // follows:
+        //  1. Session #2 requests showing SaveUI, causing Session #1's SaveUi#1 to be destroyed.
+        //  2. The destruction listener of SaveUi#1 triggers the destruction of Session #1.
+        //  3. Session #1 calls into destroySaveUiUiThread() during cleanup, through calling
+        //     destroyAllUiThread().
+        //  4. Without this check, at this moment Session #1 would destroy the SaveUi#2 that now
+        //     belongs to Session#2
+        if (Flags.destroySaveUiBeforeShowingNextOne()
+                && pendingSaveUi != null
+                && mSaveUi.getPendingUi() != null
+                && mSaveUi.getPendingUi().sessionId != pendingSaveUi.sessionId) {
+            if (sDebug) {
+                Slog.d(
+                        TAG,
+                        "destroySaveUiUiThread(): not destroying save UI owned by session "
+                                + mSaveUi.getPendingUi().sessionId + " (destroy requested by "
+                                + "session " + pendingSaveUi.sessionId + ")"
+                );
+            }
             return;
         }
 

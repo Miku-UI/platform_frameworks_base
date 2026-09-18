@@ -21,8 +21,6 @@ import android.app.admin.DevicePolicyManager
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.UserHandle
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.widget.LockPatternUtils
@@ -34,9 +32,9 @@ import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.dock.DockManagerFake
-import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.haptics.msdl.msdlPlayer
+import com.android.systemui.inputdevice.domain.interactor.pointerDeviceInteractor
 import com.android.systemui.keyguard.data.quickaffordance.BuiltInKeyguardQuickAffordanceKeys
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceConfig
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceProviderClientFactory
@@ -95,7 +93,6 @@ import org.mockito.Mockito
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.isNull
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.verifyNoInteractions
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -155,6 +152,12 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
     @Mock
     private lateinit var glanceableHubToLockscreenTransitionViewModel:
         GlanceableHubToLockscreenTransitionViewModel
+    @Mock
+    private lateinit var toLockscreenEndStateTransitionViewModel:
+        ToLockscreenEndStateTransitionViewModel
+    @Mock private lateinit var toAodEndStateTransitionViewModel: ToAodEndStateTransitionViewModel
+    @Mock
+    private lateinit var toDozingEndStateTransitionViewModel: ToDozingEndStateTransitionViewModel
 
     private lateinit var underTest: KeyguardQuickAffordancesCombinedViewModel
 
@@ -276,6 +279,9 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
             .thenReturn(emptyFlow())
         whenever(glanceableHubToLockscreenTransitionViewModel.shortcutsAlpha)
             .thenReturn(emptyFlow())
+        whenever(toLockscreenEndStateTransitionViewModel.shortcutsAlpha).thenReturn(emptyFlow())
+        whenever(toDozingEndStateTransitionViewModel.shortcutsAlpha).thenReturn(emptyFlow())
+        whenever(toAodEndStateTransitionViewModel.shortcutsAlpha).thenReturn(emptyFlow())
         whenever(shadeInteractor.anyExpansion).thenReturn(intendedShadeAlphaMutableStateFlow)
 
         underTest =
@@ -297,12 +303,13 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
                         secureLockDeviceInteractor = { kosmos.secureLockDeviceInteractor },
                         devicePolicyManager = devicePolicyManager,
                         dockManager = dockManager,
+                        pointerDeviceInteractor = kosmos.pointerDeviceInteractor,
                         biometricSettingsRepository = biometricSettingsRepository,
                         backgroundDispatcher = kosmos.testDispatcher,
                         appContext = mContext,
                         accessibilityInteractor = kosmos.accessibilityInteractor,
                         sceneInteractor = { kosmos.sceneInteractor },
-                        msdlPlayer = kosmos.msdlPlayer,
+                        msdlPlayer = { kosmos.msdlPlayer },
                     ),
                 keyguardInteractor = keyguardInteractor,
                 shadeInteractor = shadeInteractor,
@@ -326,6 +333,9 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
                 lockscreenToGlanceableHubTransitionViewModel =
                     lockscreenToGlanceableHubTransitionViewModel,
                 transitionInteractor = kosmos.keyguardTransitionInteractor,
+                toLockscreenEndStateTransitionViewModel = toLockscreenEndStateTransitionViewModel,
+                toAodEndStateTransitionViewModel = toAodEndStateTransitionViewModel,
+                toDozingEndStateTransitionViewModel = toDozingEndStateTransitionViewModel,
             )
     }
 
@@ -359,7 +369,6 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(com.android.systemui.Flags.FLAG_CLEAR_SHORTCUT_ICON_TINT)
     fun nonTintedIcon_clearsTintFromIcon() =
         testScope.runTest {
             val icon: Icon.Loaded = mock()
@@ -369,19 +378,6 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
             underTest.nonTintedIcon(icon)
 
             verify(drawable).setTintList(isNull())
-        }
-
-    @Test
-    @DisableFlags(com.android.systemui.Flags.FLAG_CLEAR_SHORTCUT_ICON_TINT)
-    fun nonTintedIcon_noInteractionWithDrawable() =
-        testScope.runTest {
-            val icon: Icon.Loaded = mock()
-            val drawable: Drawable = mock()
-            whenever(icon.drawable).thenReturn(drawable)
-
-            underTest.nonTintedIcon(icon)
-
-            verifyNoInteractions(drawable)
         }
 
     @Test
@@ -420,7 +416,6 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(com.android.systemui.shared.Flags.FLAG_NEW_CUSTOMIZATION_PICKER_UI)
     fun startButton_inPreviewMode_onPreviewQuickAffordanceSelected() =
         testScope.runTest {
             underTest.onPreviewSlotSelected(KeyguardQuickAffordanceSlots.SLOT_ID_BOTTOM_START)
@@ -811,6 +806,7 @@ class KeyguardQuickAffordancesCombinedViewModelTest : SysuiTestCase() {
             kosmos.setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(from = AOD, to = GONE),
+                skipChangeScene = true,
             )
             intendedShadeAlphaMutableStateFlow.value = 0.5f
             val underTest = collectLastValue(underTest.transitionAlpha)

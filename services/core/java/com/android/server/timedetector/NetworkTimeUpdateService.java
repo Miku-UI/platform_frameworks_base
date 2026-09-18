@@ -88,43 +88,57 @@ public class NetworkTimeUpdateService extends Binder {
     public NetworkTimeUpdateService(@NonNull Context context) {
         mContext = Objects.requireNonNull(context);
         mCM = mContext.getSystemService(ConnectivityManager.class);
-        mWakeLock = context.getSystemService(PowerManager.class).newWakeLock(
-                PowerManager.PARTIAL_WAKE_LOCK, TAG);
+        mWakeLock =
+                context.getSystemService(PowerManager.class)
+                        .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
         mNtpTrustedTime = NtpTrustedTime.getInstance(context);
 
         Supplier<Long> elapsedRealtimeMillisSupplier = SystemClock::elapsedRealtime;
-        int tryAgainTimesMax = mContext.getResources().getInteger(
-                com.android.internal.R.integer.config_ntpRetry);
-        int normalPollingIntervalMillis = mContext.getResources().getInteger(
-                com.android.internal.R.integer.config_ntpPollingInterval);
-        int shortPollingIntervalMillis = mContext.getResources().getInteger(
-                com.android.internal.R.integer.config_ntpPollingIntervalShorter);
-        mEngine = new EngineImpl(elapsedRealtimeMillisSupplier, normalPollingIntervalMillis,
-                shortPollingIntervalMillis, tryAgainTimesMax, mNtpTrustedTime);
+        int tryAgainTimesMax =
+                mContext.getResources().getInteger(com.android.internal.R.integer.config_ntpRetry);
+        int normalPollingIntervalMillis =
+                mContext.getResources()
+                        .getInteger(com.android.internal.R.integer.config_ntpPollingInterval);
+        int shortPollingIntervalMillis =
+                mContext.getResources()
+                        .getInteger(
+                                com.android.internal.R.integer.config_ntpPollingIntervalShorter);
+        mEngine =
+                new EngineImpl(
+                        elapsedRealtimeMillisSupplier,
+                        normalPollingIntervalMillis,
+                        shortPollingIntervalMillis,
+                        tryAgainTimesMax,
+                        mNtpTrustedTime);
 
         AlarmManager alarmManager = mContext.getSystemService(AlarmManager.class);
         TimeDetectorInternal timeDetectorInternal =
                 LocalServices.getService(TimeDetectorInternal.class);
-        mRefreshCallbacks = new Engine.RefreshCallbacks() {
-            private final AlarmManager.OnAlarmListener mOnAlarmListener =
-                    new ScheduledRefreshAlarmListener();
+        mRefreshCallbacks =
+                new Engine.RefreshCallbacks() {
+                    private final AlarmManager.OnAlarmListener mOnAlarmListener =
+                            new ScheduledRefreshAlarmListener();
 
-            @Override
-            public void scheduleNextRefresh(@ElapsedRealtimeLong long elapsedRealtimeMillis) {
-                alarmManager.cancel(mOnAlarmListener);
+                    @Override
+                    public void scheduleNextRefresh(
+                            @ElapsedRealtimeLong long elapsedRealtimeMillis) {
+                        alarmManager.cancel(mOnAlarmListener);
 
-                String alarmTag = "NetworkTimeUpdateService.POLL";
-                Handler handler = null; // Use the main thread
-                alarmManager.set(
-                        AlarmManager.ELAPSED_REALTIME, elapsedRealtimeMillis, alarmTag,
-                        mOnAlarmListener, handler);
-            }
+                        String alarmTag = "NetworkTimeUpdateService.POLL";
+                        Handler handler = null; // Use the main thread
+                        alarmManager.set(
+                                AlarmManager.ELAPSED_REALTIME,
+                                elapsedRealtimeMillis,
+                                alarmTag,
+                                mOnAlarmListener,
+                                handler);
+                    }
 
-            @Override
-            public void submitSuggestion(NetworkTimeSuggestion suggestion) {
-                timeDetectorInternal.suggestNetworkTime(suggestion);
-            }
-        };
+                    @Override
+                    public void submitSuggestion(NetworkTimeSuggestion suggestion) {
+                        timeDetectorInternal.suggestNetworkTime(suggestion);
+                    }
+                };
 
         HandlerThread thread = new HandlerThread(TAG);
         thread.start();
@@ -141,8 +155,10 @@ public class NetworkTimeUpdateService extends Binder {
         ContentResolver resolver = mContext.getContentResolver();
         AutoTimeSettingObserver autoTimeSettingObserver =
                 new AutoTimeSettingObserver(mHandler, mContext);
-        resolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.AUTO_TIME),
-                false, autoTimeSettingObserver);
+        resolver.registerContentObserver(
+                Settings.Global.getUriFor(Settings.Global.AUTO_TIME),
+                false,
+                autoTimeSettingObserver);
     }
 
     /**
@@ -246,8 +262,8 @@ public class NetworkTimeUpdateService extends Binder {
     }
 
     /**
-     * Observer to watch for changes to the AUTO_TIME setting. It only triggers when the setting
-     * is enabled.
+     * Observer to watch for changes to the AUTO_TIME setting. It only triggers when the setting is
+     * enabled.
      */
     private class AutoTimeSettingObserver extends ContentObserver {
 
@@ -266,9 +282,7 @@ public class NetworkTimeUpdateService extends Binder {
             }
         }
 
-        /**
-         * Checks if the user prefers to automatically set the device's system clock time.
-         */
+        /** Checks if the user prefers to automatically set the device's system clock time. */
         private boolean isAutomaticTimeEnabled() {
             ContentResolver resolver = mContext.getContentResolver();
             return Settings.Global.getInt(resolver, Settings.Global.AUTO_TIME, 0) != 0;
@@ -287,15 +301,20 @@ public class NetworkTimeUpdateService extends Binder {
     }
 
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
-            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        new NetworkTimeUpdateServiceShellCommand(this).exec(
-                this, in, out, err, args, callback, resultReceiver);
+    public void onShellCommand(
+            FileDescriptor in,
+            FileDescriptor out,
+            FileDescriptor err,
+            String[] args,
+            ShellCallback callback,
+            ResultReceiver resultReceiver) {
+        new NetworkTimeUpdateServiceShellCommand(this)
+                .exec(this, in, out, err, args, callback, resultReceiver);
     }
 
     /**
-     * The interface the service uses to interact with the network time refresh logic.
-     * Extracted for testing.
+     * The interface the service uses to interact with the network time refresh logic. Extracted for
+     * testing.
      */
     @VisibleForTesting
     interface Engine {
@@ -320,7 +339,9 @@ public class NetworkTimeUpdateService extends Binder {
          * @param network the network to use, or null if no network is available
          * @param reason the reason for the refresh (for logging)
          */
-        void refreshAndRescheduleIfRequired(@Nullable Network network, @NonNull String reason,
+        void refreshAndRescheduleIfRequired(
+                @Nullable Network network,
+                @NonNull String reason,
                 @NonNull RefreshCallbacks refreshCallbacks);
 
         void dump(@NonNull PrintWriter pw);
@@ -330,9 +351,8 @@ public class NetworkTimeUpdateService extends Binder {
     static class EngineImpl implements Engine {
 
         /**
-         * A log that records the decisions to fetch a network time update.
-         * This is logged in bug reports to assist with debugging issues with network time
-         * suggestions.
+         * A log that records the decisions to fetch a network time update. This is logged in bug
+         * reports to assist with debugging issues with network time suggestions.
          */
         @NonNull
         private final LocalLog mLocalDebugLog = new LocalLog(30, false /* useLocalTimestamps */);
@@ -340,15 +360,14 @@ public class NetworkTimeUpdateService extends Binder {
         /**
          * The usual interval between refresh attempts. Always used after a successful request.
          *
-         * <p>The value also determines whether a network time result is considered fresh.
-         * Refreshes only take place from this class when the latest time result is considered too
-         * old.
+         * <p>The value also determines whether a network time result is considered fresh. Refreshes
+         * only take place from this class when the latest time result is considered too old.
          */
         private final int mNormalPollingIntervalMillis;
 
         /**
-         * A shortened interval between refresh attempts used after a failure to refresh.
-         * Always shorter than {@link #mNormalPollingIntervalMillis} and only used when {@link
+         * A shortened interval between refresh attempts used after a failure to refresh. Always
+         * shorter than {@link #mNormalPollingIntervalMillis} and only used when {@link
          * #mTryAgainTimesMax} != 0.
          *
          * <p>This value is also the lower bound for the interval allowed between successive
@@ -393,14 +412,19 @@ public class NetworkTimeUpdateService extends Binder {
         private final Supplier<Long> mElapsedRealtimeMillisSupplier;
 
         @VisibleForTesting
-        EngineImpl(@NonNull Supplier<Long> elapsedRealtimeMillisSupplier,
-                int normalPollingIntervalMillis, int shortPollingIntervalMillis,
-                int tryAgainTimesMax, @NonNull NtpTrustedTime ntpTrustedTime) {
+        EngineImpl(
+                @NonNull Supplier<Long> elapsedRealtimeMillisSupplier,
+                int normalPollingIntervalMillis,
+                int shortPollingIntervalMillis,
+                int tryAgainTimesMax,
+                @NonNull NtpTrustedTime ntpTrustedTime) {
             mElapsedRealtimeMillisSupplier = Objects.requireNonNull(elapsedRealtimeMillisSupplier);
             if (shortPollingIntervalMillis > normalPollingIntervalMillis) {
-                throw new IllegalArgumentException(String.format(
-                        "shortPollingIntervalMillis (%s) > normalPollingIntervalMillis (%s)",
-                        shortPollingIntervalMillis, normalPollingIntervalMillis));
+                throw new IllegalArgumentException(
+                        String.format(
+                                "shortPollingIntervalMillis (%s) > normalPollingIntervalMillis"
+                                        + " (%s)",
+                                shortPollingIntervalMillis, normalPollingIntervalMillis));
             }
             mNormalPollingIntervalMillis = normalPollingIntervalMillis;
             mShortPollingIntervalMillis = shortPollingIntervalMillis;
@@ -420,8 +444,10 @@ public class NetworkTimeUpdateService extends Binder {
                     logToDebugAndDumpsys(
                             "forceRefreshForTests: cachedTimeResult unexpectedly null");
                 } else {
-                    makeNetworkTimeSuggestion(cachedTimeResult,
-                            "EngineImpl.forceRefreshForTests()", refreshCallbacks);
+                    makeNetworkTimeSuggestion(
+                            cachedTimeResult,
+                            "EngineImpl.forceRefreshForTests()",
+                            refreshCallbacks);
                 }
             }
             return refreshSuccessful;
@@ -429,15 +455,18 @@ public class NetworkTimeUpdateService extends Binder {
 
         @Override
         public void refreshAndRescheduleIfRequired(
-                @Nullable Network network, @NonNull String reason,
+                @Nullable Network network,
+                @NonNull String reason,
                 @NonNull RefreshCallbacks refreshCallbacks) {
             if (network == null) {
                 // If we don't have any default network, don't do anything: When a new network
                 // is available then this method will be called again.
-                logToDebugAndDumpsys("refreshIfRequiredAndReschedule:"
-                        + " reason=" + reason
-                        + ": No default network available. No refresh attempted and no next"
-                        + " attempt scheduled.");
+                logToDebugAndDumpsys(
+                        "refreshIfRequiredAndReschedule:"
+                                + " reason="
+                                + reason
+                                + ": No default network available. No refresh attempted and no next"
+                                + " attempt scheduled.");
                 return;
             }
 
@@ -452,11 +481,12 @@ public class NetworkTimeUpdateService extends Binder {
                 long currentElapsedRealtimeMillis = mElapsedRealtimeMillisSupplier.get();
 
                 // calculateTimeResultAgeMillis() safely handles a null initialTimeResult.
-                long timeResultAgeMillis = calculateTimeResultAgeMillis(
-                        initialTimeResult, currentElapsedRealtimeMillis);
+                long timeResultAgeMillis =
+                        calculateTimeResultAgeMillis(
+                                initialTimeResult, currentElapsedRealtimeMillis);
                 shouldAttemptRefresh =
                         timeResultAgeMillis >= mNormalPollingIntervalMillis
-                        && isRefreshAllowed(currentElapsedRealtimeMillis);
+                                && isRefreshAllowed(currentElapsedRealtimeMillis);
             }
 
             boolean refreshSuccessful = false;
@@ -480,8 +510,9 @@ public class NetworkTimeUpdateService extends Binder {
                 // time result ages will be >= 0.
                 long currentElapsedRealtimeMillis = mElapsedRealtimeMillisSupplier.get();
 
-                long latestTimeResultAgeMillis = calculateTimeResultAgeMillis(
-                        latestTimeResult, currentElapsedRealtimeMillis);
+                long latestTimeResultAgeMillis =
+                        calculateTimeResultAgeMillis(
+                                latestTimeResult, currentElapsedRealtimeMillis);
 
                 // Step 2: Set mTryAgainCounter.
                 //   + == 0: The last attempt was successful OR the latest time result is acceptable
@@ -527,8 +558,10 @@ public class NetworkTimeUpdateService extends Binder {
 
                 // Determine which refresh attempt delay to use by using the current value of
                 // mTryAgainCounter.
-                long refreshAttemptDelayMillis = mTryAgainCounter > 0
-                        ? mShortPollingIntervalMillis : mNormalPollingIntervalMillis;
+                long refreshAttemptDelayMillis =
+                        mTryAgainCounter > 0
+                                ? mShortPollingIntervalMillis
+                                : mNormalPollingIntervalMillis;
 
                 // The refresh attempt delay is applied to a different point in time depending on
                 // whether a refresh attempt is overdue to ensure the refresh attempt scheduling
@@ -581,8 +614,9 @@ public class NetworkTimeUpdateService extends Binder {
                     // should always be non-null because a refresh should always be attempted at
                     // least once above. Regardelss, the calculation below should result in safe
                     // scheduling behavior.
-                    String logMsg = "mLastRefreshAttemptElapsedRealtimeMillis unexpectedly missing."
-                            + " Scheduling using currentElapsedRealtimeMillis";
+                    String logMsg =
+                            "mLastRefreshAttemptElapsedRealtimeMillis unexpectedly missing."
+                                    + " Scheduling using currentElapsedRealtimeMillis";
                     Log.w(TAG, logMsg);
                     logToDebugAndDumpsys(logMsg);
                     nextRefreshElapsedRealtimeMillis =
@@ -592,8 +626,9 @@ public class NetworkTimeUpdateService extends Binder {
                 // Defensive coding to guard against bad scheduling / logic errors above: Try to
                 // ensure that alarms aren't scheduled in the past.
                 if (nextRefreshElapsedRealtimeMillis <= currentElapsedRealtimeMillis) {
-                    String logMsg = "nextRefreshElapsedRealtimeMillis is a time in the past."
-                            + " Scheduling using currentElapsedRealtimeMillis instead";
+                    String logMsg =
+                            "nextRefreshElapsedRealtimeMillis is a time in the past."
+                                    + " Scheduling using currentElapsedRealtimeMillis instead";
                     Log.w(TAG, logMsg);
                     logToDebugAndDumpsys(logMsg);
                     nextRefreshElapsedRealtimeMillis =
@@ -601,19 +636,28 @@ public class NetworkTimeUpdateService extends Binder {
                 }
                 refreshCallbacks.scheduleNextRefresh(nextRefreshElapsedRealtimeMillis);
 
-                logToDebugAndDumpsys("refreshIfRequiredAndReschedule:"
-                        + " network=" + network
-                        + ", reason=" + reason
-                        + ", initialTimeResult=" + initialTimeResult
-                        + ", shouldAttemptRefresh=" + shouldAttemptRefresh
-                        + ", refreshSuccessful=" + refreshSuccessful
-                        + ", currentElapsedRealtimeMillis="
-                        + formatElapsedRealtimeMillis(currentElapsedRealtimeMillis)
-                        + ", latestTimeResult=" + latestTimeResult
-                        + ", mTryAgainCounter=" + mTryAgainCounter
-                        + ", refreshAttemptDelayMillis=" + refreshAttemptDelayMillis
-                        + ", nextRefreshElapsedRealtimeMillis="
-                        + formatElapsedRealtimeMillis(nextRefreshElapsedRealtimeMillis));
+                logToDebugAndDumpsys(
+                        "refreshIfRequiredAndReschedule:"
+                                + " network="
+                                + network
+                                + ", reason="
+                                + reason
+                                + ", initialTimeResult="
+                                + initialTimeResult
+                                + ", shouldAttemptRefresh="
+                                + shouldAttemptRefresh
+                                + ", refreshSuccessful="
+                                + refreshSuccessful
+                                + ", currentElapsedRealtimeMillis="
+                                + formatElapsedRealtimeMillis(currentElapsedRealtimeMillis)
+                                + ", latestTimeResult="
+                                + latestTimeResult
+                                + ", mTryAgainCounter="
+                                + mTryAgainCounter
+                                + ", refreshAttemptDelayMillis="
+                                + refreshAttemptDelayMillis
+                                + ", nextRefreshElapsedRealtimeMillis="
+                                + formatElapsedRealtimeMillis(nextRefreshElapsedRealtimeMillis));
             }
         }
 
@@ -625,7 +669,8 @@ public class NetworkTimeUpdateService extends Binder {
         private static long calculateTimeResultAgeMillis(
                 @Nullable TimeResult timeResult,
                 @ElapsedRealtimeLong long currentElapsedRealtimeMillis) {
-            return timeResult == null ? Long.MAX_VALUE
+            return timeResult == null
+                    ? Long.MAX_VALUE
                     : timeResult.getAgeMillis(currentElapsedRealtimeMillis);
         }
 
@@ -659,10 +704,13 @@ public class NetworkTimeUpdateService extends Binder {
          * Suggests the network time to the time detector. It may choose use it to set the system
          * clock.
          */
-        private void makeNetworkTimeSuggestion(@NonNull TimeResult timeResult,
-                @NonNull String debugInfo, @NonNull RefreshCallbacks refreshCallbacks) {
-            UnixEpochTime timeSignal = new UnixEpochTime(
-                    timeResult.getElapsedRealtimeMillis(), timeResult.getTimeMillis());
+        private void makeNetworkTimeSuggestion(
+                @NonNull TimeResult timeResult,
+                @NonNull String debugInfo,
+                @NonNull RefreshCallbacks refreshCallbacks) {
+            UnixEpochTime timeSignal =
+                    new UnixEpochTime(
+                            timeResult.getElapsedRealtimeMillis(), timeResult.getTimeMillis());
             NetworkTimeSuggestion timeSuggestion =
                     new NetworkTimeSuggestion(timeSignal, timeResult.getUncertaintyMillis());
             timeSuggestion.addDebugInfo(debugInfo);
@@ -678,9 +726,11 @@ public class NetworkTimeUpdateService extends Binder {
             ipw.println("mTryAgainTimesMax=" + mTryAgainTimesMax);
 
             synchronized (this) {
-                String lastRefreshAttemptValue = mLastRefreshAttemptElapsedRealtimeMillis == null
-                        ? "null"
-                        : formatElapsedRealtimeMillis(mLastRefreshAttemptElapsedRealtimeMillis);
+                String lastRefreshAttemptValue =
+                        mLastRefreshAttemptElapsedRealtimeMillis == null
+                                ? "null"
+                                : formatElapsedRealtimeMillis(
+                                        mLastRefreshAttemptElapsedRealtimeMillis);
                 ipw.println("mLastRefreshAttemptElapsedRealtimeMillis=" + lastRefreshAttemptValue);
                 ipw.println("mTryAgainCounter=" + mTryAgainCounter);
             }

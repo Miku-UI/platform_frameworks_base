@@ -19,6 +19,7 @@ package com.android.server.wm;
 import static android.Manifest.permission.CONTROL_KEYGUARD;
 import static android.Manifest.permission.CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS;
 import static android.Manifest.permission.MANAGE_ACTIVITY_TASKS;
+import static android.Manifest.permission.REPOSITION_SELF_WINDOWS;
 import static android.Manifest.permission.START_TASKS_FROM_RECENTS;
 import static android.Manifest.permission.STATUS_BAR_SERVICE;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
@@ -404,6 +405,20 @@ public class SafeActivityOptions {
                 throw new SecurityException(msg);
             }
         }
+
+        // Check if the caller is allowed to require a movable task.
+        final boolean movableTaskRequired = options.isMovableTaskRequired();
+        if (aInfo != null && movableTaskRequired) {
+            final int repositionSelfWindowsPerm = ActivityTaskManagerService.checkPermission(
+                    REPOSITION_SELF_WINDOWS, callingPid, callingUid);
+            if (repositionSelfWindowsPerm != PERMISSION_GRANTED) {
+                final String msg = "Permission Denial: starting " + getIntentString(intent)
+                        + " from " + callerApp + " (pid=" + callingPid
+                        + ", uid=" + callingUid + ") with movableTaskRequired=true";
+                Slog.w(TAG, msg);
+                throw new SecurityException(msg);
+            }
+        }
     }
 
     @VisibleForTesting
@@ -446,7 +461,7 @@ public class SafeActivityOptions {
             final int uid = AppGlobals.getPackageManager().getPackageUid(assistantPackage,
                     PackageManager.MATCH_DIRECT_BOOT_AUTO,
                     UserHandle.getUserId(callingUid));
-            if (uid == callingUid) {
+            if (UserHandle.isSameAppIdWithPcc(callingUid, uid)) {
                 return true;
             }
         } catch (RemoteException e) {

@@ -100,6 +100,12 @@ filegroup {
         "src/com/android/frameworks/tests/uiservices/DummyProvider.java",
         "src/com/android/internal/logging/InstanceIdSequenceFake.java",
         "src/com/android/server/UiServiceTestCase.java",
+        "src/com/android/server/notification/FakeComputerControlHelper.java",
+        "src/com/android/server/notification/NotificationRecordLoggerFake.java",
+        "src/com/android/server/notification/NotificationChannelLoggerFake.java",
+        "src/com/android/server/notification/TestableNotificationManagerService.java",
+        "src/com/android/server/notification/TestPreferencesHelper.java",
+        "src/com/android/server/notification/TestPreferencesHelperFactory.java",
         "src/com/android/server/notification/ZenChangeOrigin.java",
         "src/com/android/server/notification/ZenModeEventLoggerFake.java",
     ],
@@ -119,7 +125,7 @@ filegroup {
     name: "notification-zen-srcs",
     srcs: [
         "src/android/app/NotificationManagerZenTest.java",
-        "src/com/android/server/notification/Zen*Test.java",
+        "src/com/android/server/notification/*Zen*Test.java",
     ],
     visibility: ["//visibility:private"],
 }

@@ -24,11 +24,14 @@ import android.annotation.UserIdInt;
 import android.companion.AssociationInfo;
 import android.companion.IOnMessageReceivedListener;
 import android.companion.IOnTransportsChangedListener;
+import android.os.Binder;
 import android.os.PersistableBundle;
+import android.os.UserHandle;
 import android.util.Slog;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.companion.association.AssociationStore;
 import com.android.server.companion.transport.CompanionTransportManager;
 
@@ -38,7 +41,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +52,7 @@ public class DataSyncProcessor {
     private static final String TAG = "CDM_DataSyncProcessor";
 
     private final AssociationStore mAssociationStore;
+
     private final LocalMetadataStore mLocalMetadataStore;
     private final CompanionTransportManager mTransportManager;
 
@@ -68,14 +72,15 @@ public class DataSyncProcessor {
                 new IOnMessageReceivedListener.Stub() {
                     @Override
                     public void onMessageReceived(int associationId, byte[] data) {
-                        onReceiveMetadataUpdate(associationId, data);
+                        Binder.withCleanCallingIdentity(() -> onReceiveMetadataUpdate(associationId,
+                                data));
                     }
                 });
         mTransportManager.addListener(
                 new IOnTransportsChangedListener.Stub() {
                     @Override
                     public void onTransportsChanged(List<AssociationInfo> associations) {
-                        broadcastMetadata(associations);
+                        Binder.withCleanCallingIdentity(() -> broadcastMetadata(associations));
                     }
                 });
     }
@@ -83,8 +88,27 @@ public class DataSyncProcessor {
     /**
      * Get the cached local metadata for the user.
      */
+    @NonNull
     public PersistableBundle getLocalMetadata(@UserIdInt int userId) {
-        return mLocalMetadataStore.getMetadataForUser(userId);
+        PersistableBundle userMetadata = mLocalMetadataStore.readData(userId);
+        if (userId == UserHandle.USER_ALL) {
+            return userMetadata;
+        }
+
+        // Merge the user metadata into the device metadata.
+        // Prioritize the user metadata over the device metadata for each entry key conflict.
+        PersistableBundle metadata = mLocalMetadataStore.readData(UserHandle.USER_ALL);
+        for (String feature : userMetadata.keySet()) {
+            if (metadata.containsKey(feature)) {
+                PersistableBundle merged = metadata.getPersistableBundle(feature).deepCopy();
+                merged.putAll(userMetadata.getPersistableBundle(feature));
+                metadata.putPersistableBundle(feature, merged);
+            } else {
+                metadata.putPersistableBundle(feature, userMetadata.getPersistableBundle(feature));
+            }
+        }
+
+        return metadata;
     }
 
     /**
@@ -97,36 +121,90 @@ public class DataSyncProcessor {
                 + "] feature=[" + feature + "] value=[" + metadata + "]...");
 
         // Update the local metadata for the user.
-        final PersistableBundle localMetadata = mLocalMetadataStore.getMetadataForUser(userId);
+        final PersistableBundle localMetadata = mLocalMetadataStore.readData(userId);
         if (metadata == null) {
             localMetadata.remove(feature);
         } else {
             localMetadata.putPersistableBundle(feature, metadata);
         }
-        mLocalMetadataStore.setMetadataForUser(userId, localMetadata);
+        mLocalMetadataStore.writeData(userId, localMetadata);
 
         // Isolate the associations with transport for the user to broadcast to.
-        List<AssociationInfo> associations = mTransportManager.getAssociationsWithTransport()
+        mTransportManager.getAssociationsWithTransport()
                 .stream()
-                .filter(association -> association.getUserId() == userId)
-                .collect(Collectors.toList());
-        sendMetadataUpdate(userId, associations);
+                .filter(association -> userId == UserHandle.USER_ALL
+                        || association.getUserId() == userId)
+                .collect(Collectors.groupingBy(AssociationInfo::getUserId))
+                .forEach(this::sendMetadataUpdate);
     }
 
+    /**
+     * Set the remote metadata for an association.
+     */
+    @VisibleForTesting
+    public void setRemoteMetadata(int associationId,
+            @NonNull PersistableBundle metadata) {
+        Slog.i(TAG, "Setting remote metadata for association id=[" + associationId
+                + "] value=[" + metadata + "]...");
+        metadata.putLong(AssociationInfo.METADATA_TIMESTAMP, System.currentTimeMillis());
+        mAssociationStore.updateAssociation(associationId,
+                a -> (new AssociationInfo.Builder(a))
+                        .setMetadata(metadata)
+                        .build());
+    }
+
+    /**
+     * Enable system data sync.
+     */
+    public void enableSystemDataSync(int associationId, int flags) {
+        Slog.i(TAG, "Enabling system data sync flags for association id=[" + associationId
+                + "] flags=[" + flags + "]...");
+
+        mAssociationStore.updateAssociation(associationId,
+                a -> (new AssociationInfo.Builder(a))
+                        .setSystemDataSyncFlags(a.getSystemDataSyncFlags() | flags)
+                        .build());
+    }
+
+    /**
+     * Disable system data sync.
+     */
+    public void disableSystemDataSync(int associationId, int flags) {
+        Slog.i(TAG, "Disabling system data sync flags for association id=[" + associationId
+                + "] flags=[" + flags + "]...");
+
+        mAssociationStore.updateAssociation(associationId,
+                a -> (new AssociationInfo.Builder(a))
+                        .setSystemDataSyncFlags(a.getSystemDataSyncFlags() & (~flags))
+                        .build());
+    }
+
+
     private void broadcastMetadata(List<AssociationInfo> associations) {
+        SparseArray<List<AssociationInfo>> newAssociations = new SparseArray<>();
         synchronized (mAssociationsWithTransport) {
             // Isolate newly attached associations and group by user.
-            associations.stream()
-                    .filter(association ->
-                            !mAssociationsWithTransport.contains(association.getId()))
-                    .collect(Collectors.groupingBy(AssociationInfo::getUserId))
-                    .forEach(this::sendMetadataUpdate);
+            for (AssociationInfo association : associations) {
+                if (!mAssociationsWithTransport.contains(association.getId())) {
+                    int userId = association.getUserId();
+                    List<AssociationInfo> userAssociations = newAssociations.get(userId);
+                    if (userAssociations == null) {
+                        userAssociations = new java.util.ArrayList<>();
+                        newAssociations.put(userId, userAssociations);
+                    }
+                    userAssociations.add(association);
+                }
+            }
 
             // Update the set of associations with transport.
             mAssociationsWithTransport.clear();
-            mAssociationsWithTransport.addAll(associations.stream()
-                    .map(AssociationInfo::getId)
-                    .collect(Collectors.toSet()));
+            for (AssociationInfo association : associations) {
+                mAssociationsWithTransport.add(association.getId());
+            }
+        }
+
+        for (int i = 0; i < newAssociations.size(); i++) {
+            sendMetadataUpdate(newAssociations.keyAt(i), newAssociations.valueAt(i));
         }
     }
 
@@ -139,14 +217,8 @@ public class DataSyncProcessor {
         } catch (IOException e) {
             throw new RuntimeException("Failed to parse received metadata", e);
         }
-        metadata.putLong(AssociationInfo.METADATA_TIMESTAMP, System.currentTimeMillis());
 
-        AssociationInfo association =
-                mAssociationStore.getAssociationWithCallerChecks(associationId);
-        AssociationInfo updated = (new AssociationInfo.Builder(association))
-                .setMetadata(metadata)
-                .build();
-        mAssociationStore.updateAssociation(updated);
+        setRemoteMetadata(associationId, metadata);
     }
 
     private void sendMetadataUpdate(@UserIdInt int userId,
@@ -161,15 +233,26 @@ public class DataSyncProcessor {
 
         try {
             // Get the local metadata for the user.
-            PersistableBundle localMetadata = mLocalMetadataStore.getMetadataForUser(userId);
+            PersistableBundle localMetadata = getLocalMetadata(userId);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             localMetadata.writeToStream(outputStream);
 
             // Send the metadata update to the remote devices.
-            SparseArray<Future<byte[]>> results = mTransportManager.sendMessage(
+            SparseArray<CompletableFuture<byte[]>> results = mTransportManager.sendMessage(
                     MESSAGE_REQUEST_METADATA_UPDATE,
                     outputStream.toByteArray(),
                     associationIds);
+
+            // Update the metadata sent time after receiving ACK.
+            for (int associationId : associationIds) {
+                results.get(associationId).thenRunAsync(() -> {
+                    mAssociationStore.updateAssociation(associationId,
+                            a -> (new AssociationInfo.Builder(a))
+                                    .setTimeMetadataSent(System.currentTimeMillis())
+                                    .build());
+                });
+            }
+
         } catch (IOException e) {
             Slog.e(TAG, "Failed to send metadata update", e);
         }

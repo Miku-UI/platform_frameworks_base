@@ -18,6 +18,7 @@ package android.telecom;
 
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
 
+import android.Manifest;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
@@ -33,8 +34,10 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.ArraySet;
 
+import com.android.internal.telecom.ParcelUtils;
 import com.android.internal.telephony.flags.Flags;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -215,6 +218,76 @@ public final class PhoneAccount implements Parcelable {
             "android.telecom.extra.ADD_SELF_MANAGED_CALLS_TO_INCALLSERVICE";
 
     /**
+     * Default value indicating that the low battery alert feature is disabled.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_LOW_BATTERY_ALERT)
+    public static final int LOW_BATTERY_ALERT_DISABLED = -1;
+
+    /**
+     * {@link PhoneAccount} extras key (see {@link #getExtras()}) which determines the battery level
+     * threshold at which a low battery alert should be played.
+     * If this extra is not set, low battery alerting will not be enabled for calls on this
+     * {@link PhoneAccount}
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SUPPORT_LOW_BATTERY_ALERT)
+    public static final String EXTRA_LOW_BATTERY_ALERT_LEVEL_THRESHOLD =
+            "android.telecom.extra.LOW_BATTERY_ALERT_LEVEL_THRESHOLD";
+
+    /**
+     * {@link PhoneAccount} extras key (see {@link #getExtras()}) which determines the interval in
+     * seconds at which a low battery alert should be played during a voice call.
+     * If this extra is not set, low battery alerting will not be enabled for calls on this
+     * {@link PhoneAccount}
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SUPPORT_LOW_BATTERY_ALERT)
+    public static final String EXTRA_LOW_BATTERY_ALERT_INTERVAL_SECONDS =
+            "android.telecom.extra.LOW_BATTERY_ALERT_INTERVAL_SECONDS";
+
+    /**
+     * Integer {@link PhoneAccount} extra key (see {@link PhoneAccount#getExtras()}) which
+     * indicates the minimum allowed
+     * {@link TelecomManager#setLocalVoicemailTimeout(PhoneAccountHandle, Duration)} for a
+     * {@link PhoneAccount}.
+     * <p>
+     * Note {@link #EXTRA_LOCAL_VOICEMAIL_MINIMUM_TIMEOUT_MILLIS} must be less than or equal to
+     * {@link #EXTRA_LOCAL_VOICEMAIL_MAXIMUM_TIMEOUT_MILLIS}.
+     * <p>
+     * The allowed range of local voicemail timeout is dictated by constraints placed by a mobile
+     * operator.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
+    public static final String EXTRA_LOCAL_VOICEMAIL_MINIMUM_TIMEOUT_MILLIS =
+            "android.telecom.extra.LOCAL_VOICEMAIL_MINIMUM_TIMEOUT_MILLIS";
+
+    /**
+     * Integer {@link PhoneAccount} extra key (see {@link PhoneAccount#getExtras()}) which
+     * indicates the maximum allowed
+     * {@link TelecomManager#setLocalVoicemailTimeout(PhoneAccountHandle, Duration)} for a
+     * {@link PhoneAccount}.
+     * <p>
+     * Note {@link #EXTRA_LOCAL_VOICEMAIL_MINIMUM_TIMEOUT_MILLIS} must be less than or equal to
+     * {@link #EXTRA_LOCAL_VOICEMAIL_MAXIMUM_TIMEOUT_MILLIS}.
+     * <p>
+     * The allowed range of local voicemail timeout is dictated by constraints placed by a mobile
+     * operator.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
+    public static final String EXTRA_LOCAL_VOICEMAIL_MAXIMUM_TIMEOUT_MILLIS =
+            "android.telecom.extra.LOCAL_VOICEMAIL_MAXIMUM_TIMEOUT_MILLIS";
+
+    /**
      * Flag indicating that this {@code PhoneAccount} can act as a connection manager for
      * other connections. The {@link ConnectionService} associated with this {@code PhoneAccount}
      * will be allowed to manage phone calls including using its own proprietary phone-call
@@ -352,7 +425,14 @@ public final class PhoneAccount implements Parcelable {
      * its {@link Connection}s.
      * <p>
      * Self-managed {@link Connection}s will, however, be displayed on connected Bluetooth devices.
+     *
+     * @deprecated VoIP applications that want to integrate with the Telecom framework should
+     * transition to the new Telecom VoIP APIs which are wrapped by the
+     * <a href="https://developer.android.com/reference/androidx/core/telecom/CallsManager>Core
+     * Telecom</a> Jetpack Library.
      */
+    @Deprecated
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_DEPRECATE_SELF_MANAGED_CS)
     public static final int CAPABILITY_SELF_MANAGED = 0x800;
 
     /**
@@ -468,7 +548,36 @@ public final class PhoneAccount implements Parcelable {
      */
     public static final int CAPABILITY_SUPPORTS_CALL_STREAMING = 0x80000;
 
-    /* NEXT CAPABILITY: [0x100000, 0x200000, 0x400000] */
+    /**
+     * Flag indicating that this {@link PhoneAccount} is capable of changing an RTT (Real-time text)
+     * call to a voice call.
+     * <p>
+     * When set, the in-call app will display the "change to voice" option.
+     * <p>
+     * Only applicable for a phone account with {@link #CAPABILITY_RTT}.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CHANGE_RTT_TO_AUDIO)
+    public static final int CAPABILITY_CHANGE_RTT_CALL_TO_AUDIO_CALL = 0x100000;
+
+    /**
+     * Flag indicating that this {@link PhoneAccount} should be opted out of automatic requests for
+     * premium network capabilities.
+     *
+     * <p>By default, the system may automatically request a premium network slice (such as a
+     * slice for unified communications) on behalf of an application with
+     * {@link Call#PROPERTY_IS_TRANSACTIONAL}, when a call is being established. Setting this
+     * capability would allow an application to opt-out of this behaviour and manage its own network
+     * requests, giving it more granular control over its networking.
+     *
+     * <p>This is intended for applications with sophisticated, custom network management logic that
+     * prefer to handle their own network requests rather than relying on the system's automatic
+     * behavior.
+     *
+     * @see #getCapabilities()
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_OPT_OUT_PREMIUM_NETWORK)
+    public static final int CAPABILITY_OPT_OUT_OF_PREMIUM_NETWORK = 0x200000;
+
 
     /**
      * URI scheme for telephone number URIs.
@@ -845,7 +954,6 @@ public final class PhoneAccount implements Parcelable {
          * {@link PhoneAccount}s registered by this package.
          * @return The Builder used to set up the new PhoneAccount.
          */
-        @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
         public @NonNull Builder setSimultaneousCallingRestriction(
                 @NonNull Set<PhoneAccountHandle> handles) {
             if (handles == null) {
@@ -864,7 +972,6 @@ public final class PhoneAccount implements Parcelable {
          * @return The Builder used to set up the new PhoneAccount.
          * @see #setSimultaneousCallingRestriction(Set)
          */
-        @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
         public @NonNull Builder clearSimultaneousCallingRestriction() {
             mSimultaneousCallingRestriction = null;
             return this;
@@ -1157,7 +1264,6 @@ public final class PhoneAccount implements Parcelable {
      * and this method is called. Whether or not there is a restriction can be checked using
      * {@link #hasSimultaneousCallingRestriction()}.
      */
-    @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
     public @NonNull Set<PhoneAccountHandle> getSimultaneousCallingRestriction() {
         if (mSimultaneousCallingRestriction == null) {
             throw new IllegalStateException("This method can not be called if there is no "
@@ -1175,7 +1281,6 @@ public final class PhoneAccount implements Parcelable {
      * @see #getSimultaneousCallingRestriction() for more information on how the sinultaneous
      * calling restriction works.
      */
-    @FlaggedApi(Flags.FLAG_SIMULTANEOUS_CALLING_INDICATIONS)
     public boolean hasSimultaneousCallingRestriction() {
         return mSimultaneousCallingRestriction != null;
     }
@@ -1211,8 +1316,8 @@ public final class PhoneAccount implements Parcelable {
         }
         out.writeInt(mCapabilities);
         out.writeInt(mHighlightColor);
-        out.writeCharSequence(mLabel);
-        out.writeCharSequence(mShortDescription);
+        ParcelUtils.writeCharSequence(out, mLabel);
+        ParcelUtils.writeCharSequence(out, mShortDescription);
         out.writeStringList(mSupportedUriSchemes);
 
         if (mIcon == null) {
@@ -1264,8 +1369,8 @@ public final class PhoneAccount implements Parcelable {
         }
         mCapabilities = in.readInt();
         mHighlightColor = in.readInt();
-        mLabel = in.readCharSequence();
-        mShortDescription = in.readCharSequence();
+        mLabel = ParcelUtils.readCharSequence(in);
+        mShortDescription = ParcelUtils.readCharSequence(in);
         mSupportedUriSchemes = Collections.unmodifiableList(in.createStringArrayList());
         if (in.readInt() > 0) {
             mIcon = Icon.CREATOR.createFromParcel(in);
@@ -1386,6 +1491,12 @@ public final class PhoneAccount implements Parcelable {
         }
         if (hasCapabilities(CAPABILITY_SUPPORTS_CALL_STREAMING)) {
             sb.append("Stream ");
+        }
+        if (hasCapabilities(CAPABILITY_CHANGE_RTT_CALL_TO_AUDIO_CALL)) {
+            sb.append("RttToAudio ");
+        }
+        if (hasCapabilities(CAPABILITY_OPT_OUT_OF_PREMIUM_NETWORK)) {
+            sb.append("OptOutPremium ");
         }
         return sb.toString();
     }

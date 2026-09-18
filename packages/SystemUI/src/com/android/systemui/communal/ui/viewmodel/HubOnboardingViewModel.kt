@@ -16,13 +16,10 @@
 
 package com.android.systemui.communal.ui.viewmodel
 
-import android.annotation.SuppressLint
 import com.android.systemui.communal.domain.interactor.HubOnboardingInteractor
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.coroutineScope
 
 class HubOnboardingViewModel
 @AssistedInject
@@ -33,9 +30,6 @@ constructor(private val hubOnboardingInteractor: HubOnboardingInteractor) : Excl
     fun onDismissed() {
         hubOnboardingInteractor.setHubOnboardingDismissed()
     }
-
-    @SuppressLint("MissingPermission")
-    override suspend fun onActivated(): Nothing = coroutineScope { awaitCancellation() }
 
     @AssistedFactory
     interface Factory {

@@ -17,25 +17,25 @@
 package com.android.wm.shell.desktopmode
 
 import android.app.ActivityTaskManager
-import android.app.WindowConfiguration
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
-import android.graphics.Rect
 import android.os.Binder
-import android.os.IBinder
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
-import android.view.Display.DEFAULT_DISPLAY
+import android.view.Display
+import android.window.WindowContainerToken
 import android.window.WindowContainerTransaction
+import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REMOVE_TASK
+import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REORDER
+import androidx.compose.ui.input.key.type
 import androidx.test.filters.SmallTest
 import com.android.window.flags.Flags
-import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_PIP
-import com.android.window.flags.Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND
+
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
+import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.pip.PipDesktopState
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.EnterReason
-import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.ExitReason
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFreeformTask
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFullscreenTask
 import com.android.wm.shell.desktopmode.data.DesktopRepository
@@ -50,8 +50,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
+import android.testing.AndroidTestingRunner
 
 /**
  * Tests for [DesktopPipTransitionController].
@@ -59,14 +58,14 @@ import platform.test.runner.parameterized.Parameters
  * Build/Install/Run: atest WMShellUnitTests:DesktopPipTransitionControllerTest
  */
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4::class)
-@EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_PIP)
-class DesktopPipTransitionControllerTest(flags: FlagsParameterization) : ShellTestCase() {
+@RunWith(AndroidTestingRunner::class)
+class DesktopPipTransitionControllerTest : ShellTestCase() {
     private val mockShellTaskOrganizer = mock<ShellTaskOrganizer>()
     private val mockDesktopTasksController = mock<DesktopTasksController>()
     private val mockDesktopUserRepositories = mock<DesktopUserRepositories>()
     private val mockDesktopRepository = mock<DesktopRepository>()
     private val mockPipDesktopState = mock<PipDesktopState>()
+    private val mockDisplayController = mock<DisplayController>()
 
     private lateinit var controller: DesktopPipTransitionController
 
@@ -76,15 +75,10 @@ class DesktopPipTransitionControllerTest(flags: FlagsParameterization) : ShellTe
         createFreeformTask().apply {
             lastParentTaskIdBeforePip = ActivityTaskManager.INVALID_TASK_ID
             userId = mockDesktopRepository.userId
+            displayId = DISPLAY_ID
         }
-    private val freeformParentTask =
-        createFreeformTask().apply { lastNonFullscreenBounds = FREEFORM_BOUNDS }
-    private val fullscreenParentTask =
-        createFullscreenTask().apply { lastNonFullscreenBounds = FREEFORM_BOUNDS }
-
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
-    }
+    private val freeformParentTask = createFreeformTask()
+    private val fullscreenParentTask = createFullscreenTask()
 
     @Before
     fun setUp() {
@@ -92,6 +86,7 @@ class DesktopPipTransitionControllerTest(flags: FlagsParameterization) : ShellTe
         whenever(mockPipDesktopState.isDisplayDesktopFirst(any())).thenReturn(false)
         whenever(mockPipDesktopState.isPipInDesktopMode()).thenReturn(true)
         whenever(mockPipDesktopState.isRecentsAnimating()).thenReturn(false)
+        whenever(mockPipDesktopState.getCurrentDisplayId()).thenReturn(DISPLAY_ID)
         whenever(mockDesktopUserRepositories.getProfile(any())).thenReturn(mockDesktopRepository)
         whenever(mockDesktopRepository.getActiveDeskId(any())).thenReturn(DESK_ID)
         whenever(mockShellTaskOrganizer.getRunningTaskInfo(taskInfo.taskId)).thenReturn(taskInfo)
@@ -106,133 +101,193 @@ class DesktopPipTransitionControllerTest(flags: FlagsParameterization) : ShellTe
                 mockDesktopTasksController,
                 mockDesktopUserRepositories,
                 mockPipDesktopState,
+                mockDisplayController,
             )
     }
 
     @Test
-    fun maybeUpdateParentInWct_invalidParentTaskId_noWctChanges() {
-        val wct = WindowContainerTransaction()
-
-        controller.maybeUpdateParentInWct(wct, ActivityTaskManager.INVALID_TASK_ID)
-
-        assertThat(wct.changes.isEmpty()).isTrue()
-    }
-
-    @Test
-    fun maybeUpdateParentInWct_nullParentInfo_noWctChanges() {
-        val wct = WindowContainerTransaction()
+    fun updateExpandWctForDesktop_multiActivity_nullParentInfo_returnsNull() {
+        wct.apply { setWindowingMode(taskInfo.token, WINDOWING_MODE_FREEFORM) }
+        taskInfo.parentTaskId = 1
         whenever(mockShellTaskOrganizer.getRunningTaskInfo(any())).thenReturn(null)
 
-        controller.maybeUpdateParentInWct(wct, freeformParentTask.taskId)
-
-        assertThat(wct.changes.isEmpty()).isTrue()
+        assertThat(
+                controller.updateExpandWctForDesktop(
+                    wct = wct,
+                    pipTask = taskInfo,
+                    displayId = DISPLAY_ID,
+                )
+            )
+            .isNull()
     }
 
     @Test
-    fun maybeUpdateParentInWct_inDesktop_addFreeformChangesToWct() {
-        val wct = WindowContainerTransaction()
+    fun updateExpandWctForDesktop_nullTaskInfo_returnsNull() {
+        wct.apply { setWindowingMode(taskInfo.token, WINDOWING_MODE_FREEFORM) }
+        whenever(mockShellTaskOrganizer.getRunningTaskInfo(any())).thenReturn(null)
 
-        controller.maybeUpdateParentInWct(wct, fullscreenParentTask.taskId)
+        assertThat(
+                controller.updateExpandWctForDesktop(
+                    wct = wct,
+                    pipTask = taskInfo,
+                    displayId = DISPLAY_ID,
+                )
+            )
+            .isNull()
+    }
+
+    @Test
+    fun updateExpandWctForDesktop_sameDisplay_moveToDisplayNotInvoked() {
+        wct.apply { setWindowingMode(taskInfo.token, WINDOWING_MODE_FREEFORM) }
+
+        val runOnTransitStart =
+            controller.updateExpandWctForDesktop(
+                wct = wct,
+                pipTask = taskInfo,
+                displayId = DISPLAY_ID,
+            )
+        runOnTransitStart!!.invoke(Binder())
+
+        verify(mockDesktopTasksController, never())
+            .moveToDisplay(
+                task = any(),
+                displayId = any(),
+                bounds = anyOrNull(),
+                transitionHandler = anyOrNull(),
+                enterReason = any(),
+                captionInsets = any(),
+            )
+    }
+
+    @Test
+    fun updateExpandWctForDesktop_differentDisplay_moveToDisplayInvoked() {
+        val newDisplay = DISPLAY_ID + 1
+        wct.apply { setWindowingMode(taskInfo.token, WINDOWING_MODE_FREEFORM) }
+
+        val runOnTransitStart =
+            controller.updateExpandWctForDesktop(
+                wct = wct,
+                pipTask = taskInfo,
+                displayId = newDisplay,
+            )
+        runOnTransitStart!!.invoke(Binder())
+
+        verify(mockDesktopTasksController)
+            .addMoveToDisplayChanges(
+                wct = eq(wct),
+                task = eq(taskInfo),
+                displayId = eq(newDisplay),
+                bounds = anyOrNull(),
+                enterReason = eq(EnterReason.EXIT_PIP),
+                captionInsets = any(),
+            )
+    }
+
+    @Test
+    fun maybeUpdateParentInWct_fullscreenParent_freeformChild_addFreeformChangesToWct() {
+        val wct = WindowContainerTransaction()
+        whenever(mockPipDesktopState.getOutPipWindowingMode(isMultiActivityChild = any()))
+            .thenReturn(WINDOWING_MODE_FREEFORM)
+
+        controller.maybeUpdateParentInWct(wct, fullscreenParentTask)
 
         val parentToken = fullscreenParentTask.token.asBinder()
         assertThat(wct.changes[parentToken]?.windowingMode).isEqualTo(WINDOWING_MODE_FREEFORM)
-        assertThat(findBoundsChange(wct, parentToken)).isEqualTo(FREEFORM_BOUNDS)
     }
 
     @Test
-    fun maybeUpdateParentInWct_notInDesktop_addFullscreenChangesToWct() {
+    fun maybeUpdateParentInWct_freeformParent_fullscreenChild_addFullscreenChangesToWct() {
         val wct = WindowContainerTransaction()
-        whenever(mockPipDesktopState.isPipInDesktopMode()).thenReturn(false)
+        whenever(mockPipDesktopState.getOutPipWindowingMode(isMultiActivityChild = any()))
+            .thenReturn(WINDOWING_MODE_FULLSCREEN)
 
-        controller.maybeUpdateParentInWct(wct, freeformParentTask.taskId)
+        controller.maybeUpdateParentInWct(wct, freeformParentTask)
 
         val parentToken = freeformParentTask.token.asBinder()
         assertThat(wct.changes[parentToken]?.windowingMode).isEqualTo(WINDOWING_MODE_FULLSCREEN)
-        assertThat(findBoundsChange(wct, parentToken)).isEqualTo(Rect())
     }
 
     @Test
-    fun maybeUpdateParentInWct_inDesktop_parentWindowingModeMatches_noWctChanges() {
+    fun maybeUpdateParentInWct_freeformParent_freeformChild_noWctChanges() {
         val wct = WindowContainerTransaction()
+        whenever(mockPipDesktopState.getOutPipWindowingMode(isMultiActivityChild = any()))
+            .thenReturn(WINDOWING_MODE_FREEFORM)
 
-        controller.maybeUpdateParentInWct(wct, freeformParentTask.taskId)
+        controller.maybeUpdateParentInWct(wct, freeformParentTask)
 
         assertThat(wct.changes.isEmpty()).isTrue()
     }
 
     @Test
-    fun maybeUpdateParentInWct_notInDesktop_parentWindowingModeMatches_noWctChanges() {
+    fun maybeUpdateParentInWct_fullscreenParent_fullscreenChild_noWctChanges() {
         val wct = WindowContainerTransaction()
-        whenever(mockPipDesktopState.isPipInDesktopMode()).thenReturn(false)
+        whenever(mockPipDesktopState.getOutPipWindowingMode(isMultiActivityChild = any()))
+            .thenReturn(WINDOWING_MODE_FULLSCREEN)
 
-        controller.maybeUpdateParentInWct(wct, fullscreenParentTask.taskId)
+        controller.maybeUpdateParentInWct(wct, fullscreenParentTask)
 
         assertThat(wct.changes.isEmpty()).isTrue()
     }
 
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun maybeReparentTaskToDesk_recentsAnimating_noAddMoveToDeskTaskChanges() {
         whenever(mockPipDesktopState.isRecentsAnimating()).thenReturn(true)
 
-        controller.maybeReparentTaskToDesk(wct, taskInfo.taskId)
+        controller.maybeReparentTaskToDesk(wct, taskInfo, isMultiActivityPip = false)
 
         verify(mockDesktopTasksController, never())
             .addMoveToDeskTaskChanges(wct = any(), task = any(), deskId = any())
     }
 
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun maybeReparentTaskToDesk_multiActivity_parentInDesk_addMoveTaskToFrontChanges() {
         val wct = WindowContainerTransaction()
-        val parentTaskId = freeformParentTask.taskId
-        taskInfo.lastParentTaskIdBeforePip = parentTaskId
-        whenever(mockDesktopRepository.isActiveTask(parentTaskId)).thenReturn(true)
+        whenever(mockDesktopRepository.isActiveTaskInDesk(freeformParentTask.taskId, DESK_ID))
+            .thenReturn(true)
 
-        controller.maybeReparentTaskToDesk(wct, taskInfo.taskId)
+        controller.maybeReparentTaskToDesk(wct, freeformParentTask, isMultiActivityPip = true)
 
         verify(mockDesktopTasksController)
             .addMoveTaskToFrontChanges(wct = wct, deskId = DESK_ID, taskInfo = freeformParentTask)
     }
 
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun maybeReparentTaskToDesk_multiActivity_parentNotInDesk_addMoveToDeskTaskChanges() {
         val wct = WindowContainerTransaction()
-        val parentTaskId = freeformParentTask.taskId
-        taskInfo.lastParentTaskIdBeforePip = parentTaskId
-        whenever(mockDesktopRepository.isActiveTask(parentTaskId)).thenReturn(false)
+        whenever(mockDesktopRepository.isActiveTaskInDesk(freeformParentTask.taskId, DESK_ID))
+            .thenReturn(false)
 
-        controller.maybeReparentTaskToDesk(wct, taskInfo.taskId)
+        controller.maybeReparentTaskToDesk(wct, freeformParentTask, isMultiActivityPip = true)
 
         verify(mockDesktopTasksController)
             .addMoveToDeskTaskChanges(wct = wct, task = freeformParentTask, deskId = DESK_ID)
+        assertThat(wct.hierarchyOps).hasSize(1)
+        wct.assertReorderAt(index = 0, freeformParentTask.token, toTop = true)
     }
 
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun maybeReparentTaskToDesk_noDeskActive_noAddMoveToDeskTaskChanges() {
         val wct = WindowContainerTransaction()
         whenever(mockDesktopRepository.getActiveDeskId(any())).thenReturn(null)
 
-        controller.maybeReparentTaskToDesk(wct, taskInfo.taskId)
+        controller.maybeReparentTaskToDesk(wct, taskInfo, isMultiActivityPip = false)
 
         verify(mockDesktopTasksController, never())
             .addMoveToDeskTaskChanges(wct = any(), task = any(), deskId = any())
     }
 
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun maybeReparentTaskToDesk_deskActive_addMoveToDeskTaskChanges() {
         val wct = WindowContainerTransaction()
 
-        controller.maybeReparentTaskToDesk(wct, taskInfo.taskId)
+        controller.maybeReparentTaskToDesk(wct, taskInfo, isMultiActivityPip = false)
 
         verify(mockDesktopTasksController)
             .addMoveToDeskTaskChanges(wct = wct, task = taskInfo, deskId = DESK_ID)
+        assertThat(wct.hierarchyOps).hasSize(1)
+        wct.assertReorderAt(index = 0, taskInfo.token, toTop = true)
     }
 
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun maybeReparentTaskToDesk_noDeskActive_desktopFirstDisplay_addDeskActivationChanges() {
         val wct = WindowContainerTransaction()
@@ -240,7 +295,7 @@ class DesktopPipTransitionControllerTest(flags: FlagsParameterization) : ShellTe
         whenever(mockPipDesktopState.isDisplayDesktopFirst(any())).thenReturn(true)
         whenever(mockDesktopRepository.getDefaultDeskId(any())).thenReturn(DESK_ID)
 
-        controller.maybeReparentTaskToDesk(wct, taskInfo.taskId)
+        controller.maybeReparentTaskToDesk(wct, taskInfo, isMultiActivityPip = false)
 
         verify(mockDesktopTasksController)
             .addDeskActivationChanges(
@@ -248,112 +303,70 @@ class DesktopPipTransitionControllerTest(flags: FlagsParameterization) : ShellTe
                 wct = wct,
                 newTask = taskInfo,
                 userId = mockDesktopRepository.userId,
-                displayId = taskInfo.displayId,
+                displayId = DISPLAY_ID,
                 enterReason = EnterReason.EXIT_PIP,
             )
         verify(mockDesktopTasksController)
             .addMoveToDeskTaskChanges(wct = wct, task = taskInfo, deskId = DESK_ID)
+        assertThat(wct.hierarchyOps).hasSize(1)
+        wct.assertReorderAt(index = 0, taskInfo.token, toTop = true)
     }
 
     @Test
-    fun handlePipTransition_notLastTask_doesntPerformDesktopExitCleanup() {
-        whenever(
-                mockDesktopRepository.isOnlyVisibleNonClosingTaskInDesk(
-                    taskId = eq(taskInfo.taskId),
-                    deskId = eq(DESK_ID),
-                    displayId = eq(taskInfo.displayId),
-                )
-            )
-            .thenReturn(false)
+    fun handleRemovePipTransition_notInDesktop_wctEmpty() {
+        whenever(mockPipDesktopState.isPipInDesktopMode()).thenReturn(false)
+        whenever(mockDisplayController.getDisplay(taskInfo.displayId)).thenReturn(mock<Display>())
 
-        controller.handlePipTransition(wct, transition, taskInfo)
+        controller.handleRemovePipTransition(wct = wct, token = taskInfo.token)
 
-        verifyPerformDesktopExitCleanupAfterPip(isCalled = false)
+        assertThat(wct.changes.isEmpty()).isTrue()
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun handlePipTransition_noActiveDeskId_multiDesk_doesntPerformDesktopExitCleanup() {
-        whenever(mockDesktopRepository.getActiveDeskId(eq(taskInfo.displayId))).thenReturn(null)
+    fun handleRemovePipTransition_inDesktop_wctRemoveTask() {
+        whenever(mockDisplayController.getDisplay(taskInfo.displayId)).thenReturn(mock<Display>())
 
-        controller.handlePipTransition(wct, transition, taskInfo)
+        controller.handleRemovePipTransition(wct = wct, token = taskInfo.token)
 
-        verifyPerformDesktopExitCleanupAfterPip(isCalled = false)
+        assertThat(wct.hierarchyOps).hasSize(1)
+        val taskRemoval = wct.hierarchyOps.find { op -> op.container == taskInfo.token.asBinder() }
+        assertThat(taskRemoval).isNotNull()
+        assertThat(taskRemoval!!.type).isEqualTo(HIERARCHY_OP_TYPE_REMOVE_TASK)
+    }
+
+    private fun WindowContainerTransaction.assertReorderAt(
+        index: Int,
+        token: WindowContainerToken,
+        toTop: Boolean,
+    ) {
+        assertThat(hierarchyOps.size).isGreaterThan(index)
+        val op = hierarchyOps[index]
+        assertThat(op.type).isEqualTo(HIERARCHY_OP_TYPE_REORDER)
+        assertThat(op.container).isEqualTo(token.asBinder())
+        assertThat(op.toTop).isEqualTo(toTop)
     }
 
     @Test
-    fun handlePipTransition_isLastTask_performDesktopExitCleanup() {
-        whenever(
-                mockDesktopRepository.isOnlyVisibleNonClosingTaskInDesk(
-                    taskId = eq(taskInfo.taskId),
-                    deskId = eq(DESK_ID),
-                    displayId = eq(taskInfo.displayId),
-                )
-            )
-            .thenReturn(true)
+    fun handleRemovePipTransition_displayIsNull_doesNotRemoveTask() {
+        val displayId = 10
+        val wct = WindowContainerTransaction()
+        whenever(mockPipDesktopState.isPipInDesktopMode()).thenReturn(true)
+        whenever(mockPipDesktopState.getCurrentDisplayId()).thenReturn(displayId)
+        whenever(mockDisplayController.getDisplay(displayId)).thenReturn(null)
 
-        controller.handlePipTransition(wct, transition, taskInfo)
+        controller.handleRemovePipTransition(wct, taskInfo.token)
 
-        verifyPerformDesktopExitCleanupAfterPip(isCalled = true)
-    }
-
-    @Test
-    fun handlePipTransition_multiActivityPip_minimizeMultiActivityPipTask() {
-        taskInfo.numActivities = 2
-
-        controller.handlePipTransition(wct, transition, taskInfo)
-
-        verify(mockDesktopTasksController)
-            .minimizeMultiActivityPipTask(wct = wct, deskId = DESK_ID, task = taskInfo)
-    }
-
-    private fun verifyPerformDesktopExitCleanupAfterPip(isCalled: Boolean) {
-        if (isCalled) {
-            verify(mockDesktopTasksController)
-                .performDesktopExitCleanUp(
-                    wct = wct,
-                    deskId = DESK_ID,
-                    displayId = DEFAULT_DISPLAY,
-                    userId = taskInfo.userId,
-                    willExitDesktop = true,
-                    removingLastTaskId = taskInfo.taskId,
-                    exitReason = ExitReason.ENTER_PIP,
-                )
-        } else {
-            verify(mockDesktopTasksController, never())
-                .performDesktopExitCleanUp(
-                    wct = any(),
-                    deskId = anyOrNull(),
-                    displayId = any(),
-                    userId = any(),
-                    willExitDesktop = any(),
-                    removingLastTaskId = anyOrNull(),
-                    shouldEndUpAtHome = any(),
-                    skipWallpaperAndHomeOrdering = any(),
-                    skipUpdatingExitDesktopListener = any(),
-                    exitReason = any(),
-                )
-        }
-    }
-
-    private fun findBoundsChange(wct: WindowContainerTransaction, parentToken: IBinder): Rect? =
-        wct.changes.entries
-            .find { (token, change) ->
-                token == parentToken &&
-                    (change.windowSetMask and WindowConfiguration.WINDOW_CONFIG_BOUNDS) != 0
+        val hasRemoveTaskOp =
+            wct.hierarchyOps.any { op ->
+                op.type == HIERARCHY_OP_TYPE_REMOVE_TASK &&
+                    op.container == taskInfo.token.asBinder()
             }
-            ?.value
-            ?.configuration
-            ?.windowConfiguration
-            ?.bounds
+
+        assertThat(hasRemoveTaskOp).isFalse()
+    }
 
     private companion object {
         const val DESK_ID = 1
-        val FREEFORM_BOUNDS = Rect(100, 100, 300, 300)
-
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> =
-            FlagsParameterization.allCombinationsOf(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
+        const val DISPLAY_ID = 0
     }
 }

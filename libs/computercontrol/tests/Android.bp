@@ -24,13 +24,11 @@ android_test {
     team: "trendy_team_virtual_device_framework",
     test_suites: ["device-tests"],
     static_libs: [
-        "android.companion.virtualdevice.flags-aconfig-java",
         "androidx.test.runner",
         "androidx.test.rules",
         "androidx.test.ext.junit",
         "androidx.core_core-ktx",
         "com.android.extensions.computercontrol",
-        "CtsVirtualDeviceCommonLib",
         "compatibility-device-util-axt",
         "junit",
         "platform-test-annotations",

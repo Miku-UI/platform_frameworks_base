@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.row.wrapper
 
-import android.app.Flags.notificationsRedesignTemplates
 import android.content.Context
 import android.view.View
 import com.android.internal.widget.CachingIconView
@@ -51,11 +50,7 @@ constructor(ctx: Context, view: View, row: ExpandableNotificationRow) :
                 requireViewById(com.android.internal.R.id.conversation_icon_badge_bg)
             expandBtn = requireViewById(com.android.internal.R.id.expand_button)
             appName = requireViewById(com.android.internal.R.id.app_name_text)
-            conversationTitleView =
-                requireViewById(
-                    if (notificationsRedesignTemplates()) com.android.internal.R.id.title
-                    else com.android.internal.R.id.conversation_text
-                )
+            conversationTitleView = requireViewById(com.android.internal.R.id.title)
         }
     }
 

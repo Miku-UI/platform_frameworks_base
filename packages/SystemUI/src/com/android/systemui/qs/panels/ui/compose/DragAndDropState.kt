@@ -17,6 +17,7 @@
 package com.android.systemui.qs.panels.ui.compose
 
 import android.content.ClipData
+import android.view.View
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
@@ -210,7 +211,8 @@ fun Modifier.dragAndDropTileSource(
                                 QsDragAndDrop.CLIPDATA_LABEL,
                                 arrayOf(QsDragAndDrop.TILESPEC_MIME_TYPE),
                                 ClipData.Item(sizedTile.tile.tileSpec.spec),
-                            )
+                            ),
+                            flags = View.DRAG_FLAG_OPAQUE,
                         )
                     )
                 },

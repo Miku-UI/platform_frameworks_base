@@ -22,13 +22,17 @@ import android.app.admin.RoleAuthority
 import android.app.admin.SystemAuthority
 import android.content.ComponentName
 import android.os.UserHandle
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.role.RoleManagerLocal
-import com.android.server.LocalManagerRegistry
-import kotlin.test.Test
+import com.android.server.devicepolicy.EnforcingAdmin.ROLE_AUTHORITY_PREFIX
+import com.android.server.testutils.LocalManagerRegistryKeeperRule
+import com.android.testutils.assertNotEqualEitherWay
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import org.junit.BeforeClass
+import org.junit.Rule
+import org.junit.Test
+import org.junit.Before
 import org.junit.runner.RunWith
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
@@ -37,9 +41,24 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 class EnforcingAdminTest {
 
+    @get:Rule val setFlagsRule = SetFlagsRule()
+
+    @get:Rule
+    val localManagerRegistryKeeperRule = LocalManagerRegistryKeeperRule()
+
+    private val roleManagerLocal = mock<RoleManagerLocal>()
+
+    @Before
+    fun setUp() {
+        localManagerRegistryKeeperRule.overrideLocalManager(
+            RoleManagerLocal::class.java,
+            roleManagerLocal,
+        )
+    }
+
     @Test
     fun createEnforcingAdmin() {
-        val enforcingAdmin = EnforcingAdmin.createEnforcingAdmin(PACKAGE_NAME, SYSTEM_USER_ID)
+        val enforcingAdmin = EnforcingAdmin.createRoleEnforcingAdmin(PACKAGE_NAME, SYSTEM_USER_ID)
 
         assertEquals(SYSTEM_USER_ID, enforcingAdmin.userId)
         assertEquals(PACKAGE_NAME, enforcingAdmin.packageName)
@@ -113,10 +132,13 @@ class EnforcingAdminTest {
 
     @Test
     fun createEnforcingAdmin_fromParcelable_roleAuthority() {
+        whenever(roleManagerLocal.getRolesAndHolders(SYSTEM_USER_ID)) doReturn
+                mapOf(ROLE_NAME to setOf(PACKAGE_NAME))
+
         val parcelableAdmin =
             android.app.admin.EnforcingAdmin(
                 PACKAGE_NAME,
-                RoleAuthority(setOf(ROLE_AUTHORITY)),
+                RoleAuthority(setOf(ROLE_NAME)),
                 SYSTEM_USER_HANDLE,
                 COMPONENT_NAME,
             )
@@ -125,8 +147,7 @@ class EnforcingAdminTest {
 
         assertEquals(SYSTEM_USER_ID, enforcingAdmin.userId)
         assertEquals(PACKAGE_NAME, enforcingAdmin.packageName)
-        assertEquals(COMPONENT_NAME, enforcingAdmin.componentName)
-        assertTrue(enforcingAdmin.hasAuthority(ROLE_AUTHORITY))
+        assertTrue(enforcingAdmin.hasAuthority(ROLE_AUTHORITY_PREFIX + ROLE_NAME))
     }
 
     @Test
@@ -175,15 +196,15 @@ class EnforcingAdminTest {
     @Test
     fun getParcelableAdmin_roleAuthority() {
         whenever(roleManagerLocal.getRolesAndHolders(SYSTEM_USER_ID)) doReturn
-            mapOf(ROLE_AUTHORITY to setOf(PACKAGE_NAME))
-        val enforcingAdmin = EnforcingAdmin.createEnforcingAdmin(PACKAGE_NAME, SYSTEM_USER_ID)
+            mapOf(ROLE_NAME to setOf(PACKAGE_NAME))
+        val enforcingAdmin = EnforcingAdmin.createRoleEnforcingAdmin(PACKAGE_NAME, SYSTEM_USER_ID)
         enforcingAdmin.reloadRoleAuthorities()
 
         val parcelableAdmin = enforcingAdmin.parcelableAdmin
 
         assertEquals(SYSTEM_USER_HANDLE, parcelableAdmin.userHandle)
         assertEquals(PACKAGE_NAME, parcelableAdmin.packageName)
-        assertEquals(RoleAuthority(setOf(ROLE_AUTHORITY)), parcelableAdmin.authority)
+        assertEquals(RoleAuthority(setOf(ROLE_NAME)), parcelableAdmin.authority)
     }
 
     @Test
@@ -197,6 +218,33 @@ class EnforcingAdminTest {
         assertEquals(SYSTEM_ENTITY, (parcelableAdmin.authority as SystemAuthority).systemEntity)
     }
 
+    @Test
+    fun DpcAndDaAdmins_notEquals() {
+        val daAdmin = EnforcingAdmin.createDeviceAdminEnforcingAdmin(COMPONENT_NAME, SYSTEM_USER_ID)
+        val dpcAdmin = EnforcingAdmin.createEnterpriseEnforcingAdmin(COMPONENT_NAME, SYSTEM_USER_ID)
+
+        assertNotEqualEitherWay(daAdmin, dpcAdmin)
+    }
+
+    @Test
+    fun RoleAndDaAdmins_notEquals() {
+        val daAdmin = EnforcingAdmin.createDeviceAdminEnforcingAdmin(COMPONENT_NAME, SYSTEM_USER_ID)
+        val roleAdmin =
+            EnforcingAdmin.createRoleEnforcingAdmin(COMPONENT_NAME.packageName, SYSTEM_USER_ID)
+
+        assertNotEqualEitherWay(daAdmin, roleAdmin)
+    }
+
+    @Test
+    fun DpcAndRoleAdmins_equals() {
+        val dpcAdmin = EnforcingAdmin.createEnterpriseEnforcingAdmin(COMPONENT_NAME, SYSTEM_USER_ID)
+        val roleAdmin =
+            EnforcingAdmin.createRoleEnforcingAdmin(COMPONENT_NAME.packageName, SYSTEM_USER_ID)
+
+        assertEquals(dpcAdmin, roleAdmin)
+        assertEquals(dpcAdmin.hashCode(), roleAdmin.hashCode())
+    }
+
     companion object {
         private const val PACKAGE_NAME = "package-name"
         private const val PACKAGE_CLASS = "package-name-class"
@@ -207,17 +255,6 @@ class EnforcingAdminTest {
         private const val SYSTEM_AUTHORITY_NAME =
             EnforcingAdmin.SYSTEM_AUTHORITY_PREFIX + SYSTEM_ENTITY
         private val SYSTEM_AUTHORITY = SystemAuthority(SYSTEM_ENTITY)
-        private const val ROLE_AUTHORITY = "role-authority"
-
-        private val roleManagerLocal = mock<RoleManagerLocal>()
-
-        @BeforeClass
-        @JvmStatic
-        fun setUpClass() {
-            // TODO(b/420373209): Remove this once we have a better way to mock RoleManagerLocal.
-            if (LocalManagerRegistry.getManager(RoleManagerLocal::class.java) == null) {
-                LocalManagerRegistry.addManager(RoleManagerLocal::class.java, roleManagerLocal)
-            }
-        }
+        private const val ROLE_NAME = "role-authority"
     }
 }

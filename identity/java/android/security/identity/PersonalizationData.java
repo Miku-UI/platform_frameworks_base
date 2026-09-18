@@ -16,13 +16,13 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 /**
  * An object that holds personalization data.
@@ -33,7 +33,10 @@ import java.util.List;
  * This is used to provision data into a {@link WritableIdentityCredential}.
  *
  * @see WritableIdentityCredential#personalize
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class PersonalizationData {
 
     private PersonalizationData() {
@@ -101,13 +104,21 @@ public class PersonalizationData {
 
     /**
      * A builder for {@link PersonalizationData}.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static final class Builder {
         private PersonalizationData mData;
 
         /**
          * Creates a new builder for a given namespace.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public Builder() {
             this.mData = new PersonalizationData();
         }
@@ -120,7 +131,11 @@ public class PersonalizationData {
          * @param accessControlProfileIds A set of access control profiles to use.
          * @param value                   The value to add, in CBOR encoding.
          * @return The builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder putEntry(@NonNull String namespace, @NonNull String name,
                 @NonNull Collection<AccessControlProfileId> accessControlProfileIds,
                 @NonNull byte[] value) {
@@ -139,7 +154,11 @@ public class PersonalizationData {
          *
          * @param profile The access control profile.
          * @return The builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder addAccessControlProfile(@NonNull AccessControlProfile profile) {
             mData.mProfiles.add(profile);
             return this;
@@ -149,7 +168,11 @@ public class PersonalizationData {
          * Creates a new {@link PersonalizationData} with all the entries added to the builder.
          *
          * @return A new {@link PersonalizationData} instance.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull PersonalizationData build() {
             return mData;
         }

@@ -81,7 +81,12 @@ class PreferenceHierarchy : PreferenceHierarchyNode {
      *
      * @throws NullPointerException if screen is not registered to [PreferenceScreenRegistry]
      */
-    operator fun String.unaryPlus() = addPreferenceScreen(this, null)
+    operator fun String.unaryPlus() =
+        if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            addPreferenceScreenWithKeyParameters(this, null)
+        } else {
+            addPreferenceScreen(this, null)
+        }
 
     /** Removes preference with given key from the hierarchy. */
     operator fun String.unaryMinus() {
@@ -94,7 +99,10 @@ class PreferenceHierarchy : PreferenceHierarchyNode {
      *
      * @see String.unaryPlus
      */
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use String.unaryPlus")
     infix fun String.args(args: Bundle) = createPreferenceScreenHierarchy(this, args)
+
+    infix fun String.withParameters(keyParameters: ValidatedKeyParameters) = createPreferenceScreenHierarchyWithKeyParameters(this, keyParameters)
 
     operator fun PreferenceHierarchyNode.unaryPlus() = also { children.add(it) }
 
@@ -198,8 +206,17 @@ class PreferenceHierarchy : PreferenceHierarchyNode {
      *
      * @see addPreferenceScreen
      */
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use addParameterizedScreenWithKeyParameters instead.")
     fun addParameterizedScreen(screenKey: String, args: Bundle) =
         addPreferenceScreen(screenKey, args)
+
+    /**
+     * Adds parameterized preference screen with given key (as a placeholder) to the hierarchy.
+     *
+     * @see addPreferenceScreenWithKeyParameters
+     */
+    fun addParameterizedScreenWithKeyParameters(screenKey: String, keyParameters: ValidatedKeyParameters) =
+        addPreferenceScreenWithKeyParameters(screenKey, keyParameters)
 
     /**
      * Adds preference screen with given key (as a placeholder) to the hierarchy.
@@ -212,13 +229,26 @@ class PreferenceHierarchy : PreferenceHierarchyNode {
      *
      * @throws NullPointerException if screen is not registered to [PreferenceScreenRegistry]
      */
-    fun addPreferenceScreen(screenKey: String) = addPreferenceScreen(screenKey, null)
+    fun addPreferenceScreen(screenKey: String) =
+        if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            addPreferenceScreenWithKeyParameters(screenKey, null)
+        } else {
+            addPreferenceScreen(screenKey, null)
+        }
 
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use addPreferenceScreenWithKeyParameters instead.")
     private fun addPreferenceScreen(screenKey: String, args: Bundle?): PreferenceHierarchyNode =
         createPreferenceScreenHierarchy(screenKey, args).also { children.add(it) }
 
+    private fun addPreferenceScreenWithKeyParameters(screenKey: String, keyParameters: ValidatedKeyParameters?): PreferenceHierarchyNode =
+        createPreferenceScreenHierarchyWithKeyParameters(screenKey, keyParameters).also { children.add(it) }
+
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use createPreferenceScreenHierarchyWithKeyParameters instead.")
     private fun createPreferenceScreenHierarchy(screenKey: String, args: Bundle?) =
         PreferenceHierarchyNode(PreferenceScreenRegistry.create(context, screenKey, args)!!)
+
+    private fun createPreferenceScreenHierarchyWithKeyParameters(screenKey: String, keyParameters: ValidatedKeyParameters?) =
+        PreferenceHierarchyNode(PreferenceScreenRegistry.createWithKeyParameters(context, screenKey, keyParameters)!!)
 
     /** Extensions to add more preferences to the hierarchy. */
     operator fun PreferenceHierarchy.plusAssign(init: PreferenceHierarchy.() -> Unit) = init(this)
@@ -398,6 +428,8 @@ class PreferenceHierarchy : PreferenceHierarchyNode {
 private object AsyncPreferenceMetadata : PreferenceMetadata {
     override val key: String
         get() = ""
+    override val purpose: Int
+        get() = 0
 }
 
 /**

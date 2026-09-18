@@ -1,0 +1,19 @@
+aconfig_declarations {
+    name: "lights_flags-aconfig",
+    package: "com.android.server.lights.feature.flags",
+    container: "system",
+    exportable: true,
+    srcs: [
+        "lights_flags.aconfig",
+    ],
+}
+
+java_aconfig_library {
+    name: "lights_flags_lib",
+    aconfig_declarations: "lights_flags-aconfig",
+}
+
+cc_aconfig_library {
+    name: "lights_flags_cc_lib",
+    aconfig_declarations: "lights_flags-aconfig",
+}

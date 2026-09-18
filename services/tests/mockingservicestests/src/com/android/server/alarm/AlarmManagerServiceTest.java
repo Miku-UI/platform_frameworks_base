@@ -54,6 +54,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
+import static com.android.server.SystemClockTime.TIME_CONFIDENCE_HIGH;
 import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_HIGH;
 import static com.android.server.alarm.Alarm.EXACT_ALLOW_REASON_ALLOW_LIST;
 import static com.android.server.alarm.Alarm.EXACT_ALLOW_REASON_COMPAT;
@@ -71,6 +72,8 @@ import static com.android.server.alarm.AlarmManagerService.AlarmHandler.REMOVE_F
 import static com.android.server.alarm.AlarmManagerService.AlarmHandler.TEMPORARY_QUOTA_CHANGED;
 import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_COMPAT_QUOTA;
 import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_COMPAT_WINDOW;
+import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_LISTENER_QUOTA;
+import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_LISTENER_WINDOW;
 import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_QUOTA;
 import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_WHITELIST_DURATION;
 import static com.android.server.alarm.AlarmManagerService.Constants.KEY_ALLOW_WHILE_IDLE_WINDOW;
@@ -94,6 +97,7 @@ import static com.android.server.alarm.Constants.TEST_CALLING_UID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -118,6 +122,7 @@ import android.app.ActivityOptions;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.app.BroadcastOptions;
+import android.app.Flags;
 import android.app.IActivityManager;
 import android.app.IAlarmCompleteListener;
 import android.app.IAlarmListener;
@@ -130,6 +135,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.PermissionChecker;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.UserInfo;
 import android.net.Uri;
@@ -150,10 +156,10 @@ import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.platform.test.flag.util.FlagSetException;
 import android.provider.DeviceConfig;
 import android.text.format.DateFormat;
 import android.util.ArraySet;
@@ -199,11 +205,16 @@ import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 
 import java.io.File;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.zone.ZoneOffsetTransition;
+import java.time.zone.ZoneRules;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.TimeZone;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongConsumer;
@@ -218,9 +229,20 @@ public final class AlarmManagerServiceTest {
     private static final int TEST_CALLING_UID_2 = TEST_CALLING_UID + 1;
     private static final int[] ALARM_TYPES =
             {RTC_WAKEUP, RTC, ELAPSED_REALTIME_WAKEUP, ELAPSED_REALTIME};
+    private static final String TZ_ID_LA = "America/Los_Angeles";
+    private static final String TZ_ID_NY = "America/New_York";
+
+    // This time zone has no DST transition
+    private static final String TZ_ID_GMT = "Etc/GMT";
+
+    // 2025-01-01 00:00:00 UTC
+    private static final long TEST_TIME_JAN_1_2025 = 1735732800000L;
+
+    private static final String TIME_UPDATE_LOG_MSG = "test log message";
 
     private long mAppStandbyWindow;
     private long mAllowWhileIdleWindow;
+    private long mAllowWhileIdleListenerWindow;
     private AlarmManagerService mService;
     private AppStandbyInternal.AppIdleStateChangeListener mAppStandbyListener;
     private AppStateTrackerImpl.Listener mListener;
@@ -257,6 +279,8 @@ public final class AlarmManagerServiceTest {
     @Mock
     private ActivityManager mActivityManager;
     @Mock
+    private PackageManager mPackageManager;
+    @Mock
     private PackageManagerInternal mPackageManagerInternal;
     @Mock
     private AppStateTrackerImpl mAppStateTracker;
@@ -274,6 +298,8 @@ public final class AlarmManagerServiceTest {
     private volatile int mTestCallingUid = TEST_CALLING_UID;
     @GuardedBy("mTestTimer")
     private TestTimer mTestTimer = new TestTimer();
+
+    private TimeZone mOriginalTimeZone;
 
     static class TestTimer {
         private long mElapsed;
@@ -417,6 +443,7 @@ public final class AlarmManagerServiceTest {
             .mockStatic(MetricsHelper.class)
             .mockStatic(PermissionChecker.class)
             .mockStatic(PermissionManagerService.class)
+            .mockStatic(Process.class)
             .mockStatic(ServiceManager.class)
             .mockStatic(SystemProperties.class)
             .mockStatic(Environment.class)
@@ -428,22 +455,9 @@ public final class AlarmManagerServiceTest {
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(NULL_DEFAULT);
 
-    /**
-     * Have to do this to switch the {@link Flags} implementation to {@link FakeFeatureFlagsImpl}.
-     * All methods that need any flag enabled should use the
-     * {@link android.platform.test.annotations.EnableFlags} annotation, in which case disabling
-     * the flag will fail with an exception that we will swallow here.
-     */
-    private void disableFlagsNotSetByAnnotation() {
-        try {
-            mSetFlagsRule.disableFlags(Flags.FLAG_ACQUIRE_WAKELOCK_BEFORE_SEND);
-        } catch (FlagSetException fse) {
-            // Expected if the test about to be run requires this enabled.
-        }
-    }
-
     @Before
     public void setUp() {
+        mOriginalTimeZone = TimeZone.getDefault();
         doReturn(mIActivityManager).when(ActivityManager::getService);
         doReturn(mDeviceIdleInternal).when(
                 () -> LocalServices.getService(DeviceIdleInternal.class));
@@ -464,6 +478,7 @@ public final class AlarmManagerServiceTest {
                 LocalServices.addService(eq(AlarmManagerInternal.class), any()));
         doCallRealMethod().when(() -> LocalServices.getService(AlarmManagerInternal.class));
         doReturn(false).when(() -> UserHandle.isCore(anyInt()));
+        doReturn(false).when(() -> Process.isPrivateComputeCoreUid(anyInt()));
         when(mUsageStatsManagerInternal.getAppStandbyBucket(eq(TEST_CALLING_PACKAGE),
                 eq(TEST_CALLING_USER), anyLong())).thenReturn(STANDBY_BUCKET_ACTIVE);
         doReturn(Looper.getMainLooper()).when(Looper::myLooper);
@@ -505,6 +520,13 @@ public final class AlarmManagerServiceTest {
         when(mMockContext.getSystemService(Context.APP_OPS_SERVICE)).thenReturn(mAppOpsManager);
         when(mMockContext.getSystemService(BatteryManager.class)).thenReturn(mBatteryManager);
         when(mMockContext.getSystemService(ActivityManager.class)).thenReturn(mActivityManager);
+        when(mMockContext.getPackageManager()).thenReturn(mPackageManager);
+        when(mPackageManager.getAppUidForPrivateComputeCoreUid(anyInt()))
+                .thenReturn(Process.INVALID_UID);
+        when(mPackageManagerInternal.isSameApp(anyString(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(true);
+        when(mPackageManagerInternal.isSameApp(anyString(), anyInt(), anyInt())).thenReturn(true);
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_PC)).thenReturn(false);
 
         registerAppIds(new String[]{TEST_CALLING_PACKAGE},
                 new Integer[]{UserHandle.getAppId(TEST_CALLING_UID)});
@@ -517,8 +539,6 @@ public final class AlarmManagerServiceTest {
         mInjector = new Injector(mMockContext);
         mService = new AlarmManagerService(mMockContext, mInjector);
         spyOn(mService);
-
-        disableFlagsNotSetByAnnotation();
 
         mService.onStart();
 
@@ -545,6 +565,7 @@ public final class AlarmManagerServiceTest {
         verify(mBatteryManager).isCharging();
         mAppStandbyWindow = mService.mConstants.APP_STANDBY_WINDOW;
         mAllowWhileIdleWindow = mService.mConstants.ALLOW_WHILE_IDLE_WINDOW;
+        mAllowWhileIdleListenerWindow = mService.mConstants.ALLOW_WHILE_IDLE_LISTENER_WINDOW;
 
         ArgumentCaptor<AppStandbyInternal.AppIdleStateChangeListener> idleListenerCaptor =
                 ArgumentCaptor.forClass(AppStandbyInternal.AppIdleStateChangeListener.class);
@@ -587,12 +608,17 @@ public final class AlarmManagerServiceTest {
         }
         mIAppOpsCallback = appOpsCallbackCaptor.getValue();
         setTestableQuotas();
+
+        // Remove all existing alarms to avoid cross-test pollution.
+        mService.mAlarmStore.remove(unused -> true);
+        mService.mAlarmsPerUid.clear();
     }
 
     @After
     public void tearDown() {
         // Clean up test dir to remove persisted user files.
         FileUtils.deleteContentsAndDir(mTestDir);
+        TimeZone.setDefault(mOriginalTimeZone);
     }
 
     private void setTestAlarm(int type, long triggerTime, PendingIntent operation) {
@@ -660,8 +686,14 @@ public final class AlarmManagerServiceTest {
 
     private void setTestAlarmWithListener(int type, long triggerTime, IAlarmListener listener,
             long windowLength, int callingUid) {
+        setTestAlarmWithListener(type, triggerTime, listener, FLAG_STANDALONE, windowLength,
+                callingUid);
+    }
+
+    private void setTestAlarmWithListener(int type, long triggerTime, IAlarmListener listener,
+            int flags, long windowLength, int callingUid) {
         mService.setImpl(type, triggerTime, windowLength, 0, null, listener, "test",
-                FLAG_STANDALONE, null, null, callingUid, TEST_CALLING_PACKAGE, null, 0);
+                flags, null, null, callingUid, TEST_CALLING_PACKAGE, null, 0);
     }
 
     private PendingIntent getNewMockPendingIntent() {
@@ -881,6 +913,8 @@ public final class AlarmManagerServiceTest {
         setDeviceConfigLong(KEY_MIN_DEVICE_IDLE_FUZZ, 60);
         setDeviceConfigLong(KEY_MAX_DEVICE_IDLE_FUZZ, 65);
         setDeviceConfigInt(KEY_TEMPORARY_QUOTA_BUMP, 70);
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_LISTENER_QUOTA, 75);
+        setDeviceConfigLong(KEY_ALLOW_WHILE_IDLE_LISTENER_WINDOW, 80);
         assertEquals(5, mService.mConstants.MIN_FUTURITY);
         assertEquals(10, mService.mConstants.MIN_INTERVAL);
         assertEquals(15, mService.mConstants.MAX_INTERVAL);
@@ -895,6 +929,8 @@ public final class AlarmManagerServiceTest {
         assertEquals(60, mService.mConstants.MIN_DEVICE_IDLE_FUZZ);
         assertEquals(65, mService.mConstants.MAX_DEVICE_IDLE_FUZZ);
         assertEquals(70, mService.mConstants.TEMPORARY_QUOTA_BUMP);
+        assertEquals(75, mService.mConstants.ALLOW_WHILE_IDLE_LISTENER_QUOTA);
+        assertEquals(80, mService.mConstants.ALLOW_WHILE_IDLE_LISTENER_WINDOW);
     }
 
     @Test
@@ -950,7 +986,6 @@ public final class AlarmManagerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ACQUIRE_WAKELOCK_BEFORE_SEND)
     public void testWakelockOrderingFirstAlarm() throws Exception {
         final long triggerTime = mNowElapsedTest + 5000;
         final PendingIntent alarmPi = getNewMockPendingIntent();
@@ -974,7 +1009,6 @@ public final class AlarmManagerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ACQUIRE_WAKELOCK_BEFORE_SEND)
     public void testWakelockOrderingNonFirst() throws Exception {
         final long triggerTime = mNowElapsedTest + 5000;
         final PendingIntent alarmPi = getNewMockPendingIntent();
@@ -996,7 +1030,6 @@ public final class AlarmManagerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ACQUIRE_WAKELOCK_BEFORE_SEND)
     public void testWakelockReleasedWhenSendFails() throws Exception {
         final PendingIntent alarmPi = getNewMockPendingIntent();
         doThrow(new PendingIntent.CanceledException("test")).when(alarmPi).send(eq(mMockContext),
@@ -1023,7 +1056,6 @@ public final class AlarmManagerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ACQUIRE_WAKELOCK_BEFORE_SEND)
     public void testWakelockReleasedOnListenerException() throws Exception {
         final long triggerTime = mNowElapsedTest + 5000;
         final IAlarmListener listener = getNewListener(() -> {
@@ -2146,6 +2178,106 @@ public final class AlarmManagerServiceTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA)
+    public void exactAllowWhileIdleListenerAlarm_hasRelaxedQuotaInDozeAndBatterySaver()
+            throws Exception {
+        setDeviceConfigLong(KEY_MAX_DEVICE_IDLE_FUZZ, 0);
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP,
+                mNowElapsedTest + mAllowWhileIdleListenerWindow + 1000,
+                getNewMockPendingIntent());
+        assertNotNull(mService.mPendingIdleUntil);
+        when(mAppStateTracker.areAlarmsRestrictedByBatterySaver(TEST_CALLING_UID,
+                TEST_CALLING_PACKAGE)).thenReturn(true);
+
+        // Relaxed quota limit is now 72 alarms per hour for allow while idle listener alarms.
+        final int quota = mService.mConstants.ALLOW_WHILE_IDLE_LISTENER_QUOTA;
+
+        // Verify that all 72 alarms trigger on time. This proves the bypassing of 7-alarm compat
+        // limit
+        testQuotasDeferralOnSet(
+                trigger -> setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, trigger,
+                        getNewListener(() -> {
+                        }), FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, 0, TEST_CALLING_UID), quota,
+                mAllowWhileIdleListenerWindow);
+
+        // Refresh the state
+        mService.removeLocked(TEST_CALLING_UID, REMOVE_REASON_UNDEFINED);
+        mService.mAllowWhileIdleListenerHistory.removeForPackage(TEST_CALLING_PACKAGE,
+                TEST_CALLING_USER);
+
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP,
+                mNowElapsedTest + mAllowWhileIdleListenerWindow + 1000,
+                getNewMockPendingIntent());
+
+        testQuotasDeferralOnExpiration(
+                trigger -> setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, trigger,
+                        getNewListener(() -> {
+                        }), FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, 0, TEST_CALLING_UID), quota,
+                mAllowWhileIdleListenerWindow);
+
+        // Refresh the state
+        mService.removeLocked(TEST_CALLING_UID, REMOVE_REASON_UNDEFINED);
+        mService.mAllowWhileIdleListenerHistory.removeForPackage(TEST_CALLING_PACKAGE,
+                TEST_CALLING_USER);
+
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP,
+                mNowElapsedTest + mAllowWhileIdleListenerWindow + 1000,
+                getNewMockPendingIntent());
+
+        testQuotasNoDeferral(trigger -> setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, trigger,
+                        getNewListener(() -> {
+                        }), FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, 0, TEST_CALLING_UID), quota,
+                mAllowWhileIdleListenerWindow);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA)
+    public void exactAllowWhileIdleListenerHistory_isSeparateFromPendingIntentAwiHistory()
+            throws Exception {
+        setDeviceConfigLong(KEY_MAX_DEVICE_IDLE_FUZZ, 0);
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP, mNowElapsedTest + mAllowWhileIdleWindow + 1000,
+                getNewMockPendingIntent());
+        assertNotNull(mService.mPendingIdleUntil);
+
+        final int quota = mService.mConstants.ALLOW_WHILE_IDLE_LISTENER_QUOTA;
+        final long window = mService.mConstants.ALLOW_WHILE_IDLE_LISTENER_WINDOW;
+        final long firstTrigger = mNowElapsedTest + 10;
+
+        testQuotasDeferralOnSet(
+                trigger -> setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, trigger,
+                        getNewListener(() -> {
+                        }), FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, 0, TEST_CALLING_UID), quota,
+                window);
+
+        // Verifying that a PendingIntent-based AWI alarm is NOT deferred because it uses
+        // different history
+        setTestAlarm(ELAPSED_REALTIME_WAKEUP, firstTrigger + quota, 0, getNewMockPendingIntent(), 0,
+                FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, TEST_CALLING_UID, null);
+
+        assertEquals("Incorrect trigger time with pending intent allow while idle alarm",
+                firstTrigger + quota, mTestTimer.getElapsed());
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA)
+    public void exactAllowWhileIdleListenerAlarm_compatQuotaWhenFlagDisabled() throws Exception {
+        setDeviceConfigLong(KEY_MAX_DEVICE_IDLE_FUZZ, 0);
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP, mNowElapsedTest + mAllowWhileIdleWindow + 1000,
+                getNewMockPendingIntent());
+        assertNotNull(mService.mPendingIdleUntil);
+
+        final int quota = mService.mConstants.ALLOW_WHILE_IDLE_COMPAT_QUOTA;
+        final long window = mService.mConstants.ALLOW_WHILE_IDLE_COMPAT_WINDOW;
+
+        testQuotasDeferralOnSet(
+                trigger -> setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, trigger,
+                        getNewListener(() -> {
+                        }), FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE_COMPAT, 0, TEST_CALLING_UID),
+                quota,
+                window);
+    }
+
+    @Test
     public void allowWhileIdleCompatAlarmsInBatterySaver() throws Exception {
         when(mAppStateTracker.areAlarmsRestrictedByBatterySaver(TEST_CALLING_UID,
                 TEST_CALLING_PACKAGE)).thenReturn(true);
@@ -2873,7 +3005,46 @@ public final class AlarmManagerServiceTest {
         assertEquals(TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED, type);
     }
 
+    /**
+     * This test also verifies the automatic downgrade from standard FLAG_ALLOW_WHILE_IDLE
+     * to COMPAT at the binder level when the relaxed quota feature is disabled.
+     */
     @Test
+    @DisableFlags(Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA)
+    public void exactAllowWhileIdleListenerBinderCall_downgradesToCompatWhenFlagDisabled()
+            throws RemoteException {
+        mockChangeEnabled(AlarmManager.REQUIRE_EXACT_ALARM_PERMISSION, true);
+        mockChangeEnabled(AlarmManager.ENABLE_USE_EXACT_ALARM, true);
+
+        mockScheduleExactAlarmState(false);
+        mockUseExactAlarmState(false);
+        when(mDeviceIdleInternal.isAppOnWhitelist(anyInt())).thenReturn(false);
+
+        final IAlarmListener listener = getNewListener(() -> {});
+
+        mBinder.set(TEST_CALLING_PACKAGE, ELAPSED_REALTIME_WAKEUP, 1234, WINDOW_EXACT, 0,
+                FLAG_ALLOW_WHILE_IDLE, /* operation = */ null, listener, "test-tag",
+                /* workSource =*/null, /* alarmClock= */null);
+
+        verify(mService, never()).hasUseExactAlarmInternal(TEST_CALLING_PACKAGE, TEST_CALLING_UID);
+        verify(mService, never()).hasScheduleExactAlarmInternal(TEST_CALLING_PACKAGE,
+                TEST_CALLING_UID);
+        verify(mDeviceIdleInternal, never()).isAppOnWhitelist(anyInt());
+
+        final ArgumentCaptor<Bundle> bundleCaptor = ArgumentCaptor.forClass(Bundle.class);
+        verify(mService).setImpl(eq(ELAPSED_REALTIME_WAKEUP), eq(1234L), eq(WINDOW_EXACT), eq(0L),
+                isNull(), eq(listener), eq("test-tag"),
+                eq(FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE_COMPAT), isNull(), isNull(),
+                eq(TEST_CALLING_UID), eq(TEST_CALLING_PACKAGE), bundleCaptor.capture(),
+                eq(EXACT_ALLOW_REASON_LISTENER));
+
+        final BroadcastOptions idleOptions = new BroadcastOptions(bundleCaptor.getValue());
+        final int type = idleOptions.getTemporaryAppAllowlistType();
+        assertEquals(TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED, type);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA)
     public void exactAllowWhileIdleListenerBinderCallWithoutPermissionWithoutAllowlist()
             throws RemoteException {
         mockChangeEnabled(AlarmManager.REQUIRE_EXACT_ALARM_PERMISSION, true);
@@ -2895,7 +3066,7 @@ public final class AlarmManagerServiceTest {
         final ArgumentCaptor<Bundle> bundleCaptor = ArgumentCaptor.forClass(Bundle.class);
         verify(mService).setImpl(eq(ELAPSED_REALTIME_WAKEUP), eq(1234L), eq(WINDOW_EXACT), eq(0L),
                 isNull(), eq(listener), eq("test-tag"),
-                eq(FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE_COMPAT), isNull(), isNull(),
+                eq(FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE), isNull(), isNull(),
                 eq(TEST_CALLING_UID), eq(TEST_CALLING_PACKAGE), bundleCaptor.capture(),
                 eq(EXACT_ALLOW_REASON_LISTENER));
 
@@ -3960,5 +4131,455 @@ public final class AlarmManagerServiceTest {
         for (String p : packages) {
             verify(mService).lookForPackageLocked(p, uid);
         }
+    }
+
+    @Test
+    @EnableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_schedulesAndFires() throws Exception {
+        mInjector.setCurrentTimeMillis(
+                TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_LA, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+
+        final Alarm dstAlarm = findTimeZoneOffsetAlarm();
+        assertNotNull("Time zone offset change alarm not found", dstAlarm);
+
+        final long now = mInjector.getCurrentTimeMillis();
+        final ZoneOffsetTransition transition =
+                getNextTzOffsetChange(TZ_ID_LA, Instant.ofEpochMilli(now));
+        final long nextRtc = transitionTimeMillis(transition);
+        final long expectedTriggerElapsed = nextRtc - (mNowRtcTest - mNowElapsedTest);
+        assertEquals(expectedTriggerElapsed, dstAlarm.getWhenElapsed(), 2000);
+
+        final long triggerAt = dstAlarm.getWhenElapsed();
+        mNowElapsedTest = triggerAt + 1;
+        mTestTimer.expire();
+        final ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(mService.mHandler).post(runnableCaptor.capture());
+
+        runnableCaptor.getValue().run();
+        final ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mMockContext)
+                .sendBroadcastAsUser(intentCaptor.capture(), eq(UserHandle.ALL), isNull());
+
+        final Intent capturedIntent = intentCaptor.getValue();
+        assertEquals(Intent.ACTION_TIMEZONE_OFFSET_CHANGED, capturedIntent.getAction());
+        assertEquals(
+                transition.getOffsetAfter().getTotalSeconds(),
+                capturedIntent.getIntExtra(Intent.EXTRA_NEW_TIMEZONE_OFFSET, -1));
+        assertEquals(
+                transition.getOffsetBefore().getTotalSeconds(),
+                capturedIntent.getIntExtra(Intent.EXTRA_OLD_TIMEZONE_OFFSET, -1));
+    }
+
+    @Test
+    @DisableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_notScheduledWhenFlagDisabled() throws Exception {
+        mInjector.setCurrentTimeMillis(
+                TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_LA, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        assertNull(
+                "DST transition alarm should not be scheduled when flag is disabled",
+                findTimeZoneOffsetAlarm());
+    }
+
+    @Test
+    @EnableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_notScheduledForNonDstTimezone() throws Exception {
+        mInjector.setCurrentTimeMillis(
+                TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_GMT, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+
+        assertNull(
+                "DST transition alarm should not be scheduled for timezone without DST",
+                findTimeZoneOffsetAlarm());
+    }
+
+    @Test
+    @EnableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_rescheduledOnTimezoneChange() throws Exception {
+        mInjector.setCurrentTimeMillis(
+                TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_LA, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+
+        final Alarm dstAlarm1 = findTimeZoneOffsetAlarm();
+        assertNotNull("DST transition alarm not found for " + TZ_ID_LA, dstAlarm1);
+
+        final long now = mInjector.getCurrentTimeMillis();
+        final long nextRtc =
+                transitionTimeMillis(getNextTzOffsetChange(TZ_ID_LA, Instant.ofEpochMilli(now)));
+        final long expectedTriggerElapsed1 = nextRtc - (mNowRtcTest - mNowElapsedTest);
+        assertEquals(expectedTriggerElapsed1, dstAlarm1.getWhenElapsed(), 2000);
+
+        mService.setTimeZoneImpl(TZ_ID_NY, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        final Alarm dstAlarm2 = findTimeZoneOffsetAlarm();
+        assertNotNull("DST transition alarm not found for " + TZ_ID_NY, dstAlarm2);
+
+        final long nextRtc2 =
+                transitionTimeMillis(getNextTzOffsetChange(TZ_ID_NY, Instant.ofEpochMilli(now)));
+        final long expectedTriggerElapsed2 = nextRtc2 - (mNowRtcTest - mNowElapsedTest);
+        assertEquals(expectedTriggerElapsed2, dstAlarm2.getWhenElapsed(), 2000);
+        assertNotEquals(
+                "Alarm should have been rescheduled for new timezone",
+                dstAlarm1.getWhenElapsed(),
+                dstAlarm2.getWhenElapsed());
+    }
+
+    @Test
+    @EnableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_cancelledOnNonDstTimezoneChange() throws Exception {
+        mInjector.setCurrentTimeMillis(
+                TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_LA, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        assertNotNull(
+                "Time zone offset change alarm not found for " + TZ_ID_LA,
+                findTimeZoneOffsetAlarm());
+
+        // Change to a non-DST timezone
+        mService.setTimeZoneImpl(TZ_ID_GMT, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        assertNull(
+                "Time zone offset change alarm should be cancelled for non-DST timezone",
+                findTimeZoneOffsetAlarm());
+    }
+
+    @Test
+    @EnableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_rescheduledOnTimeCorrection() throws Exception {
+        final long incorrectTime = 1704067200000L; // 2024-01-01
+        mInjector.setCurrentTimeMillis(incorrectTime, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_LA, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+
+        // This is required as setTimeZoneImpl() calls TimeZone.setDefault(null).
+        TimeZone.setDefault(TimeZone.getTimeZone(TZ_ID_LA));
+
+        final Alarm dstAlarm1 = findTimeZoneOffsetAlarm();
+        assertNotNull("Time zone offset change alarm not found", dstAlarm1);
+
+        mService.setTimeImpl(TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, "test time correction");
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        final Alarm dstAlarm2 = findTimeZoneOffsetAlarm();
+        assertNotNull("Time zone offset change alarm not found after time correction", dstAlarm2);
+
+        assertNotEquals(
+                "Alarm should have been rescheduled",
+                dstAlarm1.getWhenElapsed(),
+                dstAlarm2.getWhenElapsed());
+
+        final Instant now = Instant.ofEpochMilli(mInjector.getCurrentTimeMillis());
+        final long nextRtc = transitionTimeMillis(getNextTzOffsetChange(TZ_ID_LA, now));
+        final long expectedTriggerElapsed = nextRtc - (mNowRtcTest - mNowElapsedTest);
+        assertEquals(expectedTriggerElapsed, dstAlarm2.getWhenElapsed(), 2000);
+    }
+
+    @Test
+    @EnableFlags("android.timezone.flags.enable_time_zone_offset_change_broadcast")
+    public void testTzOffsetChangeAlarm_rescheduledAfterFiring() throws Exception {
+        mInjector.setCurrentTimeMillis(
+                TEST_TIME_JAN_1_2025, TIME_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+        mTestTimer.expire(TIME_CHANGED_MASK);
+
+        mService.setTimeZoneImpl(TZ_ID_LA, TIME_ZONE_CONFIDENCE_HIGH, TIME_UPDATE_LOG_MSG);
+
+        // This is required as setTimeZoneImpl() calls TimeZone.setDefault(null).
+        TimeZone.setDefault(TimeZone.getTimeZone(TZ_ID_LA));
+
+        final Alarm initialDstAlarm = findTimeZoneOffsetAlarm();
+        assertNotNull("Initial time zone offset change alarm not found", initialDstAlarm);
+
+        final long initialExpectedRtc =
+                transitionTimeMillis(
+                        getNextTzOffsetChange(
+                                TZ_ID_LA, Instant.ofEpochMilli(mInjector.getCurrentTimeMillis())));
+        final long initialExpectedElapsed = initialExpectedRtc - (mNowRtcTest - mNowElapsedTest);
+        assertEquals(initialExpectedElapsed, initialDstAlarm.getWhenElapsed(), 2000);
+
+        // Advance time past the initial alarm's trigger
+        mNowElapsedTest = initialDstAlarm.getWhenElapsed() + 1;
+        mTestTimer.expire();
+
+        final long triggerAt = initialDstAlarm.getWhenElapsed();
+        mNowElapsedTest = triggerAt + 1;
+        mTestTimer.expire();
+        final ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(mService.mHandler).post(runnableCaptor.capture());
+        runnableCaptor.getValue().run();
+        final ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mMockContext)
+                .sendBroadcastAsUser(intentCaptor.capture(), eq(UserHandle.ALL), isNull());
+        final Intent capturedIntent = intentCaptor.getValue();
+        assertEquals(Intent.ACTION_TIMEZONE_OFFSET_CHANGED, capturedIntent.getAction());
+
+        final Alarm rescheduledDstAlarm = findTimeZoneOffsetAlarm();
+        assertNotNull("Rescheduled time zone offset change alarm not found", rescheduledDstAlarm);
+        assertNotEquals(
+                "Alarm should have been rescheduled to a different time",
+                initialDstAlarm.getWhenElapsed(),
+                rescheduledDstAlarm.getWhenElapsed());
+
+        final long currentRtc = mInjector.getCurrentTimeMillis();
+        final long nextExpectedRtc =
+                transitionTimeMillis(
+                        getNextTzOffsetChange(TZ_ID_LA, Instant.ofEpochMilli(currentRtc)));
+        final long expectedRescheduledElapsed = nextExpectedRtc - (mNowRtcTest - mNowElapsedTest);
+        assertEquals(expectedRescheduledElapsed, rescheduledDstAlarm.getWhenElapsed(), 2000);
+    }
+
+    @Test
+    @DisableFlags(com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO)
+    public void testAllowWhileIdleQuota_nonZero_flagDisabled() {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_QUOTA, 0);
+        assertEquals("Allow while idle quota should be 1 when flag is disabled",
+                1, mService.mConstants.ALLOW_WHILE_IDLE_QUOTA);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO)
+    public void testAllowWhileIdleQuota_zero_flagEnabled() {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_QUOTA, 0);
+        assertEquals("Allow while idle quota should be 0 when flag is enabled",
+                0, mService.mConstants.ALLOW_WHILE_IDLE_QUOTA);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO)
+    public void testAllowWhileIdleQuota_zero_blocksWakeups() throws Exception {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_QUOTA, 0);
+
+        final long idleUntilTime = mNowElapsedTest + 10000;
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP, idleUntilTime, getNewMockPendingIntent());
+        assertNotNull("Device should be in doze", mService.mPendingIdleUntil);
+
+        final long triggerTime = mNowElapsedTest + 5000;
+        final PendingIntent alarmPi = getNewMockPendingIntent();
+        setAllowWhileIdleAlarm(ELAPSED_REALTIME_WAKEUP, triggerTime, alarmPi, false, false);
+
+        assertEquals("Alarm should be deferred when quota is 0",
+                idleUntilTime, mTestTimer.getElapsed());
+    }
+
+    @Test
+    @EnableFlags(com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO)
+    public void testAllowWhileIdleQuota_zero_blocksWakeups_batterySaver() throws Exception {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_QUOTA, 0);
+
+        when(mAppStateTracker.areAlarmsRestrictedByBatterySaver(TEST_CALLING_UID,
+                TEST_CALLING_PACKAGE)).thenReturn(true);
+        when(mAppStateTracker.isForceAllAppsStandbyEnabled()).thenReturn(true);
+
+        final long triggerTime = mNowElapsedTest + 5000;
+        final PendingIntent alarmPi = getNewMockPendingIntent();
+        setAllowWhileIdleAlarm(ELAPSED_REALTIME_WAKEUP, triggerTime, alarmPi, false, false);
+
+        assertEquals("Alarm should be deferred by when quota is 0 in battery saver",
+                mNowElapsedTest + INDEFINITE_DELAY, mTestTimer.getElapsed());
+    }
+
+    @Test
+    @EnableFlags(com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO)
+    public void testAllowWhileIdleCompatQuota_zero_blocksWakeups() throws Exception {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_COMPAT_QUOTA, 0);
+
+        final long idleUntilTime = mNowElapsedTest + 10000;
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP, idleUntilTime, getNewMockPendingIntent());
+
+        final long triggerTime = mNowElapsedTest + 5000;
+        final PendingIntent alarmPi = getNewMockPendingIntent();
+        // Compat alarm
+        setAllowWhileIdleAlarm(ELAPSED_REALTIME_WAKEUP, triggerTime, alarmPi, false, true);
+
+        assertEquals("Compat alarm should be deferred when compat quota is 0",
+                idleUntilTime, mTestTimer.getElapsed());
+    }
+
+    @Test
+    @EnableFlags(com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO)
+    public void testAllowWhileIdleCompatQuota_zero_blocksWakeups_batterySaver() throws Exception {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_COMPAT_QUOTA, 0);
+
+        when(mAppStateTracker.areAlarmsRestrictedByBatterySaver(TEST_CALLING_UID,
+                TEST_CALLING_PACKAGE)).thenReturn(true);
+        when(mAppStateTracker.isForceAllAppsStandbyEnabled()).thenReturn(true);
+
+        final long triggerTime = mNowElapsedTest + 5000;
+        final PendingIntent alarmPi = getNewMockPendingIntent();
+        // Compat alarm
+        setAllowWhileIdleAlarm(ELAPSED_REALTIME_WAKEUP, triggerTime, alarmPi, false, true);
+
+        assertEquals("Compat alarm should be deferred by when quota is 0 in battery saver",
+                mNowElapsedTest + INDEFINITE_DELAY, mTestTimer.getElapsed());
+    }
+
+    @Test
+    @EnableFlags({
+            com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO,
+            android.app.Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA
+    })
+    public void testAllowWhileIdleListenerQuota_zero_blocksWakeups() throws Exception {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_LISTENER_QUOTA, 0);
+
+        final long idleUntilTime = mNowElapsedTest + 10000;
+        setIdleUntilAlarm(ELAPSED_REALTIME_WAKEUP, idleUntilTime, getNewMockPendingIntent());
+
+        final long triggerTime = mNowElapsedTest + 5000;
+        // Listener alarm
+        setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, triggerTime, getNewListener(() -> {}),
+                FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, 0, TEST_CALLING_UID);
+
+        assertEquals("Listener alarm should be deferred when listener quota is 0",
+                idleUntilTime, mTestTimer.getElapsed());
+    }
+
+    @Test
+    @EnableFlags({
+            com.android.server.deviceidle.Flags.FLAG_SUPPORT_ALLOW_WHILE_IDLE_QUOTA_ZERO,
+            android.app.Flags.FLAG_ALLOW_ALARMS_WITH_RELAXED_QUOTA
+    })
+    public void testAllowWhileIdleListenerQuota_zero_blocksWakeups_batterySaver() throws Exception {
+        mService.mConstants.mIsFeaturePc = true;
+        setDeviceConfigInt(KEY_ALLOW_WHILE_IDLE_LISTENER_QUOTA, 0);
+
+        when(mAppStateTracker.areAlarmsRestrictedByBatterySaver(TEST_CALLING_UID,
+                TEST_CALLING_PACKAGE)).thenReturn(true);
+        when(mAppStateTracker.isForceAllAppsStandbyEnabled()).thenReturn(true);
+
+        final long triggerTime = mNowElapsedTest + 5000;
+        // Listener alarm
+        setTestAlarmWithListener(ELAPSED_REALTIME_WAKEUP, triggerTime, getNewListener(() -> {}),
+                FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE, 0, TEST_CALLING_UID);
+
+        assertEquals("Listener alarm should be deferred by when quota is 0 in battery saver",
+                mNowElapsedTest + INDEFINITE_DELAY, mTestTimer.getElapsed());
+    }
+
+    private Alarm findTimeZoneOffsetAlarm() {
+        final List<Alarm> allAlarms = mService.mAlarmStore.asList();
+        for (Alarm alarm : allAlarms) {
+            if ("*tz_offset_change*".equals(alarm.listenerTag)) {
+                return alarm;
+            }
+        }
+        return null;
+    }
+
+    private static Long transitionTimeMillis(ZoneOffsetTransition transition) {
+        if (transition == null) {
+            return null;
+        }
+
+        return transition.toEpochSecond() * 1000;
+    }
+
+    @Test
+    public void testIsSameAppPcc() {
+        final int pccUid = 30187;
+        final int appUid = 10187;
+        final int otherAppUid = 10188;
+
+        doReturn(true).when(() -> Process.isPrivateComputeCoreUid(pccUid));
+        when(mPackageManager.getAppUidForPrivateComputeCoreUid(pccUid)).thenReturn(appUid);
+
+        // Same app (PCC UID vs App UID)
+        assertTrue(mService.isSameApp(pccUid, appUid));
+
+        // Different app
+        assertFalse(mService.isSameApp(pccUid, otherAppUid));
+
+        // Same PCC app (PCC UID vs PCC UID) - mapped to same appUid
+        assertTrue(mService.isSameApp(pccUid, pccUid));
+    }
+
+    @Test
+    public void setAttributionPcc() throws RemoteException {
+        final int pccUid = 30187;
+        mTestCallingUid = pccUid;
+        when(mPackageManagerInternal.isSameApp(eq(TEST_CALLING_PACKAGE), anyLong(), eq(pccUid),
+                anyInt())).thenReturn(true);
+
+        mBinder.set(TEST_CALLING_PACKAGE, ELAPSED_REALTIME_WAKEUP, 1234, WINDOW_HEURISTIC, 0, 0,
+                getNewMockPendingIntent(), null, null, null, null);
+        // Should not throw SecurityException
+    }
+
+    @Test
+    public void setAllowWhileIdleUnrestrictedPcc() throws RemoteException {
+        final int pccUid = 30187;
+        mTestCallingUid = pccUid;
+        when(mPackageManagerInternal.isSameApp(eq(TEST_CALLING_PACKAGE), anyLong(), eq(pccUid),
+                anyInt())).thenReturn(true);
+
+        // Mock pccUid is same app as SYSTEM_UI_UID
+        doReturn(true).when(() -> Process.isPrivateComputeCoreUid(pccUid));
+        when(mPackageManager.getAppUidForPrivateComputeCoreUid(pccUid)).thenReturn(SYSTEM_UI_UID);
+
+        mBinder.set(TEST_CALLING_PACKAGE, ELAPSED_REALTIME_WAKEUP, 1234, WINDOW_EXACT, 0, 0,
+                getNewMockPendingIntent(), null, null, null, null);
+
+        verify(mService).setImpl(anyInt(), anyLong(), anyLong(), anyLong(), any(), any(), any(),
+                eq(FLAG_STANDALONE | FLAG_ALLOW_WHILE_IDLE_UNRESTRICTED), any(), any(), eq(pccUid),
+                eq(TEST_CALLING_PACKAGE), any(), anyInt());
+    }
+
+    @Test
+    public void canScheduleExactAlarmsBinderCallPcc() throws RemoteException {
+        final int pccUid = 30187;
+        final int appUid = 10187;
+        mTestCallingUid = pccUid;
+        when(mPackageManagerInternal.isSameApp(TEST_CALLING_PACKAGE, 0, pccUid,
+                UserHandle.getUserId(pccUid))).thenReturn(true);
+
+        registerAppIds(new String[]{TEST_CALLING_PACKAGE},
+                new Integer[]{UserHandle.getAppId(appUid)});
+
+        mockChangeEnabled(AlarmManager.REQUIRE_EXACT_ALARM_PERMISSION, true);
+        mockChangeEnabled(AlarmManager.ENABLE_USE_EXACT_ALARM, true);
+        mockChangeEnabled(AlarmManager.SCHEDULE_EXACT_ALARM_DENIED_BY_DEFAULT, true);
+
+        mockScheduleExactAlarmStatePcc(true);
+
+        assertTrue(mBinder.canScheduleExactAlarms(TEST_CALLING_PACKAGE));
+    }
+
+    private void mockScheduleExactAlarmStatePcc(boolean granted) {
+        String[] requesters = granted ? new String[]{TEST_CALLING_PACKAGE} : EmptyArray.STRING;
+        when(mPermissionManagerInternal.getAppOpPermissionPackages(SCHEDULE_EXACT_ALARM))
+                .thenReturn(requesters);
+        mService.refreshExactAlarmCandidates();
+
+        final int result = granted ? PermissionChecker.PERMISSION_GRANTED
+                : PermissionChecker.PERMISSION_HARD_DENIED;
+        doReturn(result).when(
+                () -> PermissionChecker.checkPermissionForPreflight(eq(mMockContext),
+                        eq(SCHEDULE_EXACT_ALARM), anyInt(), anyInt(),
+                        eq(TEST_CALLING_PACKAGE)));
+    }
+
+    private static ZoneOffsetTransition getNextTzOffsetChange(String timeZoneId, Instant instant) {
+        ZoneRules rules;
+        try {
+            rules = ZoneId.of(timeZoneId).getRules();
+        } catch (Exception e) {
+            return null;
+        }
+
+        return rules.nextTransition(instant);
     }
 }

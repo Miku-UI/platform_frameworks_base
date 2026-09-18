@@ -23,6 +23,7 @@ import android.app.ActivityManager.RunningTaskInfo
 import android.app.ActivityOptions
 import android.app.TaskInfo
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
 import android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK
@@ -40,9 +41,9 @@ import android.os.SystemProperties
 import android.util.Size
 import android.view.DragEvent
 import android.window.DesktopExperienceFlags
-import android.window.DesktopModeFlags
 import android.window.SplashScreen.SPLASH_SCREEN_STYLE_ICON
 import com.android.internal.policy.DesktopModeCompatUtils
+import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayLayout
@@ -191,10 +192,7 @@ fun calculateMaximizeBounds(displayLayout: DisplayLayout, taskInfo: RunningTaskI
     } else {
         // if non-resizable then calculate max bounds according to aspect ratio
         val activityAspectRatio = calculateAspectRatio(taskInfo)
-        val captionInsets =
-            taskInfo.configuration.windowConfiguration.appBounds?.let {
-                it.top - taskInfo.configuration.windowConfiguration.bounds.top
-            } ?: 0
+        val captionInsets = taskInfo.freeformCaptionInsets(displayLayout)
         val newSize =
             maximizeSizeGivenAspectRatio(
                 taskInfo,
@@ -320,7 +318,6 @@ fun getInheritedExistingTaskBounds(
     task: TaskInfo,
     deskId: Int,
 ): Rect? {
-    if (!DesktopModeFlags.INHERIT_TASK_BOUNDS_FOR_TRAMPOLINE_TASK_LAUNCHES.isTrue) return null
     val activeTask = taskRepository.getExpandedTasksIdsInDeskOrdered(deskId).firstOrNull()
     if (activeTask == null) return null
     val lastTask = shellTaskOrganizer.getRunningTaskInfo(activeTask)
@@ -395,24 +392,24 @@ fun decideDesktopTaskPlacementBounds(
     // TODO: b/365723620 - Handle non running tasks that were launched after reboot.
     // If task is already visible, it must have been handled already and added to desktop mode.
     // Cascade task only if it's not visible yet.
-    if (
-        DesktopModeFlags.ENABLE_CASCADING_WINDOWS.isTrue() &&
-            !taskRepository.isVisibleTask(task.taskId)
-    ) {
+    if (!taskRepository.isVisibleTask(task.taskId)) {
         val displayLayout = displayController.getDisplayLayout(requestedDisplayId)
         if (displayLayout != null) {
             val stableBounds = Rect().also { displayLayout.getStableBounds(it) }
             val initialBounds = Rect(task.configuration.windowConfiguration.bounds)
-            cascadeWindow(
-                context,
-                recentTasksController,
-                taskRepository,
-                shellTaskOrganizer,
-                initialBounds,
-                displayLayout,
-                deskId,
-                stableBounds,
-            )
+            // If bounds are set from activity options, respect existing position.
+            if (!task.leafTaskBoundsFromOptions) {
+                cascadeWindow(
+                    context,
+                    recentTasksController,
+                    taskRepository,
+                    shellTaskOrganizer,
+                    initialBounds,
+                    displayLayout,
+                    deskId,
+                    stableBounds,
+                )
+            }
             return initialBounds
         }
     }
@@ -434,36 +431,74 @@ fun cascadeWindow(
     displayLayout: DisplayLayout,
     deskId: Int,
     stableBounds: Rect = Rect(),
+    isRememberedBounds: Boolean = false,
 ) {
     if (stableBounds.isEmpty) {
         displayLayout.getStableBoundsForDesktopMode(stableBounds)
     }
 
     val expandedTasks = taskRepository.getExpandedTasksIdsInDeskOrdered(deskId)
-    expandedTasks
-        .firstOrNull { !taskRepository.isClosingTask(it) }
-        ?.let { taskId: Int ->
-            val taskInfo =
-                shellTaskOrganizer.getRunningTaskInfo(taskId)
-                    ?: recentTasksController?.findTaskInBackground(taskId)
-            taskInfo?.let {
-                val taskBounds = it.configuration.windowConfiguration.bounds
-                if (!taskBounds.isEmpty()) {
-                    cascadeWindow(context.resources, stableBounds, taskBounds, bounds)
-                    return@let
-                }
-                // RecentsTaskInfo might not have configuration bounds populated yet so use
-                // task lastNonFullscreenBounds if available. If null or empty bounds are found
-                // do not cascade.
-                if (it is RecentTaskInfo) {
-                    it.lastNonFullscreenBounds?.let {
-                        if (!it.isEmpty()) {
-                            cascadeWindow(context.resources, stableBounds, it, bounds)
+    if (!Flags.enableSteppedCascading()) {
+        expandedTasks
+            .firstOrNull { !taskRepository.isClosingTask(it) }
+            ?.let { taskId: Int ->
+                val taskInfo =
+                    shellTaskOrganizer.getRunningTaskInfo(taskId)
+                        ?: recentTasksController?.findTaskInBackground(taskId)
+                taskInfo?.let {
+                    val taskBounds = it.configuration.windowConfiguration.bounds
+                    val prevBounds =
+                        if (!taskBounds.isEmpty()) {
+                            taskBounds
+                        } else if (it is RecentTaskInfo) {
+                            // RecentsTaskInfo might not have configuration bounds populated yet so
+                            // use
+                            // task lastNonFullscreenBounds if available. If null or empty bounds
+                            // are
+                            // found do not cascade.
+                            it.lastNonFullscreenBounds?.takeIf { !it.isEmpty }
+                        } else {
+                            null
                         }
+                    if (prevBounds != null) {
+                        cascadeWindow(
+                            context.resources,
+                            stableBounds,
+                            prevBounds,
+                            bounds,
+                            isRememberedBounds,
+                        )
+                        return@let
                     }
                 }
             }
-        }
+        return
+    }
+
+    val prevBoundsList =
+        expandedTasks
+            .filter { !taskRepository.isClosingTask(it) }
+            .mapNotNull { taskId ->
+                val taskInfo =
+                    shellTaskOrganizer.getRunningTaskInfo(taskId)
+                        ?: recentTasksController?.findTaskInBackground(taskId)
+                        ?: return@mapNotNull null
+
+                val taskBounds = taskInfo.configuration.windowConfiguration.bounds
+                when {
+                    !taskBounds.isEmpty -> taskBounds
+                    taskInfo is RecentTaskInfo ->
+                        taskInfo.lastNonFullscreenBounds?.takeIf { !it.isEmpty }
+                    else -> null
+                }
+            }
+    cascadeWindowStepped(
+        stableBounds,
+        bounds,
+        prevBoundsList,
+        isRememberedBounds,
+        context.resources,
+    )
 }
 
 /**
@@ -533,6 +568,20 @@ private fun positionInScreen(desiredSize: Size, stableBounds: Rect): Rect =
  * Gets the freeform caption insets if task was eligible for exclude caption insets from app bounds
  * compatibility treatment. Returns 0 if no compatibility treatment was applied.
  */
+fun TaskInfo.freeformCaptionInsets(displayLayout: DisplayLayout): Int {
+    if (Flags.refactorCaptionSandboxingToCore()) {
+        if (appCompatTaskInfo.hasIsExcludeCaptionInsets()) {
+            return displayLayout.captionBarHeight()
+        }
+        return 0
+    }
+    return this.freeformCaptionInsets
+}
+
+/**
+ * Gets the freeform caption insets if task was eligible for exclude caption insets from app bounds
+ * compatibility treatment. Returns 0 if no compatibility treatment was applied.
+ */
 val TaskInfo.freeformCaptionInsets: Int
     get() =
         configuration.windowConfiguration.appBounds?.let {
@@ -579,10 +628,15 @@ private fun TaskInfo.hasPortraitTopActivity(screenOrientation: Int?): Boolean {
         appBounds != null -> appBounds.height() > appBounds.width()
 
         // Otherwise just take the orientation of the task
-        else -> isFixedOrientationPortrait(configuration.orientation)
+        else -> configuration.orientation == ORIENTATION_PORTRAIT
     }
 }
 
 private fun TaskInfo.hasFullscreenOverride(): Boolean =
     appCompatTaskInfo.isUserFullscreenOverrideEnabled ||
         appCompatTaskInfo.isSystemFullscreenOverrideEnabled
+
+/** Gets the component name to be used for remembered bounds. */
+val TaskInfo.componentNameForRememberedBounds: ComponentName?
+    // Prioritize realActivity to properly handle TWA apps.
+    get() = realActivity ?: baseActivity

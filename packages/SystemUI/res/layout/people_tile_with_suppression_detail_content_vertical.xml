@@ -47,12 +47,12 @@
         android:text="@string/empty_status"
         android:layout_marginTop="@dimen/padding_between_suppressed_layout_items"
         android:textAppearance="@*android:style/TextAppearance.DeviceDefault.Notification.Title"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/materialColorOnSurfaceVariant"
         android:textSize="@dimen/content_text_size_for_large" />
 
     <ImageView
         android:id="@+id/predefined_icon"
-        android:tint="?android:attr/textColorSecondary"
+        android:tint="@color/materialColorOnSurfaceVariant"
         android:layout_marginTop="@dimen/padding_between_suppressed_layout_items"
         android:layout_width="@dimen/regular_predefined_icon"
         android:layout_height="@dimen/regular_predefined_icon"

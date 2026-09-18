@@ -17,6 +17,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.accessibility.domain.interactor.AccessibilityInteractor
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.shared.model.Text
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
@@ -31,6 +32,7 @@ class KeyguardSettingsMenuViewModel
 constructor(
     private val interactor: KeyguardTouchHandlingInteractor,
     configurationInteractor: ConfigurationInteractor,
+    accessibilityInteractor: AccessibilityInteractor,
 ) {
     val isVisible: Flow<Boolean> = interactor.isMenuVisible
     val shouldOpenSettings: Flow<Boolean> = interactor.shouldOpenSettings
@@ -38,6 +40,8 @@ constructor(
     val icon: Icon = Icon.Resource(resId = R.drawable.ic_palette, contentDescription = null)
 
     val text: Text = Text.Resource(res = R.string.lock_screen_settings)
+
+    val shouldAddClickListenerForA11y = accessibilityInteractor.isEnabled
 
     val textSize =
         configurationInteractor.dimensionPixelSize(
@@ -50,6 +54,14 @@ constructor(
 
     fun onTouchGestureEnded(isClick: Boolean) {
         interactor.onMenuTouchGestureEnded(isClick = isClick)
+    }
+
+    fun clickKeyguardSettingsPopupMenu() {
+        interactor.onMenuTouchGestureEnded(isClick = true)
+    }
+
+    fun openKeyguardSettingsPopupMenu() {
+        interactor.onLongPress()
     }
 
     fun onSettingsShown() {

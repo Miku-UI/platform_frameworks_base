@@ -94,7 +94,7 @@ class VibrateIconViewModelTest : SysuiTestCase() {
 
             val expected =
                 Icon.Resource(
-                    R.drawable.ic_volume_ringer_vibrate,
+                    R.drawable.stat_sys_ringer_vibrate,
                     ContentDescription.Resource(R.string.accessibility_ringer_vibrate),
                 )
             assertThat(underTest.icon).isEqualTo(expected)

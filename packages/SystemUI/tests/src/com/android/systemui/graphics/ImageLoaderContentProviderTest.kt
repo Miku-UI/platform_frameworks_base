@@ -30,6 +30,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -58,13 +59,15 @@ class ImageLoaderContentProviderTest : SysuiTestCase() {
     @Before
     fun setUp() {
         whenever(mockContext.contentResolver).thenReturn(providerTestRule.resolver)
-        imageLoader = ImageLoader(mockContext, kosmos.testDispatcher)
+        imageLoader = ImageLoaderImpl(mockContext, kosmos.testDispatcher)
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun loadFromTestContentProvider_throwsException() {
         // This checks if the resolution actually throws the exception from test provider.
-        mockContext.contentResolver.query(TEST_URI, null, null, null)
+        assertThrows(IllegalArgumentException::class.java) {
+            mockContext.contentResolver.query(TEST_URI, null, null, null)
+        }
     }
 
     @Test

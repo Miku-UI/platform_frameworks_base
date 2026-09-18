@@ -16,6 +16,7 @@
 
 package android.media;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -65,6 +66,36 @@ public final class RouteListingPreference implements Parcelable {
      */
     public static final String EXTRA_ROUTE_ID = "android.media.extra.ROUTE_ID";
 
+    /**
+     * {@link Intent} action for apps to handle issues with missing permissions.
+     *
+     * <p>The system uses this action to take the user to the app when a
+     * {@link RouteDiscoveryPreference} set by the app cannot be satisfied due to missing
+     * permissions, and the user has triggered a UI flow to fix the issue.
+     *
+     * <p>The launched intent will identify the missing permissions using the extra identified by
+     * {@link #EXTRA_MISSING_PERMISSIONS}.
+     *
+     * @see #getMissingPermissionsComponentName()
+     */
+    @FlaggedApi(android.permission.flags.Flags.FLAG_ACCESS_LOCAL_NETWORK_PERMISSION_ENABLED)
+    public static final String ACTION_RESOLVE_MISSING_PERMISSIONS =
+            "android.media.action.RESOLVE_MISSING_PERMISSIONS";
+
+    /**
+     * {@link Intent} string extra key that contains missing permissions.
+     *
+     * <p>This is part of an {@link #ACTION_RESOLVE_MISSING_PERMISSIONS} intent. The value can be
+     * obtained through {@link Intent#getStringArrayListExtra(String)}. It is the list of
+     * permissions which the app has requested in its AndroidManifest.xml but were not granted, and
+     * are part of the required permissions for some routes.
+     *
+     * @see #getMissingPermissionsComponentName()
+     */
+    @FlaggedApi(android.permission.flags.Flags.FLAG_ACCESS_LOCAL_NETWORK_PERMISSION_ENABLED)
+    public static final String EXTRA_MISSING_PERMISSIONS =
+            "android.media.extra.MISSING_PERMISSIONS";
+
     @NonNull
     public static final Creator<RouteListingPreference> CREATOR =
             new Creator<>() {
@@ -82,11 +113,13 @@ public final class RouteListingPreference implements Parcelable {
     @NonNull private final List<Item> mItems;
     private final boolean mUseSystemOrdering;
     @Nullable private final ComponentName mLinkedItemComponentName;
+    @Nullable private final ComponentName mMissingPermissionsComponentName;
 
     private RouteListingPreference(Builder builder) {
         mItems = builder.mItems;
         mUseSystemOrdering = builder.mUseSystemOrdering;
         mLinkedItemComponentName = builder.mLinkedItemComponentName;
+        mMissingPermissionsComponentName = builder.mMissingPermissionsComponentName;
     }
 
     private RouteListingPreference(Parcel in) {
@@ -95,6 +128,7 @@ public final class RouteListingPreference implements Parcelable {
         mItems = List.copyOf(items);
         mUseSystemOrdering = in.readBoolean();
         mLinkedItemComponentName = ComponentName.readFromParcel(in);
+        mMissingPermissionsComponentName = ComponentName.readFromParcel(in);
     }
 
     /**
@@ -135,6 +169,23 @@ public final class RouteListingPreference implements Parcelable {
         return mLinkedItemComponentName;
     }
 
+    /**
+     * Returns a {@link ComponentName} for navigating to the application to fix missing permissions.
+     *
+     * <p>The system navigates to the application when a route discovery preference set by the app
+     * cannot be satisfied due to missing permissions, and the user has triggered a UI flow to fix
+     * the issue.
+     *
+     * <p>The system launches an intent to the returned {@link ComponentName}, using action
+     * {@link #ACTION_RESOLVE_MISSING_PERMISSIONS}, with the extra
+     * {@link #EXTRA_MISSING_PERMISSIONS}.
+     */
+    @Nullable
+    @FlaggedApi(android.permission.flags.Flags.FLAG_ACCESS_LOCAL_NETWORK_PERMISSION_ENABLED)
+    public ComponentName getMissingPermissionsComponentName() {
+        return mMissingPermissionsComponentName;
+    }
+
     // RouteListingPreference Parcelable implementation.
 
     @Override
@@ -147,6 +198,7 @@ public final class RouteListingPreference implements Parcelable {
         dest.writeParcelableList(mItems, flags);
         dest.writeBoolean(mUseSystemOrdering);
         ComponentName.writeToParcel(mLinkedItemComponentName, dest);
+        ComponentName.writeToParcel(mMissingPermissionsComponentName, dest);
     }
 
     // Equals and hashCode.
@@ -162,12 +214,15 @@ public final class RouteListingPreference implements Parcelable {
         RouteListingPreference that = (RouteListingPreference) other;
         return mItems.equals(that.mItems)
                 && mUseSystemOrdering == that.mUseSystemOrdering
-                && Objects.equals(mLinkedItemComponentName, that.mLinkedItemComponentName);
+                && Objects.equals(mLinkedItemComponentName, that.mLinkedItemComponentName)
+                && Objects.equals(
+                mMissingPermissionsComponentName, that.mMissingPermissionsComponentName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mItems, mUseSystemOrdering, mLinkedItemComponentName);
+        return Objects.hash(mItems, mUseSystemOrdering, mLinkedItemComponentName,
+                mMissingPermissionsComponentName);
     }
 
     /** Builder for {@link RouteListingPreference}. */
@@ -176,6 +231,7 @@ public final class RouteListingPreference implements Parcelable {
         private List<Item> mItems;
         private boolean mUseSystemOrdering;
         private ComponentName mLinkedItemComponentName;
+        @Nullable private ComponentName mMissingPermissionsComponentName;
 
         /** Creates a new instance with default values (documented in the setters). */
         public Builder() {
@@ -215,6 +271,18 @@ public final class RouteListingPreference implements Parcelable {
         @NonNull
         public Builder setLinkedItemComponentName(@Nullable ComponentName linkedItemComponentName) {
             mLinkedItemComponentName = linkedItemComponentName;
+            return this;
+        }
+
+        /**
+         * See {@link #getMissingPermissionsComponentName()}.
+         *
+         * <p>The default value is {@code null}.
+         */
+        @FlaggedApi(android.permission.flags.Flags.FLAG_ACCESS_LOCAL_NETWORK_PERMISSION_ENABLED)
+        @NonNull
+        public Builder setMissingPermissionsComponentName(@Nullable ComponentName componentName) {
+            mMissingPermissionsComponentName = componentName;
             return this;
         }
 

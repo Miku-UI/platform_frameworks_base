@@ -146,6 +146,7 @@ public class MarshalQueryableEnum<T extends Enum<T>> implements MarshalQueryable
      * @param enumType The class for an enum
      * @param values A list of values mapping to the ordinals of the enum
      */
+    @SuppressWarnings("ReflectiveEnumConstants")
     public static <T extends Enum<T>> void registerEnumValues(Class<T> enumType, int[] values) {
         if (enumType.getEnumConstants().length != values.length) {
             throw new IllegalArgumentException(
@@ -188,6 +189,7 @@ public class MarshalQueryableEnum<T extends Enum<T>> implements MarshalQueryable
      * @param value The numeric value of the enum
      * @return An instance of the enum
      */
+    @SuppressWarnings("ReflectiveEnumConstants")
     private static <T extends Enum<T>> T getEnumFromValue(Class<T> enumType, int value) {
         int ordinal;
 

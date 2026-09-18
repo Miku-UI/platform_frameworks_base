@@ -25,7 +25,6 @@ query: {
   sql: {
     sql: "SELECT
         p.name as process_name,
-        pct.name AS counter_name,
         value AS metric_val,
           LEAD(ts, 1, (
             SELECT IFNULL(
@@ -38,7 +37,6 @@ query: {
         WHERE pct.name = 'mem.gralloc.buffers' AND pct.upid IS NOT NULL
         "
   column_names: "process_name"
-  column_names: "counter_name"
   column_names: "metric_val"
   column_names: "dur"
     }
@@ -47,7 +45,6 @@ query: {
 metric_template_spec: {
   id_prefix: "android_gralloc_buffers_per_process_metric"
   dimensions: "process_name"
-  dimensions: "counter_name"
   value_columns: "min_val"
   value_columns: "max_val"
   value_columns: "avg_val"
@@ -55,7 +52,6 @@ metric_template_spec: {
     inner_query_id: "gralloc_buffers_counter_span"
     group_by: {
       column_names: "process_name"
-      column_names: "counter_name"
       aggregates: {
         column_name: "metric_val"
         op: MIN

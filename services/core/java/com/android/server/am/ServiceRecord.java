@@ -20,6 +20,7 @@ import static android.app.ActivityManager.PROCESS_STATE_NONEXISTENT;
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_BOUND_SERVICE;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.os.PowerExemptionManager.REASON_DENIED;
 import static android.os.PowerExemptionManager.reasonCodeToString;
 import static android.os.Process.INVALID_UID;
@@ -31,6 +32,7 @@ import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
 
 import android.annotation.ElapsedRealtimeLong;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UptimeMillisLong;
@@ -53,6 +55,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.IBinder;
+import android.os.NativeZygoteProcess;
 import android.os.PowerExemptionManager;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -73,6 +76,8 @@ import com.android.server.uri.NeededUriGrants;
 import com.android.server.uri.UriPermissionOwner;
 
 import java.io.PrintWriter;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -137,7 +142,6 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
     final boolean exported; // from ServiceInfo.exported
     final Runnable restarter; // used to schedule retries of starting the service
     final long createRealTime;  // when this service was created
-    final boolean isSdkSandbox; // whether this is a sdk sandbox service
     final int sdkSandboxClientAppUid; // the app uid for which this sdk sandbox service is running
     final String sdkSandboxClientAppPackage; // the app package for which this sdk sandbox service
                                              // is running
@@ -148,7 +152,6 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
             = new ArrayMap<IBinder, ArrayList<ConnectionRecord>>();
                             // IBinder -> ConnectionRecord of all bound clients
 
-    ProcessRecord app;      // where this service is running or null.
     ProcessRecord isolationHostProc; // process which we've started for this service (used for
                                      // isolated and sdk sandbox processes)
     ServiceState tracker; // tracking service execution, may be null
@@ -223,6 +226,28 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
     int mRecentCallingUid;
     // ApplicationInfo of the most recent callingPackage that start/bind this service.
     @Nullable ApplicationInfo mRecentCallerApplicationInfo;
+
+    void updateRecentCallingAppInfo(@Nullable String callingPackage, int callingUid) {
+        mRecentCallingPackage = callingPackage;
+        mRecentCallingUid = callingUid;
+        if (callingPackage != null) {
+            try {
+                mRecentCallerApplicationInfo = ams.mContext.getPackageManager()
+                        .getApplicationInfoAsUser(callingPackage, 0,
+                                UserHandle.getUserId(callingUid));
+            } catch (PackageManager.NameNotFoundException e) {
+                mRecentCallerApplicationInfo = null;
+            }
+        } else {
+            mRecentCallerApplicationInfo = null;
+        }
+    }
+
+    @Nullable
+    String getRecentCallerProcessName() {
+        return mRecentCallerApplicationInfo != null
+                ? mRecentCallerApplicationInfo.processName : null;
+    }
 
     // The uptime when the service enters FGS state.
     long mFgsEnterTime = 0;
@@ -585,9 +610,6 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
      * Information specific to "SHORT_SERVICE" FGS.
      */
     class ShortFgsInfo {
-        /** Time FGS started */
-        private final long mStartTime;
-
         /**
          * Copied from {@link #mStartForegroundCount}. If this is different from the parent's,
          * that means this instance is stale.
@@ -597,14 +619,12 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         /** Service's "start ID" when this short-service started. */
         private int mStartId;
 
-        ShortFgsInfo(long startTime) {
-            mStartTime = startTime;
+        ShortFgsInfo() {
             update();
         }
 
         /**
          * Update {@link #mStartForegroundCount} and {@link #mStartId}.
-         * (but not {@link #mStartTime})
          */
         public void update() {
             this.mStartForegroundCount = ServiceRecord.this.mStartForegroundCount;
@@ -612,7 +632,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         }
 
         long getStartTime() {
-            return mStartTime;
+            return ServiceRecord.this.getShortFgsStartTime();
         }
 
         int getStartForegroundCount() {
@@ -637,25 +657,26 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
 
         /** Time when Service.onTimeout() should be called */
         long getTimeoutTime() {
-            return mStartTime + ams.mConstants.mShortFgsTimeoutDuration;
+            return getStartTime() + ams.mConstants.mShortFgsTimeoutDuration;
         }
 
-        /** Time when the procstate should be lowered. */
+        /**
+         * Time when the procstate should be lowered.
+         */
         long getProcStateDemoteTime() {
-            return mStartTime + ams.mConstants.mShortFgsTimeoutDuration
-                    + ams.mConstants.mShortFgsProcStateExtraWaitDuration;
+            return ServiceRecord.this.getShortFgsDemoteTime();
         }
 
         /** Time when the app should be declared ANR. */
         long getAnrTime() {
-            return mStartTime + ams.mConstants.mShortFgsTimeoutDuration
+            return getStartTime() + ams.mConstants.mShortFgsTimeoutDuration
                     + ams.mConstants.mShortFgsAnrExtraWaitDuration;
         }
 
         String getDescription() {
             return "sfc=" + this.mStartForegroundCount
                     + " sid=" + this.mStartId
-                    + " stime=" + this.mStartTime
+                    + " stime=" + this.getStartTime()
                     + " tt=" + this.getTimeoutTime()
                     + " dt=" + this.getProcStateDemoteTime()
                     + " at=" + this.getAnrTime();
@@ -781,9 +802,9 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
     void dumpDebug(ProtoOutputStream proto, long fieldId) {
         long token = proto.start(fieldId);
         proto.write(ServiceRecordProto.SHORT_NAME, this.shortInstanceName);
-        proto.write(ServiceRecordProto.IS_RUNNING, app != null);
-        if (app != null) {
-            proto.write(ServiceRecordProto.PID, app.getPid());
+        proto.write(ServiceRecordProto.IS_RUNNING, getHostProcess() != null);
+        if (getHostProcess() != null) {
+            proto.write(ServiceRecordProto.PID, getHostProcess().getPid());
         }
         if (intent != null) {
             intent.getIntent().dumpDebug(proto, ServiceRecordProto.INTENT, false, true, false,
@@ -805,8 +826,8 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
             proto.write(ServiceRecordProto.AppInfo.TARGET_SDK_VERSION, appInfo.targetSdkVersion);
             proto.end(appInfoToken);
         }
-        if (app != null) {
-            app.dumpDebug(proto, ServiceRecordProto.APP);
+        if (getHostProcess() != null) {
+            getHostProcess().dumpDebug(proto, ServiceRecordProto.APP);
         }
         if (isolationHostProc != null) {
             isolationHostProc.dumpDebug(proto, ServiceRecordProto.ISOLATED_PROC);
@@ -940,7 +961,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
             }
             pw.print(prefix); pw.print("dataDir="); pw.println(appInfo.dataDir);
         }
-        pw.print(prefix); pw.print("app="); pw.println(app);
+        pw.print(prefix); pw.print("app="); pw.println(getHostProcess());
         if (isolationHostProc != null) {
             pw.print(prefix); pw.print("isolationHostProc="); pw.println(isolationHostProc);
         }
@@ -1100,7 +1121,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
 
     /** Used only for tests */
     private ServiceRecord(ActivityManagerService ams) {
-        super(null, 0);
+        super(null, false, ams == null ? null : ams.mProcessStateController.getOomConstants(), 0);
 
         this.ams = ams;
         name = null;
@@ -1116,7 +1137,6 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         exported = false;
         restarter = null;
         createRealTime = 0;
-        isSdkSandbox = false;
         sdkSandboxClientAppUid = 0;
         sdkSandboxClientAppPackage = null;
         inSharedIsolatedProcess = false;
@@ -1140,7 +1160,9 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
             Intent.FilterComparison intent, ServiceInfo sInfo, boolean callerIsFg,
             Runnable restarter, String processName, int sdkSandboxClientAppUid,
             String sdkSandboxClientAppPackage, boolean inSharedIsolatedProcess) {
-        super(instanceName, SystemClock.uptimeMillis());
+        super(instanceName, sdkSandboxClientAppUid != INVALID_UID,
+                ams.mProcessStateController.getOomConstants(),
+                SystemClock.uptimeMillis());
 
         this.ams = ams;
         this.name = name;
@@ -1151,7 +1173,6 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         serviceInfo = sInfo;
         appInfo = sInfo.applicationInfo;
         packageName = sInfo.applicationInfo.packageName;
-        this.isSdkSandbox = sdkSandboxClientAppUid != INVALID_UID;
         this.sdkSandboxClientAppUid = sdkSandboxClientAppUid;
         this.sdkSandboxClientAppPackage = sdkSandboxClientAppPackage;
         this.inSharedIsolatedProcess = inSharedIsolatedProcess;
@@ -1169,10 +1190,11 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         updateFgsHasNotificationPermission();
 
         if (android.os.Flags.nativeFrameworkPrototype()) {
-            // TODO(b/431902161): Add a stable way to distinguish native services.
-            // TODO(b/431901625): Consider supporting non-isolated native services.
-            mIsNativeIsolated = name.getShortClassName().contains(".NativeService")
+            mIsNativeIsolated = ((sInfo.flags & ServiceInfo.FLAG_NATIVE_SERVICE) != 0)
                 && ((sInfo.flags & ServiceInfo.FLAG_ISOLATED_PROCESS) != 0);
+            if (mIsNativeIsolated) {
+                NativeZygoteProcess.prewarmNativeZygote();
+            }
         }
     }
 
@@ -1182,7 +1204,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         }
         if ((serviceInfo.applicationInfo.flags&ApplicationInfo.FLAG_PERSISTENT) == 0) {
             tracker = ams.mProcessStats.getServiceState(serviceInfo.packageName,
-                    serviceInfo.applicationInfo.uid,
+                    serviceInfo.getUid(),
                     serviceInfo.applicationInfo.longVersionCode,
                     serviceInfo.processName, serviceInfo.name);
             if (tracker != null) {
@@ -1204,7 +1226,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
             if ((serviceInfo.applicationInfo.flags&ApplicationInfo.FLAG_PERSISTENT) == 0) {
                 restartTracker = ams.mProcessStats.getServiceState(
                         serviceInfo.packageName,
-                        serviceInfo.applicationInfo.uid,
+                        serviceInfo.getUid(),
                         serviceInfo.applicationInfo.longVersionCode,
                         serviceInfo.processName, serviceInfo.name);
             }
@@ -1241,22 +1263,22 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
                 proc.removeBackgroundStartPrivileges(this);
             }
         }
-        if (app != null && app != proc) {
+        if (getHostProcess() != null && getHostProcess() != proc) {
             // If the old app is allowed to start bg activities because of a service start, leave it
             // that way until the cleanup callback runs. Otherwise we can remove its bg activity
             // start ability immediately (it can't be bound now).
             if (mBackgroundStartPrivilegesByStartMerged.allowsNothing()) {
-                app.removeBackgroundStartPrivileges(this);
+                getHostProcess().removeBackgroundStartPrivileges(this);
             }
-            app.mServices.updateBoundClientUids();
-            app.mServices.updateHostingComonentTypeForBindingsLocked();
+            getHostProcess().mServices.updateBoundClientUids();
+            getHostProcess().mServices.updateHostingComonentTypeForBindingsLocked();
         }
         ams.mProcessStateController.setHostProcess(this, proc);
         updateProcessStateOnRequest();
         if (pendingConnectionGroup > 0 && proc != null) {
             final ProcessServiceRecord psr = proc.mServices;
-            psr.setConnectionGroup(pendingConnectionGroup);
-            psr.setConnectionImportance(pendingConnectionImportance);
+            ams.mProcessStateController.setConnectionGroup(psr, pendingConnectionGroup);
+            ams.mProcessStateController.setConnectionImportance(psr, pendingConnectionImportance);
             pendingConnectionGroup = pendingConnectionImportance = 0;
         }
         if (ActivityManagerService.TRACK_PROCSTATS_ASSOCIATIONS) {
@@ -1279,8 +1301,9 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
     }
 
     void updateProcessStateOnRequest() {
-        mProcessStateOnRequest = app != null && app.getThread() != null && !app.isKilled()
-                ? app.getCurProcState() : PROCESS_STATE_NONEXISTENT;
+        mProcessStateOnRequest = getHostProcess() != null && getHostProcess().getThread() != null
+                && !getHostProcess().isKilled()
+                ? getHostProcess().getProcState() : PROCESS_STATE_NONEXISTENT;
     }
 
     @NonNull
@@ -1307,18 +1330,19 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         clist.add(c);
 
         // if we have a process attached, add bound client uid of this connection to it
-        if (app != null) {
-            app.mServices.addBoundClientUid(c.clientUid, c.clientPackageName, c.getFlags());
-            app.mProfile.addHostingComponentType(HOSTING_COMPONENT_TYPE_BOUND_SERVICE);
+        if (getHostProcess() != null) {
+            getHostProcess().mServices.addBoundClientUid(c.clientUid, c.clientPackageName,
+                    c.getFlags());
+            getHostProcess().mProfile.addHostingComponentType(HOSTING_COMPONENT_TYPE_BOUND_SERVICE);
         }
     }
 
     void removeConnection(IBinder binder) {
         connections.remove(binder);
         // if we have a process attached, tell it to update the state of bound clients
-        if (app != null) {
-            app.mServices.updateBoundClientUids();
-            app.mServices.updateHostingComonentTypeForBindingsLocked();
+        if (getHostProcess() != null) {
+            getHostProcess().mServices.updateBoundClientUids();
+            getHostProcess().mServices.updateHostingComonentTypeForBindingsLocked();
         }
     }
 
@@ -1366,8 +1390,8 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         mBackgroundStartPrivilegesByStart.add(backgroundStartPrivileges);
         setAllowedBgActivityStartsByStart(
                 backgroundStartPrivileges.merge(mBackgroundStartPrivilegesByStartMerged));
-        if (app != null) {
-            mAppForAllowingBgActivityStartsByStart = app;
+        if (getHostProcess() != null) {
+            mAppForAllowingBgActivityStartsByStart = getHostProcess();
         }
 
         // This callback is stateless, so we create it once when we first need it.
@@ -1402,7 +1426,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
                         }
                     } else {
                         // Last callback on the queue
-                        if (app == mAppForAllowingBgActivityStartsByStart) {
+                        if (getHostProcess() == mAppForAllowingBgActivityStartsByStart) {
                             // The process we allowed is still running the service. We remove
                             // the ability by start, but it may still be allowed via bound
                             // connections.
@@ -1452,7 +1476,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
      * @see com.android.server.am.ProcessRecord#removeBackgroundStartPrivileges(Binder)
      */
     private void updateParentProcessBgActivityStartsToken() {
-        if (app == null) {
+        if (getHostProcess() == null) {
             return;
         }
         BackgroundStartPrivileges backgroundStartPrivileges =
@@ -1460,10 +1484,10 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         if (backgroundStartPrivileges.allowsAny()) {
             // if the token is already there it's safe to "re-add it" - we're dealing with
             // a set of Binder objects
-            app.addOrUpdateBackgroundStartPrivileges(this,
+            getHostProcess().addOrUpdateBackgroundStartPrivileges(this,
                     backgroundStartPrivileges);
         } else {
-            app.removeBackgroundStartPrivileges(this);
+            getHostProcess().removeBackgroundStartPrivileges(this);
         }
     }
 
@@ -1496,8 +1520,8 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
                         serviceInfo.flags));
     }
 
-    public AppBindRecord retrieveAppBindingLocked(Intent intent,
-            ProcessRecord app, ProcessRecord attributedApp) {
+    public @NonNull AppBindRecord retrieveAppBindingLocked(Intent intent,
+            @NonNull ProcessRecord app, ProcessRecord attributedApp) {
         Intent.FilterComparison filter = new Intent.FilterComparison(intent);
         IntentBindRecord i = bindings.get(filter);
         if (i == null) {
@@ -1573,10 +1597,14 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         return lastStartId;
     }
 
+    private int getServiceUid() {
+        return enablePccFrameworkSupport() ? serviceInfo.getUid() : appInfo.uid;
+    }
+
     private void updateFgsHasNotificationPermission() {
         // Do asynchronous communication with notification manager to avoid deadlocks.
         final String localPackageName = packageName;
-        final int appUid = appInfo.uid;
+        final int appUid = getServiceUid();
 
         ams.mHandler.post(new Runnable() {
             public void run() {
@@ -1593,9 +1621,9 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
     }
 
     public void postNotification(boolean byForegroundService) {
-        if (isForeground() && foregroundNoti != null && app != null) {
-            final int appUid = appInfo.uid;
-            final int appPid = app.getPid();
+        if (isForeground() && foregroundNoti != null && getHostProcess() != null) {
+            final int appUid = getServiceUid();
+            final int appPid = getHostProcess().getPid();
             // Do asynchronous communication with notification manager to
             // avoid deadlocks.
             final String localPackageName = packageName;
@@ -1704,7 +1732,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
 
                         foregroundNoti = localForegroundNoti; // save it for amending next time
 
-                        signalForegroundServiceNotification(packageName, appInfo.uid,
+                        signalForegroundServiceNotification(packageName, appUid,
                                 localForegroundId, false /* canceling */);
 
                     } catch (RuntimeException e) {
@@ -1725,8 +1753,8 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         // avoid deadlocks.
         final String localPackageName = packageName;
         final int localForegroundId = foregroundId;
-        final int appUid = appInfo.uid;
-        final int appPid = app != null ? app.getPid() : 0;
+        final int appUid = getServiceUid();
+        final int appPid = getHostProcess() != null ? getHostProcess().getPid() : 0;
         ams.mHandler.post(new Runnable() {
             public void run() {
                 NotificationManagerInternal nm = LocalServices.getService(
@@ -1740,7 +1768,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
                 } catch (RuntimeException e) {
                     Slog.w(TAG, "Error canceling notification for service", e);
                 }
-                signalForegroundServiceNotification(packageName, appInfo.uid, localForegroundId,
+                signalForegroundServiceNotification(packageName, appUid, localForegroundId,
                         true /* canceling */);
             }
         });
@@ -1751,7 +1779,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         synchronized (ams) {
             for (int i = ams.mForegroundServiceStateListeners.size() - 1; i >= 0; i--) {
                 ams.mForegroundServiceStateListeners.get(i).onForegroundServiceNotificationUpdated(
-                        packageName, appInfo.uid, foregroundId, canceling);
+                        packageName, uid, foregroundId, canceling);
             }
         }
     }
@@ -1784,9 +1812,8 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         deliveredStarts.clear();
     }
 
-    @Override
     public ProcessRecord getHostProcess() {
-        return app;
+        return (ProcessRecord) getHostProcessInternal();
     }
 
     @Override
@@ -1814,20 +1841,6 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
         return name;
     }
 
-    /**
-     * @return true if it's a foreground service of the "short service" type and don't have
-     * other fgs type bits set.
-     */
-    public boolean isShortFgs() {
-        // Note if the type contains FOREGROUND_SERVICE_TYPE_SHORT_SERVICE but also other bits
-        // set, it's _not_ considered be a short service. (because we shouldn't apply
-        // the short-service restrictions)
-        // (But we should be preventing mixture of FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
-        // and other types in Service.startForeground().)
-        return isStartRequested() && isForeground() && (getForegroundServiceType()
-                == ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
-    }
-
     public ShortFgsInfo getShortFgsInfo() {
         return isShortFgs() ? mShortFgsInfo : null;
     }
@@ -1836,7 +1849,8 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
      * Call it when a short FGS starts.
      */
     public void setShortFgsInfo(long uptimeNow) {
-        this.mShortFgsInfo = new ShortFgsInfo(uptimeNow);
+        ams.mProcessStateController.setShortFgsStartTime(this, uptimeNow);
+        this.mShortFgsInfo = new ShortFgsInfo();
     }
 
     /** @return whether {@link #mShortFgsInfo} is set or not. */
@@ -1848,6 +1862,7 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
      * Call it when a short FGS stops.
      */
     public void clearShortFgsInfo() {
+        ams.mProcessStateController.clearShortFgsStartTime(this);
         this.mShortFgsInfo = null;
     }
 
@@ -1920,10 +1935,11 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
     }
 
     private boolean isAppAlive() {
-        if (app == null) {
+        if (getHostProcess() == null) {
             return false;
         }
-        if (app.getThread() == null || app.isKilled() || app.isKilledByAm()) {
+        if (getHostProcess().getThread() == null || getHostProcess().isKilled()
+                || getHostProcess().isKilledByAm()) {
             return false;
         }
         return true;
@@ -1933,12 +1949,80 @@ final class ServiceRecord extends ServiceRecordInternal implements ComponentName
      * @return {@code true} if the host process has updated its oom adj scores.
      */
     boolean wasOomAdjUpdated() {
-        return app != null && app.getAdjSeq() > mAdjSeq;
+        return getHostProcess() != null && getHostProcess().getAdjSeq() > mAdjSeq;
     }
 
     void updateOomAdjSeq() {
-        if (app != null) {
-            mAdjSeq = app.getAdjSeq();
+        if (getHostProcess() != null) {
+            mAdjSeq = getHostProcess().getAdjSeq();
         }
+    }
+
+    /** Service is not needed to be running. */
+    static final int NEEDED_NONE = 0;
+    /** Service is needed to be running because it has been explicitly started. */
+    static final int NEEDED_BY_START = 1 << 0;
+    /** Service is needed to be running because it has auto-create connections. */
+    static final int NEEDED_BY_AUTO_CREATE = 1 << 1;
+
+    @IntDef(flag = true, prefix = { "NEEDED_" }, value = {
+            NEEDED_NONE,
+            NEEDED_BY_START,
+            NEEDED_BY_AUTO_CREATE,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface NeededReason {}
+
+    /**
+     * @return a bitmask indicating why this service is required to be running.
+     */
+    @NeededReason
+    int getNeededReasonsLocked(boolean knowConn, boolean hasConn) {
+        int result = NEEDED_NONE;
+
+        // Are we still explicitly being asked to run?
+        if (isStartRequested()) {
+            result |= NEEDED_BY_START;
+        }
+
+        // Is someone still bound to us keeping us running?
+        if (!knowConn) {
+            hasConn = hasAutoCreateConnections();
+        }
+        if (hasConn) {
+            result |= NEEDED_BY_AUTO_CREATE;
+        }
+        return result;
+    }
+
+    /**
+     * @return true if the service is required to be running.
+     */
+    boolean isNeededLocked(boolean knowConn, boolean hasConn) {
+        return getNeededReasonsLocked(knowConn, hasConn) != NEEDED_NONE;
+    }
+
+    /**
+     * @return true if there is at least one auto-create connection from a process
+     * that is not currently frozen.
+     */
+    boolean hasNonFrozenAutoCreateConnections() {
+        final ArrayMap<IBinder, ArrayList<ConnectionRecord>> connections = getConnections();
+        for (int conni = connections.size() - 1; conni >= 0; conni--) {
+            final ArrayList<ConnectionRecord> clist = connections.valueAt(conni);
+            if (clist == null) {
+                continue;
+            }
+            for (int i = clist.size() - 1; i >= 0; i--) {
+                final ConnectionRecord cr = clist.get(i);
+                if (cr.hasFlag(Context.BIND_AUTO_CREATE)) {
+                    final ProcessRecord client = cr.getClient();
+                    if (client != null && client.getThread() != null && !client.isFrozen()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

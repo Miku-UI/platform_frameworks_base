@@ -37,8 +37,8 @@ import java.util.List;
 /**
  * Serializer implementation for {@link VibrationEffect}.
  *
- * <p>This serializer does not support effects created with {@link VibrationEffect.WaveformBuilder}
- * nor {@link VibrationEffect.Composition#addEffect(VibrationEffect)}. It only supports vibration
+ * <p>This serializer does not support effects created with
+ * {@link VibrationEffect.Composition#addEffect(VibrationEffect)}. It only supports vibration
  * effects defined as:
  *
  * <ul>
@@ -53,6 +53,7 @@ import java.util.List;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class LegacyVibrationEffectXmlSerializer {
 
     /**
@@ -62,8 +63,7 @@ public final class LegacyVibrationEffectXmlSerializer {
     public static XmlSerializedVibration<? extends VibrationEffect> serialize(
             @NonNull VibrationEffect vibration, @XmlConstants.Flags int flags)
             throws XmlSerializerException {
-        if (Flags.vendorVibrationEffects()
-                && (vibration instanceof VibrationEffect.VendorEffect vendorEffect)) {
+        if (vibration instanceof VibrationEffect.VendorEffect vendorEffect) {
             return serializeVendorEffect(vendorEffect);
         }
 
@@ -182,11 +182,9 @@ public final class LegacyVibrationEffectXmlSerializer {
                 serializedWaveformBuilder.setRepeatIndexToCurrentEntry();
             }
 
-            XmlValidator.checkSerializerCondition(Float.compare(segment.getFrequencyHz(), 0) == 0,
-                    "Unsupported segment with non-default frequency %f", segment.getFrequencyHz());
-
-            serializedWaveformBuilder.addDurationAndAmplitude(
-                    segment.getDuration(), toAmplitudeInt(segment.getAmplitude()));
+            serializedWaveformBuilder.addDurationAmplitudeAndStartTime(
+                    segment.getDuration(), toAmplitudeInt(segment.getAmplitude()),
+                    segment.getStartTimeMillis());
         }
 
         return new SerializedComposedEffect(serializedWaveformBuilder.build());
@@ -224,21 +222,12 @@ public final class LegacyVibrationEffectXmlSerializer {
         PrimitiveSegment primitive = (PrimitiveSegment) segment;
         PrimitiveEffectName primitiveName =
                 PrimitiveEffectName.findById(primitive.getPrimitiveId());
-
         XmlValidator.checkSerializerCondition(primitiveName != null,
                 "Unsupported primitive effect id %s", primitive.getPrimitiveId());
 
-        PrimitiveDelayType delayType = null;
-
-        if (Flags.primitiveCompositionAbsoluteDelay()) {
-            delayType = PrimitiveDelayType.findByType(primitive.getDelayType());
-            XmlValidator.checkSerializerCondition(delayType != null,
-                    "Unsupported primitive delay type %s", primitive.getDelayType());
-        } else {
-            XmlValidator.checkSerializerCondition(
-                    primitive.getDelayType() == PrimitiveSegment.DEFAULT_DELAY_TYPE,
-                    "Unsupported primitive delay type %s", primitive.getDelayType());
-        }
+        PrimitiveDelayType delayType = PrimitiveDelayType.findByType(primitive.getDelayType());
+        XmlValidator.checkSerializerCondition(delayType != null,
+                "Unsupported primitive delay type %s", primitive.getDelayType());
 
         return new SerializedCompositionPrimitive(
                 primitiveName, primitive.getScale(), primitive.getDelay(), delayType);

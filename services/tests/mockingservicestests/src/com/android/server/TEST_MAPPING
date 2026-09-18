@@ -1,0 +1,12 @@
+{
+  "presubmit": [
+    {
+      "name": "FrameworksMockingServicesTests_service_masterClearReceiverTest"
+    }
+  ],
+  "auto-presubmit": [
+    {
+      "name": "FrameworksMockingServicesTests_service_masterClearReceiverTest"
+    }
+  ]
+}

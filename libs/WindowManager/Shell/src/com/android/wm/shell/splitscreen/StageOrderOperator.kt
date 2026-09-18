@@ -44,32 +44,32 @@ import java.util.Optional
 
 /**
  * Responsible for creating [StageTaskListener]s and maintaining their ordering on screen.
- * Must be notified whenever stages positions change via swapping or starting/ending tasks
+ *
+ * This class must be notified whenever stages positions change via swapping or starting/ending tasks.
  */
-class StageOrderOperator (
-        context: Context,
-        taskOrganizer: ShellTaskOrganizer,
-        displayId: Int,
-        stageCallbacks: StageTaskListener.StageListenerCallbacks,
-        syncQueue: SyncTransactionQueue,
-        iconProvider: IconProvider,
-        windowDecorViewModel: Optional<WindowDecorViewModel>,
-        bubbleController: Optional<BubbleController>,
+class StageOrderOperator(
+    context: Context,
+    taskOrganizer: ShellTaskOrganizer,
+    displayId: Int,
+    stageCallbacks: StageTaskListener.StageListenerCallbacks,
+    syncQueue: SyncTransactionQueue,
+    iconProvider: IconProvider,
+    windowDecorViewModel: Optional<WindowDecorViewModel>,
+    bubbleController: Optional<BubbleController>,
 ) {
 
     private val MAX_STAGES = 3
     /**
-     * This somewhat acts as a replacement to stageTypes in the intermediary, so we want to start
-     * it after the @StageType constant values just to be safe and avoid potentially subtle bugs.
+     * This somewhat acts as a replacement to stageTypes in the intermediary, so we want to start it
+     * after the @StageType constant values just to be safe and avoid potentially subtle bugs.
      */
     private var stageIds = listOf(STAGE_TYPE_A, STAGE_TYPE_B, STAGE_TYPE_C)
 
     /**
-     * Active Stages, this list represent the current, ordered list of stages that are
-     * currently visible to the user. This map should be empty if the user is currently
-     * not in split screen. Note that this is different than if split screen is visible, which
-     * is determined by [StageListenerImpl.mVisible].
-     * Split stages can be active and in the background
+     * Active Stages, this list represent the current, ordered list of stages that are currently
+     * visible to the user. This map should be empty if the user is currently not in split screen.
+     * Note that this is different than if split screen is visible, which is determined by
+     * [StageListenerImpl.mVisible]. Split stages can be active and in the background
      */
     val activeStages = mutableListOf<StageTaskListener>()
     val allStages = mutableListOf<StageTaskListener>()
@@ -78,17 +78,19 @@ class StageOrderOperator (
     @SnapPosition private var currentLayout: Int = SNAP_TO_NONE
 
     init {
-        for(i in 0 until MAX_STAGES) {
-            allStages.add(StageTaskListener(
-                context,
-                taskOrganizer,
-                displayId,
-                stageCallbacks,
-                syncQueue,
-                iconProvider,
-                windowDecorViewModel,
-                stageIds[i],
-                bubbleController)
+        for (i in 0 until MAX_STAGES) {
+            allStages.add(
+                StageTaskListener(
+                    context,
+                    taskOrganizer,
+                    displayId,
+                    stageCallbacks,
+                    syncQueue,
+                    iconProvider,
+                    windowDecorViewModel,
+                    stageIds[i],
+                    bubbleController,
+                )
             )
         }
     }
@@ -99,13 +101,15 @@ class StageOrderOperator (
      */
     fun onEnteringSplit(@SnapPosition goingToLayout: Int) {
         if (goingToLayout == currentLayout) {
-            ProtoLog.d(ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN,
-                "Entering Split requested same layout split is in: %d", goingToLayout)
+            ProtoLog.d(
+                ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN,
+                "Entering Split requested same layout split is in: %d",
+                goingToLayout,
+            )
             return
         }
-        val freeStages: List<StageTaskListener> =
-            allStages.filterNot { activeStages.contains(it) }
-        when(goingToLayout) {
+        val freeStages: List<StageTaskListener> = allStages.filterNot { activeStages.contains(it) }
+        when (goingToLayout) {
             SplitScreenConstants.SNAP_TO_2_50_50,
             SplitScreenConstants.SNAP_TO_2_33_66,
             SplitScreenConstants.SNAP_TO_2_66_33 -> {
@@ -122,7 +126,7 @@ class StageOrderOperator (
             ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN,
             "Activated stages: %d ids=%s",
             activeStages.size,
-            activeStages.joinToString(",") { stageTypeToString(it.id) }
+            activeStages.joinToString(",") { stageTypeToString(it.id) },
         )
         isActive = true
     }
@@ -133,19 +137,18 @@ class StageOrderOperator (
     }
 
     /**
-     * Given a legacy [SplitPosition] returns one of the stages from the actives stages.
-     * If there are no active stages and [checkAllStagesIfNotActive] is not true, then will return
-     * null
+     * Given a legacy [SplitPosition] returns one of the stages from the actives stages. If there
+     * are no active stages and [checkAllStagesIfNotActive] is not true, then will return null
      */
-    fun getStageForLegacyPosition(@SplitPosition position: Int,
-                                  checkAllStagesIfNotActive : Boolean = false) :
-            StageTaskListener? {
+    fun getStageForLegacyPosition(
+        @SplitPosition position: Int,
+        checkAllStagesIfNotActive: Boolean = false,
+    ): StageTaskListener? {
         if (activeStages.size != 2 && !checkAllStagesIfNotActive) {
             return null
         }
-        val listToCheck = if (activeStages.isEmpty() and checkAllStagesIfNotActive)
-            allStages else
-            activeStages
+        val listToCheck =
+            if (activeStages.isEmpty() and checkAllStagesIfNotActive) allStages else activeStages
         if (position == SPLIT_POSITION_TOP_OR_LEFT) {
             return listToCheck[0]
         } else if (position == SPLIT_POSITION_BOTTOM_OR_RIGHT) {
@@ -156,16 +159,18 @@ class StageOrderOperator (
     }
 
     /**
-     * This will swap the stages for the two stages on either side of the given divider.
-     * Note: This will keep [activeStages] and [allStages] in sync by swapping both of them
-     * If there are no [activeStages] then this will be a no-op.
+     * This will swap the stages for the two stages on either side of the given divider. Note: This
+     * will keep [activeStages] and [allStages] in sync by swapping both of them If there are no
+     * [activeStages] then this will be a no-op.
      *
      * TODO(b/379984874): Take in a divider identifier to determine which array indices to swap
      */
     fun onDoubleTappedDivider() {
         if (activeStages.isEmpty()) {
-            ProtoLog.d(ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN,
-                "Stages not active, ignoring swap request")
+            ProtoLog.d(
+                ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN,
+                "Stages not active, ignoring swap request",
+            )
             return
         }
 
@@ -178,7 +183,7 @@ class StageOrderOperator (
      * return [SPLIT_POSITION_UNDEFINED]
      */
     @SplitPosition
-    fun getLegacyPositionForStage(stage: StageTaskListener) : Int {
+    fun getLegacyPositionForStage(stage: StageTaskListener): Int {
         if (allStages[0] == stage) {
             return SPLIT_POSITION_TOP_OR_LEFT
         } else if (allStages[1] == stage) {
@@ -192,7 +197,7 @@ class StageOrderOperator (
      * Returns the stageId from a given splitIndex. This will default to checking from all stages if
      * [isActive] is false, otherwise will only check active stages.
      */
-    fun getStageForIndex(@SplitIndex splitIndex: Int) : StageTaskListener {
+    fun getStageForIndex(@SplitIndex splitIndex: Int): StageTaskListener {
         // Probably should do a check for index to be w/in the bounds of the current split layout
         // that we're currently in
         val listToCheck = if (isActive) activeStages else allStages

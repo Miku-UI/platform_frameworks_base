@@ -19,27 +19,39 @@
 
 #include "com_android_internal_os_Zygote.h"
 
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <functional>
-#include <iterator>
-#include <list>
-#include <optional>
-#include <sstream>
-#include <string>
-#include <string_view>
-#include <unordered_set>
-
+#include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <android-base/stringprintf.h>
+#include <android-base/unique_fd.h>
 #include <android/fdsan.h>
 #include <arpa/inet.h>
+#include <async_safe/log.h>
+#include <binder/ProcessState.h>
+#include <bionic/malloc.h>
+#include <bionic/mte.h>
+#include <com_android_base_core_jni_flags.h>
+#include <cutils/fs.h>
+#include <cutils/multiuser.h>
+#include <cutils/sockets.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <inttypes.h>
+#include <link.h>
 #include <malloc.h>
 #include <mntent.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/ScopedLocalRef.h>
+#include <nativehelper/ScopedPrimitiveArray.h>
+#include <nativehelper/ScopedUtfChars.h>
+#include <private/android_filesystem_config.h>
+#include <processgroup/processgroup.h>
+#include <processgroup/sched_policy.h>
+#include <seccomp_policy.h>
+#include <selinux/android.h>
 #include <signal.h>
+#include <stats_socket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/capability.h>
@@ -56,35 +68,24 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
-#include <async_safe/log.h>
-#include <android-base/file.h>
-#include <android-base/logging.h>
-#include <android-base/properties.h>
-#include <android-base/stringprintf.h>
-#include <android-base/unique_fd.h>
-#include <bionic/malloc.h>
-#include <bionic/mte.h>
-#include <cutils/fs.h>
-#include <cutils/multiuser.h>
-#include <cutils/sockets.h>
-#include <private/android_filesystem_config.h>
-#include <processgroup/processgroup.h>
-#include <processgroup/sched_policy.h>
-#include <seccomp_policy.h>
-#include <selinux/android.h>
-#include <stats_socket.h>
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
-#include <nativehelper/JNIHelp.h>
-#include <nativehelper/ScopedLocalRef.h>
-#include <nativehelper/ScopedPrimitiveArray.h>
-#include <nativehelper/ScopedUtfChars.h>
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <functional>
+#include <iterator>
+#include <list>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+
 #include "core_jni_helpers.h"
 #include "fd_utils.h"
 #include "filesystem_utils.h"
-
 #include "nativebridge/native_bridge.h"
 
 #if defined(__BIONIC__)
@@ -105,6 +106,8 @@ using android::base::StringAppendF;
 using android::base::StringPrintf;
 using android::base::WriteStringToFile;
 using android::base::GetBoolProperty;
+
+using ::com::android::base::core::jni::flags::zygote_set_no_swap_system_server;
 
 using android::zygote::ZygoteFailure;
 
@@ -352,12 +355,29 @@ enum RuntimeFlags : uint32_t {
     PROFILEABLE = 1 << 24,
     DEBUG_ENABLE_PTRACE = 1 << 25,
     ENABLE_PAGE_SIZE_APP_COMPAT = 1 << 26,
+    AUDIT_OUTGOING_TRANSACTIONS = 1 << 27,
 };
 
 enum UnsolicitedZygoteMessageTypes : uint32_t {
     UNSOLICITED_ZYGOTE_MESSAGE_TYPE_RESERVED = 0,
     UNSOLICITED_ZYGOTE_MESSAGE_TYPE_SIGCHLD = 1,
 };
+
+#ifdef BUILD_EXECUTE_ONLY_MEMORY
+static int disable_execute_only(struct dl_phdr_info* info, size_t size, void* data) {
+    // Search for any execute-only segments and mark them read+execute.
+    // This operation only affects RWX flags because of the implementation
+    // of mprotect, so other architectural flags (like PROT_BTI) will not be cleared.
+    for (int i = 0; i < info->dlpi_phnum; i++) {
+        if ((info->dlpi_phdr[i].p_type == PT_LOAD) && (info->dlpi_phdr[i].p_flags == PF_X)) {
+            mprotect(reinterpret_cast<void*>(info->dlpi_addr + info->dlpi_phdr[i].p_vaddr),
+                     info->dlpi_phdr[i].p_memsz, PROT_READ | PROT_EXEC);
+        }
+    }
+    // Return non-zero to exit dl_iterate_phdr.
+    return 0;
+}
+#endif
 
 struct UnsolicitedZygoteMessageSigChld {
     struct {
@@ -1646,7 +1666,8 @@ static void isolateJitProfile(JNIEnv* env, jobjectArray pkg_data_info_list,
   // Sandbox processes do not have JIT profile, so no data needs to be bind mounted. However, it
   // should still not have access to JIT profile, so tmpfs is mounted.
   appid_t appId = multiuser_get_app_id(uid);
-  if (appId >= AID_SDK_SANDBOX_PROCESS_START && appId <= AID_SDK_SANDBOX_PROCESS_END) {
+  if ((appId >= AID_SDK_SANDBOX_PROCESS_START && appId <= AID_SDK_SANDBOX_PROCESS_END) ||
+      (appId >= AID_PCC_COMPONENT_PROCESS_START && appId <= AID_PCC_COMPONENT_PROCESS_END)) {
       return;
   }
 
@@ -1743,6 +1764,9 @@ std::pair<const char*, const char*> build_version_constants[] = {
 static void ReloadBuildJavaConstant(JNIEnv* env, jclass build_class, const char* field_name,
                                     const char* field_signature, const char* sysprop_name) {
   const prop_info* prop_info = __system_property_find(sysprop_name);
+  if (prop_info == nullptr) {
+    return;
+  }
   std::string new_value;
   __system_property_read_callback(
           prop_info,
@@ -1816,19 +1840,10 @@ static void ReloadBuildJavaConstants(JNIEnv* env) {
 }
 
 static void BindMountSyspropOverride(fail_fn_t fail_fn, JNIEnv* env) {
-  std::string source = "/dev/__properties__/appcompat_override";
-  std::string target = "/dev/__properties__";
-  if (access(source.c_str(), F_OK) != 0) {
-      return;
-  }
-  if (access(target.c_str(), F_OK) != 0) {
-      return;
-  }
-  BindMount(source, target, fail_fn);
-  // Reload the system properties file, to ensure new values are read into memory
-  __system_properties_zygote_reload();
-  // android.os.Build constants are pulled from system properties, so they must be reloaded, too
-  ReloadBuildJavaConstants(env);
+    // Reload the system properties file, to ensure new values are read into memory
+    __system_properties_zygote_reload();
+    // android.os.Build constants are pulled from system properties, so they must be reloaded, too
+    ReloadBuildJavaConstants(env);
 }
 
 static void MountInitOverride(fail_fn_t fail_fn, JNIEnv* env) {
@@ -1949,6 +1964,7 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
         }
         isolateAppData(env, pkg_data_info_list, allowlisted_data_info_list, uid, process_name,
                        managed_nice_name, fail_fn);
+
         isolateJitProfile(env, pkg_data_info_list, uid, process_name, managed_nice_name, fail_fn);
     }
     // MOUNT_EXTERNAL_INSTALLER, MOUNT_EXTERNAL_PASS_THROUGH, MOUNT_EXTERNAL_ANDROID_WRITABLE apps
@@ -1975,12 +1991,19 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
                                                 /* pid= */ 0, strerror(-rc)));
         }
 
-        if (is_system_server && UsePerAppMemcg()) {
-            // Assign system_server to the correct memory cgroup.
-            // Not all devices mount memcg so check if it is mounted first
+        if (is_system_server) {
+            // Not all devices mount memcgv1 so check if it is mounted first
             // to avoid unnecessarily printing errors and denials in the logs.
-            if (!SetTaskProfiles(getpid(), std::vector<std::string>{"SystemMemoryProcess"})) {
-                ALOGE("couldn't add process %d into system memcg group", getpid());
+            if (UsePerAppMemcg()) {
+                // Assign system_server to the correct memory cgroup.
+                if (!SetTaskProfiles(getpid(), std::vector<std::string>{"SystemMemoryProcess"})) {
+                    ALOGE("couldn't add process %d into system memcg group", getpid());
+                }
+            }
+
+            if (zygote_set_no_swap_system_server() &&
+                !SetTaskProfiles(getpid(), std::vector<std::string>{"NoSwapUsage"})) {
+                ALOGE("couldn't apply NoSwapUsage on process %d ", getpid());
             }
         }
     }
@@ -2142,6 +2165,7 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
         // runtime.
         runtime_flags &= ~RuntimeFlags::ENABLE_PAGE_SIZE_APP_COMPAT;
     }
+
     __android_log_close();
     AStatsSocket_close();
 
@@ -2150,6 +2174,13 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
     if (selinux_android_setcontext(uid, is_system_server, se_info_ptr, nice_name_ptr) == -1) {
         fail_fn(CREATE_ERROR("selinux_android_setcontext(%d, %d, \"%s\", \"%s\") failed", uid,
                              is_system_server, se_info_ptr, nice_name_ptr));
+    }
+
+    if ((runtime_flags & RuntimeFlags::AUDIT_OUTGOING_TRANSACTIONS) != 0) {
+        android::ProcessState::self()->setIsOutgoingTransactionsAuditable(true);
+        // Now that we've used the flag, clear it so that we don't pass unknown flags to the ART
+        // runtime.
+        runtime_flags &= ~RuntimeFlags::AUDIT_OUTGOING_TRANSACTIONS;
     }
 
     // Make it easier to debug audit logs by setting the main thread's name to the
@@ -2367,12 +2398,7 @@ jlong zygote::CalculateCapabilities(JNIEnv* env, jint uid, jint gid, jintArray g
     capabilities |= (1LL << CAP_SETPCAP);
   }
 
-  /*
-   * Containers run without some capabilities, so drop any caps that are not
-   * available.
-   */
-
-  return capabilities & GetEffectiveCapabilityMask(env);
+  return capabilities;
 }
 
 jlong zygote::CalculateBoundingCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids) {
@@ -2586,7 +2612,9 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
         jstring instruction_set, jstring app_data_dir, jboolean is_top_app, jboolean use_fifo_ui,
         jobjectArray pkg_data_info_list, jobjectArray allowlisted_data_info_list,
         jboolean mount_data_dirs, jboolean mount_storage_dirs, jboolean mount_sysprop_overrides) {
-    jlong capabilities = zygote::CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
+    // Containers run without some capabilities, so drop any caps that are not available.
+    jlong capabilities = zygote::CalculateCapabilities(env, uid, gid, gids, is_child_zygote) &
+            GetEffectiveCapabilityMask(env);
     jlong bounding_capabilities = zygote::CalculateBoundingCapabilities(env, uid, gid, gids);
 
     if (UNLIKELY(managed_fds_to_close == nullptr)) {
@@ -2816,7 +2844,9 @@ static void com_android_internal_os_Zygote_nativeSpecializeAppProcess(
         jboolean is_top_app, jobjectArray pkg_data_info_list,
         jobjectArray allowlisted_data_info_list, jboolean mount_data_dirs,
         jboolean mount_storage_dirs, jboolean mount_sysprop_overrides) {
-    jlong capabilities = zygote::CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
+    // Containers run without some capabilities, so drop any caps that are not available.
+    jlong capabilities = zygote::CalculateCapabilities(env, uid, gid, gids, is_child_zygote) &
+            GetEffectiveCapabilityMask(env);
     jlong bounding_capabilities = zygote::CalculateBoundingCapabilities(env, uid, gid, gids);
 
     SpecializeCommon(env, uid, gid, gids, runtime_flags, rlimits, capabilities, capabilities,
@@ -2868,6 +2898,15 @@ static void com_android_internal_os_Zygote_nativeInitNativeState(JNIEnv* env, jc
   gIsSecurityEnforced = security_getenforce();
 
   selinux_android_seapp_context_init();
+
+#ifdef BUILD_EXECUTE_ONLY_MEMORY
+  /*
+   * disable XOM for all libraries already loaded by the zygote for app compatibility
+   */
+  ZYGOTE_TRACE_BEGIN("disable_execute_only");
+  dl_iterate_phdr(disable_execute_only, nullptr);
+  ZYGOTE_TRACE_END("disable_execute_only");
+#endif
 
   /*
    * Storage Initialization

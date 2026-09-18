@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.server.pm.test.allowcomponentaccess.multicert">
+    <allow-component-access>
+        <package android:name="com.example.target"
+            android:certDigest="635e6f8c317c93f40d97ff40af0baccd32fd60f1abde2caf1b9c1f972195703b">
+            <additional-certificate android:certDigest="AABBAABBAABBAABBAABBAABBAABBAABBAABBAABBAABBAABBAABBAABBAABBAABB" />
+            <additional-certificate android:certDigest="CCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDDCCDD" />
+        </package>
+    </allow-component-access>
+    <application android:hasCode="false" />
+</manifest>

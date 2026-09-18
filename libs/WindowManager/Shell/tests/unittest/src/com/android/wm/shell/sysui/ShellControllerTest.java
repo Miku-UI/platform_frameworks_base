@@ -17,6 +17,7 @@
 package com.android.wm.shell.sysui;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -81,6 +82,7 @@ public class ShellControllerTest extends ShellTestCase {
     private TestKeyguardChangeListener mKeyguardChangeListener;
     private TestUserChangeListener mUserChangeListener;
     private TestDisplayImeChangeListener mDisplayImeChangeListener;
+    private TestOverviewVisibilityChangeListener mOverviewVisibilityChangeListener;
 
 
     @Before
@@ -92,6 +94,7 @@ public class ShellControllerTest extends ShellTestCase {
         mConfigChangeListener = new TestConfigurationChangeListener();
         mUserChangeListener = new TestUserChangeListener();
         mDisplayImeChangeListener = new TestDisplayImeChangeListener();
+        mOverviewVisibilityChangeListener = new TestOverviewVisibilityChangeListener();
         mExecutor = new TestShellExecutor();
         mShellInit = new ShellInit(mExecutor);
         mController = new ShellController(mContext, mShellInit, mShellCommandHandler,
@@ -480,6 +483,81 @@ public class ShellControllerTest extends ShellTestCase {
         assertTrue(mConfigChangeListener.localeChanges == 1);
     }
 
+    @Test
+    public void testAddOverviewVisibilityChangeListener_onOverviewShown_ensureCallback() {
+        final int displayId = 0;
+        mController.addOverviewVisibilityChangeListener(mOverviewVisibilityChangeListener);
+
+        assertFalse(mController.isOverviewVisible(displayId));
+        mController.onOverviewShown(displayId);
+
+        assertEquals(1, mOverviewVisibilityChangeListener.shownCalls);
+        assertEquals(0, mOverviewVisibilityChangeListener.hiddenCalls);
+        assertEquals(displayId, mOverviewVisibilityChangeListener.lastDisplayId);
+        assertTrue(mController.isOverviewVisible(displayId));
+    }
+
+    @Test
+    public void testAddOverviewVisibilityChangeListener_onOverviewHidden_ensureCallback() {
+        final int displayId = 0;
+        mController.addOverviewVisibilityChangeListener(mOverviewVisibilityChangeListener);
+        // Set overview to visible first
+        mController.onOverviewShown(displayId);
+        mOverviewVisibilityChangeListener.reset();
+
+        assertTrue(mController.isOverviewVisible(displayId));
+        mController.onOverviewHidden(displayId);
+
+        assertEquals(0, mOverviewVisibilityChangeListener.shownCalls);
+        assertEquals(1, mOverviewVisibilityChangeListener.hiddenCalls);
+        assertEquals(displayId, mOverviewVisibilityChangeListener.lastDisplayId);
+        assertFalse(mController.isOverviewVisible(displayId));
+    }
+
+    @Test
+    public void testDoubleAddOverviewVisibilityChangeListener_ensureSingleCallback() {
+        final int displayId = 0;
+        mController.addOverviewVisibilityChangeListener(mOverviewVisibilityChangeListener);
+        mController.addOverviewVisibilityChangeListener(mOverviewVisibilityChangeListener);
+
+        mController.onOverviewShown(displayId);
+
+        assertEquals(1, mOverviewVisibilityChangeListener.shownCalls);
+    }
+
+    @Test
+    public void testOverviewVisibilityChange_noChange_ensureNoCallback() {
+        final int displayId = 0;
+        mController.addOverviewVisibilityChangeListener(mOverviewVisibilityChangeListener);
+
+        // Call shown twice
+        mController.onOverviewShown(displayId);
+        mController.onOverviewShown(displayId);
+        assertEquals(1, mOverviewVisibilityChangeListener.shownCalls);
+
+        // Call hidden twice
+        mController.onOverviewHidden(displayId);
+        mController.onOverviewHidden(displayId);
+        assertEquals(1, mOverviewVisibilityChangeListener.hiddenCalls);
+    }
+
+    @Test
+    public void testIsOverviewVisible_multiDisplay() {
+        final int displayId = 0;
+        final int displayId2 = 1;
+
+        assertFalse(mController.isOverviewVisible(displayId));
+        assertFalse(mController.isOverviewVisible(displayId2));
+
+        mController.onOverviewShown(displayId);
+        assertTrue(mController.isOverviewVisible(displayId));
+        assertFalse(mController.isOverviewVisible(displayId2));
+
+        mController.onOverviewHidden(displayId);
+        assertFalse(mController.isOverviewVisible(displayId));
+        assertFalse(mController.isOverviewVisible(displayId2));
+    }
+
     private Configuration getConfigurationCopy() {
         final Configuration c = new Configuration(InstrumentationRegistry.getInstrumentation()
                 .getTargetContext().getResources().getConfiguration());
@@ -592,6 +670,31 @@ public class ShellControllerTest extends ShellTestCase {
         public void onImeVisibilityChanged(int displayId, boolean isShowing) {
             visibilityChanged++;
             lastVisibility = isShowing;
+        }
+    }
+
+    private static class TestOverviewVisibilityChangeListener implements
+            OverviewVisibilityChangeListener {
+        int shownCalls = 0;
+        int hiddenCalls = 0;
+        int lastDisplayId = -1;
+
+        @Override
+        public void onOverviewShown(int displayId) {
+            shownCalls++;
+            lastDisplayId = displayId;
+        }
+
+        @Override
+        public void onOverviewHidden(int displayId) {
+            hiddenCalls++;
+            lastDisplayId = displayId;
+        }
+
+        void reset() {
+            shownCalls = 0;
+            hiddenCalls = 0;
+            lastDisplayId = -1;
         }
     }
 }

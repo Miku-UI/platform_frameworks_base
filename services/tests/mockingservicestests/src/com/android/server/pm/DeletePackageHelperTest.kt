@@ -22,6 +22,7 @@ import android.content.pm.PackageManager.PERMISSION_DENIED
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.content.pm.UserInfo
 import android.os.Build
+import android.os.Process
 import android.os.UserHandle
 import android.os.UserHandle.USER_SYSTEM
 import android.util.Log
@@ -90,7 +91,7 @@ class DeletePackageHelperTest {
 
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
             mock(BroadcastHelper::class.java))
-        val result = dph.deletePackageX("a.data.package", 1L, 1, 0, false)
+        val result = dph.deletePackageX("a.data.package", 1L, 1, 0, false, 0)
 
         assertThat(result).isEqualTo(PackageManager.DELETE_FAILED_USER_RESTRICTED)
     }
@@ -109,7 +110,7 @@ class DeletePackageHelperTest {
 
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
             mock(BroadcastHelper::class.java))
-        val result = dph.deletePackageX("a.data.package", 1L, userId, 0, false)
+        val result = dph.deletePackageX("a.data.package", 1L, userId, 0, false, 0)
 
         assertThat(result).isEqualTo(PackageManager.DELETE_FAILED_USER_RESTRICTED)
     }
@@ -126,7 +127,7 @@ class DeletePackageHelperTest {
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
             mock(BroadcastHelper::class.java))
         val result = dph.deletePackageX("a.data.package", 1L, 1,
-            PackageManager.DELETE_SYSTEM_APP, false)
+            PackageManager.DELETE_SYSTEM_APP, false, 0)
 
         assertThat(result).isEqualTo(PackageManager.DELETE_SUCCEEDED)
     }
@@ -148,7 +149,7 @@ class DeletePackageHelperTest {
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
             mock(BroadcastHelper::class.java))
         val result = dph.deletePackageX("a.data.package", 1L, userId,
-            PackageManager.DELETE_SYSTEM_APP, false)
+            PackageManager.DELETE_SYSTEM_APP, false, 0)
 
         assertThat(result).isEqualTo(PackageManager.DELETE_SUCCEEDED)
     }
@@ -166,7 +167,7 @@ class DeletePackageHelperTest {
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
             mock(BroadcastHelper::class.java))
         val result = dph.deletePackageX("a.data.package", 1L, 1,
-                PackageManager.DELETE_SYSTEM_APP, false)
+                PackageManager.DELETE_SYSTEM_APP, false, 0)
 
         assertThat(result).isEqualTo(PackageManager.DELETE_SUCCEEDED)
     }
@@ -181,7 +182,7 @@ class DeletePackageHelperTest {
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
             mock(BroadcastHelper::class.java))
         val result = dph.deletePackageX("a.data.package", 1L, 1,
-            PackageManager.DELETE_SYSTEM_APP, false)
+            PackageManager.DELETE_SYSTEM_APP, false, 0)
 
         assertThat(result).isEqualTo(PackageManager.DELETE_FAILED_INTERNAL_ERROR)
     }
@@ -191,7 +192,8 @@ class DeletePackageHelperTest {
         val dph = DeletePackageHelper(mPms, mock(RemovePackageHelper::class.java),
                                       mock(BroadcastHelper::class.java))
         val result = dph.deletePackageLIF("a.nonexistent.package", UserHandle.of(USER_SYSTEM), true,
-                                          intArrayOf(0), 0, PackageRemovedInfo(), true)
+                                          intArrayOf(0), 0, PackageRemovedInfo(), true,
+                                          Process.SYSTEM_UID)
         assertFalse(result)
     }
 }

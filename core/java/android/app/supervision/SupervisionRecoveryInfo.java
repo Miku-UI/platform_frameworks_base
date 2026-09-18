@@ -36,9 +36,9 @@ import java.util.Objects;
  * Contains the information needed for recovering the device-wide supervision credentials.
  *
  * <p>This is typically returned as an {@link android.content.Intent} extra from the supervision
- * credentials recovery activity. This activity is hosted by the holder of the
- * {@code android.app.role.RoleManager#ROLE_SYSTEM_SUPERVISION} role and is generally launched to
- * set up a recovery method or to reset the supervision credentials.
+ * credentials recovery activity. This activity is hosted by the holder of the {@code
+ * android.app.role.RoleManager#ROLE_SYSTEM_SUPERVISION} role and is generally launched to set up a
+ * recovery method or to reset the supervision credentials.
  *
  * @hide
  */

@@ -76,13 +76,13 @@ class TaskSnapshotListenerTracker extends ITaskSnapshotListener.Stub {
      * Called when a task snapshot become invalidated.
      */
     @Override
-    public void onTaskSnapshotInvalidated(int taskId) {
+    public void onTaskSnapshotReleased(int taskId) {
         final ArrayList<TaskSnapshotListener> tempList;
         synchronized (mLocalListeners) {
             tempList = new ArrayList<>(mLocalListeners);
         }
         for (TaskSnapshotListener l : tempList) {
-            l.onTaskSnapshotInvalidated(taskId);
+            l.onTaskSnapshotReleased(taskId);
         }
     }
 }

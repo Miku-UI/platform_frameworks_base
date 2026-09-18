@@ -18,9 +18,9 @@ package com.android.server.media;
 
 import static android.bluetooth.BluetoothAdapter.ACTIVE_DEVICE_AUDIO;
 
-import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -37,11 +37,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.text.TextUtils;
+import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
 import android.util.SparseBooleanArray;
-
-import androidx.annotation.RequiresPermission;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -53,8 +52,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -63,7 +62,23 @@ import java.util.stream.Collectors;
  *
  * <p>This class also serves as ground truth for assigning {@link MediaRoute2Info#getId() route ids}
  * for bluetooth routes via {@link #getRouteIdForBluetoothAddress}.
+ *
+ * <p>Bluetooth devices have multiple possible states:
+ *
+ * <ul>
+ *   <li>Bonded devices are "paired" with this device. Bonding is a pre-requisite for connection.
+ *       Typically, the user needs to authorize bonding of new devices.
+ *   <li>Connected devices have an active connection with this device. Connection is a pre-requisite
+ *       for activation. Connection can happen automatically when a bonded bluetooth device becomes
+ *       visible to this device.
+ *   <li>Active bluetooth devices are visible to the audio framework and readily available for
+ *       routing. See {@link android.media.AudioManager#handleBluetoothActiveDeviceChanged}.
+ * </ul>
+ *
+ * <p>Note that a bluetooth device being active doesn't necessarily mean that the audio framework is
+ * routing audio to it, which is subject to routing policies.
  */
+@SuppressLint("MissingPermission") // We are in system_server.
 /* package */ class BluetoothDeviceRoutesManager {
     private static final String TAG = SystemMediaRoute2Provider.TAG;
 
@@ -89,6 +104,12 @@ import java.util.stream.Collectors;
         void onBroadcastSinkChanged();
     }
 
+    /**
+     * The lock is visible for tests to check that the lock is not held while calling the Bluetooth
+     * stack, which is known to cause deadlocks. See b/476306639.
+     */
+    @VisibleForTesting /* package */ final Object mLock = new Object();
+
     @NonNull
     private final AdapterStateChangedReceiver mAdapterStateChangedReceiver =
             new AdapterStateChangedReceiver();
@@ -97,8 +118,11 @@ import java.util.stream.Collectors;
     private final DeviceStateChangedReceiver mDeviceStateChangedReceiver =
             new DeviceStateChangedReceiver();
 
-    @NonNull private Map<String, BluetoothDevice> mAddressToBondedDevice = new HashMap<>();
-    @NonNull private final Map<String, BluetoothRouteInfo> mBluetoothRoutes = new HashMap<>();
+    @NonNull private Map<String, BluetoothDeviceHolder> mAddressToBondedDevice = new HashMap<>();
+
+    @NonNull
+    private final Map<String, BluetoothRouteInfo> mAddressToConnectedBluetoothRoutes =
+            new HashMap<>();
 
     @NonNull
     private final Context mContext;
@@ -164,64 +188,196 @@ import java.util.stream.Collectors;
     }
 
     /** Returns true if the given address corresponds to a currently-bonded Bluetooth device. */
-    public synchronized boolean containsBondedDeviceWithAddress(@Nullable String address) {
-        return mAddressToBondedDevice.containsKey(address);
-    }
-
-    @Nullable
-    public synchronized String getRouteIdForBluetoothAddress(@Nullable String address) {
-        BluetoothDevice bluetoothDevice = mAddressToBondedDevice.get(address);
-        return bluetoothDevice != null
-                ? getRouteIdForType(bluetoothDevice, getDeviceType(bluetoothDevice))
-                : null;
-    }
-
-    @Nullable
-    public synchronized String getNameForBluetoothAddress(@NonNull String address) {
-        BluetoothDevice bluetoothDevice = mAddressToBondedDevice.get(address);
-        return bluetoothDevice != null ? getDeviceName(bluetoothDevice) : null;
-    }
-
-    public synchronized void activateBluetoothDeviceWithAddress(String address) {
-        BluetoothRouteInfo btRouteInfo = mBluetoothRoutes.get(address);
-
-        if (btRouteInfo == null) {
-            Slog.w(TAG, "activateBluetoothDeviceWithAddress: Ignoring unknown address " + address);
-            return;
+    public boolean containsBondedDeviceWithAddress(@Nullable String address) {
+        synchronized (mLock) {
+            return mAddressToBondedDevice.containsKey(address);
         }
-        mBluetoothAdapter.setActiveDevice(btRouteInfo.mBtDevice, ACTIVE_DEVICE_AUDIO);
     }
 
-    public synchronized boolean isMediaOnlyRouteInBroadcast(@NonNull String routeId) {
-        for (BluetoothRouteInfo info : mBluetoothRoutes.values()) {
-            if (info.mRoute.getId().equals(routeId)) {
-                if (mBluetoothProfileMonitor.isMediaOnlyDeviceInBroadcast(info.mBtDevice)) {
-                    return true;
+    @Nullable
+    public String getRouteIdForBluetoothAddress(@Nullable String address) {
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            BluetoothDevice bluetoothDevice;
+            synchronized (mLock) {
+                var bluetoothDeviceHolder = mAddressToBondedDevice.get(address);
+                if (bluetoothDeviceHolder == null) {
+                    return null;
+                }
+                bluetoothDevice = bluetoothDeviceHolder.mBluetoothDevice;
+            }
+            return getRouteIdForType(bluetoothDevice, getDeviceType(bluetoothDevice));
+        } else {
+            synchronized (mLock) {
+                var bluetoothDeviceHolder = mAddressToBondedDevice.get(address);
+                if (bluetoothDeviceHolder == null) {
+                    return null;
+                }
+                var bluetoothDevice = bluetoothDeviceHolder.mBluetoothDevice;
+                return getRouteIdForType(bluetoothDevice, getDeviceType(bluetoothDevice));
+            }
+        }
+    }
+
+    @Nullable
+    public String getNameForBluetoothAddress(@NonNull String address) {
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            synchronized (mLock) {
+                BluetoothDeviceHolder deviceHolder = mAddressToBondedDevice.get(address);
+                return deviceHolder != null ? deviceHolder.name : null;
+            }
+        } else {
+            synchronized (mLock) {
+                BluetoothDeviceHolder deviceHolder = mAddressToBondedDevice.get(address);
+                return deviceHolder != null ? getDeviceName(deviceHolder.mBluetoothDevice) : null;
+            }
+        }
+    }
+
+    public void activateBluetoothDeviceWithAddress(String address) {
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            BluetoothDevice btDevice;
+            synchronized (mLock) {
+                BluetoothRouteInfo btRouteInfo = mAddressToConnectedBluetoothRoutes.get(address);
+                if (btRouteInfo == null) {
+                    Slog.w(
+                            TAG,
+                            "activateBluetoothDeviceWithAddress: Ignoring unknown address "
+                                    + address);
+                    return;
+                }
+                btDevice = btRouteInfo.mBtDevice;
+            }
+            mBluetoothAdapter.setActiveDevice(btDevice, ACTIVE_DEVICE_AUDIO);
+        } else {
+            synchronized (mLock) {
+                BluetoothRouteInfo btRouteInfo = mAddressToConnectedBluetoothRoutes.get(address);
+                if (btRouteInfo == null) {
+                    Slog.w(
+                            TAG,
+                            "activateBluetoothDeviceWithAddress: Ignoring unknown address "
+                                    + address);
+                    return;
+                }
+                mBluetoothAdapter.setActiveDevice(btRouteInfo.mBtDevice, ACTIVE_DEVICE_AUDIO);
+            }
+        }
+    }
+
+    public boolean isMediaOnlyRouteInBroadcast(@NonNull String routeId) {
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            BluetoothDevice btDevice = null;
+            synchronized (mLock) {
+                for (BluetoothRouteInfo info : mAddressToConnectedBluetoothRoutes.values()) {
+                    if (info.mRoute.getId().equals(routeId)) {
+                        btDevice = info.mBtDevice;
+                        break;
+                    }
                 }
             }
-        }
-        return false;
-    }
-
-    public synchronized boolean setRouteVolume(@NonNull String routeId, int volume) {
-        boolean volumeUpdated = false;
-        for (BluetoothRouteInfo info : mBluetoothRoutes.values()) {
-            if (info.mRoute.getId().equals(routeId)) {
-                // There could be multiple BT devices for the same route id, for example, LE Audio
-                // devices, hearing aids.
-                mBluetoothProfileMonitor.setDeviceVolume(
-                        info.mBtDevice, volume, /* isGroupOp= */ false);
-                volumeUpdated = true;
+            return mBluetoothProfileMonitor.isMediaOnlyDeviceInBroadcast(btDevice);
+        } else {
+            synchronized (mLock) {
+                for (BluetoothRouteInfo info : mAddressToConnectedBluetoothRoutes.values()) {
+                    if (info.mRoute.getId().equals(routeId)) {
+                        if (mBluetoothProfileMonitor.isMediaOnlyDeviceInBroadcast(info.mBtDevice)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
         }
-        return volumeUpdated;
+    }
+
+    public boolean setRouteVolume(@NonNull String routeId, int volume) {
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            List<BluetoothDevice> btDevices = new ArrayList<>();
+            synchronized (mLock) {
+                for (BluetoothRouteInfo info : mAddressToConnectedBluetoothRoutes.values()) {
+                    if (info.mRoute.getId().equals(routeId)) {
+                        btDevices.add(info.mBtDevice);
+                    }
+                }
+            }
+            for (BluetoothDevice device : btDevices) {
+                // There could be multiple BT devices for the same route id, for example, LE Audio
+                // devices, hearing aids.
+                mBluetoothProfileMonitor.setDeviceVolume(device, volume, /* isGroupOp= */ false);
+            }
+            return !btDevices.isEmpty();
+        } else {
+            synchronized (mLock) {
+                boolean volumeUpdated = false;
+                for (BluetoothRouteInfo info : mAddressToConnectedBluetoothRoutes.values()) {
+                    if (info.mRoute.getId().equals(routeId)) {
+                        // There could be multiple BT devices for the same route id, for example,
+                        // LE Audio devices, hearing aids.
+                        mBluetoothProfileMonitor.setDeviceVolume(
+                                info.mBtDevice, volume, /* isGroupOp= */ false);
+                        volumeUpdated = true;
+                    }
+                }
+                return volumeUpdated;
+            }
+        }
     }
 
     private void updateBluetoothRoutes() {
-        Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            updateBluetoothRoutesLockingOnlyInternalState();
+        } else {
+            updateBluetoothRoutesWithFullLock();
+        }
+    }
 
-        synchronized (this) {
-            mBluetoothRoutes.clear();
+    /**
+     * Updates {@link #mAddressToConnectedBluetoothRoutes} and {@link #mAddressToBondedDevice},
+     * holding a lock only while updating internal state but not during BT stack calls.
+     *
+     * <p>This method is the new version of {@link #updateBluetoothRoutesWithFullLock}, and the
+     * method choice is guided by {@link Flags#enableFixMr2DeadlockOnBtGetAlias}.
+     */
+    private void updateBluetoothRoutesLockingOnlyInternalState() {
+        Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
+        Map<String, BluetoothRouteInfo> newConnectedRoutes = new ArrayMap<>();
+        Map<String, BluetoothDeviceHolder> newBondedDevices = new ArrayMap<>();
+        for (BluetoothDevice device : Optional.ofNullable(bondedDevices).orElse(Set.of())) {
+            newBondedDevices.put(device.getAddress(), createHolderFor(device));
+            if (device.isConnected()) {
+                BluetoothRouteInfo newBtRoute =
+                        createBluetoothRoute(device, /* setVolume= */ false);
+                if (newBtRoute.mConnectedProfiles.size() > 0) {
+                    newConnectedRoutes.put(device.getAddress(), newBtRoute);
+                }
+            }
+        }
+
+        synchronized (mLock) {
+            mAddressToConnectedBluetoothRoutes.clear();
+            if (bondedDevices == null) {
+                // Bonded devices is null upon running into a BluetoothAdapter error.
+                Log.w(TAG, "BluetoothAdapter.getBondedDevices returned null.");
+                return;
+            }
+            // We don't clear bonded devices if we receive a null getBondedDevices result, because
+            // that probably means that the bluetooth stack ran into an issue. Not that all devices
+            // have been unpaired.
+            mAddressToBondedDevice = newBondedDevices;
+            mAddressToConnectedBluetoothRoutes.putAll(newConnectedRoutes);
+        }
+    }
+
+    /**
+     * Updates {@link #mAddressToConnectedBluetoothRoutes} and {@link #mAddressToBondedDevice},
+     * holding a lock even while making some calls into the bluetooth stack.
+     *
+     * <p>This method is the old version of {@link #updateBluetoothRoutesLockingOnlyInternalState},
+     * and the method choice is guided by {@link Flags#enableFixMr2DeadlockOnBtGetAlias}.
+     */
+    private void updateBluetoothRoutesWithFullLock() {
+        Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
+        synchronized (mLock) {
+            mAddressToConnectedBluetoothRoutes.clear();
             if (bondedDevices == null) {
                 // Bonded devices is null upon running into a BluetoothAdapter error.
                 Log.w(TAG, "BluetoothAdapter.getBondedDevices returned null.");
@@ -234,13 +390,13 @@ import java.util.stream.Collectors;
                     bondedDevices.stream()
                             .collect(
                                     Collectors.toMap(
-                                            BluetoothDevice::getAddress, Function.identity()));
+                                            BluetoothDevice::getAddress, this::createHolderFor));
             for (BluetoothDevice device : bondedDevices) {
                 if (device.isConnected()) {
                     BluetoothRouteInfo newBtRoute =
                             createBluetoothRoute(device, /* setVolume= */ false);
                     if (newBtRoute.mConnectedProfiles.size() > 0) {
-                        mBluetoothRoutes.put(device.getAddress(), newBtRoute);
+                        mAddressToConnectedBluetoothRoutes.put(device.getAddress(), newBtRoute);
                     }
                 }
             }
@@ -252,8 +408,8 @@ import java.util.stream.Collectors;
         List<MediaRoute2Info> routes = new ArrayList<>();
         Set<String> routeIds = new HashSet<>();
 
-        synchronized (this) {
-            for (BluetoothRouteInfo btRoute : mBluetoothRoutes.values()) {
+        synchronized (mLock) {
+            for (BluetoothRouteInfo btRoute : mAddressToConnectedBluetoothRoutes.values()) {
                 // See createBluetoothRoute for info on why we do this.
                 if (routeIds.add(btRoute.mRoute.getId())) {
                     routes.add(btRoute.mRoute);
@@ -279,7 +435,7 @@ import java.util.stream.Collectors;
         List<BluetoothDevice> deviceListForBroadcast = new ArrayList<>();
 
         // Check if routeInfo is in the target list, and prevent duplicated entries
-        for (BluetoothRouteInfo routeInfo : mBluetoothRoutes.values()) {
+        for (BluetoothRouteInfo routeInfo : mAddressToConnectedBluetoothRoutes.values()) {
             if (targetRouteIds.contains(routeInfo.mRoute.getId())
                     && !deviceListForBroadcast.contains(routeInfo.mBtDevice)) {
                 deviceListForBroadcast.add(routeInfo.mBtDevice);
@@ -322,7 +478,7 @@ import java.util.stream.Collectors;
         BluetoothDevice bluetoothDevice =
                 routeId == null
                         ? null
-                        : mBluetoothRoutes.values().stream()
+                        : mAddressToConnectedBluetoothRoutes.values().stream()
                                 .filter(routeInfo -> routeInfo.mRoute.getId().equals(routeId))
                                 .findFirst()
                                 .map(routeInfo -> routeInfo.mBtDevice)
@@ -335,11 +491,6 @@ import java.util.stream.Collectors;
      *
      * @return list of selected bluetooth route infos.
      */
-    @RequiresPermission(
-            allOf = {
-                Manifest.permission.BLUETOOTH_PRIVILEGED,
-                Manifest.permission.BLUETOOTH_CONNECT
-            })
     public List<MediaRoute2Info> getBroadcastingDeviceRoutes() {
         // Use HashSet to check and avoid duplicates devices with same routeId
         Set<String> routeIdSet = new HashSet<>();
@@ -418,10 +569,7 @@ import java.util.stream.Collectors;
     }
 
     private String getDeviceName(BluetoothDevice device) {
-        String deviceName =
-                Flags.enableUseOfBluetoothDeviceGetAliasForMr2infoGetName()
-                        ? device.getAlias()
-                        : device.getName();
+        String deviceName = device.getAlias();
         if (TextUtils.isEmpty(deviceName)) {
             deviceName = mContext.getResources().getText(R.string.unknownName).toString();
         }
@@ -472,16 +620,16 @@ import java.util.stream.Collectors;
 
     private void handleBluetoothAdapterStateChange(int state) {
         if (state == BluetoothAdapter.STATE_OFF || state == BluetoothAdapter.STATE_TURNING_OFF) {
-            synchronized (BluetoothDeviceRoutesManager.this) {
-                mBluetoothRoutes.clear();
+            synchronized (mLock) {
+                mAddressToConnectedBluetoothRoutes.clear();
             }
             notifyBluetoothRoutesUpdated();
         } else if (state == BluetoothAdapter.STATE_ON) {
             updateBluetoothRoutes();
 
             boolean shouldCallListener;
-            synchronized (BluetoothDeviceRoutesManager.this) {
-                shouldCallListener = !mBluetoothRoutes.isEmpty();
+            synchronized (mLock) {
+                shouldCallListener = !mAddressToConnectedBluetoothRoutes.isEmpty();
             }
 
             if (shouldCallListener) {
@@ -500,11 +648,7 @@ import java.util.stream.Collectors;
         @Override
         public void onReceive(Context context, Intent intent) {
             int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
-            if (Flags.enableMr2ServiceNonMainBgThread()) {
-                mHandler.post(() -> handleBluetoothAdapterStateChange(state));
-            } else {
-                handleBluetoothAdapterStateChange(state);
-            }
+            mHandler.post(() -> handleBluetoothAdapterStateChange(state));
         }
     }
 
@@ -516,17 +660,24 @@ import java.util.stream.Collectors;
                 case BluetoothHearingAid.ACTION_CONNECTION_STATE_CHANGED:
                 case BluetoothLeAudio.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED:
                 case BluetoothDevice.ACTION_ALIAS_CHANGED:
-                    if (Flags.enableMr2ServiceNonMainBgThread()) {
-                        mHandler.post(
-                                () -> {
-                                    updateBluetoothRoutes();
-                                    notifyBluetoothRoutesUpdated();
-                                });
-                    } else {
-                        updateBluetoothRoutes();
-                        notifyBluetoothRoutesUpdated();
-                    }
+                    mHandler.post(
+                            () -> {
+                                updateBluetoothRoutes();
+                                notifyBluetoothRoutesUpdated();
+                            });
             }
         }
     }
+
+    private BluetoothDeviceHolder createHolderFor(BluetoothDevice bluetoothDevice) {
+        if (Flags.enableFixMr2DeadlockOnBtGetAlias()) {
+            return new BluetoothDeviceHolder(
+                    bluetoothDevice, getDeviceName(bluetoothDevice), bluetoothDevice.getAddress());
+        } else {
+            return new BluetoothDeviceHolder(bluetoothDevice, /* name= */ "", /* address= */ "");
+        }
+    }
+
+    private record BluetoothDeviceHolder(
+            BluetoothDevice mBluetoothDevice, String name, String address) {}
 }

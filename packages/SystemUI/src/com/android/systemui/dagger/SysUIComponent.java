@@ -16,12 +16,16 @@
 
 package com.android.systemui.dagger;
 
+import android.os.Handler;
+
+import com.android.internal.widget.LockPatternUtils;
 import com.android.systemui.BootCompleteCacheImpl;
 import com.android.systemui.CoreStartable;
 import com.android.systemui.Dependency;
 import com.android.systemui.InitController;
 import com.android.systemui.SystemUIAppComponentFactoryBase;
 import com.android.systemui.controls.dagger.StartControlsStartableModule;
+import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dagger.qualifiers.PerUser;
 import com.android.systemui.dump.DumpManager;
@@ -38,12 +42,13 @@ import com.android.systemui.wallpapers.dagger.WallpaperModule;
 import com.android.wm.shell.appzoomout.AppZoomOut;
 import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.bubbles.Bubbles;
-import com.android.wm.shell.desktopmode.DesktopMode;
+import com.android.wm.shell.desktopmode.api.DesktopMode;
 import com.android.wm.shell.displayareahelper.DisplayAreaHelper;
 import com.android.wm.shell.keyguard.KeyguardTransitions;
 import com.android.wm.shell.onehanded.OneHanded;
 import com.android.wm.shell.pip.Pip;
 import com.android.wm.shell.recents.RecentTasks;
+import com.android.wm.shell.scrolltotop.ScrollToTop;
 import com.android.wm.shell.shared.ShellTransitions;
 import com.android.wm.shell.splitscreen.SplitScreen;
 import com.android.wm.shell.startingsurface.StartingSurface;
@@ -57,6 +62,7 @@ import dagger.Subcomponent;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import javax.inject.Provider;
 
@@ -134,6 +140,9 @@ public interface SysUIComponent {
         @BindsInstance
         Builder setAppHandles(Optional<AppHandles> appHandles);
 
+        @BindsInstance
+        Builder setScrollToTop(Optional<ScrollToTop> s);
+
         SysUIComponent build();
     }
 
@@ -162,6 +171,20 @@ public interface SysUIComponent {
      */
     @SysUISingleton
     ContextComponentHelper getContextComponentHelper();
+
+    /**
+     * Background task handler.
+     */
+    @SysUISingleton
+    @Background
+    Handler getBackgroundHandler();
+
+    /**
+     * Main thread executor.
+     */
+    @SysUISingleton
+    @Main
+    Executor getMainExecutor();
 
     /**
      * Main dependency providing module.
@@ -193,6 +216,11 @@ public interface SysUIComponent {
      * Returns {@link CoreStartable} dependencies if there are any.
      */
     @Dependencies Map<Class<?>, Set<Class<? extends CoreStartable>>> getStartableDependencies();
+
+    /**
+     * Returns a {@link LockPatternUtils}.
+     */
+    LockPatternUtils getLockPatternUtils();
 
     /**
      * Member injection into the supplied argument.

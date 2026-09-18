@@ -27,6 +27,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -35,6 +36,7 @@ import android.provider.DeviceConfig;
 import android.util.AttributeSet;
 import android.util.Property;
 import android.view.GestureDetector;
+import android.view.Gravity;
 import android.view.InsetsController;
 import android.view.InsetsSource;
 import android.view.InsetsState;
@@ -123,6 +125,8 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
     private final Rect mDividerBounds = new Rect();
     private final Rect mTempRect = new Rect();
     private FrameLayout mDividerBar;
+
+    private DividerResizeMenu mResizeMenu;
 
     static final Property<DividerView, Integer> DIVIDER_HEIGHT_PROPERTY =
             new Property<DividerView, Integer>(Integer.class, "height") {
@@ -318,6 +322,10 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
         mCorners.setIsLeftRightSplit(isLeftRightSplit);
         mTooltip.setIsLeftRightSplit(isLeftRightSplit);
 
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) mDividerBar.getLayoutParams();
+        lp.gravity = isLeftRightSplit ? Gravity.TOP : Gravity.CENTER;
+        mDividerBar.setLayoutParams(lp);
+
         mHandleRegionWidth = getResources().getDimensionPixelSize(isLeftRightSplit
                 ? R.dimen.split_divider_handle_region_height
                 : R.dimen.split_divider_handle_region_width);
@@ -326,6 +334,14 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
                 : desktopState.canEnterDesktopMode()
                         ? R.dimen.desktop_mode_portrait_split_divider_handle_region_height
                         : R.dimen.split_divider_handle_region_height);
+
+        if (mResizeMenu != null) {
+            mResizeMenu.setup(mSplitLayout, () -> {
+                mSetTouchRegion = true;
+                requestLayout();
+                return null;
+            });
+        }
     }
 
     void onInsetsChanged(InsetsState insetsState, boolean animate) {
@@ -368,6 +384,15 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
         mHandle = findViewById(R.id.docked_divider_handle);
         mCorners = findViewById(R.id.docked_divider_rounded_corner);
         mTooltip = findViewById(R.id.docked_divider_tooltip);
+        setClipChildren(false);
+        setClipToPadding(false);
+        mDividerBar.setClipChildren(false);
+        mDividerBar.setClipToPadding(false);
+
+        mResizeMenu = new DividerResizeMenu(getContext());
+        mDividerBar.addView(mResizeMenu, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
         mTouchElevation = getResources().getDimensionPixelSize(
                 R.dimen.docked_stack_divider_lift_elevation);
         mDoubleTapDetector = new GestureDetector(getContext(), new DoubleTapListener());
@@ -384,18 +409,36 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
+        if (mResizeMenu != null && mResizeMenu.isShowing()) {
+            mResizeMenu.updateButtons();
+        }
+        Resources resources = getResources();
         if (mSetTouchRegion) {
-            int startX = (mDividerBounds.width() - mHandleRegionWidth) / 2;
-            int startY = (mDividerBounds.height() - mHandleRegionHeight) / 2;
-            mTempRect.set(startX, startY, startX + mHandleRegionWidth,
-                    startY + mHandleRegionHeight);
+            int width = mHandleRegionWidth;
+            int height = mHandleRegionHeight;
+
+            if (mResizeMenu != null && mResizeMenu.isShowing()) {
+                int btnSize = resources.getDimensionPixelSize(R.dimen.split_divider_button_size);
+                int gap = resources.getDimensionPixelSize(R.dimen.split_divider_button_margin);
+                if (mSplitLayout.isLeftRightSplit()) {
+                    height = Math.max(height, btnSize);
+                    width += 2 * (btnSize + gap);
+                } else {
+                    width = Math.max(width, btnSize);
+                    height += 2 * (btnSize + gap);
+                }
+            }
+
+            int startX = (getWidth() - width) / 2;
+            int startY = (getHeight() - height) / 2;
+            mTempRect.set(startX, startY, startX + width, startY + height);
             mSplitWindowManager.setTouchRegion(mTempRect);
             mSetTouchRegion = false;
         }
 
         if (changed) {
             boolean isHorizontalSplit = mSplitLayout.isLeftRightSplit();
-            int dividerSize = getResources().getDimensionPixelSize(R.dimen.split_divider_bar_width);
+            int dividerSize = resources.getDimensionPixelSize(R.dimen.split_divider_bar_width);
             left = isHorizontalSplit ? (getWidth() - dividerSize) / 2 : 0;
             top = isHorizontalSplit ? 0 : (getHeight() - dividerSize) / 2;
             right = isHorizontalSplit ? left + dividerSize : getWidth();
@@ -417,12 +460,33 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
             return false;
         }
 
+        if (mResizeMenu != null && mResizeMenu.isShowing()) {
+            float x = event.getX();
+            float y = event.getY();
+            if (mResizeMenu.isTouchInside(x, y) || isTouchInView(mHandle, x, y)) {
+                // Let the touch proceed to buttons
+            } else {
+                hideButtons();
+                // Return false so the touch can pass through to apps underneath
+                return false;
+            }
+        }
+
         mDoubleTapDetector.onTouchEvent(event);
 
         // Convert to use screen-based coordinates to prevent lost track of motion events while
         // moving divider bar and calculating dragging velocity.
         event.setLocation(event.getRawX(), event.getRawY());
         final int action = event.getAction() & MotionEvent.ACTION_MASK;
+        if (action != MotionEvent.ACTION_DOWN && mVelocityTracker == null) {
+            // This case should ideally not happen in a normal gesture,
+            // but if it does, it means we lost the start of the gesture.
+            // Ignoring is safest to prevent a crash.
+            ProtoLog.e(ShellProtoLogGroup.WM_SHELL_SPLIT_SCREEN,
+                    "The MotionEvent.ACTION_DOWN is missed: action=%d", action);
+            return false;
+        }
+
         final boolean isLeftRightSplit = mSplitLayout.isLeftRightSplit();
         final int touchPos = (int) (isLeftRightSplit ? event.getX() : event.getY());
         switch (action) {
@@ -440,6 +504,7 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
                 if (!mMoving && Math.abs(displacement) > mTouchSlop) {
                     mStartPos = touchPos;
                     mMoving = true;
+                    hideButtons();
                     if (Flags.enableFlexibleTwoAppSplit()) {
                         initSnapOnMove(displacement, isLeftRightSplit);
                     }
@@ -459,24 +524,27 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
                 releaseTouching();
                 if (!mMoving) {
                     mSplitLayout.onDraggingCancelled();
-                    if (Flags.enableFlexibleTwoAppSplit()) {
-                        cleanUpMagneticSnapFramework();
-                    }
-                    break;
+                } else {
+                    mVelocityTracker.addMovement(event);
+                    mVelocityTracker.computeCurrentVelocity(1000 /* units */);
+                    final float velocity = isLeftRightSplit
+                            ? mVelocityTracker.getXVelocity()
+                            : mVelocityTracker.getYVelocity();
+                    final int position = mSplitLayout.getDividerPosition() + touchPos - mStartPos;
+                    final SnapTarget snapTarget =
+                            mSplitLayout.findSnapTarget(position, velocity,
+                                    false /* hardDismiss */);
+                    mSplitLayout.snapToTarget(position, snapTarget);
+                    mMoving = false;
                 }
 
-                mVelocityTracker.addMovement(event);
-                mVelocityTracker.computeCurrentVelocity(1000 /* units */);
-                final float velocity = isLeftRightSplit
-                        ? mVelocityTracker.getXVelocity()
-                        : mVelocityTracker.getYVelocity();
-                final int position = mSplitLayout.getDividerPosition() + touchPos - mStartPos;
-                final SnapTarget snapTarget =
-                        mSplitLayout.findSnapTarget(position, velocity, false /* hardDismiss */);
-                mSplitLayout.snapToTarget(position, snapTarget);
-                mMoving = false;
                 if (Flags.enableFlexibleTwoAppSplit()) {
                     cleanUpMagneticSnapFramework();
+                }
+
+                if (mVelocityTracker != null) {
+                    mVelocityTracker.recycle();
+                    mVelocityTracker = null;
                 }
                 break;
         }
@@ -484,9 +552,40 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
         return true;
     }
 
-    /** Plays a short haptic to indicate attaching or detaching from a divider snap point. */
+    /** Toggles the visibility of the accessibility resize menu buttons. */
+    private void toggleButtons() {
+        if (mResizeMenu != null) {
+            if (mResizeMenu.isShowing()) {
+                mResizeMenu.hide();
+            } else {
+                mResizeMenu.show();
+            }
+        }
+    }
+
+    private void hideButtons() {
+        if (mResizeMenu != null) {
+            mResizeMenu.hide();
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (ev.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
+            hideButtons();
+            return true;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
     private void playHapticClick() {
         mSplitLayout.getHapticPlayer().playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR, null);
+    }
+
+    private boolean isTouchInView(View view, float x, float y) {
+        if (view == null || view.getVisibility() != VISIBLE) return false;
+        view.getGlobalVisibleRect(mTempRect);
+        return mTempRect.contains((int) x, (int) y);
     }
 
     private void showTooltip(String tooltipText) {
@@ -700,11 +799,20 @@ public class DividerView extends FrameLayout implements View.OnTouchListener {
     private class DoubleTapListener extends GestureDetector.SimpleOnGestureListener {
 
         @Override
+        public boolean onSingleTapConfirmed(@NonNull MotionEvent e) {
+            if (!mMoving) {
+                toggleButtons();
+            }
+            return true;
+        }
+
+        @Override
         public boolean onDoubleTapEvent(@NonNull MotionEvent e) {
             // User could have started double tap and then dragged before letting go. Skip the
             // swap if so
             if (!mMoving && e.getAction() == MotionEvent.ACTION_UP) {
                 if (mSplitLayout != null) {
+                    hideButtons();
                     mSplitLayout.onDoubleTappedDivider();
                 }
                 return true;

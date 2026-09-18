@@ -17,6 +17,7 @@
 package com.android.systemui.qs.tiles.base.ui.viewmodel
 
 import android.os.UserHandle
+import android.os.UserManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.MediumTest
 import com.android.systemui.SysuiTestCase
@@ -37,6 +38,7 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.ui.analytics.QSTileAnalytics
 import com.android.systemui.qs.tiles.base.ui.model.QSTileDataToStateMapper
 import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.UserIconProvider
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
@@ -58,13 +60,13 @@ class QSTileViewModelTest : SysuiTestCase() {
 
     @Mock private lateinit var qsTileLogger: QSTileLogger
     @Mock private lateinit var qsTileAnalytics: QSTileAnalytics
+    @Mock private lateinit var userManager: UserManager
 
     private val tileConfig =
         QSTileConfigTestBuilder.build {
             policy = QSTilePolicy.Restricted(listOf("test_restriction"))
         }
 
-    private val userRepository = FakeUserRepository()
     private val tileDataInteractor = FakeQSTileDataInteractor<String>()
     private val tileUserActionInteractor = FakeQSTileUserActionInteractor<String>()
     private val disabledByPolicyInteractor = FakeDisabledByPolicyInteractor()
@@ -73,11 +75,14 @@ class QSTileViewModelTest : SysuiTestCase() {
     private val testCoroutineDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testCoroutineDispatcher)
 
+    private lateinit var userRepository: FakeUserRepository
     private lateinit var underTest: QSTileViewModel
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
+        userRepository =
+            FakeUserRepository(UserIconProvider(context, userManager, testCoroutineDispatcher))
         underTest = createViewModel(testScope)
     }
 

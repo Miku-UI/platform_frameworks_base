@@ -22,6 +22,7 @@ import android.app.job.JobScheduler;
 import android.app.job.JobService;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.util.Slog;
 
 import com.android.server.LocalServices;
@@ -60,6 +61,11 @@ public class CameraStatsJobService extends JobService {
     }
 
     public static void schedule(Context context) {
+        // Skip for devices without a camera
+        PackageManager pm = context.getPackageManager();
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+            return;
+        }
 
         JobScheduler js = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if (js == null) {

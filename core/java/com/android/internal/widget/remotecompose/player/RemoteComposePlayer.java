@@ -23,8 +23,11 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -32,6 +35,8 @@ import android.widget.ScrollView;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.widget.remotecompose.core.CoreDocument;
+import com.android.internal.widget.remotecompose.core.CoreDocument.ShaderControl;
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
 import com.android.internal.widget.remotecompose.core.RemoteContextActions;
 import com.android.internal.widget.remotecompose.core.operations.NamedVariable;
@@ -40,13 +45,15 @@ import com.android.internal.widget.remotecompose.core.operations.Theme;
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
 import com.android.internal.widget.remotecompose.core.semantics.ScrollableComponent;
 import com.android.internal.widget.remotecompose.player.accessibility.platform.RemoteComposeTouchHelper;
+import com.android.internal.widget.remotecompose.player.platform.AndroidFloatSystemVariables;
 import com.android.internal.widget.remotecompose.player.platform.AndroidRemoteContext;
+import com.android.internal.widget.remotecompose.player.platform.BitmapLoader;
 import com.android.internal.widget.remotecompose.player.platform.HapticSupport;
 import com.android.internal.widget.remotecompose.player.platform.RemoteComposeView;
 import com.android.internal.widget.remotecompose.player.platform.RemotePreparedDocument;
 import com.android.internal.widget.remotecompose.player.platform.SensorSupport;
+import com.android.internal.widget.remotecompose.player.platform.SettingsRetriever;
 import com.android.internal.widget.remotecompose.player.platform.ThemeSupport;
-import com.android.internal.widget.remotecompose.player.player.platform.SettingsRetriever;
 import com.android.internal.widget.remotecompose.player.state.StateUpdater;
 import com.android.internal.widget.remotecompose.player.state.StateUpdaterImpl;
 
@@ -72,14 +79,13 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
     private RemoteComposeView mInner;
     private StateUpdater mStateUpdater;
 
-    private final ThemeSupport mThemeSupport = new ThemeSupport();
-    private final SensorSupport mSensorsSupport = new SensorSupport();
-    private final HapticSupport mHapticSupport = new HapticSupport();
+    private final @NonNull ThemeSupport mThemeSupport = new ThemeSupport();
+    private final @NonNull SensorSupport mSensorsSupport = new SensorSupport();
+    private final @NonNull HapticSupport mHapticSupport = new HapticSupport();
+    private @Nullable FloatSystemVariables mFloatSystemVariables =
+            new AndroidFloatSystemVariables();
 
-    private CoreDocument.ShaderControl mShaderControl =
-            (shader) -> {
-                return false;
-            };
+    private @NonNull ShaderControl mShaderControl = (shader) -> false;
 
     public RemoteComposePlayer(@NonNull Context context) {
         super(context);
@@ -95,6 +101,51 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
             @NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init(context, attrs, defStyleAttr);
+    }
+
+    /**
+     * Sets the maximum number of operations that can be executed in a single frame.
+     *
+     * @param maxOpCount the maximum number of operations
+     */
+    public void setMaxOpCount(int maxOpCount) {
+        Limits.MAX_OP_COUNT = maxOpCount;
+    }
+
+    /**
+     * Sets the maximum dimension (width or height) of an image that can be loaded.
+     *
+     * @param maxImageDimension the maximum dimension
+     */
+    public void setMaxImageDimension(int maxImageDimension) {
+        Limits.MAX_IMAGE_DIMENSION = maxImageDimension;
+    }
+
+    /**
+     * Sets the maximum bitmap memory allowed for a single player instance.
+     *
+     * @param maxBitmapMemory the maximum memory in bytes
+     */
+    public void setMaxBitmapMemory(int maxBitmapMemory) {
+        Limits.MAX_BITMAP_MEMORY = maxBitmapMemory;
+    }
+
+    /**
+     * Sets the default maximum frames per second for the player.
+     *
+     * @param defaultMaxFps the default maximum fps
+     */
+    public void setDefaultMaxFps(int defaultMaxFps) {
+        Limits.DEFAULT_MAX_FPS = defaultMaxFps;
+    }
+
+    /**
+     * Sets the absolute maximum frames per second for the player.
+     *
+     * @param maxFps the absolute maximum fps
+     */
+    public void setMaxFps(int maxFps) {
+        Limits.MAX_FPS = maxFps;
     }
 
     private @NonNull RemoteContext getRemoteContext() {
@@ -208,7 +259,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
     }
 
     /** Returns the document */
-    public @NonNull RemoteComposeDocument getDocument() {
+    public @NonNull RemoteDocument getDocument() {
         return mInner.getDocument();
     }
 
@@ -217,7 +268,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param value the document to update variables in the current document width
      */
-    public void updateDocument(RemoteComposeDocument value) {
+    public void updateDocument(@NonNull RemoteDocument value) {
         AndroidRemoteContext tmpContext = new AndroidRemoteContext(value.getClock());
         tmpContext.setAccessibilityAnimationEnabled(
                 SettingsRetriever.animationsEnabled(getContext()));
@@ -235,37 +286,25 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param buffer the document to update variables in the current document width
      */
-    public void updateDocument(byte[] buffer) {
-        RemoteComposeDocument document = new RemoteComposeDocument(buffer);
+    public void updateDocument(@NonNull byte[] buffer) {
+        RemoteDocument document = new RemoteDocument(buffer);
         updateDocument(document);
     }
 
-    /**
-     * Set a document on the player
-     *
-     * @param buffer
-     */
-    public void setDocument(byte[] buffer) {
-        RemoteComposeDocument document = new RemoteComposeDocument(buffer);
+    /** Set a document on the player */
+    public void setDocument(@NonNull byte[] buffer) {
+        RemoteDocument document = new RemoteDocument(buffer);
         setDocument(document);
     }
 
-    /**
-     * Set a document on the player
-     *
-     * @param inputStream
-     */
-    public void setDocument(InputStream inputStream) {
-        RemoteComposeDocument document = new RemoteComposeDocument(inputStream);
+    /** Set a document on the player */
+    public void setDocument(@NonNull InputStream inputStream) {
+        RemoteDocument document = new RemoteDocument(inputStream);
         setDocument(document);
     }
 
-    /**
-     * Set a document on the player
-     *
-     * @param value
-     */
-    public void setDocument(@NonNull RemoteComposeDocument value) {
+    /** Set a document on the player */
+    public void setDocument(@Nullable RemoteDocument value) {
         if (value != null) {
             if (value.canBeDisplayed(
                     MAX_SUPPORTED_MAJOR_VERSION, MAX_SUPPORTED_MINOR_VERSION, 0L)) {
@@ -282,15 +321,41 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
 
             RemoteComposeTouchHelper.REGISTRAR.setAccessibilityDelegate(this, value.getDocument());
         } else {
-            mInner.setDocument(null);
+            // TODO discuss with Nico
+            //            mInner.setDocument(null);
 
             RemoteComposeTouchHelper.REGISTRAR.clearAccessibilityDelegate(this);
+        }
+
+        FloatSystemVariables sysVar = mFloatSystemVariables;
+        if (sysVar != null) {
+            sysVar.loadSystemVariables(mInner, mInner.getNamedVariables(NamedVariable.FLOAT_TYPE));
         }
 
         mThemeSupport.mapColors(getContext(), mInner);
         mSensorsSupport.setupSensors(getContext().getApplicationContext(), mInner);
         mHapticSupport.setupHaptics(mInner);
         mInner.checkShaders(mShaderControl);
+    }
+
+    @Override
+    public boolean dispatchHoverEvent(MotionEvent event) {
+        return RemoteComposeTouchHelper.REGISTRAR.dispatchHoverEvent(this, event)
+                || super.dispatchHoverEvent(event);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        return RemoteComposeTouchHelper.REGISTRAR.dispatchKeyEvent(this, event)
+                || super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public void onFocusChanged(
+            boolean gainFocus, int direction, @Nullable Rect previouslyFocusedRect) {
+        super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+        RemoteComposeTouchHelper.REGISTRAR.onFocusChanged(
+                this, gainFocus, direction, previouslyFocusedRect);
     }
 
     /**
@@ -343,7 +408,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
         }
     }
 
-    private void init(Context context, AttributeSet attrs, int defStyleAttr) {
+    private void init(@NonNull Context context, @NonNull AttributeSet attrs, int defStyleAttr) {
         LayoutParams layoutParams =
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
         setBackgroundColor(Color.TRANSPARENT);
@@ -359,13 +424,43 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
     }
 
     /**
+     * Sets a BitmapLoader on the RemoteContext.
+     *
+     * @param bitmapLoader new bitmap loader.
+     */
+    public void setBitmapLoader(@NonNull BitmapLoader bitmapLoader) {
+        ((AndroidRemoteContext) mInner.getRemoteContext()).setBitmapLoader(bitmapLoader);
+    }
+
+    /** Sets a FloatSystemVariables on the RemoteContext. */
+    public interface FloatSystemVariables {
+        /**
+         * Called to load system variables.
+         *
+         * @param rcView the view to setValues on
+         * @param var list of strings
+         */
+        void loadSystemVariables(@NonNull RemoteComposeView rcView, @NonNull String[] var);
+    }
+
+    /**
+     * Sets the class to override system variables
+     *
+     * @param floatSystemVariables class to set system variables.
+     */
+    public void setFloatSystemVariables(@Nullable FloatSystemVariables floatSystemVariables) {
+        mFloatSystemVariables = floatSystemVariables;
+    }
+
+    /**
      * Set an override for a string resource
      *
      * @param domain domain (SYSTEM or USER)
      * @param name name of the string
      * @param content content of the string
      */
-    public void setLocalString(String domain, String name, String content) {
+    public void setLocalString(
+            @NonNull String domain, @NonNull String name, @NonNull String content) {
         mInner.setLocalString(domain + ":" + name, content);
     }
 
@@ -375,7 +470,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param domain domain (SYSTEM or USER)
      * @param name name of the string
      */
-    public void clearLocalString(String domain, String name) {
+    public void clearLocalString(@NonNull String domain, @NonNull String name) {
         mInner.clearLocalString(domain + ":" + name);
     }
 
@@ -385,7 +480,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name name of the string
      * @param content content of the string
      */
-    public void setUserLocalString(String name, String content) {
+    public void setUserLocalString(@NonNull String name, @NonNull String content) {
         mInner.setLocalString("USER:" + name, content);
     }
 
@@ -395,7 +490,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name name of the int
      * @param value value of the int
      */
-    public void setUserLocalInt(String name, int value) {
+    public void setUserLocalInt(@NonNull String name, int value) {
         mInner.setLocalInt("USER:" + name, value);
     }
 
@@ -405,7 +500,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name name of the int
      * @param value value of the int
      */
-    public void setUserLocalColor(String name, int value) {
+    public void setUserLocalColor(@NonNull String name, int value) {
         mInner.setLocalColor("USER:" + name, value);
     }
 
@@ -415,8 +510,27 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name name of the float
      * @param value value of the float
      */
-    public void setUserLocalFloat(String name, float value) {
+    public void setUserLocalFloat(@NonNull String name, float value) {
         mInner.setLocalFloat("USER:" + name, value);
+    }
+
+    /**
+     * Set an override for a user domain float resource
+     *
+     * @param name name of the float
+     * @param value value of the float
+     */
+    public void setLocalFloat(@NonNull String name, float value) {
+        mInner.setLocalFloat(name, value);
+    }
+
+    /**
+     * Get the animation time. This is used in many
+     *
+     * @return
+     */
+    public float getAnimationTime() {
+        return mInner.getAnimationTime();
     }
 
     /**
@@ -425,7 +539,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name name of the int
      * @param value value of the int
      */
-    public void setUserLocalBitmap(String name, Bitmap value) {
+    public void setUserLocalBitmap(@NonNull String name, @NonNull Bitmap value) {
         mInner.setLocalBitmap("USER:" + name, value);
     }
 
@@ -434,7 +548,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param name name of the bitmap
      */
-    public void clearUserLocalBitmap(String name) {
+    public void clearUserLocalBitmap(@NonNull String name) {
         mInner.clearLocalBitmap("USER:" + name);
     }
 
@@ -443,7 +557,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param name name of the string
      */
-    public void clearUserLocalString(String name) {
+    public void clearUserLocalString(@NonNull String name) {
         mInner.clearLocalString("USER:" + name);
     }
 
@@ -452,7 +566,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param name name of the int
      */
-    public void clearUserLocalInt(String name) {
+    public void clearUserLocalInt(@NonNull String name) {
         mInner.clearLocalInt("USER:" + name);
     }
 
@@ -461,7 +575,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param name name of the color
      */
-    public void clearUserLocalColor(String name) {
+    public void clearUserLocalColor(@NonNull String name) {
         mInner.clearLocalColor("USER:" + name);
     }
 
@@ -470,7 +584,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param name name of the int
      */
-    public void clearUserLocalFloat(String name) {
+    public void clearUserLocalFloat(@NonNull String name) {
         mInner.clearLocalFloat("USER:" + name);
     }
 
@@ -480,7 +594,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name name of the string
      * @param content content of the string
      */
-    public void setSystemLocalString(String name, String content) {
+    public void setSystemLocalString(@NonNull String name, @NonNull String content) {
         mInner.setLocalString("SYSTEM:" + name, content);
     }
 
@@ -489,7 +603,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param name name of the string
      */
-    public void clearSystemLocalString(String name) {
+    public void clearSystemLocalString(@NonNull String name) {
         mInner.clearLocalString("SYSTEM:" + name);
     }
 
@@ -502,14 +616,16 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
         return mInner.getDocument().getDocument().getOpsPerFrame();
     }
 
-    /**
-     * Set to use the choreographer
-     *
-     * @param value
-     */
+    /** Set to use the choreographer */
     @VisibleForTesting
     public void setUseChoreographer(boolean value) {
         mInner.setUseChoreographer(value);
+    }
+
+    /** Reload the palette colors */
+    public void reloadPalette() {
+        mThemeSupport.mapColors(getContext(), mInner);
+        invalidate();
     }
 
     /** Id action callback interface */
@@ -560,7 +676,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @return the names of named Strings or null
      */
-    public String[] getNamedColors() {
+    public @NonNull String[] getNamedColors() {
         return mInner.getNamedColors();
     }
 
@@ -569,7 +685,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @return return the names of named floats in the document
      */
-    public String[] getNamedFloats() {
+    public @NonNull String[] getNamedFloats() {
         return mInner.getNamedVariables(NamedVariable.FLOAT_TYPE);
     }
 
@@ -578,7 +694,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @return the name of named string (not the string itself)
      */
-    public String[] getNamedStrings() {
+    public @NonNull String[] getNamedStrings() {
         return mInner.getNamedVariables(NamedVariable.STRING_TYPE);
     }
 
@@ -587,7 +703,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @return the name of named images in the document
      */
-    public String[] getNamedImages() {
+    public @NonNull String[] getNamedImages() {
         return mInner.getNamedVariables(NamedVariable.IMAGE_TYPE);
     }
 
@@ -597,7 +713,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param colorName Name of the color
      * @param colorValue The new color value
      */
-    public void setColor(String colorName, int colorValue) {
+    public void setColor(@NonNull String colorName, int colorValue) {
         mInner.setColor(colorName, colorValue);
     }
 
@@ -607,7 +723,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param name Name of the color
      * @param value The new long value
      */
-    public void setLong(String name, long value) {
+    public void setLong(@NonNull String name, long value) {
         mInner.setLong(name, value);
     }
 
@@ -633,7 +749,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      *
      * @param ctl the controller
      */
-    public void setShaderControl(CoreDocument.ShaderControl ctl) {
+    public void setShaderControl(@NonNull ShaderControl ctl) {
         mShaderControl = ctl;
     }
 
@@ -645,7 +761,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
          * @return the original document
          */
         @NonNull
-        RemoteComposeDocument getOriginalDoc();
+        RemoteDocument getOriginalDoc();
     }
 
     /**
@@ -654,12 +770,12 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param doc the document to prepare
      * @return true if the document needs to be prepared
      */
-    public boolean shouldPrepare(@NonNull RemoteComposeDocument doc) {
+    public boolean shouldPrepare(@NonNull RemoteDocument doc) {
         int size_small_enough_to_inline = 1_000;
         return doc.getDocument().getDocInfo().getSizeOfImages() > size_small_enough_to_inline;
     }
 
-    private boolean isCompatible(@NonNull RemoteComposeDocument doc) {
+    private boolean isCompatible(@NonNull RemoteDocument doc) {
         if (doc.canBeDisplayed(MAX_SUPPORTED_MAJOR_VERSION, MAX_SUPPORTED_MINOR_VERSION, 0L)) {
             return true;
         } else {
@@ -674,7 +790,7 @@ public class RemoteComposePlayer extends FrameLayout implements RemoteContextAct
      * @param doc the document to prepare
      * @return the prepared document
      */
-    public @Nullable PreparedDocument prepareDocument(@NonNull RemoteComposeDocument doc) {
+    public @Nullable PreparedDocument prepareDocument(@NonNull RemoteDocument doc) {
         if (isCompatible(doc)) {
             return new RemotePreparedDocument(doc);
         }

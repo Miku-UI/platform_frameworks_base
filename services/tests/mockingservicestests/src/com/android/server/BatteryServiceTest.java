@@ -40,8 +40,6 @@ import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -52,7 +50,6 @@ import com.android.internal.R;
 import com.android.internal.app.IBatteryStats;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.server.am.BatteryStatsService;
-import com.android.server.flags.Flags;
 import com.android.server.lights.LightsManager;
 import com.android.server.lights.LogicalLight;
 
@@ -142,7 +139,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void onlyVoltageUpdated_lessThenOnePercent_broadcastNotSent() {
         mBatteryService.update(createHealthInfo(VOLTAGE_LESS_THEN_ONE_PERCENT, CURRENT_BATTERY_TEMP,
                 CURRENT_CHARGE_COUNTER, CURRENT_BATTERY_HEALTH, CURRENT_MAX_CHARGING_CURRENT));
@@ -153,7 +149,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void onlyVoltageUpdated_beforeTwentySeconds_broadcastNotSent() {
         mBatteryService.update(
                 createHealthInfo(VOLTAGE_MORE_THEN_ONE_PERCENT, CURRENT_BATTERY_TEMP,
@@ -167,7 +162,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void voltageUpdated_withUpdateInChargingCurrent_broadcastSent() {
         mBatteryService.mLastBroadcastVoltageUpdateTime = SystemClock.elapsedRealtime() - 20000;
         long lastChargingCurrentUpdateTime =
@@ -183,7 +177,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void onlyTempUpdated_lessThenOneDegreeCelsius_broadcastNotSent() {
         mBatteryService.update(
                 createHealthInfo(CURRENT_BATTERY_VOLTAGE, TEMP_LESS_THEN_ONE_DEGREE_CELSIUS,
@@ -196,7 +189,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void tempUpdated_broadcastSent() {
         long lastVoltageUpdateTime = mBatteryService.mLastBroadcastVoltageUpdateTime;
         long lastChargingCurrentUpdateTime =
@@ -215,7 +207,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void batteryHealthUpdated_withOtherExtrasConstant_broadcastSent() {
         long lastVoltageUpdateTime = mBatteryService.mLastBroadcastVoltageUpdateTime;
         long lastChargingCurrentUpdateTime =
@@ -244,18 +235,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
-    public void voltageUpdated_lessThanOnePercent_flagDisabled_broadcastSent() {
-        mBatteryService.update(createHealthInfo(VOLTAGE_LESS_THEN_ONE_PERCENT, CURRENT_BATTERY_TEMP,
-                CURRENT_CHARGE_COUNTER, CURRENT_BATTERY_HEALTH, CURRENT_MAX_CHARGING_CURRENT));
-
-        waitForHandlerToExecute();
-
-        verifyNumberOfTimesBroadcastSent(1);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void onlyChargeCounterUpdated_broadcastNotSent() {
         mBatteryService.update(
                 createHealthInfo(CURRENT_BATTERY_VOLTAGE, CURRENT_BATTERY_TEMP,
@@ -268,7 +247,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void chargeCounterUpdated_tempUpdatedLessThanOneDegree_broadcastNotSent() {
         mBatteryService.update(
                 createHealthInfo(CURRENT_BATTERY_VOLTAGE, TEMP_LESS_THEN_ONE_DEGREE_CELSIUS,
@@ -281,20 +259,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
-    public void onlyChargeCounterUpdated_broadcastSent() {
-        mBatteryService.update(
-                createHealthInfo(CURRENT_BATTERY_VOLTAGE, CURRENT_BATTERY_TEMP,
-                        UPDATED_CHARGE_COUNTER,
-                        CURRENT_BATTERY_HEALTH, CURRENT_MAX_CHARGING_CURRENT));
-
-        waitForHandlerToExecute();
-
-        verifyNumberOfTimesBroadcastSent(1);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void onlyMaxChargingCurrentUpdated_beforeFiveSeconds_broadcastNotSent() {
         mBatteryService.update(
                 createHealthInfo(CURRENT_BATTERY_VOLTAGE, CURRENT_BATTERY_TEMP,
@@ -308,7 +272,6 @@ public class BatteryServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RATE_LIMIT_BATTERY_CHANGED_BROADCAST)
     public void maxChargingCurrentUpdated_afterFiveSeconds_broadcastSent() {
         mBatteryService.mLastBroadcastMaxChargingCurrentUpdateTime =
                 SystemClock.elapsedRealtime() - 5000;

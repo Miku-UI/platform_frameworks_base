@@ -20,15 +20,15 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.any;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.anyString;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
-import static com.android.server.am.Flags.FLAG_ROLLOUT_COMPUTER_CONTROL;
+import static com.android.server.am.Flags.FLAG_ROLLOUT_PIXEL_FACEAUTH;
 
 import static org.mockito.Mockito.verify;
 
 import android.content.ContentResolver;
-import android.os.SystemProperties;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.os.SystemProperties;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -53,17 +53,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-/**
- * Test SettingsToPropertiesMapper.
- */
+/** Test SettingsToPropertiesMapper. */
 public class SettingsToPropertiesMapperTest {
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final String NAME_VALID_CHARACTERS_REGEX = "^[\\w\\-@:]*$";
-    private static final String[] TEST_MAPPING = new String[]{
-            Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS
-    };
+    private static final String[] TEST_MAPPING =
+            new String[] {Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS};
 
     private MockitoSession mSession;
 
@@ -78,8 +74,8 @@ public class SettingsToPropertiesMapperTest {
     @Before
     public void setUp() throws Exception {
         mSession =
-                ExtendedMockito.mockitoSession().initMocks(
-                                this)
+                ExtendedMockito.mockitoSession()
+                        .initMocks(this)
                         .strictness(Strictness.LENIENT)
                         .spyStatic(SystemProperties.class)
                         .spyStatic(Settings.Global.class)
@@ -89,33 +85,39 @@ public class SettingsToPropertiesMapperTest {
         mGlobalSettingsMap = new HashMap<>();
 
         // Mock SystemProperties setter and various getters
-        doAnswer((Answer<Void>) invocationOnMock -> {
-                    String key = invocationOnMock.getArgument(0);
-                    String value = invocationOnMock.getArgument(1);
+        doAnswer(
+                        (Answer<Void>)
+                                invocationOnMock -> {
+                                    String key = invocationOnMock.getArgument(0);
+                                    String value = invocationOnMock.getArgument(1);
 
-                    mSystemSettingsMap.put(key, value);
-                    return null;
-                }
-        ).when(() -> SystemProperties.set(anyString(), anyString()));
+                                    mSystemSettingsMap.put(key, value);
+                                    return null;
+                                })
+                .when(() -> SystemProperties.set(anyString(), anyString()));
 
-        doAnswer((Answer<String>) invocationOnMock -> {
-                    String key = invocationOnMock.getArgument(0);
+        doAnswer(
+                        (Answer<String>)
+                                invocationOnMock -> {
+                                    String key = invocationOnMock.getArgument(0);
 
-                    String storedValue = mSystemSettingsMap.get(key);
-                    return storedValue == null ? "" : storedValue;
-                }
-        ).when(() -> SystemProperties.get(anyString()));
+                                    String storedValue = mSystemSettingsMap.get(key);
+                                    return storedValue == null ? "" : storedValue;
+                                })
+                .when(() -> SystemProperties.get(anyString()));
 
         // Mock Settings.Global method
-        doAnswer((Answer<String>) invocationOnMock -> {
-                    String key = invocationOnMock.getArgument(1);
+        doAnswer(
+                        (Answer<String>)
+                                invocationOnMock -> {
+                                    String key = invocationOnMock.getArgument(1);
 
-                    return mGlobalSettingsMap.get(key);
-                }
-        ).when(() -> Settings.Global.getString(any(), anyString()));
+                                    return mGlobalSettingsMap.get(key);
+                                })
+                .when(() -> Settings.Global.getString(any(), anyString()));
 
-        mTestMapper = new SettingsToPropertiesMapper(
-                mMockContentResolver, TEST_MAPPING, new String[]{});
+        mTestMapper =
+                new SettingsToPropertiesMapper(mMockContentResolver, TEST_MAPPING, new String[] {});
     }
 
     @After
@@ -125,16 +127,19 @@ public class SettingsToPropertiesMapperTest {
 
     @Test
     public void testClearAconfigStorageOverride() {
-        SettingsToPropertiesMapper spyMapper = Mockito.spy(new SettingsToPropertiesMapper(
-                mMockContentResolver, TEST_MAPPING, new String[]{}));
+        SettingsToPropertiesMapper spyMapper =
+                Mockito.spy(
+                        new SettingsToPropertiesMapper(
+                                mMockContentResolver, TEST_MAPPING, new String[] {}));
         HashMap flags = new HashMap();
         flags.put("test_package.test_flag", null);
         DeviceConfig.Properties props = new DeviceConfig.Properties("test_namespace", flags);
 
         spyMapper.setLocalOverridesInNewStorage(props);
 
-        verify(spyMapper).writeFlagOverrideRemovalRequest(new ProtoOutputStream(),
-                "test_package", "test_flag", true);
+        verify(spyMapper)
+                .writeFlagOverrideRemovalRequest(
+                        new ProtoOutputStream(), "test_package", "test_flag", true);
     }
 
     @Test
@@ -142,18 +147,21 @@ public class SettingsToPropertiesMapperTest {
         HashSet<String> hashSet = new HashSet<>();
         for (String globalSetting : SettingsToPropertiesMapper.sGlobalSettings) {
             if (hashSet.contains(globalSetting)) {
-                Assert.fail("globalSetting "
-                        + globalSetting
-                        + " is registered more than once in "
-                        + "SettingsToPropertiesMapper.sGlobalSettings.");
+                Assert.fail(
+                        "globalSetting "
+                                + globalSetting
+                                + " is registered more than once in "
+                                + "SettingsToPropertiesMapper.sGlobalSettings.");
             }
             hashSet.add(globalSetting);
             if (TextUtils.isEmpty(globalSetting)) {
                 Assert.fail("empty globalSetting registered.");
             }
             if (!globalSetting.matches(NAME_VALID_CHARACTERS_REGEX)) {
-                Assert.fail(globalSetting + " contains invalid characters. "
-                        + "Only alphanumeric characters, '-', '@', ':' and '_' are valid.");
+                Assert.fail(
+                        globalSetting
+                                + " contains invalid characters. "
+                                + "Only alphanumeric characters, '-', '@', ':' and '_' are valid.");
             }
         }
     }
@@ -163,42 +171,45 @@ public class SettingsToPropertiesMapperTest {
         HashSet<String> hashSet = new HashSet<>();
         for (String deviceConfigScope : SettingsToPropertiesMapper.getDeviceConfigScopes()) {
             if (hashSet.contains(deviceConfigScope)) {
-                Assert.fail("deviceConfigScope "
-                        + deviceConfigScope
-                        + " is registered more than once in "
-                        + "SettingsToPropertiesMapper.sDeviceConfigScopes.");
+                Assert.fail(
+                        "deviceConfigScope "
+                                + deviceConfigScope
+                                + " is registered more than once in "
+                                + "SettingsToPropertiesMapper.sDeviceConfigScopes.");
             }
             hashSet.add(deviceConfigScope);
             if (TextUtils.isEmpty(deviceConfigScope)) {
                 Assert.fail("empty deviceConfigScope registered.");
             }
             if (!deviceConfigScope.matches(NAME_VALID_CHARACTERS_REGEX)) {
-                Assert.fail(deviceConfigScope + " contains invalid characters. "
-                        + "Only alphanumeric characters, '-', '@', ':' and '_' are valid.");
+                Assert.fail(
+                        deviceConfigScope
+                                + " contains invalid characters. "
+                                + "Only alphanumeric characters, '-', '@', ':' and '_' are valid.");
             }
         }
     }
 
     @Test
-    @EnableFlags(FLAG_ROLLOUT_COMPUTER_CONTROL)
-    public void validateComputerControlPresent() {
-        HashSet<String> hashSet = new HashSet<>(
-                Arrays.asList(SettingsToPropertiesMapper.getDeviceConfigScopes()));
-        if (!hashSet.contains("computer_control")) {
+    @EnableFlags(FLAG_ROLLOUT_PIXEL_FACEAUTH)
+    public void validatePixelFaceauthPresent() {
+        HashSet<String> hashSet =
+                new HashSet<>(Arrays.asList(SettingsToPropertiesMapper.getDeviceConfigScopes()));
+        if (!hashSet.contains("pixel_faceauth")) {
             Assert.fail(
-                    "validateComputerControlPresent: computer_control isn't present in "
+                    "validatePixelFaceauthPresent: pixel_faceauth isn't present in "
                             + "sDeviceConfigScopes");
         }
     }
 
     @Test
-    @DisableFlags(FLAG_ROLLOUT_COMPUTER_CONTROL)
-    public void validateComputerControlNotPresent() {
-        HashSet<String> hashSet = new HashSet<>(
-                Arrays.asList(SettingsToPropertiesMapper.getDeviceConfigScopes()));
-        if (hashSet.contains("computer_control")) {
+    @DisableFlags(FLAG_ROLLOUT_PIXEL_FACEAUTH)
+    public void validatePixelFaceauthNotPresent() {
+        HashSet<String> hashSet =
+                new HashSet<>(Arrays.asList(SettingsToPropertiesMapper.getDeviceConfigScopes()));
+        if (hashSet.contains("pixel_faceauth")) {
             Assert.fail(
-                    "validateComputerControlPresent: computer_control is present in "
+                    "validatePixelFaceauthNotPresent: pixel_faceauth is present in "
                             + "sDeviceConfigScopes");
         }
     }
@@ -207,8 +218,8 @@ public class SettingsToPropertiesMapperTest {
     public void testUpdatePropertiesFromSettings() {
         mGlobalSettingsMap.put(Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS, "testValue");
 
-        String systemPropertyName = "persist.device_config.global_settings."
-                + "sqlite_compatibility_wal_flags";
+        String systemPropertyName =
+                "persist.device_config.global_settings." + "sqlite_compatibility_wal_flags";
 
         mTestMapper.updatePropertiesFromSettings();
         String propValue = mSystemSettingsMap.get(systemPropertyName);
@@ -216,15 +227,13 @@ public class SettingsToPropertiesMapperTest {
 
         mGlobalSettingsMap.put(Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS, "testValue2");
         mTestMapper.updatePropertyFromSetting(
-                Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS,
-                systemPropertyName);
+                Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS, systemPropertyName);
         propValue = mSystemSettingsMap.get(systemPropertyName);
         Assert.assertEquals("testValue2", propValue);
 
         mGlobalSettingsMap.put(Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS, null);
         mTestMapper.updatePropertyFromSetting(
-                Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS,
-                systemPropertyName);
+                Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS, systemPropertyName);
         propValue = mSystemSettingsMap.get(systemPropertyName);
         Assert.assertEquals("", propValue);
     }
@@ -232,21 +241,24 @@ public class SettingsToPropertiesMapperTest {
     @Test
     public void testMakePropertyName() {
         try {
-            Assert.assertEquals("persist.device_config.test_category.test_flag",
+            Assert.assertEquals(
+                    "persist.device_config.test_category.test_flag",
                     SettingsToPropertiesMapper.makePropertyName("test_category", "test_flag"));
         } catch (Exception e) {
             Assert.fail("Unexpected exception: " + e.getMessage());
         }
 
         try {
-            Assert.assertEquals(null,
+            Assert.assertEquals(
+                    null,
                     SettingsToPropertiesMapper.makePropertyName("test_category!!!", "test_flag"));
         } catch (Exception e) {
             Assert.fail("Unexpected exception: " + e.getMessage());
         }
 
         try {
-            Assert.assertEquals(null,
+            Assert.assertEquals(
+                    null,
                     SettingsToPropertiesMapper.makePropertyName("test_category", ".test_flag"));
         } catch (Exception e) {
             Assert.fail("Unexpected exception: " + e.getMessage());
@@ -275,9 +287,11 @@ public class SettingsToPropertiesMapperTest {
 
     @Test
     public void testGetResetNativeCategories() {
-        doReturn("persist.device_config.category1.flag;"
-                + "persist.device_config.category2.flag;persist.device_config.category3.flag;"
-                + "persist.device_config.category3.flag2")
+        doReturn(
+                        "persist.device_config.category1.flag;"
+                            + "persist.device_config.category2.flag;"
+                            + "persist.device_config.category3.flag;"
+                            + "persist.device_config.category3.flag2")
                 .when(() -> SettingsToPropertiesMapper.getResetFlagsFileContent());
 
         mSystemSettingsMap.put("device_config.reset_performed", "");

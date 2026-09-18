@@ -94,7 +94,8 @@ class LockscreenToOccludedTransitionViewModelTest(flags: FlagsParameterization) 
     @Test
     fun lockscreenFadeOut_shadeNotExpanded() =
         testScope.runTest {
-            val values by collectValues(underTest.lockscreenAlpha)
+            val viewState = ViewStateAccessor(alpha = { 0.8f })
+            val values by collectValues(underTest.lockscreenAlpha(viewState))
             shadeExpanded(false)
             runCurrent()
 
@@ -111,8 +112,8 @@ class LockscreenToOccludedTransitionViewModelTest(flags: FlagsParameterization) 
                 testScope = testScope,
             )
             assertThat(values.size).isEqualTo(5)
-            assertThat(values[0]).isEqualTo(1f)
-            assertThat(values[1]).isEqualTo(1f)
+            assertThat(values[0]).isEqualTo(0.8f)
+            assertThat(values[1]).isEqualTo(0.8f)
             assertThat(values[2]).isIn(Range.open(0f, 1f))
             assertThat(values[3]).isIn(Range.open(0f, 1f))
             assertThat(values[4]).isEqualTo(0f)
@@ -121,7 +122,8 @@ class LockscreenToOccludedTransitionViewModelTest(flags: FlagsParameterization) 
     @Test
     fun lockscreenFadeOut_shadeExpanded() =
         testScope.runTest {
-            val values by collectValues(underTest.lockscreenAlpha)
+            val viewState = ViewStateAccessor(alpha = { 1f })
+            val values by collectValues(underTest.lockscreenAlpha(viewState))
             shadeExpanded(true)
             runCurrent()
 

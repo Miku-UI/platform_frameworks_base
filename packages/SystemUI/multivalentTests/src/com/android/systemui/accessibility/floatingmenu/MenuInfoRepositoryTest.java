@@ -19,8 +19,11 @@ package com.android.systemui.accessibility.floatingmenu;
 import static com.android.internal.accessibility.AccessibilityShortcutController.ACCESSIBILITY_HEARING_AIDS_COMPONENT_NAME;
 import static com.android.internal.accessibility.AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
@@ -32,6 +35,7 @@ import android.view.accessibility.AccessibilityManager;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.accessibility.AccessibilityShortcutController;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.util.settings.SecureSettings;
@@ -41,6 +45,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -119,5 +124,26 @@ public class MenuInfoRepositoryTest extends SysuiTestCase {
         verify(mHearingAidDeviceManager).registerConnectionStatusListener(
                 any(HearingAidDeviceManager.ConnectionStatusListener.class), any(
                         Executor.class));
+    }
+
+    @Test
+    public void registerObservers_includesSystemFeatures() {
+        ArgumentCaptor<String> stringCaptor = ArgumentCaptor.forClass(String.class);
+        String[] expected = getFrameworkFeatures();
+
+        mMenuInfoRepository.registerObserversAndCallbacks();
+
+        verify(mSecureSettings, atLeast(expected.length)).getUriFor(stringCaptor.capture());
+        List<String> values = stringCaptor.getAllValues();
+
+        assertThat(values).containsAtLeastElementsIn(expected);
+    }
+
+    private String[] getFrameworkFeatures() {
+        return AccessibilityShortcutController.getFrameworkShortcutFeaturesMap()
+                .values()
+                .stream()
+                .map(AccessibilityShortcutController.FrameworkFeatureInfo::getSettingKey)
+                .toList().toArray(new String[0]);
     }
 }

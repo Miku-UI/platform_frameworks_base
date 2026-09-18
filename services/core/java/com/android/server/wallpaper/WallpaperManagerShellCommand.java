@@ -16,6 +16,8 @@
 
 package com.android.server.wallpaper;
 
+import static android.view.Display.INVALID_DISPLAY;
+
 import android.os.RemoteException;
 import android.os.ShellCommand;
 import android.util.Log;
@@ -81,7 +83,7 @@ public class WallpaperManagerShellCommand extends ShellCommand {
     private int setWallpaperDimAmount() {
         float dimAmount = Float.parseFloat(getNextArgRequired());
         try {
-            mService.setWallpaperDimAmount(dimAmount);
+            mService.setWallpaperDimAmount(dimAmount, INVALID_DISPLAY, false);
         } catch (RemoteException e) {
             Log.e(TAG, "Can't set wallpaper dim amount");
         }
@@ -106,7 +108,7 @@ public class WallpaperManagerShellCommand extends ShellCommand {
     private int setDimmingWithUid() {
         int mockUid = Integer.parseInt(getNextArgRequired());
         float mockDimAmount = Float.parseFloat(getNextArgRequired());
-        mService.setWallpaperDimAmountForUid(mockUid, mockDimAmount);
+        mService.setWallpaperDimAmountForUid(mockUid, mockDimAmount, INVALID_DISPLAY, false);
         getOutPrintWriter().println("Dimming the wallpaper for UID: " + mockUid + " to: "
                 + mockDimAmount);
         return 0;

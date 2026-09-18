@@ -24,7 +24,6 @@ import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import android.graphics.Rect
 import android.window.WindowContainerTransaction
-import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.TaskStackListenerCallback
@@ -83,7 +82,6 @@ class DesktopActivityOrientationChangeHandler(
         taskId: Int,
         @ScreenOrientation requestedOrientation: Int,
     ) {
-        if (!Flags.respectOrientationChangeForUnresizeable()) return
         val task = shellTaskOrganizer.getRunningTaskInfo(taskId) ?: return
         val taskRepository = desktopUserRepositories.current
         val isDesktopModeShowing = taskRepository.isAnyDeskActive(task.displayId)
@@ -104,10 +102,7 @@ class DesktopActivityOrientationChangeHandler(
                     ActivityInfo.isFixedOrientationPortrait(requestedOrientation)
         ) {
             val displayLayout = displayController.getDisplayLayout(task.displayId) ?: return
-            val captionInsets =
-                task.configuration.windowConfiguration.appBounds?.let {
-                    it.top - task.configuration.windowConfiguration.bounds.top
-                } ?: 0
+            val captionInsets = task.freeformCaptionInsets(displayLayout)
             val newOrientationBounds =
                 calculateInitialBounds(
                     displayLayout = displayLayout,

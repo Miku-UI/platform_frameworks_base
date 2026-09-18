@@ -16,14 +16,11 @@
 
 package android.media;
 
-import static android.media.codec.Flags.FLAG_CODEC_AVAILABILITY;
 import static android.media.codec.Flags.FLAG_NULL_OUTPUT_SURFACE;
 import static android.media.codec.Flags.FLAG_REGION_OF_INTEREST;
 import static android.media.codec.Flags.FLAG_SUBSESSION_METRICS;
 import static android.media.tv.flags.Flags.applyPictureProfiles;
 import static android.media.tv.flags.Flags.mediaQualityFw;
-
-import static com.android.media.codec.flags.Flags.FLAG_LARGE_AUDIO_FRAME;
 
 import android.Manifest;
 import android.annotation.FlaggedApi;
@@ -49,8 +46,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.Trace;
-import android.view.Surface;
 import android.util.Log;
+import android.view.Surface;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -2039,9 +2036,7 @@ final public class MediaCodec {
                 }
 
                 case CB_REQUIRED_RESOURCES_CHANGE: {
-                    if (android.media.codec.Flags.codecAvailability()) {
-                        mCallback.onRequiredResourcesChanged(mCodec);
-                    }
+                    mCallback.onRequiredResourcesChanged(mCodec);
                     break;
                 }
 
@@ -2331,7 +2326,6 @@ final public class MediaCodec {
      * globally available codec resources are exposed only as TestApi.
      * This will be tracked and verified through cts.
      */
-    @FlaggedApi(FLAG_CODEC_AVAILABILITY)
     @TestApi
     public static final class GlobalResourceInfo {
         /**
@@ -2377,7 +2371,6 @@ final public class MediaCodec {
      *         device codec resources are available.
      * @throws UnsupportedOperationException if not implemented.
      */
-    @FlaggedApi(FLAG_CODEC_AVAILABILITY)
     @TestApi
     public static @NonNull List<GlobalResourceInfo> getGloballyAvailableResources() {
         return native_getGloballyAvailableResources();
@@ -2579,7 +2572,6 @@ final public class MediaCodec {
      * required codec resources are exposed only as TestApi.
      * This will be tracked and verified through cts.
      */
-    @FlaggedApi(FLAG_CODEC_AVAILABILITY)
     @TestApi
     public static final class InstanceResourceInfo {
         /**
@@ -2628,7 +2620,6 @@ final public class MediaCodec {
      * @throws IllegalStateException if the codec wasn't configured yet.
      * @throws UnsupportedOperationException if not implemented.
      */
-    @FlaggedApi(FLAG_CODEC_AVAILABILITY)
     @TestApi
     public @NonNull List<InstanceResourceInfo> getRequiredResources() {
         return native_getRequiredResources();
@@ -3212,7 +3203,6 @@ final public class MediaCodec {
      * @throws CryptoException if a crypto object has been specified in
      *         {@link #configure}
      */
-    @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
     public final void queueInputBuffers(
             int index,
             @NonNull ArrayDeque<BufferInfo> bufferInfos) {
@@ -3541,7 +3531,6 @@ final public class MediaCodec {
      *              An error code associated with the exception helps identify the
      *              reason for the failure.
      */
-    @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
     public final void queueSecureInputBuffers(
             int index,
             @NonNull ArrayDeque<BufferInfo> bufferInfos,
@@ -3617,9 +3606,9 @@ final public class MediaCodec {
      * of the block as an input buffer to a codec, or get a block allocated by
      * codec as an output buffer from {@link OutputFrame}.
      *
-     * {@see QueueRequest#setLinearBlock}
-     * {@see QueueRequest#setEncryptedLinearBlock}
-     * {@see OutputFrame#getLinearBlock}
+     * @see QueueRequest#setLinearBlock
+     * @see QueueRequest#setEncryptedLinearBlock
+     * @see OutputFrame#getLinearBlock
      */
     public static final class LinearBlock {
         // No public constructors.
@@ -3843,7 +3832,6 @@ final public class MediaCodec {
          * @return this object
          * @throws IllegalStateException if a buffer is already set
          */
-        @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
         public @NonNull QueueRequest setMultiFrameLinearBlock(
                 @NonNull LinearBlock block,
                 @NonNull ArrayDeque<BufferInfo> infos) {
@@ -3912,7 +3900,6 @@ final public class MediaCodec {
          * @throws IllegalArgumentException upon if bufferInfos is empty, contains null, or if the
          *                     access units are not contiguous.
          */
-        @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
         public @NonNull QueueRequest setMultiFrameEncryptedLinearBlock(
                 @NonNull LinearBlock block,
                 @NonNull ArrayDeque<MediaCodec.BufferInfo> bufferInfos,
@@ -4977,7 +4964,6 @@ final public class MediaCodec {
          * describes the access units present in the OutputFrame. Access units are laid
          * out contiguously without gaps and in order.
          */
-        @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
         public @NonNull ArrayDeque<BufferInfo> getBufferInfos() {
             if (mBufferInfos.isEmpty()) {
                 // single BufferInfo could be present.
@@ -5923,7 +5909,6 @@ final public class MediaCodec {
          *              Access units present in the output buffer are laid out contiguously
          *              without gaps and in order.
          */
-        @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
         public void onOutputBuffersAvailable(
                 @NonNull MediaCodec codec, int index, @NonNull ArrayDeque<BufferInfo> infos) {
             /*
@@ -6018,7 +6003,6 @@ final public class MediaCodec {
          *
          * @param codec The MediaCodec object.
          */
-        @FlaggedApi(FLAG_CODEC_AVAILABILITY)
         @TestApi
         public void onRequiredResourcesChanged(@NonNull MediaCodec codec) {
             /*

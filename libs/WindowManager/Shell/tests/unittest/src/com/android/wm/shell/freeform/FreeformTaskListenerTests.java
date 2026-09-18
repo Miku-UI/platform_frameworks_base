@@ -21,8 +21,6 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.view.Display.INVALID_DISPLAY;
 
 import static com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION;
-import static com.android.window.flags.Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND;
-import static com.android.window.flags.Flags.FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS;
 import static com.android.window.flags.Flags.FLAG_SHOW_DESKTOP_WINDOWING_DEV_OPTION;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -126,36 +124,6 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    public void onTaskAppeared_noTransitionObservers_visibleTask_addsTaskToRepo() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
-
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        verify(mDesktopUserRepositories.getCurrent())
-                .addTask(task.displayId, task.taskId, task.isVisible = true,
-                        task.configuration.windowConfiguration.getBounds()
-                );
-    }
-
-    @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    public void onTaskAppeared_noTransitionObservers_nonVisibleTask_addsTaskToRepo() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = false;
-
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        verify(mDesktopUserRepositories.getCurrent())
-                .addTask(task.displayId, task.taskId, task.isVisible,
-                        task.configuration.windowConfiguration.getBounds());
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
     public void onTaskAppeared_useTransitionObserver_noopInRepository() {
         ActivityManager.RunningTaskInfo task =
                 new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
@@ -169,21 +137,6 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    public void focusTaskChanged_noTransitionObserversFlag_addsFreeformTaskToRepo() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isFocused = true;
-
-        mFreeformTaskListener.onFocusTaskChanged(task);
-
-        verify(mDesktopUserRepositories.getCurrent())
-                .addTask(task.displayId, task.taskId, task.isVisible,
-                        task.configuration.windowConfiguration.getBounds());
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
     public void focusTaskChanged_enableTransitionObservers_freeformTaskNotAddedToRepo() {
         ActivityManager.RunningTaskInfo task =
                 new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
@@ -211,75 +164,9 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
                         fullscreenTask.configuration.windowConfiguration.getBounds());
     }
 
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void visibilityTaskChanged_visible_setLaunchAdjacentDisabled() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
 
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        verify(mLaunchAdjacentController).setLaunchAdjacentEnabled(false);
-    }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void visibilityTaskChanged_notVisible_setLaunchAdjacentEnabled() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
-
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        task.isVisible = false;
-        mFreeformTaskListener.onTaskInfoChanged(task);
-
-        verify(mLaunchAdjacentController).setLaunchAdjacentEnabled(true);
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    public void onTaskVanished_minimizedTask_noTransitionObservers_isNotRemoved() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
-        when(mDesktopRepository.isMinimizedTask(task.taskId)).thenReturn(true);
-
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        task.isVisible = false;
-        task.displayId = INVALID_DISPLAY;
-        mFreeformTaskListener.onTaskVanished(task);
-
-        verify(mDesktopUserRepositories.getCurrent(), never()).removeTask(task.taskId);
-    }
-
-    @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    public void onTaskVanished_closingTask_noTransitionObservers_isNotMinimized() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
-
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        when(mDesktopUserRepositories.getCurrent()
-                .isClosingTask(task.taskId)).thenReturn(true);
-        task.isVisible = false;
-        task.displayId = INVALID_DISPLAY;
-        mFreeformTaskListener.onTaskVanished(task);
-
-        verify(mDesktopUserRepositories.getCurrent(), never())
-                .minimizeTask(task.displayId, task.taskId);
-        verify(mDesktopUserRepositories.getCurrent()).removeClosingTask(task.taskId);
-        verify(mDesktopUserRepositories.getCurrent()).removeTask(task.taskId);
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
     public void onTaskVanished_usesTransitionObservers_noopInRepo() {
         ActivityManager.RunningTaskInfo task =
                 new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
@@ -306,39 +193,7 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         verify(mDesktopModeLoggerTransitionObserver).onTaskVanished(task);
     }
 
-
     @Test
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void onTaskInfoChanged_withDesktopController_forwards() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        mFreeformTaskListener.onTaskInfoChanged(task);
-
-        verify(mDesktopTasksController).onTaskInfoChanged(task);
-    }
-
-    @Test
-    @DisableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
-    public void onTaskInfoChanged_noTransitionObservers_updatesTask() {
-        ActivityManager.RunningTaskInfo task =
-                new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
-        task.isVisible = true;
-        mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
-
-        mFreeformTaskListener.onTaskInfoChanged(task);
-
-        verify(mTaskChangeListener, never()).onTaskChanging(any());
-        verify(mDesktopUserRepositories.getCurrent())
-                .updateTask(task.displayId, task.taskId, task.isVisible,
-                        task.configuration.windowConfiguration.getBounds()
-                );
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS)
     @DisableFlags(FLAG_SHOW_DESKTOP_WINDOWING_DEV_OPTION)
     public void onTaskInfoChanged_useTransitionObserver_noopInRepository() {
         ActivityManager.RunningTaskInfo task =

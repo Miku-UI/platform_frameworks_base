@@ -57,12 +57,12 @@
     <item msgid="4875147066469902392">"الميزة مفعّلة"</item>
   </string-array>
   <string-array name="tile_states_modes_dnd">
-    <item msgid="6509540227356524582">"غير متوفّر"</item>
+    <item msgid="6509540227356524582">"غير متاحة"</item>
     <item msgid="8589336868985358191">"غير مفعَّل"</item>
     <item msgid="726072717827778234">"مفعّل"</item>
   </string-array>
   <string-array name="tile_states_flashlight">
-    <item msgid="3465257127433353857">"الميزة غير متاحة"</item>
+    <item msgid="3465257127433353857">"غير متوفّر"</item>
     <item msgid="5044688398303285224">"مطفأ"</item>
     <item msgid="8527389108867454098">"الميزة مفعّلة"</item>
   </string-array>
@@ -112,7 +112,7 @@
     <item msgid="630890598801118771">"الميزة مفعّلة"</item>
   </string-array>
   <string-array name="tile_states_work">
-    <item msgid="389523503690414094">"الميزة غير متاحة"</item>
+    <item msgid="389523503690414094">"غير متاحة"</item>
     <item msgid="8045580926543311193">"الميزة غير مفعّلة"</item>
     <item msgid="4913460972266982499">"الميزة مفعّلة"</item>
   </string-array>
@@ -180,11 +180,6 @@
     <item msgid="8189342855739930015">"غير متاح"</item>
     <item msgid="146088982397753810">"غير مفعّل"</item>
     <item msgid="460891964396502657">"مفعّل"</item>
-  </string-array>
-  <string-array name="tile_states_dream">
-    <item msgid="6184819793571079513">"غير متوفّرة"</item>
-    <item msgid="8014986104355098744">"غير مفعّلة"</item>
-    <item msgid="5966994759929723339">"مفعَّلة"</item>
   </string-array>
   <string-array name="tile_states_font_scaling">
     <item msgid="3173069902082305985">"الخيار غير متوفّر"</item>

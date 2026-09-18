@@ -18,11 +18,13 @@ package android.media;
 
 import static android.media.audio.Flags.FLAG_ROUTED_DEVICE_IDS;
 import static android.media.mediarecorder.Flags.FLAG_APV_RECORDING_SUPPORT;
+import static android.media.mediarecorder.Flags.FLAG_QUALITY_SETTING_SUPPORT;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntDef;
+import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -1158,6 +1160,27 @@ public class MediaRecorder implements AudioRouting,
     }
 
     /**
+     * Sets the video encoding quality for recording. Call this method before {@link #prepare}.
+     * {@link #prepare} may perform additional checks on the parameter to make sure the
+     * specified quality value is applicable. The parameter will only be applied if {@link
+     * MediaCodecInfo.EncoderCapabilities#BITRATE_MODE_CQ} mode is supported for the selected
+     * encoder. Applications should not set both encoding quality and encoding bitrate,
+     * because in this case behavior is undefined.
+     *
+     * @param quality the video encoding quality. Range of possible values can be obtained for a
+     *         specific encoder by querying {@link
+     * MediaCodecInfo.EncoderCapabilities#getQualityRange}. Quality is implementation-specific. As
+     * a general rule, a higher quality setting results in a better image quality and a lower
+     * compression ratio.
+     * @throws IllegalArgumentException when negative quality value is used.
+     */
+    @FlaggedApi(FLAG_QUALITY_SETTING_SUPPORT)
+    public void setVideoEncodingQuality(@IntRange(from = 0) int quality) {
+        Preconditions.checkArgument(quality >= 0, "Video encoding quality is negative");
+        setParameter("video-param-encoding-quality=" + quality);
+    }
+
+    /**
      * Sets the desired video encoding profile and level for recording. The profile and level
      * must be valid for the video encoder set by {@link #setVideoEncoder}. This method can
      * called before or after {@link #setVideoEncoder} but it must be called before {@link #prepare}.
@@ -1975,7 +1998,12 @@ public class MediaRecorder implements AudioRouting,
      * may be expected when unnecessary multiple instances are used
      * at the same time.
      */
-    public native void release();
+    public void release() {
+        native_release();
+        mRecordingInfoImpl.endRecordingCallbackHandling();
+    }
+
+    private native void native_release();
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     private static native final void native_init();

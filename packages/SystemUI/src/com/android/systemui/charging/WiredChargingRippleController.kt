@@ -27,15 +27,15 @@ import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.logging.UiEvent
 import com.android.internal.logging.UiEventLogger
 import com.android.settingslib.Utils
-import com.android.systemui.res.R
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
-import com.android.systemui.surfaceeffects.ripple.RippleView
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.commandline.Command
 import com.android.systemui.statusbar.commandline.CommandRegistry
 import com.android.systemui.statusbar.policy.BatteryController
 import com.android.systemui.statusbar.policy.ConfigurationController
+import com.android.systemui.surfaceeffects.view.ripple.RippleView
 import com.android.systemui.util.time.SystemClock
 import java.io.PrintWriter
 import javax.inject.Inject
@@ -45,12 +45,14 @@ import kotlin.math.pow
 private const val MAX_DEBOUNCE_LEVEL = 3
 private const val BASE_DEBOUNCE_TIME = 2000
 
-/***
- * Controls the ripple effect that shows when wired charging begins.
- * The ripple uses the accent color of the current theme.
+/**
+ * Controls the ripple effect that shows when wired charging begins. The ripple uses the accent
+ * color of the current theme.
  */
 @SysUISingleton
-class WiredChargingRippleController @Inject constructor(
+class WiredChargingRippleController
+@Inject
+constructor(
     commandRegistry: CommandRegistry,
     private val batteryController: BatteryController,
     private val configurationController: ConfigurationController,
@@ -58,27 +60,31 @@ class WiredChargingRippleController @Inject constructor(
     private val context: Context,
     private val windowManager: WindowManager,
     private val systemClock: SystemClock,
-    private val uiEventLogger: UiEventLogger
+    private val uiEventLogger: UiEventLogger,
 ) {
     private var pluggedIn: Boolean = false
-    private val rippleEnabled: Boolean = featureFlags.isEnabled(Flags.CHARGING_RIPPLE) &&
+    private val rippleEnabled: Boolean =
+        featureFlags.isEnabled(Flags.CHARGING_RIPPLE) &&
             !SystemProperties.getBoolean("persist.debug.suppress-charging-ripple", false)
-    private var normalizedPortPosX: Float = context.resources.getFloat(
-            R.dimen.physical_charger_port_location_normalized_x)
-    private var normalizedPortPosY: Float = context.resources.getFloat(
-            R.dimen.physical_charger_port_location_normalized_y)
-    private val windowLayoutParams = WindowManager.LayoutParams().apply {
-        width = WindowManager.LayoutParams.MATCH_PARENT
-        height = WindowManager.LayoutParams.MATCH_PARENT
-        layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-        format = PixelFormat.TRANSLUCENT
-        type = WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG
-        fitInsetsTypes = 0 // Ignore insets from all system bars
-        title = "Wired Charging Animation"
-        flags = (WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
-        setTrustedOverlay()
-    }
+    private var normalizedPortPosX: Float =
+        context.resources.getFloat(R.dimen.physical_charger_port_location_normalized_x)
+    private var normalizedPortPosY: Float =
+        context.resources.getFloat(R.dimen.physical_charger_port_location_normalized_y)
+    private val windowLayoutParams =
+        WindowManager.LayoutParams().apply {
+            width = WindowManager.LayoutParams.MATCH_PARENT
+            height = WindowManager.LayoutParams.MATCH_PARENT
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            format = PixelFormat.TRANSLUCENT
+            type = WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG
+            fitInsetsTypes = 0 // Ignore insets from all system bars
+            title = "Wired Charging Animation"
+            flags =
+                (WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+            setTrustedOverlay()
+        }
     private var lastTriggerTime: Long? = null
     private var debounceLevel = 0
 
@@ -92,42 +98,51 @@ class WiredChargingRippleController @Inject constructor(
     }
 
     fun registerCallbacks() {
-        val batteryStateChangeCallback = object : BatteryController.BatteryStateChangeCallback {
-            override fun onBatteryLevelChanged(
-                level: Int,
-                nowPluggedIn: Boolean,
-                charging: Boolean
-            ) {
-                // Suppresses the ripple when the state change comes from wireless charging or
-                // its dock.
-                if (batteryController.isPluggedInWireless ||
-                        batteryController.isChargingSourceDock) {
-                    return
-                }
+        val batteryStateChangeCallback =
+            object : BatteryController.BatteryStateChangeCallback {
+                override fun onBatteryLevelChanged(
+                    level: Int,
+                    nowPluggedIn: Boolean,
+                    charging: Boolean,
+                ) {
+                    // Suppresses the ripple when the state change comes from wireless charging or
+                    // its dock.
+                    if (
+                        batteryController.isPluggedInWireless ||
+                            batteryController.isChargingSourceDock
+                    ) {
+                        return
+                    }
 
-                if (!pluggedIn && nowPluggedIn) {
-                    startRippleWithDebounce()
+                    if (!pluggedIn && nowPluggedIn) {
+                        startRippleWithDebounce()
+                    }
+                    pluggedIn = nowPluggedIn
                 }
-                pluggedIn = nowPluggedIn
             }
-        }
         batteryController.addCallback(batteryStateChangeCallback)
 
-        val configurationChangedListener = object : ConfigurationController.ConfigurationListener {
-            override fun onUiModeChanged() {
-                updateRippleColor()
-            }
-            override fun onThemeChanged() {
-                updateRippleColor()
-            }
+        val configurationChangedListener =
+            object : ConfigurationController.ConfigurationListener {
+                override fun onUiModeChanged() {
+                    updateRippleColor()
+                }
 
-            override fun onConfigChanged(newConfig: Configuration?) {
-                normalizedPortPosX = context.resources.getFloat(
-                        R.dimen.physical_charger_port_location_normalized_x)
-                normalizedPortPosY = context.resources.getFloat(
-                        R.dimen.physical_charger_port_location_normalized_y)
+                override fun onThemeChanged() {
+                    updateRippleColor()
+                }
+
+                override fun onConfigChanged(newConfig: Configuration?) {
+                    normalizedPortPosX =
+                        context.resources.getFloat(
+                            R.dimen.physical_charger_port_location_normalized_x
+                        )
+                    normalizedPortPosY =
+                        context.resources.getFloat(
+                            R.dimen.physical_charger_port_location_normalized_y
+                        )
+                }
             }
-        }
         configurationController.addCallback(configurationChangedListener)
     }
 
@@ -135,8 +150,10 @@ class WiredChargingRippleController @Inject constructor(
     internal fun startRippleWithDebounce() {
         val now = systemClock.elapsedRealtime()
         // Debounce wait time = 2 ^ debounce level
-        if (lastTriggerTime == null ||
-                (now - lastTriggerTime!!) > BASE_DEBOUNCE_TIME * (2.0.pow(debounceLevel))) {
+        if (
+            lastTriggerTime == null ||
+                (now - lastTriggerTime!!) > BASE_DEBOUNCE_TIME * (2.0.pow(debounceLevel))
+        ) {
             // Not waiting for debounce. Start ripple.
             startRipple()
             debounceLevel = 0
@@ -155,17 +172,17 @@ class WiredChargingRippleController @Inject constructor(
             return
         }
         windowLayoutParams.packageName = context.opPackageName
-        rippleView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewDetachedFromWindow(view: View) {}
+        rippleView.addOnAttachStateChangeListener(
+            object : View.OnAttachStateChangeListener {
+                override fun onViewDetachedFromWindow(view: View) {}
 
-            override fun onViewAttachedToWindow(view: View) {
-                layoutRipple()
-                rippleView.startRipple(Runnable {
-                    windowManager.removeView(rippleView)
-                })
-                rippleView.removeOnAttachStateChangeListener(this)
+                override fun onViewAttachedToWindow(view: View) {
+                    layoutRipple()
+                    rippleView.startRipple(Runnable { windowManager.removeView(rippleView) })
+                    rippleView.removeOnAttachStateChangeListener(this)
+                }
             }
-        })
+        )
         windowManager.addView(rippleView, windowLayoutParams)
         uiEventLogger.log(WiredChargingRippleEvent.CHARGING_RIPPLE_PLAYED)
     }
@@ -178,20 +195,22 @@ class WiredChargingRippleController @Inject constructor(
         rippleView.setMaxSize(maxDiameter, maxDiameter)
         when (context.display?.rotation) {
             Surface.ROTATION_0 -> {
-                rippleView.setCenter(
-                        width * normalizedPortPosX, height * normalizedPortPosY)
+                rippleView.setCenter(width * normalizedPortPosX, height * normalizedPortPosY)
             }
+
             Surface.ROTATION_90 -> {
-                rippleView.setCenter(
-                        width * normalizedPortPosY, height * (1 - normalizedPortPosX))
+                rippleView.setCenter(width * normalizedPortPosY, height * (1 - normalizedPortPosX))
             }
+
             Surface.ROTATION_180 -> {
                 rippleView.setCenter(
-                        width * (1 - normalizedPortPosX), height * (1 - normalizedPortPosY))
+                    width * (1 - normalizedPortPosX),
+                    height * (1 - normalizedPortPosY),
+                )
             }
+
             Surface.ROTATION_270 -> {
-                rippleView.setCenter(
-                        width * (1 - normalizedPortPosY), height * normalizedPortPosX)
+                rippleView.setCenter(width * (1 - normalizedPortPosY), height * normalizedPortPosX)
             }
         }
     }
@@ -211,8 +230,7 @@ class WiredChargingRippleController @Inject constructor(
     }
 
     enum class WiredChargingRippleEvent(private val _id: Int) : UiEventLogger.UiEventEnum {
-        @UiEvent(doc = "Wired charging ripple effect played")
-        CHARGING_RIPPLE_PLAYED(829);
+        @UiEvent(doc = "Wired charging ripple effect played") CHARGING_RIPPLE_PLAYED(829);
 
         override fun getId() = _id
     }

@@ -29,7 +29,6 @@ import android.os.VibratorInfo;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 
 import org.junit.Test;
 
@@ -120,22 +119,6 @@ public class DefaultHalVibratorTest extends HalVibratorTestCase {
         };
 
         assertThat(vibrator.on(1, 1, primitives)).isEqualTo(-1L);
-        assertThat(vibrator.isVibrating()).isFalse();
-        assertThat(vibrator.getCurrentAmplitude()).isEqualTo(0f);
-    }
-
-    @Test
-    public void on_withComposedPwleFailed_doesNotTurnVibratorOn() {
-        mHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
-                IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        mHelper.setPwleV1ToFail();
-        HalVibrator vibrator = newInitializedVibrator(VIBRATOR_ID);
-        RampSegment[] ramps = new RampSegment[]{
-                new RampSegment(/* startAmplitude= */ 0, /* endAmplitude= */ 1,
-                        /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 200, /* duration= */ 10)
-        };
-
-        assertThat(vibrator.on(1, 1, ramps)).isEqualTo(-1L);
         assertThat(vibrator.isVibrating()).isFalse();
         assertThat(vibrator.getCurrentAmplitude()).isEqualTo(0f);
     }

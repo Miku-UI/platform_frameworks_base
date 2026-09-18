@@ -16,7 +16,7 @@
 
 package com.android.systemui.qs.panels.ui.compose.infinitegrid
 
-import com.android.systemui.haptics.msdl.tileHapticsViewModelFactoryProvider
+import com.android.systemui.haptics.msdl.tileHapticsViewModelFactory
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.panels.ui.viewmodel.detailsViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.iconTilesViewModel
@@ -30,6 +30,6 @@ val Kosmos.infiniteGridLayout by
             iconTilesViewModel,
             infiniteGridViewModelFactory,
             textFeedbackContentViewModelFactory,
-            tileHapticsViewModelFactoryProvider,
+            tileHapticsViewModelFactory,
         )
     }

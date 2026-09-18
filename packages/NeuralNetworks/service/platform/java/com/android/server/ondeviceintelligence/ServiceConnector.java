@@ -28,13 +28,11 @@ import android.os.HandlerExecutor;
 import android.os.IBinder;
 import android.os.IInterface;
 import android.os.Looper;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
 import android.util.Slog;
-
 import com.android.internal.infra.AndroidFuture;
-
+import com.android.internal.os.BackgroundThread;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -255,8 +253,6 @@ public interface ServiceConnector<I extends IInterface> {
 
         private final @NonNull Queue<Job<I, ?>> mQueue = this;
         private final @NonNull List<CompletionAwareJob<I, ?>> mUnfinishedJobs = new ArrayList<>();
-
-        private final @NonNull Handler mMainHandler = new Handler(Looper.getMainLooper());
         private final @NonNull ServiceConnection mServiceConnection = this;
         private final @NonNull Runnable mTimeoutDisconnect = this;
 
@@ -293,12 +289,18 @@ public interface ServiceConnector<I extends IInterface> {
          */
         public Impl(@NonNull Context context, @NonNull Intent intent, int bindingFlags,
                 @UserIdInt int userId, @Nullable Function<IBinder, I> binderAsInterface) {
+            this(context, intent, bindingFlags, userId, binderAsInterface, null);
+        }
+
+        public Impl(@NonNull Context context, @NonNull Intent intent, int bindingFlags,
+                @UserIdInt int userId, @Nullable Function<IBinder, I> binderAsInterface,
+                @Nullable Handler handler) {
             mContext = context.createContextAsUser(UserHandle.of(userId), 0);
             mIntent = intent;
             mBindingFlags = bindingFlags;
             mBinderAsInterface = binderAsInterface;
 
-            mHandler = getJobHandler();
+            mHandler = handler != null ? handler : BackgroundThread.getHandler();
             mExecutor = new HandlerExecutor(mHandler);
         }
 
@@ -306,7 +308,7 @@ public interface ServiceConnector<I extends IInterface> {
          * {@link Handler} on which {@link Job}s will be called
          */
         protected Handler getJobHandler() {
-            return mMainHandler;
+            return mHandler;
         }
 
         /**
@@ -474,7 +476,7 @@ public interface ServiceConnector<I extends IInterface> {
             if (DEBUG) {
                 logTrace();
             }
-            mMainHandler.removeCallbacks(mTimeoutDisconnect);
+            getJobHandler().removeCallbacks(mTimeoutDisconnect);
         }
 
         void completeExceptionally(@NonNull Job<?, ?> job, @NonNull Throwable ex) {
@@ -538,7 +540,7 @@ public interface ServiceConnector<I extends IInterface> {
             }
             long timeout = getAutoDisconnectTimeoutMs();
             if (timeout > 0) {
-                mMainHandler.postDelayed(mTimeoutDisconnect, timeout);
+                getJobHandler().postDelayed(mTimeoutDisconnect, timeout);
             } else if (DEBUG) {
                 Log.i(LOG_TAG, "Not scheduling unbind for permanently bound " + this);
             }
@@ -609,6 +611,12 @@ public interface ServiceConnector<I extends IInterface> {
                     task.cancel(/* mayInterruptWhileRunning= */ false);
                 }
             }
+
+            List<CompletionAwareJob<I, ?>> unfinishedToCancel = new ArrayList<>(mUnfinishedJobs);
+            for (CompletionAwareJob<I, ?> task : unfinishedToCancel) {
+                task.cancel(/* mayInterruptWhileRunning= */ false);
+            }
+            mUnfinishedJobs.clear();
         }
 
         @Override
@@ -780,9 +788,11 @@ public interface ServiceConnector<I extends IInterface> {
             @Override
             protected void onCompleted(R res, Throwable err) {
                 super.onCompleted(res, err);
-                if (mUnfinishedJobs.remove(this)) {
-                    maybeScheduleUnbindTimeout();
-                }
+                getJobHandler().post(() -> {
+                    if (mUnfinishedJobs.remove(this)) {
+                        maybeScheduleUnbindTimeout();
+                    }
+                });
             }
         }
     }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.servicestests.apps.packageparserapp">
+
+    <application>
+        <activity
+            android:name=".TestActivity"
+            android:persistableMode="persistAcrossReboots"
+            android:exported="true">
+        </activity>
+
+        <activity-alias
+            android:name=".AliasActivity"
+            android:targetActivity=".TestActivity"
+            android:exported="true">
+        </activity-alias>
+
+    </application>
+</manifest>

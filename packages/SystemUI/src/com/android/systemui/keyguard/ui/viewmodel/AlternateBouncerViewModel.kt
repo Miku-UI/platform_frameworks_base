@@ -18,6 +18,7 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import android.graphics.Color
+import com.android.keyguard.KeyguardViewController
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBiometricsAllowedInteractor
@@ -27,7 +28,6 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInterac
 import com.android.systemui.keyguard.shared.model.KeyguardState.ALTERNATE_BOUNCER
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.coroutineScope
@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 class AlternateBouncerViewModel
 @Inject
 constructor(
-    private val statusBarKeyguardViewManager: StatusBarKeyguardViewManager,
+    private val keyguardViewController: KeyguardViewController,
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
     private val dismissCallbackRegistry: DismissCallbackRegistry,
     alternateBouncerInteractor: Lazy<AlternateBouncerInteractor>,
@@ -84,27 +84,34 @@ constructor(
         }
 
     override suspend fun onActivated() {
+        SceneContainerFlag.isUnexpectedlyInLegacyMode()
         coroutineScope { launch { strongFaceAuthLockout.collect { onStrongFaceAuthLockout() } } }
     }
 
     fun onTapped() {
-        statusBarKeyguardViewManager.showPrimaryBouncer(
+        keyguardViewController.showPrimaryBouncer(
             /* scrimmed */ true,
             "AlternateBouncerViewModel#onTapped",
         )
     }
 
     fun onRemovedFromWindow() {
-        statusBarKeyguardViewManager.hideAlternateBouncer(false)
+        keyguardViewController.hideAlternateBouncer(
+            /* updateScrim */ false,
+            /* clearDismissAction */ false,
+        )
     }
 
     fun onBackRequested() {
-        statusBarKeyguardViewManager.hideAlternateBouncer(false)
+        keyguardViewController.hideAlternateBouncer(
+            /* updateScrim */ false,
+            /* clearDismissAction */ true,
+        )
         dismissCallbackRegistry.notifyDismissCancelled()
         primaryBouncerInteractor.setDismissAction(null, null)
     }
 
-    private fun onStrongFaceAuthLockout() {
-        statusBarKeyguardViewManager.showPrimaryBouncer(true, "strongFaceAuthLockout")
+    fun onStrongFaceAuthLockout() {
+        keyguardViewController.showPrimaryBouncer(true, "strongFaceAuthLockout")
     }
 }

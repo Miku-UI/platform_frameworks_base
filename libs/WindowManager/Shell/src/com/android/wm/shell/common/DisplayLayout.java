@@ -18,11 +18,12 @@ package com.android.wm.shell.common;
 
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
-import static android.content.res.Configuration.UI_MODE_TYPE_CAR;
-import static android.content.res.Configuration.UI_MODE_TYPE_MASK;
 import static android.os.Process.SYSTEM_UID;
 import static android.provider.Settings.Global.DEVELOPMENT_FORCE_DESKTOP_MODE_ON_EXTERNAL_DISPLAYS;
 import static android.view.Display.FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS;
+import static android.view.Surface.ROTATION_180;
+
+import static java.lang.Math.max;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -79,7 +80,9 @@ public class DisplayLayout {
     private int mWidth;
     private int mHeight;
     private RectF mGlobalBoundsDp;
+    @Nullable
     private DisplayCutout mCutout;
+    @Surface.Rotation
     private int mRotation;
     private int mDensityDpi;
     private final Rect mNonDecorInsets = new Rect();
@@ -88,14 +91,17 @@ public class DisplayLayout {
     private boolean mHasStatusBar = false;
     private int mNavBarFrameHeight = 0;
     private int mTaskbarFrameHeight = 0;
+    private int mCaptionBarHeight = 0;
     private boolean mAllowSeamlessRotationDespiteNavBarMoving = false;
     private boolean mNavigationBarCanMove = false;
     private boolean mReverseDefaultRotation = false;
-    private InsetsState mInsetsState = new InsetsState();
+    @VisibleForTesting
+    InsetsState mInsetsState = new InsetsState();
 
     /**
      * Different from {@link #equals(Object)}, this method compares the basic geometry properties
      * of two {@link DisplayLayout} objects including width, height, rotation, density, cutout.
+     *
      * @return {@code true} if the given {@link DisplayLayout} is identical geometry wise.
      */
     public boolean isSameGeometry(@NonNull DisplayLayout other) {
@@ -104,6 +110,25 @@ public class DisplayLayout {
                 && mRotation == other.mRotation
                 && mDensityDpi == other.mDensityDpi
                 && Objects.equals(mCutout, other.mCutout);
+    }
+
+    /**
+     * @return {@code true} if the given {@link DisplayLayout} is identical geometry wise but
+     * differs in its rotation.
+     */
+    public boolean isSameRotatedGeometry(@NonNull DisplayLayout other) {
+        if (mRotation == other.mRotation || mDensityDpi != other.mDensityDpi) return false;
+        DisplayCutout cutoutRotated = mCutout.getRotated(
+                mWidth, mHeight, mRotation, other.mRotation);
+        if (mRotation == ROTATION_180) {
+            return mWidth == other.mWidth
+                    && mHeight == other.mHeight
+                    && Objects.equals(cutoutRotated, other.mCutout);
+        } else {
+            return mWidth == other.mHeight
+                    && mHeight == other.mWidth
+                    && Objects.equals(cutoutRotated, other.mCutout);
+        }
     }
 
     @Override
@@ -128,6 +153,7 @@ public class DisplayLayout {
                 && mReverseDefaultRotation == other.mReverseDefaultRotation
                 && mNavBarFrameHeight == other.mNavBarFrameHeight
                 && mTaskbarFrameHeight == other.mTaskbarFrameHeight
+                && mCaptionBarHeight == other.mCaptionBarHeight
                 && Objects.equals(mInsetsState, other.mInsetsState);
     }
 
@@ -136,7 +162,7 @@ public class DisplayLayout {
         return Objects.hash(mUiMode, mWidth, mHeight, mGlobalBoundsDp, mCutout, mRotation,
                 mDensityDpi, mNonDecorInsets, mStableInsets, mHasNavigationBar, mHasStatusBar,
                 mNavBarFrameHeight, mTaskbarFrameHeight, mAllowSeamlessRotationDespiteNavBarMoving,
-                mNavigationBarCanMove, mReverseDefaultRotation, mInsetsState);
+                mNavigationBarCanMove, mReverseDefaultRotation, mInsetsState, mCaptionBarHeight);
     }
 
     /**
@@ -171,6 +197,7 @@ public class DisplayLayout {
 
     /**
      * Construct a display layout based on a live display.
+     *
      * @param context Used for resources.
      */
     public DisplayLayout(@NonNull Context context, @NonNull Display rawDisplay) {
@@ -201,6 +228,7 @@ public class DisplayLayout {
         mReverseDefaultRotation = dl.mReverseDefaultRotation;
         mNavBarFrameHeight = dl.mNavBarFrameHeight;
         mTaskbarFrameHeight = dl.mTaskbarFrameHeight;
+        mCaptionBarHeight = dl.mCaptionBarHeight;
         mNonDecorInsets.set(dl.mNonDecorInsets);
         mStableInsets.set(dl.mStableInsets);
         mInsetsState.set(dl.mInsetsState, true /* copySources */);
@@ -234,14 +262,17 @@ public class DisplayLayout {
 
     @VisibleForTesting
     void recalcInsets(Resources res) {
-        computeNonDecorInsets(res, mRotation, mWidth, mHeight, mCutout, mInsetsState, mUiMode,
-                mNonDecorInsets, mHasNavigationBar);
+        Rect cutoutInsets = mCutout == null ? null : mCutout.getSafeInsets();
+        computeNonDecorInsets(mInsetsState, mNonDecorInsets, mHasNavigationBar, cutoutInsets);
         mStableInsets.set(mNonDecorInsets);
         if (mHasStatusBar) {
             convertNonDecorInsetsToStableInsets(res, mStableInsets, mCutout, mHasStatusBar);
         }
-        mNavBarFrameHeight = getNavigationBarFrameHeight(res, /* landscape */ mWidth > mHeight);
+        mNavBarFrameHeight = getNavigationBarFrameHeight(res, mWidth, mHeight, mRotation,
+                mInsetsState);
         mTaskbarFrameHeight = SystemBarUtils.getTaskbarHeight(res);
+        mCaptionBarHeight = res.getDimensionPixelSize(
+                SystemBarUtils.getDesktopViewAppHeaderHeightId());
     }
 
     /**
@@ -303,6 +334,11 @@ public class DisplayLayout {
         return mStableInsets;
     }
 
+    /** Get this layout's caption bar height. */
+    public int captionBarHeight() {
+        return mCaptionBarHeight;
+    }
+
     /** Get this layout's width in pixels. */
     public int width() {
         return mWidth;
@@ -319,6 +355,7 @@ public class DisplayLayout {
     }
 
     /** Get this layout's display rotation. */
+    @Surface.Rotation
     public int rotation() {
         return mRotation;
     }
@@ -365,7 +402,7 @@ public class DisplayLayout {
         if (displayHardwareIsLandscape) {
             return mReverseDefaultRotation ? Surface.ROTATION_270 : Surface.ROTATION_90;
         }
-        return Surface.ROTATION_180;
+        return ROTATION_180;
     }
 
     /** Gets the orientation of this layout */
@@ -390,14 +427,6 @@ public class DisplayLayout {
         }
     }
 
-    /**
-     * Gets navigation bar position for this layout
-     * @return Navigation bar position for this layout.
-     */
-    public @NavBarPosition int getNavigationBarPosition(Resources res) {
-        return navigationBarPosition(res, mWidth, mHeight, mRotation);
-    }
-
     /** @return {@link DisplayCutout} instance. */
     @Nullable
     public DisplayCutout getDisplayCutout() {
@@ -413,50 +442,39 @@ public class DisplayLayout {
             return;
         }
         int statusBarHeight = SystemBarUtils.getStatusBarHeight(res, cutout);
-        inOutInsets.top = Math.max(inOutInsets.top, statusBarHeight);
+        inOutInsets.top = max(inOutInsets.top, statusBarHeight);
     }
 
     /**
      * Calculates the insets for the areas that could never be removed in Honeycomb, i.e. system
      * bar or button bar.
      *
-     * @param displayRotation the current display rotation
-     * @param displayWidth the current display width
-     * @param displayHeight the current display height
-     * @param displayCutout the current display cutout
-     * @param outInsets the insets to return
+     * @param outInsets        the insets to return
+     * @param hasNavigationBar indicates whether a navigation bar exists on the display
      */
-    static void computeNonDecorInsets(Resources res, int displayRotation, int displayWidth,
-            int displayHeight, DisplayCutout displayCutout, InsetsState insetsState, int uiMode,
-            Rect outInsets, boolean hasNavigationBar) {
-        outInsets.setEmpty();
-
-        // Only navigation bar
-        if (hasNavigationBar) {
-            final Rect displayFrame = insetsState.getDisplayFrame();
-            final Insets insets = insetsState.calculateInsets(
-                    displayFrame,
-                    displayFrame,
-                    WindowInsets.Type.navigationBars(),
-                    false /* ignoreVisibility */);
-            int position = navigationBarPosition(res, displayWidth, displayHeight, displayRotation);
-            int navBarSize =
-                    getNavigationBarSize(res, position, displayWidth > displayHeight, uiMode);
-            if (position == NAV_BAR_BOTTOM) {
-                outInsets.bottom = Math.max(insets.bottom , navBarSize);
-            } else if (position == NAV_BAR_RIGHT) {
-                outInsets.right = Math.max(insets.right , navBarSize);
-            } else if (position == NAV_BAR_LEFT) {
-                outInsets.left = Math.max(insets.left , navBarSize);
-            }
+    static void computeNonDecorInsets(InsetsState insetsState,
+            Rect outInsets, boolean hasNavigationBar, @Nullable Rect cutout) {
+        // don't look at the source cutout inset because it may not have been updated yet if we just
+        // rotated. instead we have to rely on the manually rotated cutout and merge that into the
+        // final insets
+        final int types = (hasNavigationBar ? WindowInsets.Type.navigationBars() : 0);
+        final Rect displayFrame = insetsState.getDisplayFrame();
+        final Insets insets = insetsState.calculateInsets(
+                displayFrame,
+                displayFrame,
+                types,
+                true /* ignoreVisibility */);
+        outInsets.set(insets.toRect());
+        if (cutout != null) {
+            mergeInsets(outInsets, cutout);
         }
+    }
 
-        if (displayCutout != null) {
-            outInsets.left += displayCutout.getSafeInsetLeft();
-            outInsets.top += displayCutout.getSafeInsetTop();
-            outInsets.right += displayCutout.getSafeInsetRight();
-            outInsets.bottom += displayCutout.getSafeInsetBottom();
-        }
+    private static void mergeInsets(Rect inOut, Rect other) {
+        inOut.left = Math.max(inOut.left, other.left);
+        inOut.top = Math.max(inOut.top, other.top);
+        inOut.right = Math.max(inOut.right, other.right);
+        inOut.bottom = Math.max(inOut.bottom, other.bottom);
     }
 
     static boolean hasNavigationBar(DisplayInfo info, Context context, int displayId) {
@@ -501,35 +519,21 @@ public class DisplayLayout {
         return NAV_BAR_BOTTOM;
     }
 
-    /** Retrieve navigation bar size from resources based on side/orientation/ui-mode */
-    public static int getNavigationBarSize(Resources res, int navBarSide, boolean landscape,
-            int uiMode) {
-        final boolean carMode = (uiMode & UI_MODE_TYPE_MASK) == UI_MODE_TYPE_CAR;
-        if (carMode) {
-            if (navBarSide == NAV_BAR_BOTTOM) {
-                return res.getDimensionPixelSize(landscape
-                        ? R.dimen.navigation_bar_height_landscape_car_mode
-                        : R.dimen.navigation_bar_height_car_mode);
-            } else {
-                return res.getDimensionPixelSize(R.dimen.navigation_bar_width_car_mode);
-            }
-
-        } else {
-            if (navBarSide == NAV_BAR_BOTTOM) {
-                return res.getDimensionPixelSize(landscape
-                        ? R.dimen.navigation_bar_height_landscape
-                        : R.dimen.navigation_bar_height);
-            } else {
-                return res.getDimensionPixelSize(R.dimen.navigation_bar_width);
-            }
-        }
-    }
-
     /** @see com.android.server.wm.DisplayPolicy#getNavigationBarFrameHeight */
-    public static int getNavigationBarFrameHeight(Resources res, boolean landscape) {
-        return res.getDimensionPixelSize(landscape
-                ? R.dimen.navigation_bar_frame_height_landscape
-                : R.dimen.navigation_bar_frame_height);
+    public int getNavigationBarFrameHeight(Resources res, int displayWidth,
+            int displayHeight, int rotation, InsetsState insetsState) {
+        int navBarPosition = navigationBarPosition(res, displayWidth, displayHeight, rotation);
+        Rect displayFrame = insetsState.getDisplayFrame();
+        final Insets insets = insetsState.calculateInsets(
+                displayFrame,
+                displayFrame,
+                WindowInsets.Type.navigationBars(),
+                true /* ignoreVisibility */);
+        return switch (navBarPosition) {
+            case NAV_BAR_LEFT -> insets.left;
+            case NAV_BAR_RIGHT -> insets.right;
+            default -> insets.bottom;
+        };
     }
 
     /**

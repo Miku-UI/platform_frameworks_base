@@ -36,9 +36,14 @@ import android.view.KeyEvent;
  * @hide
  */
 interface ISessionManager {
-    ISession createSession(String packageName, in ISessionCallback sessionCb, String tag,
-            in Bundle sessionInfo, int userId);
-    List<MediaSession.Token> getSessions(in ComponentName compName, int userId);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+                + "android.Manifest.permission.OVERRIDE_MEDIA_SESSION_OWNER, conditional = true)")
+    ISession createSession(String packageName, String overridePackageName,
+            in ISessionCallback sessionCb, String tag, in Bundle sessionInfo, int userId);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+                + "android.Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)")
+    List<MediaSession.Token> getSessions(in ComponentName compName, int userId,
+            String packageNameFilter);
     MediaSession.Token getMediaKeyEventSession(String packageName);
     String getMediaKeyEventSessionPackageName(String packageName);
     void dispatchMediaKeyEvent(String packageName, boolean asSystemService, in KeyEvent keyEvent,
@@ -51,9 +56,12 @@ interface ISessionManager {
             in KeyEvent keyEvent, in MediaSession.Token sessionToken);
     void dispatchAdjustVolume(String packageName, String opPackageName, int suggestedStream,
             int delta, int flags);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+                + "android.Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)")
     void addSessionsListener(in IActiveSessionsListener listener, in ComponentName compName,
-            int userId);
+            int userId, String packageNameFilter);
     void removeSessionsListener(in IActiveSessionsListener listener);
+    void removeSessionsListenerForPackage(in IActiveSessionsListener listener);
     void addSession2TokensListener(in ISession2TokensListener listener, int userId);
     void removeSession2TokensListener(in ISession2TokensListener listener);
 

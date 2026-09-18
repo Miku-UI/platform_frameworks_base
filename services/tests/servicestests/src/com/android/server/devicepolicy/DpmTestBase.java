@@ -112,7 +112,7 @@ public abstract class DpmTestBase {
     }
 
     /**
-     * Simulate an RPC from {@param caller} to the service context ({@link #mMockContext}).
+     * Simulate an RPC from {@code caller} to the service context ({@link #mMockContext}).
      *
      * The caller sees its own context. The server also sees its own separate context, with the
      * appropriate calling UID and calling permissions fields already set up.

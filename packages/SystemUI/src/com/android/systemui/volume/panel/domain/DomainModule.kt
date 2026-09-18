@@ -51,6 +51,7 @@ interface DomainModule {
         fun provideEnabledComponents(): Collection<VolumePanelComponentKey> {
             return setOf(
                 VolumePanelComponents.ANC,
+                VolumePanelComponents.MNC,
                 VolumePanelComponents.SPATIAL_AUDIO,
                 VolumePanelComponents.CAPTIONING,
                 VolumePanelComponents.VOLUME_SLIDERS,

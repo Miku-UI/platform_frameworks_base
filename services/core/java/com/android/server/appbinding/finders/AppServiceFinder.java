@@ -18,7 +18,6 @@ package com.android.server.appbinding.finders;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.supervision.flags.Flags;
 import android.content.Context;
 import android.content.pm.IPackageManager;
 import android.content.pm.ServiceInfo;
@@ -37,7 +36,6 @@ import com.android.server.appbinding.AppBindingUtils;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -59,18 +57,6 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
     private final Object mLock = new Object();
 
     @GuardedBy("mLock")
-    @Deprecated
-    private final SparseArray<String> mTargetPackages = new SparseArray(4);
-
-    @GuardedBy("mLock")
-    @Deprecated
-    private final SparseArray<ServiceInfo> mTargetServices = new SparseArray(4);
-
-    @GuardedBy("mLock")
-    @Deprecated
-    private final SparseArray<String> mLastMessages = new SparseArray(4);
-
-    @GuardedBy("mLock")
     private final SparseArray<HashMap<String, TargetServiceInfo>> mServiceInfos =
             new SparseArray(4);
 
@@ -88,7 +74,6 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
             this.lastMessage = lastMessage;
         }
     }
-
 
     public AppServiceFinder(Context context,
             BiConsumer<AppServiceFinder, Integer> listener,
@@ -114,75 +99,7 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
     /** Called when a user is removed. */
     public void onUserRemoved(int userId) {
         synchronized (mLock) {
-            mTargetPackages.delete(userId);
-            mTargetServices.delete(userId);
-            mLastMessages.delete(userId);
             mServiceInfos.delete(userId);
-        }
-    }
-
-    /**
-     * Find the target service from the target app on a given user.
-     */
-    @Nullable
-    @Deprecated
-    public final ServiceInfo findService(int userId, IPackageManager ipm,
-            AppBindingConstants constants) {
-        synchronized (mLock) {
-            mTargetPackages.put(userId, null);
-            mTargetServices.put(userId, null);
-            mLastMessages.put(userId, null);
-
-            if (!isEnabled(constants, userId)) {
-                final String message = "feature disabled";
-                mLastMessages.put(userId, message);
-                Slog.i(TAG, getAppDescription() + " " + message);
-                return null;
-            }
-
-            final String targetPackage = getTargetPackage(userId);
-            if (DEBUG) {
-                Slog.d(TAG, getAppDescription() + " package=" + targetPackage);
-            }
-            if (targetPackage == null) {
-                final String message = "Target package not found";
-                mLastMessages.put(userId, message);
-                Slog.w(TAG, getAppDescription() + " u" + userId + " " + message);
-                return null;
-            }
-            mTargetPackages.put(userId, targetPackage);
-
-            final StringBuilder errorMessage = new StringBuilder();
-            final ServiceInfo service = AppBindingUtils.findService(
-                    targetPackage,
-                    userId,
-                    getServiceAction(),
-                    getServicePermission(),
-                    getServiceClass(),
-                    ipm,
-                    errorMessage);
-
-            if (service == null) {
-                final String message = errorMessage.toString();
-                mLastMessages.put(userId, message);
-                if (DEBUG) {
-                    // This log is optional because findService() already did Log.e().
-                    Slog.w(TAG, getAppDescription() + " package " + targetPackage + " u" + userId
-                            + " " + message);
-                }
-                return null;
-            }
-            final String error = validateService(service);
-            if (error != null) {
-                mLastMessages.put(userId, error);
-                Log.e(TAG, error);
-                return null;
-            }
-
-            final String message = "Valid service found";
-            mLastMessages.put(userId, message);
-            mTargetServices.put(userId, service);
-            return service;
         }
     }
 
@@ -204,8 +121,11 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
 
             if (!isEnabled(constants, userId)) {
                 final String message = "feature disabled";
-                currServiceInfo.put(targetPackage, new TargetServiceInfo(null, message));
+                currServiceInfo.put(null, new TargetServiceInfo(null, message));
                 Slog.i(TAG, getAppDescription() + " " + message);
+                return null;
+            }
+            if (!getTargetPackages(userId).contains(targetPackage)) {
                 return null;
             }
 
@@ -244,7 +164,7 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
     /**
      * Find the list of target service from the target apps on a given user.
      */
-    @Nullable
+    @NonNull
     public final List<ServiceInfo> findServices(int userId, IPackageManager ipm,
             AppBindingConstants constants) {
         final Set<String> targetPackages = getTargetPackages(userId);
@@ -281,12 +201,6 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
      */
     public abstract TServiceInterfaceType asInterface(IBinder obj);
 
-    /**
-     * @return the target package on a given user.
-     */
-    @Nullable
-    @Deprecated
-    public abstract String getTargetPackage(int userId);
 
     /**
      * @return the target packages on a given user.
@@ -348,29 +262,6 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
                 }
                 pw.println();
             }
-
-            for (int i = 0; i < mTargetPackages.size(); i++) {
-                final int userId = mTargetPackages.keyAt(i);
-                pw.print(prefix);
-                pw.print("  User: ");
-                pw.print(userId);
-                pw.println();
-
-                pw.print(prefix);
-                pw.print("    Package: ");
-                pw.print(mTargetPackages.get(userId));
-                pw.println();
-
-                pw.print(prefix);
-                pw.print("    Service: ");
-                pw.print(mTargetServices.get(userId));
-                pw.println();
-
-                pw.print(prefix);
-                pw.print("    Message: ");
-                pw.print(mLastMessages.get(userId));
-                pw.println();
-            }
         }
     }
 
@@ -386,20 +277,6 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
                             mServiceInfos.get(userId).get(targetPackage).serviceInfo,
                             mServiceInfos.get(userId).get(targetPackage).lastMessage));
                 }
-            }
-            for (int i = 0; i < mTargetPackages.size(); i++) {
-                final int userId = mTargetPackages.keyAt(i);
-                pw.print("finder,");
-                pw.print(getAppDescription());
-                pw.print(",");
-                pw.print(userId);
-                pw.print(",");
-                pw.print(mTargetPackages.get(userId));
-                pw.print(",");
-                pw.print(mTargetServices.get(userId));
-                pw.print(",");
-                pw.print(mLastMessages.get(userId));
-                pw.println();
             }
         }
     }

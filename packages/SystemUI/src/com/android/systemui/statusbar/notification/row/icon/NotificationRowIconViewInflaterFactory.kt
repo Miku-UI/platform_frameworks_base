@@ -21,11 +21,15 @@ import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.View
 import com.android.internal.widget.NotificationRowIconView
+import com.android.internal.widget.NotificationRowIconView.ICON_TYPE_BRIDGED_ICON
+import com.android.internal.widget.NotificationRowIconView.ICON_TYPE_LAUNCHER_ICON
+import com.android.internal.widget.NotificationRowIconView.ICON_TYPE_SMALL_ICON
+import com.android.internal.widget.NotificationRowIconView.IconType
 import com.android.internal.widget.NotificationRowIconView.NotificationIconProvider
+import com.android.systemui.notifications.content.icon.AppIconProvider
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.NotifRemoteViewsFactory
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import javax.inject.Inject
 
 /**
@@ -37,6 +41,7 @@ class NotificationRowIconViewInflaterFactory
 constructor(
     private val appIconProvider: AppIconProvider,
     private val iconStyleProvider: NotificationIconStyleProvider,
+    private val bridgedIconProvider: BridgedIconProvider,
 ) : NotifRemoteViewsFactory {
     override fun instantiate(
         row: ExpandableNotificationRow,
@@ -60,26 +65,50 @@ constructor(
         row: ExpandableNotificationRow,
         context: Context,
     ): NotificationIconProvider {
-        val sbn = if (NotificationBundleUi.isEnabled) row.entryAdapter.sbn else row.entryLegacy.sbn
+        val sbn = row.entryAdapter.sbn
         if (sbn == null) {
             return object : NotificationIconProvider {
-                override fun shouldShowAppIcon(): Boolean {
-                    return false
+                @IconType
+                override fun getIconType(): Int {
+                    return ICON_TYPE_SMALL_ICON
                 }
 
-                override fun getAppIcon(): Drawable? {
+                override fun getBridgedIcon(): Drawable? {
+                    return null
+                }
+
+                override fun getLauncherIcon(): Drawable? {
                     return null
                 }
             }
         }
         return object : NotificationIconProvider {
-            override fun shouldShowAppIcon(): Boolean {
-                val shouldShowAppIcon = iconStyleProvider.shouldShowAppIcon(sbn, context)
-                row.setIsShowingAppIcon(shouldShowAppIcon)
-                return shouldShowAppIcon
+            @IconType
+            override fun getIconType(): Int {
+                var iconType =
+                    if (iconStyleProvider.shouldShowAppIcon(sbn, context)) {
+                        ICON_TYPE_LAUNCHER_ICON
+                    } else {
+                        ICON_TYPE_SMALL_ICON
+                    }
+                if (
+                    android.app.Flags.bridgedNotifications() &&
+                        (sbn.getNotification().getBridgedNotificationMetadata() != null)
+                ) {
+                    iconType = ICON_TYPE_BRIDGED_ICON
+                }
+                if (iconType == ICON_TYPE_LAUNCHER_ICON || iconType == ICON_TYPE_BRIDGED_ICON) {
+                    row.setIsShowingAppIcon(true)
+                }
+                return iconType
             }
 
-            override fun getAppIcon(): Drawable {
+            override fun getBridgedIcon(): Drawable? {
+                val bridgedMetadata = sbn.notification.bridgedNotificationMetadata ?: return null
+                return bridgedIconProvider.getBridgedIcon(context, bridgedMetadata)
+            }
+
+            override fun getLauncherIcon(): Drawable {
                 return appIconProvider.getOrFetchAppIcon(
                     packageName = sbn.packageName,
                     userHandle = context.user,

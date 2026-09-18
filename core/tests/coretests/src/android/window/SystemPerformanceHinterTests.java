@@ -29,6 +29,7 @@ import static android.window.SystemPerformanceHinter.HINT_SF_FRAME_RATE;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -36,6 +37,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
+
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 
 import android.gui.EarlyWakeupInfo;
 import android.os.PerformanceHintManager;
@@ -83,14 +87,19 @@ public class SystemPerformanceHinterTests {
 
     @Mock
     private SurfaceControl.Transaction mTransaction;
+
+    @Captor
+    private ArgumentCaptor<SurfaceControl> mSurfaceControlCaptor;
+
     private SurfaceControl mDefaultDisplayRoot;
     private SurfaceControl mSecondaryDisplayRoot;
 
 
     @Before
     public void setUpOnce() {
-        mDefaultDisplayRoot = new SurfaceControl();
-        mSecondaryDisplayRoot = new SurfaceControl();
+        mDefaultDisplayRoot = new SurfaceControl.Builder().setName("DefaultDisplayRoot").build();
+        mSecondaryDisplayRoot =
+                new SurfaceControl.Builder().setName("SecondaryDisplayRoot").build();
         mRootProvider = new SystemPerformanceHinterTests.RootProvider();
         mRootProvider.put(DEFAULT_DISPLAY_ID, mDefaultDisplayRoot);
         mRootProvider.put(SECONDARY_DISPLAY_ID, mSecondaryDisplayRoot);
@@ -155,10 +164,11 @@ public class SystemPerformanceHinterTests {
 
         // Verify we call SF
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                mSurfaceControlCaptor.capture(),
                 eq(FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN));
+        assertTrue(mSurfaceControlCaptor.getValue().isSameSurface(mDefaultDisplayRoot));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(mSurfaceControlCaptor.getValue()),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
         verify(mTransaction).applyAsyncUnsafe();
@@ -168,15 +178,20 @@ public class SystemPerformanceHinterTests {
     public void testVRRHintCloseSession() {
         final SystemPerformanceHinter.HighPerfSession session =
                 mHinter.startSession(HINT_SF_FRAME_RATE, DEFAULT_DISPLAY_ID, TEST_REASON);
+        verify(mTransaction).setFrameRateSelectionStrategy(
+                mSurfaceControlCaptor.capture(),
+                anyInt());
+        SurfaceControl boostedSurface = mSurfaceControlCaptor.getValue();
+        assertTrue(boostedSurface.isSameSurface(mDefaultDisplayRoot));
         reset(mTransaction);
         session.close();
 
         // Verify we call SF
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_SELECTION_STRATEGY_PROPAGATE));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
         verify(mTransaction).applyAsyncUnsafe();
@@ -244,10 +259,11 @@ public class SystemPerformanceHinterTests {
 
         // Verify we call SF and perf manager
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                mSurfaceControlCaptor.capture(),
                 eq(FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN));
+        assertTrue(mSurfaceControlCaptor.getValue().isSameSurface(mDefaultDisplayRoot));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(mSurfaceControlCaptor.getValue()),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
         verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
@@ -260,15 +276,20 @@ public class SystemPerformanceHinterTests {
         mHinter.setAdpfSession(mAdpfSession);
         final SystemPerformanceHinter.HighPerfSession session =
                 mHinter.startSession(HINT_ALL, DEFAULT_DISPLAY_ID, TEST_REASON);
+        verify(mTransaction).setFrameRateSelectionStrategy(
+                mSurfaceControlCaptor.capture(),
+                anyInt());
+        SurfaceControl boostedSurface = mSurfaceControlCaptor.getValue();
+        assertTrue(boostedSurface.isSameSurface(mDefaultDisplayRoot));
         reset(mTransaction);
         session.close();
 
         // Verify we call SF and perf manager to clean up
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_SELECTION_STRATEGY_PROPAGATE));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
         verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
@@ -281,15 +302,20 @@ public class SystemPerformanceHinterTests {
         mHinter.setAdpfSession(mAdpfSession);
         try (final SystemPerformanceHinter.HighPerfSession session =
                      mHinter.startSession(HINT_ALL, DEFAULT_DISPLAY_ID, TEST_REASON)) {
+            verify(mTransaction).setFrameRateSelectionStrategy(
+                    mSurfaceControlCaptor.capture(),
+                    anyInt());
+            assertTrue(mSurfaceControlCaptor.getValue().isSameSurface(mDefaultDisplayRoot));
             reset(mTransaction);
             reset(mAdpfSession);
         } finally {
+            SurfaceControl boostedSurface = mSurfaceControlCaptor.getValue();
             // Verify we call SF and perf manager to clean up
             verify(mTransaction).setFrameRateSelectionStrategy(
-                    eq(mDefaultDisplayRoot),
+                    eq(boostedSurface),
                     eq(FRAME_RATE_SELECTION_STRATEGY_PROPAGATE));
             verify(mTransaction).setFrameRateCategory(
-                    eq(mDefaultDisplayRoot),
+                    eq(boostedSurface),
                     eq(FRAME_RATE_CATEGORY_DEFAULT),
                     eq(false));
             verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
@@ -305,10 +331,12 @@ public class SystemPerformanceHinterTests {
                 mHinter.startSession(HINT_ALL, DEFAULT_DISPLAY_ID, TEST_REASON);
         // Verify we call SF and perf manager
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                mSurfaceControlCaptor.capture(),
                 eq(FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN));
+        SurfaceControl boostedSurface = mSurfaceControlCaptor.getValue();
+        assertTrue(boostedSurface.isSameSurface(mDefaultDisplayRoot));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
         verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
@@ -337,10 +365,10 @@ public class SystemPerformanceHinterTests {
         session1.close();
         // Verify we call SF and perf manager to clean up
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_SELECTION_STRATEGY_PROPAGATE));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
         verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
@@ -356,10 +384,12 @@ public class SystemPerformanceHinterTests {
 
         // Verify we call SF and perf manager
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                mSurfaceControlCaptor.capture(),
                 eq(FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN));
+        SurfaceControl boostedSurface1 = mSurfaceControlCaptor.getValue();
+        assertTrue(boostedSurface1.isSameSurface(mDefaultDisplayRoot));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface1),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
         verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
@@ -372,10 +402,12 @@ public class SystemPerformanceHinterTests {
         final SystemPerformanceHinter.HighPerfSession session2 =
                 mHinter.startSession(HINT_ALL, SECONDARY_DISPLAY_ID, TEST_REASON);
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mSecondaryDisplayRoot),
+                mSurfaceControlCaptor.capture(),
                 eq(FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN));
+        SurfaceControl boostedSurface2 = mSurfaceControlCaptor.getValue();
+        assertTrue(boostedSurface2.isSameSurface(mSecondaryDisplayRoot));
         verify(mTransaction).setFrameRateCategory(
-                eq(mSecondaryDisplayRoot),
+                eq(boostedSurface2),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
         verify(mTransaction, never()).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
@@ -388,17 +420,17 @@ public class SystemPerformanceHinterTests {
         // or any global flags still requested by the secondary display session
         session1.close();
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface1),
                 eq(FRAME_RATE_SELECTION_STRATEGY_PROPAGATE));
         verify(mTransaction).setFrameRateCategory(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface1),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
         verify(mTransaction, never()).setFrameRateSelectionStrategy(
-                eq(mSecondaryDisplayRoot),
+                eq(boostedSurface2),
                 anyInt());
         verify(mTransaction, never()).setFrameRateCategory(
-                eq(mSecondaryDisplayRoot),
+                eq(boostedSurface2),
                 anyInt(),
                 eq(false));
         verify(mTransaction, never()).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
@@ -410,13 +442,13 @@ public class SystemPerformanceHinterTests {
         // Close all sessions, ensure it cleans up all the flags
         session2.close();
         verify(mTransaction, never()).setFrameRateSelectionStrategy(
-                eq(mDefaultDisplayRoot),
+                eq(boostedSurface1),
                 anyInt());
         verify(mTransaction).setFrameRateSelectionStrategy(
-                eq(mSecondaryDisplayRoot),
+                eq(boostedSurface2),
                 eq(FRAME_RATE_SELECTION_STRATEGY_PROPAGATE));
         verify(mTransaction).setFrameRateCategory(
-                eq(mSecondaryDisplayRoot),
+                eq(boostedSurface2),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
         verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));

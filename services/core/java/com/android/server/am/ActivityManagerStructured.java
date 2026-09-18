@@ -155,4 +155,9 @@ final class ActivityManagerStructured extends IActivityManagerStructured.Stub {
             throws RemoteException {
         mAm.finishAttachApplication(startSeq, timestampApplicationOnCreateNs);
     }
+
+    @Override
+    public int getCurrentUserId() throws RemoteException {
+        return mAm.getCurrentUserId();
+    }
 }

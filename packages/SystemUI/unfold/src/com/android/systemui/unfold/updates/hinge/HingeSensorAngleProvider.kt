@@ -32,7 +32,7 @@ internal class HingeSensorAngleProvider
 @AssistedInject
 constructor(
     private val sensorManager: SensorManager,
-    @UnfoldSingleThreadBg private val singleThreadBgExecutor: Executor,
+    @param:UnfoldSingleThreadBg private val singleThreadBgExecutor: Executor,
     @Assisted private val listenerHandler: Handler,
 ) : HingeAngleProvider {
 

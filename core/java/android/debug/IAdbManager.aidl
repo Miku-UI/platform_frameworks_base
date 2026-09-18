@@ -52,8 +52,9 @@ interface IAdbManager {
      *
      * @param alwaysAllow if true, add permanently to list of allowed networks
      * @param bssid BSSID of the network
+     * @param ssid SSID of the network
      */
-    void allowWirelessDebugging(boolean alwaysAllow, String bssid);
+    void allowWirelessDebugging(boolean alwaysAllow, String bssid, String ssid);
 
     /**
      * Deny ADB wireless debugging on the connected network.
@@ -96,6 +97,12 @@ interface IAdbManager {
      * Returns the network port that adb wireless server is running on.
      */
     int getAdbWirelessPort();
+
+    /**
+     * Returns the device mDNS hostname on the network that adb wireless is running on.
+     * The value will be null if wireless debugging is disabled or mDNS service registration is still in progress.
+     */
+    String getAdbWirelessHostName();
 
     /**
      * Disables pairing.

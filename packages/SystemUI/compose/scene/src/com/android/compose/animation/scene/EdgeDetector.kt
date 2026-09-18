@@ -47,7 +47,39 @@ enum class Edge(private val resolveEdge: (LayoutDirection) -> Resolved) : SwipeS
 
 val DefaultEdgeDetector = FixedSizeEdgeDetector(40.dp)
 
-/** An [SwipeSourceDetector] that detects edges assuming a fixed edge size of [size]. */
+private fun resolveEdge(
+    edgeSizePx: Int,
+    layoutSize: IntSize,
+    position: IntOffset,
+    orientation: Orientation,
+): Edge.Resolved? {
+    val axisSize: Int
+    val axisPosition: Int
+    val topOrLeft: Edge.Resolved
+    val bottomOrRight: Edge.Resolved
+    when (orientation) {
+        Orientation.Horizontal -> {
+            axisSize = layoutSize.width
+            axisPosition = position.x
+            topOrLeft = Edge.Resolved.Left
+            bottomOrRight = Edge.Resolved.Right
+        }
+        Orientation.Vertical -> {
+            axisSize = layoutSize.height
+            axisPosition = position.y
+            topOrLeft = Edge.Resolved.Top
+            bottomOrRight = Edge.Resolved.Bottom
+        }
+    }
+
+    return when {
+        axisPosition <= edgeSizePx -> topOrLeft
+        axisPosition >= axisSize - edgeSizePx -> bottomOrRight
+        else -> null
+    }
+}
+
+/** A [SwipeSourceDetector] that detects edges assuming a fixed edge size of [size]. */
 class FixedSizeEdgeDetector(val size: Dp) : SwipeSourceDetector {
     override fun source(
         layoutSize: IntSize,
@@ -55,30 +87,32 @@ class FixedSizeEdgeDetector(val size: Dp) : SwipeSourceDetector {
         density: Density,
         orientation: Orientation,
     ): Edge.Resolved? {
-        val axisSize: Int
-        val axisPosition: Int
-        val topOrLeft: Edge.Resolved
-        val bottomOrRight: Edge.Resolved
-        when (orientation) {
-            Orientation.Horizontal -> {
-                axisSize = layoutSize.width
-                axisPosition = position.x
-                topOrLeft = Edge.Resolved.Left
-                bottomOrRight = Edge.Resolved.Right
-            }
-            Orientation.Vertical -> {
-                axisSize = layoutSize.height
-                axisPosition = position.y
-                topOrLeft = Edge.Resolved.Top
-                bottomOrRight = Edge.Resolved.Bottom
-            }
-        }
+        val edgeSizePx = with(density) { size.toPx().toInt() }
+        return resolveEdge(
+            edgeSizePx = edgeSizePx,
+            layoutSize = layoutSize,
+            position = position,
+            orientation = orientation,
+        )
+    }
+}
 
-        val sizePx = with(density) { size.toPx() }
-        return when {
-            axisPosition <= sizePx -> topOrLeft
-            axisPosition >= axisSize - sizePx -> bottomOrRight
-            else -> null
-        }
+/**
+ * A [SwipeSourceDetector] that detects edges assuming a dynamic edge size provided on-demand by
+ * [edgeSizeProvider] (in pixels).
+ */
+class DynamicSizeEdgeDetector(private val edgeSizeProvider: () -> Int) : SwipeSourceDetector {
+    override fun source(
+        layoutSize: IntSize,
+        position: IntOffset,
+        density: Density,
+        orientation: Orientation,
+    ): Edge.Resolved? {
+        return resolveEdge(
+            edgeSizePx = edgeSizeProvider(),
+            layoutSize = layoutSize,
+            position = position,
+            orientation = orientation,
+        )
     }
 }
