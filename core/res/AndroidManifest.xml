@@ -2468,7 +2468,7 @@
                 android:featureFlag="android.bluetooth.platform.flags.grant_permission_via_module_protection_level"
                 android:protectionLevel="signature|role|module" />
 
-    <!-- @hide Allows applications to register a NetworkAgent for its own use.
+    <!-- @SystemApi @hide Allows applications to register a NetworkAgent for its own use.
          <p>Such networks are not available to other applications on the device unless they have
          the CONNECTIVITY_USE_RESTRICTED_NETWORKS permission.
          @FlaggedApi(android.net.platform.flags.Flags.FLAG_MAKE_APP_SPECIFIC_NETWORK_PERMISSION_API)
