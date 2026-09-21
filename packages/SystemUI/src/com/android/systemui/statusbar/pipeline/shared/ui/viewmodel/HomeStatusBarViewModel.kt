@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.pipeline.shared.ui.viewmodel
 import android.annotation.ColorInt
 import android.content.res.Resources
 import android.graphics.Rect
+import android.provider.Settings
 import android.graphics.RectF
 import android.view.View
 import androidx.compose.runtime.getValue
@@ -48,6 +49,7 @@ import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.SceneInteractor
+import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.display.domain.interactor.ShadeExpansionTargetDisplayInteractor
@@ -310,6 +312,7 @@ constructor(
     deviceProvisioningInteractor: DeviceProvisioningInteractor,
     private val userLogoutInteractor: UserLogoutInteractor,
     private val scrollToTopInteractor: ScrollToTopInteractor,
+    private val secureSettingsRepository: SecureSettingsRepository,
 ) : HomeStatusBarViewModel, HydratedActivatable(enableEnqueuedActivations = true) {
 
     val logger = loggerFactory.getOrCreate(logBufferName(thisDisplayId), 60)
@@ -602,15 +605,12 @@ constructor(
             .flowOn(bgDispatcher)
 
     override val isLyricVisible: Flow<VisibilityModel> =
-        combine(
+        combine(isNotificationIconContainerVisible, isAnyChipVisible) {
                 isNotificationIconContainerVisible,
-                hideStartSideContentForHeadsUp,
-                hasOngoingActivityChips,
-            ) {
-                isNotificationIconContainerVisible, hideStartSideContentForHeadsUp, hasOngoingActivityChips ->
+                anyChipVisible ->
                 val showLyric =
                     (isNotificationIconContainerVisible.visibility == View.VISIBLE) &&
-                        !hideStartSideContentForHeadsUp && !hasOngoingActivityChips
+                        !anyChipVisible
                 VisibilityModel(showLyric.toVisibleOrGone(), false)
             }
             .distinctUntilChanged()
