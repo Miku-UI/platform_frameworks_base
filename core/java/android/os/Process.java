@@ -1286,8 +1286,13 @@ public class Process {
     public static final native void setThreadGroupAndCpuset(int tid, int group)
             throws IllegalArgumentException, SecurityException;
 
-    public static final native void setThreadAffinity(int tid, int group)
-            throws IllegalArgumentException, SecurityException;
+    /**
+     * Sets the CPU affinity of the given thread.
+     * @hide
+     * @param tid The identifier of the thread to change.
+     * @param group The target group for this thread from THREAD_GROUP_*.
+     */
+    public static final native void setThreadAffinity(int tid, int group);
 
     /**
      * Sets the scheduling group for a process and all child threads

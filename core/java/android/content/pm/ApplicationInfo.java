@@ -949,14 +949,14 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
 
     /**
      * Boolean indicating whether the resolution of the SurfaceView associated
-     * with this appplication can be overriden.
-     * {@hide}
+     * with this application can be overridden.
+     * @hide
      */
     public int overrideRes = 0;
 
     /**
      * In case, app needs different density than device density, set this value.
-     * {@hide}
+     * @hide
      */
     public int overrideDensity = 0;
 
@@ -3029,7 +3029,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     public void setRequestRawExternalStorageAccess(@Nullable Boolean value) {
         requestRawExternalStorageAccess = value;
     }
-    /** {@hide} */ public void setOverrideRes(int overrideResolution) { overrideRes = overrideResolution; }
+    /** @hide */ public void setOverrideRes(int overrideResolution) { overrideRes = overrideResolution; }
 
     /** @hide */
     public void setPageSizeAppCompatFlags(@PageSizeAppCompatFlags int value) {
