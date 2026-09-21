@@ -130,8 +130,7 @@ fun ChipContent(
                             maxTextWidth = maxTextWidth,
                             startPadding = startPadding,
                             endPadding = endPadding,
-                            ignoreMaxWidth = true,
-                        ).basicMarquee(),
+                        ),
                 )
             }
         }

@@ -23,7 +23,6 @@ import android.view.InputEvent
 import android.view.MotionEvent
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.systemui.Flags.restrictCommunalShadeToWhenIdle
 import com.android.systemui.ambient.touch.TouchHandler.TouchSession
 import com.android.systemui.ambient.touch.dagger.ShadeModule
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor

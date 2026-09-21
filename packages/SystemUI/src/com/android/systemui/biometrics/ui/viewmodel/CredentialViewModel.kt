@@ -256,11 +256,6 @@ constructor(
             promptCredentialInteractor.checkCredential(header.asRequest(), pattern = pattern)
         )
 
-    suspend fun checkCredential(
-        pattern: List<LockPatternView.Cell>,
-        header: CredentialHeaderViewModel,
-    ): ByteArray? = checkCredential(pattern, 0, header)
-
     /**
      * Processes the credential result.
      * * Used in 2 ways currently:

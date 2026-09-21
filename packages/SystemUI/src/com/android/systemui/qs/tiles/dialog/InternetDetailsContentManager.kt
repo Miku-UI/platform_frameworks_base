@@ -542,7 +542,7 @@ constructor(
     }
 
     private fun getTitleText(): String {
-        return internetDetailsContentController.getDialogTitleText(canConfigMobileData).toString()
+        return internetDetailsContentController.getDialogTitleText().toString()
     }
 
     private fun getSubtitleText(): String {

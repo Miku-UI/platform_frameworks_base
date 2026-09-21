@@ -515,7 +515,6 @@ internal constructor(
                 screenshot.userHandle,
                 display.displayId,
                 screenshot.customSaveUri,
-                "",
             )
         future.addListener(
             {
