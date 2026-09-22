@@ -414,7 +414,7 @@ class PhoneStatusBarViewTest : SysuiTestCase() {
     fun onConfigurationChanged_systemIconsHeightChanged_containerHeightIsUpdated() {
         val newHeight = 123456
         context.orCreateTestableResources.addOverride(
-            R.dimen.status_bar_system_icons_height,
+            R.dimen.status_bar_icon_container_height,
             newHeight,
         )
 

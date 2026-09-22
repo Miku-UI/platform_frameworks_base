@@ -23,7 +23,7 @@
     -->
 
     <!-- Height of the system icons container view in the status bar -->
-    <dimen name="status_bar_system_icons_height">@dimen/status_bar_icon_size_sp</dimen>
+    <dimen name="status_bar_icon_container_height">@dimen/status_bar_icon_size_sp</dimen>
 
     <!-- New sp height of notification icons in the status bar -->
     <dimen name="status_bar_icon_size_sp">@*android:dimen/status_bar_icon_size_sp</dimen>

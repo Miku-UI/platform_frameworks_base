@@ -306,7 +306,7 @@ public class PhoneStatusBarView extends FrameLayout {
         View systemIconsContainer = findViewById(R.id.system_icons);
         ViewGroup.LayoutParams layoutParams = systemIconsContainer.getLayoutParams();
         int newSystemIconsHeight =
-                getResources().getDimensionPixelSize(R.dimen.status_bar_system_icons_height);
+                getResources().getDimensionPixelSize(R.dimen.status_bar_icon_container_height);
         if (layoutParams.height != newSystemIconsHeight) {
             layoutParams.height = newSystemIconsHeight;
             systemIconsContainer.setLayoutParams(layoutParams);
