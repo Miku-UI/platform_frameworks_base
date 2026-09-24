@@ -404,7 +404,10 @@ private fun ContentScope.QuickSettingsContent(
                 Modifier.fillMaxSize().overscroll(verticalOverscrollEffect).padding(navBarInsets),
         ) {
             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
-                MikuQsHeaderArt(modifier = Modifier.align(Alignment.TopCenter))
+                MikuQsHeaderArt(
+                    viewModel = headerViewModel,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
                 Column(
                     modifier =
                         Modifier.disableSwipesWhenScrolling()

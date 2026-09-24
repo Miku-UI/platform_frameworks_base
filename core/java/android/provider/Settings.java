@@ -6920,6 +6920,31 @@ public final class Settings {
         public static final String STATUSBAR_COLORED_ICONS = "statusbar_colored_icons";
 
         /**
+         * Whether the QS / control-center header uses a user-selected image.
+         * 0 = default art, 1 = custom image.
+         * @hide
+         */
+        public static final String MIKU_QS_HEADER_CUSTOM = "miku_qs_header_custom";
+
+        /**
+         * Opacity of the QS header art, 0 (transparent) through 100 (opaque). Default 100.
+         * @hide
+         */
+        public static final String MIKU_QS_HEADER_ALPHA = "miku_qs_header_alpha";
+
+        /**
+         * Bumped when the custom QS header image file changes so observers reload it.
+         * @hide
+         */
+        public static final String MIKU_QS_HEADER_REVISION = "miku_qs_header_revision";
+
+        /**
+         * Absolute path of the published custom QS header image.
+         * @hide
+         */
+        public static final String MIKU_QS_HEADER_PATH = "miku_qs_header_path";
+
+        /**
          * These are all public system settings
          *
          * @hide

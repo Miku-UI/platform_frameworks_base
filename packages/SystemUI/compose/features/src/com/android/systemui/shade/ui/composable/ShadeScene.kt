@@ -371,7 +371,10 @@ private fun ContentScope.SingleShade(
                 val qsHorizontalMargin =
                     shadeHorizontalPadding + dimensionResource(id = R.dimen.qs_horizontal_margin)
                 Box {
-                    MikuQsHeaderArt(modifier = Modifier.align(Alignment.TopCenter))
+                    MikuQsHeaderArt(
+                        viewModel = headerViewModel,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
                     MediaAndQqsLayout(
                     modifier =
                         Modifier.element(QuickSettings.Elements.QuickQuickSettingsAndMedia)
@@ -637,7 +640,7 @@ private fun ContentScope.SplitShade(
 
                                 Element(QS.rootElementKey, Modifier) {
                                     Column {
-                                        MikuQsHeaderArt()
+                                        MikuQsHeaderArt(viewModel = headerViewModel)
                                         Box(
                                             Modifier.weight(1f)
                                                 .sysuiResTag("expanded_qs_scroll_view")

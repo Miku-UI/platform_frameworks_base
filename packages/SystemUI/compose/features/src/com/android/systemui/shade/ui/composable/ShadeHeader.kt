@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
@@ -987,11 +988,24 @@ private fun shouldUseExpandedFormat(state: SceneTransitionLayoutState): Boolean 
 
 /** Decorative Miku art behind QQS/QS, ported from the old QuickStatusBarHeader ImageView. */
 @Composable
-fun MikuQsHeaderArt(modifier: Modifier = Modifier) {
-    Image(
-        painter = painterResource(id = R.drawable.statusbar_miku),
-        contentDescription = null,
-        contentScale = ContentScale.Inside,
-        modifier = modifier.fillMaxWidth().height(200.dp),
-    )
+fun MikuQsHeaderArt(viewModel: ShadeHeaderViewModel, modifier: Modifier = Modifier) {
+    val art = viewModel.qsHeaderArt
+    val custom = art.customBitmap
+    if (custom != null) {
+        Image(
+            bitmap = custom.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alpha = art.alpha,
+            modifier = modifier.fillMaxWidth().height(200.dp),
+        )
+    } else {
+        Image(
+            painter = painterResource(id = R.drawable.statusbar_miku),
+            contentDescription = null,
+            contentScale = ContentScale.Inside,
+            alpha = art.alpha,
+            modifier = modifier.fillMaxWidth().height(200.dp),
+        )
+    }
 }

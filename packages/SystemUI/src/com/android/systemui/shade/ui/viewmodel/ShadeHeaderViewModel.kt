@@ -38,6 +38,8 @@ import com.android.systemui.scene.shared.model.DualShadeEducationElement
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.TransitionKeys.SlightlyFasterShadeTransition
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.data.repository.QsHeaderArt
+import com.android.systemui.shade.data.repository.QsHeaderArtRepository
 import com.android.systemui.shade.domain.interactor.PrivacyChipInteractor
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
@@ -84,8 +86,11 @@ constructor(
     private val dualShadeEducationInteractor: DualShadeEducationInteractor,
     desktopInteractor: DesktopInteractor,
     @ShadeDisplayAware systemBarUtilsState: SystemBarUtilsState,
+    private val qsHeaderArtRepository: QsHeaderArtRepository,
     @Assisted private val ignoreTestHarness: Boolean,
 ) : HydratedActivatable() {
+
+    val qsHeaderArt: QsHeaderArt by qsHeaderArtRepository.art.hydratedStateOf()
 
     val isShadeAreaDark: IsAreaDark by
         shadeDarkIconInteractor.isShadeAreaDark.hydratedStateOf(initialValue = IsAreaDark { true })

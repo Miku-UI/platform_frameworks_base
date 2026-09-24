@@ -24,6 +24,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.scene.domain.interactor.dualShadeEducationInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.shade.data.repository.qsHeaderArtRepository
 import com.android.systemui.shade.domain.interactor.privacyChipInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
@@ -64,6 +65,7 @@ val Kosmos.shadeHeaderViewModelFactory: ShadeHeaderViewModel.Factory by
                     systemStatusIconsViewModelFactory = systemStatusIconsViewModelFactory,
                     systemBarUtilsState = systemBarUtilsState,
                     systemStatusIconsBlockListInteractor = emptySystemStatusIconBlockListInteractor,
+                    qsHeaderArtRepository = qsHeaderArtRepository,
                     ignoreTestHarness = true,
                 )
             }

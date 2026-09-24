@@ -33,6 +33,7 @@ import android.view.DisplayCutout
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -54,6 +55,7 @@ import com.android.systemui.Flags.notificationShadeBlur
 import com.android.systemui.animation.ShadeInterpolation
 import com.android.systemui.battery.BatteryMeterView.MODE_ESTIMATE
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
@@ -70,6 +72,8 @@ import com.android.systemui.shade.ShadeHeaderController.Companion.QS_HEADER_CONS
 import com.android.systemui.shade.ShadeViewProviderModule.Companion.SHADE_HEADER
 import com.android.systemui.shade.carrier.ShadeCarrierGroup
 import com.android.systemui.shade.carrier.ShadeCarrierGroupController
+import com.android.systemui.shade.data.repository.QsHeaderArt
+import com.android.systemui.shade.data.repository.QsHeaderArtRepository
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.phone.StatusIconContainer
@@ -90,7 +94,10 @@ import dagger.Lazy
 import java.io.PrintWriter
 import javax.inject.Inject
 import javax.inject.Named
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Controller for QS header.
@@ -123,6 +130,8 @@ constructor(
     private val nextAlarmController: NextAlarmController,
     private val activityStarter: ActivityStarter,
     private val statusOverlayHoverListenerFactory: StatusOverlayHoverListenerFactory,
+    private val qsHeaderArtRepository: QsHeaderArtRepository,
+    @Application private val applicationScope: CoroutineScope,
 ) : ViewController<View>(header), Dumpable {
 
     private val statusBarContentInsetsProvider
@@ -160,6 +169,9 @@ constructor(
     private lateinit var iconManager: TintedIconManager
     private lateinit var carrierIconSlots: List<String>
     private lateinit var mShadeCarrierGroupController: ShadeCarrierGroupController
+
+    private val mikuArt: ImageView? = header.findViewById(R.id.qs_miku_art)
+    private var qsHeaderArtJob: Job? = null
 
     private val clock: Clock = header.requireViewById(R.id.clock)
     private val date: TextView = header.requireViewById(R.id.date)
@@ -435,6 +447,8 @@ constructor(
         systemIconsHoverContainer.setOnHoverListener(
             statusOverlayHoverListenerFactory.createListener(systemIconsHoverContainer)
         )
+        qsHeaderArtJob =
+            applicationScope.launch { qsHeaderArtRepository.art.collect { applyQsHeaderArt(it) } }
     }
 
     override fun onViewDetached() {
@@ -446,6 +460,21 @@ constructor(
         statusBarIconController.removeIconGroup(iconManager)
         nextAlarmController.removeCallback(nextAlarmCallback)
         systemIconsHoverContainer.setOnHoverListener(null)
+        qsHeaderArtJob?.cancel()
+        qsHeaderArtJob = null
+    }
+
+    private fun applyQsHeaderArt(art: QsHeaderArt) {
+        val view = mikuArt ?: return
+        view.imageAlpha = (art.alpha * 255).toInt().coerceIn(0, 255)
+        val bitmap = art.customBitmap
+        if (bitmap != null) {
+            view.scaleType = ImageView.ScaleType.CENTER_CROP
+            view.setImageBitmap(bitmap)
+        } else {
+            view.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            view.setImageResource(R.drawable.statusbar_miku)
+        }
     }
 
     fun disable(state1: Int, state2: Int, animate: Boolean) {
