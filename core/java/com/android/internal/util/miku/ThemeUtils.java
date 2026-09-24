@@ -18,8 +18,6 @@ package com.android.internal.util.miku;
 
 import static android.os.UserHandle.USER_SYSTEM;
 
-import android.util.PathParser;
-
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.om.IOverlayManager;
@@ -32,16 +30,10 @@ import android.content.res.Resources.NotFoundException;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Typeface;
-import android.graphics.Path;
-import android.graphics.drawable.AdaptiveIconDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.ShapeDrawable;
-import android.graphics.drawable.shapes.PathShape;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.provider.Settings;
-import android.text.TextUtils;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -56,7 +48,6 @@ public class ThemeUtils {
     public static final String TAG = "ThemeUtils";
 
     public static final String FONT_KEY = "android.theme.customization.font";
-    public static final String ICON_SHAPE_KEY= "android.theme.customization.adaptive_icon_shape";
 
     public static final Comparator<OverlayInfo> OVERLAY_INFO_COMPARATOR =
             Comparator.comparingInt(a -> a.priority);
@@ -185,37 +176,6 @@ public class ThemeUtils {
                 }
             }
         return fontlist;
-    }
-
-    public List<ShapeDrawable> getShapeDrawables() {
-        final List<ShapeDrawable> shapelist = new ArrayList<>();
-            for (String overlayPackage : getOverlayPackagesForCategory(ICON_SHAPE_KEY)) {
-                    shapelist.add(createShapeDrawable(overlayPackage));
-            }
-        return shapelist;
-    }
-
-    public ShapeDrawable createShapeDrawable(String overlayPackage) {
-        try {
-            if (overlayPackage.equals("android")) {
-                overlayRes = Resources.getSystem();
-            } else {
-                if (overlayPackage.equals("default")) overlayPackage = "android";
-                overlayRes = pm.getResourcesForApplication(overlayPackage);
-            }
-        } catch (NameNotFoundException | NotFoundException e) {
-            // Do nothing
-        }
-        final String shape = overlayRes.getString(
-            overlayRes.getIdentifier("config_icon_mask",
-            "string", overlayPackage));
-        Path path = TextUtils.isEmpty(shape) ? null : PathParser.createPathFromPathData(shape);
-        PathShape pathShape = new PathShape(path, 100f, 100f);
-        ShapeDrawable shapeDrawable = new ShapeDrawable(pathShape);
-        int mThumbSize = (int) (mContext.getResources().getDisplayMetrics().density * 72);
-        shapeDrawable.setIntrinsicHeight(mThumbSize);
-        shapeDrawable.setIntrinsicWidth(mThumbSize);
-        return shapeDrawable;
     }
 
     public boolean isOverlayEnabled(String overlayPackage) {
