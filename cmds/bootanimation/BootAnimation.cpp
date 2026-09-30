@@ -662,7 +662,10 @@ bool BootAnimation::findBootAnimationFileInternal(const std::vector<std::string>
 
 void BootAnimation::findBootAnimationFile() {
     ATRACE_CALL();
-    const bool playDarkAnim = android::base::GetIntProperty("ro.boot.theme", 0) == 1;
+    // Pixel ABL sets ro.boot.theme=1; UiModeManager stores applied night as persist.sys.theme=2.
+    const bool playDarkAnim =
+            android::base::GetIntProperty("ro.boot.theme", 0) == 1 ||
+            android::base::GetIntProperty("persist.sys.theme", 0) == 2;
     const std::string productBootanimationFile = PRODUCT_BOOTANIMATION_DIR +
         android::base::GetProperty("ro.product.bootanim.file", playDarkAnim ?
         PRODUCT_BOOTANIMATION_DARK_FILE : PRODUCT_BOOTANIMATION_FILE);
