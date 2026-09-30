@@ -1592,25 +1592,28 @@ bool BootAnimation::playAnimation(const Animation& animation) {
                 for (const auto& display : mDisplays) {
                     eglMakeCurrent(mEgl, display.eglSurface, display.eglSurface, mEglContext);
 
-                    const double ratioW =
-                            static_cast<double>(display.width) / display.initWidth;
-                    const double ratioH =
-                            static_cast<double>(display.height) / display.initHeight;
-                    const int animationX = (display.width - animation.width * ratioW) / 2;
-                    const int animationY = (display.height - animation.height * ratioH) / 2;
+                    // Cover the display (center-crop). Viewport clips overflow.
+                    const float scale = (animation.width > 0 && animation.height > 0)
+                            ? fmaxf(static_cast<float>(display.width) / animation.width,
+                                    static_cast<float>(display.height) / animation.height)
+                            : 1.0f;
+                    const float animationX =
+                            (display.width - animation.width * scale) / 2.0f;
+                    const float animationY =
+                            (display.height - animation.height * scale) / 2.0f;
 
-                    const int trimWidth = frame.trimWidth * ratioW;
-                    const int trimHeight = frame.trimHeight * ratioH;
-                    const int trimX = frame.trimX * ratioW;
-                    const int trimY = frame.trimY * ratioH;
-                    const int xc = animationX + trimX;
-                    const int yc = animationY + trimY;
+                    const float trimWidth = frame.trimWidth * scale;
+                    const float trimHeight = frame.trimHeight * scale;
+                    const float trimX = frame.trimX * scale;
+                    const float trimY = frame.trimY * scale;
+                    const float xc = animationX + trimX;
+                    const float yc = animationY + trimY;
                     projectSceneToWindow(display);
                     handleViewport(frameDuration, display);
                     glClear(GL_COLOR_BUFFER_BIT);
                     // specify the y center as ceiling((height - frame.trimHeight) / 2)
                     // which is equivalent to height - (yc + frame.trimHeight)
-                    const int frameDrawY = display.height - (yc + trimHeight);
+                    const float frameDrawY = display.height - (yc + trimHeight);
 
                     glUseProgram(mImageShader);
                     glUniform1i(mImageTextureLocation, 0);
@@ -1637,8 +1640,12 @@ bool BootAnimation::playAnimation(const Animation& animation) {
                             lastDisplayedProgress++;
                           }
                         }
-                        // Put the progress percentage right below the animation.
-                        int posY = animation.height / 3;
+                        // Put the progress percentage at 1/3 of the scaled animation height.
+                        int posY = static_cast<int>(
+                                animationY + animation.height * scale / 3.0f);
+                        if (posY < 0) {
+                            posY = 0;
+                        }
                         int posX = TEXT_CENTER_VALUE;
                         drawProgress(lastDisplayedProgress,
                             animation.progressFont, posX, posY, display);

@@ -25,6 +25,8 @@ The first line defines the general parameters of the animation:
 
   * **WIDTH:** animation width (pixels)
   * **HEIGHT:** animation height (pixels)
+      + The player scales frames uniformly to cover the display and crops
+        overflow (center-crop) when the aspect ratio differs.
   * **FPS:** frames per second, e.g. 60
   * **PROGRESS:** whether to show a progress percentage on the last part
       + The percentage will be displayed with an x-coordinate of 'c', and a
