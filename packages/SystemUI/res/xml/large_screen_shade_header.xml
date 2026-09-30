@@ -65,17 +65,6 @@
         <PropertySet android:alpha="1" />
     </Constraint>
 
-    <Constraint android:id="@+id/qs_miku_art">
-        <Layout
-            android:layout_width="0dp"
-            android:layout_height="200dp"
-            android:layout_marginStart="-50dp"
-            android:layout_marginEnd="-50dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-    </Constraint>
-
     <Constraint android:id="@+id/privacy_container">
         <Layout
             android:layout_width="wrap_content"

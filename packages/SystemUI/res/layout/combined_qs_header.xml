@@ -32,18 +32,7 @@ frame when animating QS <-> QQS transition
     android:paddingRight="@dimen/qs_panel_padding"
     android:visibility="gone"
     android:theme="@style/Theme.SystemUI.QuickSettings.Header"
-    android:clipChildren="false"
-    android:clipToPadding="false"
     app:layoutDescription="@xml/combined_qs_header_scene">
-
-    <ImageView
-        android:id="@+id/qs_miku_art"
-        android:layout_width="0dp"
-        android:layout_height="200dp"
-        android:scaleType="centerInside"
-        android:src="@drawable/statusbar_miku"
-        android:background="@drawable/qs_header_image_background"
-        android:importantForAccessibility="no" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/qqs_header_bottom_guideline"

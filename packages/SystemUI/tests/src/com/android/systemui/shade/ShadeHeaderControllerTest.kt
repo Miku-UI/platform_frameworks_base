@@ -42,7 +42,6 @@ import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.ChipVisibilityListener
 import com.android.systemui.qs.HeaderPrivacyIconsController
@@ -53,7 +52,6 @@ import com.android.systemui.shade.ShadeHeaderController.Companion.QQS_HEADER_CON
 import com.android.systemui.shade.ShadeHeaderController.Companion.QS_HEADER_CONSTRAINT
 import com.android.systemui.shade.carrier.ShadeCarrierGroup
 import com.android.systemui.shade.carrier.ShadeCarrierGroupController
-import com.android.systemui.shade.data.repository.qsHeaderArtRepository
 import com.android.systemui.shade.data.repository.shadeDisplaysRepository
 import com.android.systemui.statusbar.layout.mockStatusBarContentInsetsProvider
 import com.android.systemui.statusbar.phone.StatusIconContainer
@@ -206,8 +204,6 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
                 nextAlarmController,
                 activityStarter,
                 mStatusOverlayHoverListenerFactory,
-                kosmos.qsHeaderArtRepository,
-                kosmos.applicationCoroutineScope,
             )
         whenever(view.isAttachedToWindow).thenReturn(true)
         shadeHeaderController.init()

@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.LowestZIndexContentPicker
@@ -109,6 +110,7 @@ import com.android.systemui.privacy.ui.view.ComposeOngoingPrivacyChip
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.model.DualShadeEducationElement
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.shade.data.repository.QsHeaderArt
 import com.android.systemui.shade.ui.composable.ShadeHeader.Values.ClockScale
 import com.android.systemui.shade.ui.viewmodel.ShadeHeaderViewModel
 import com.android.systemui.statusbar.phone.StatusBarLocation
@@ -989,15 +991,21 @@ private fun shouldUseExpandedFormat(state: SceneTransitionLayoutState): Boolean 
 /** Decorative Miku art behind QQS/QS, ported from the old QuickStatusBarHeader ImageView. */
 @Composable
 fun MikuQsHeaderArt(viewModel: ShadeHeaderViewModel, modifier: Modifier = Modifier) {
-    val art = viewModel.qsHeaderArt
+    MikuQsHeaderArt(viewModel.qsHeaderArt, modifier)
+}
+
+@Composable
+fun MikuQsHeaderArt(art: QsHeaderArt, modifier: Modifier = Modifier) {
     val custom = art.customBitmap
+    // zIndex keeps the illustration under tiles/buttons in the same Box.
+    val imageModifier = modifier.fillMaxWidth().height(200.dp).zIndex(-1f)
     if (custom != null) {
         Image(
             bitmap = custom.asImageBitmap(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             alpha = art.alpha,
-            modifier = modifier.fillMaxWidth().height(200.dp),
+            modifier = imageModifier,
         )
     } else {
         Image(
@@ -1005,7 +1013,7 @@ fun MikuQsHeaderArt(viewModel: ShadeHeaderViewModel, modifier: Modifier = Modifi
             contentDescription = null,
             contentScale = ContentScale.Inside,
             alpha = art.alpha,
-            modifier = modifier.fillMaxWidth().height(200.dp),
+            modifier = imageModifier,
         )
     }
 }

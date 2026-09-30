@@ -151,6 +151,8 @@ import com.android.systemui.qs.ui.composable.QuickSettingsShade.systemGestureExc
 import com.android.systemui.qs.ui.composable.QuickSettingsTheme
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.data.repository.QsHeaderArtRepository
+import com.android.systemui.shade.ui.composable.MikuQsHeaderArt
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener
 import com.android.systemui.util.LifecycleFragment
@@ -181,6 +183,7 @@ constructor(
     private val dumpManager: DumpManager,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     @ShadeDisplayAware private val configurationController: ConfigurationController,
+    private val qsHeaderArtRepository: QsHeaderArtRepository,
 ) : LifecycleFragment(), QS, Dumpable {
 
     private val scrollListener = MutableStateFlow<QS.ScrollListener?>(null)
@@ -272,6 +275,7 @@ constructor(
 
     @Composable
     private fun Content(modifier: Modifier = Modifier) {
+        val qsHeaderArt by qsHeaderArtRepository.art.collectAsStateWithLifecycle()
         PlatformTheme(isDarkTheme = if (notificationShadeBlur()) isSystemInDarkTheme() else true) {
             ProvideShortcutHelperIndication(interactionsConfig = interactionsConfig()) {
                 Box(
@@ -301,6 +305,10 @@ constructor(
                             // by the composables.
                             .thenIf(viewModel.showingMirror) { Modifier.gesturesDisabled() }
                 ) {
+                    MikuQsHeaderArt(
+                        art = qsHeaderArt,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
                     CollapsableQuickSettingsSTL()
                 }
             }

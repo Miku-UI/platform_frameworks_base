@@ -639,31 +639,36 @@ private fun ContentScope.SplitShade(
                                 }
 
                                 Element(QS.rootElementKey, Modifier) {
-                                    Column {
-                                        MikuQsHeaderArt(viewModel = headerViewModel)
-                                        Box(
-                                            Modifier.weight(1f)
-                                                .sysuiResTag("expanded_qs_scroll_view")
-                                                .verticalScroll(rememberScrollState())
-                                                .wrapContentHeight(
-                                                    align = Alignment.Top,
-                                                    unbounded = true,
+                                    Box(Modifier.fillMaxSize()) {
+                                        MikuQsHeaderArt(
+                                            viewModel = headerViewModel,
+                                            modifier = Modifier.align(Alignment.TopCenter),
+                                        )
+                                        Column(Modifier.fillMaxSize()) {
+                                            Box(
+                                                Modifier.weight(1f)
+                                                    .sysuiResTag("expanded_qs_scroll_view")
+                                                    .verticalScroll(rememberScrollState())
+                                                    .wrapContentHeight(
+                                                        align = Alignment.Top,
+                                                        unbounded = true,
+                                                    )
+                                            ) {
+                                                QuickSettingsContent(
+                                                    qsContainerViewModel,
+                                                    mediaInRow = false,
+                                                    mediaSquishiness = { tileSquishiness },
                                                 )
-                                        ) {
-                                            QuickSettingsContent(
-                                                qsContainerViewModel,
-                                                mediaInRow = false,
-                                                mediaSquishiness = { tileSquishiness },
+                                            }
+                                            FooterActionsWithAnimatedVisibility(
+                                                viewModel = footerActionsViewModel,
+                                                isCustomizing = false,
+                                                customizingAnimationDuration = 0,
+                                                modifier =
+                                                    Modifier.align(Alignment.CenterHorizontally)
+                                                        .sysuiResTag("qs_footer_actions"),
                                             )
                                         }
-                                        FooterActionsWithAnimatedVisibility(
-                                            viewModel = footerActionsViewModel,
-                                            isCustomizing = false,
-                                            customizingAnimationDuration = 0,
-                                            modifier =
-                                                Modifier.align(Alignment.CenterHorizontally)
-                                                    .sysuiResTag("qs_footer_actions"),
-                                        )
                                     }
                                 }
                             }
