@@ -526,10 +526,18 @@ final class UiModeManagerService extends SystemService {
     };
 
     private void updateSystemProperties() {
-        int mode = Secure.getIntForUser(getContext().getContentResolver(), Secure.UI_NIGHT_MODE,
-                mNightMode.get(), 0);
-        if (mode == MODE_NIGHT_AUTO || mode == MODE_NIGHT_CUSTOM) {
+        int mode;
+        final int nightBits = mConfiguration.uiMode & UI_MODE_NIGHT_MASK;
+        if (nightBits == Configuration.UI_MODE_NIGHT_YES) {
             mode = MODE_NIGHT_YES;
+        } else if (nightBits == Configuration.UI_MODE_NIGHT_NO) {
+            mode = MODE_NIGHT_NO;
+        } else {
+            mode = Secure.getIntForUser(getContext().getContentResolver(), Secure.UI_NIGHT_MODE,
+                    mNightMode.get(), 0);
+            if (mode == MODE_NIGHT_AUTO || mode == MODE_NIGHT_CUSTOM) {
+                mode = MODE_NIGHT_YES;
+            }
         }
         SystemProperties.set(SYSTEM_PROPERTY_DEVICE_THEME, Integer.toString(mode));
     }
@@ -2098,6 +2106,7 @@ final class UiModeManagerService extends SystemService {
         if (!mHoldingConfiguration && (!mWaitForDeviceInactive || mPowerSave)) {
             mConfiguration.uiMode = uiMode;
         }
+        updateSystemProperties();
     }
 
     /**
