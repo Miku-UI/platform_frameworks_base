@@ -229,7 +229,7 @@ class EmptyShadeViewModelTest(flags: FlagsParameterization) : SysuiTestCase() {
         kosmos.runTest {
             val message by collectLastValue(underTest.message)
 
-            assertThat(message?.message).isEqualTo("You're all caught up")
+            assertThat(message?.message).isEmpty()
             assertThat(message?.icon?.resId).isEqualTo(R.drawable.ic_trophy)
 
             zenModeRepository.updateMode(ZenMode.MANUAL_DND_MODE_ID) {

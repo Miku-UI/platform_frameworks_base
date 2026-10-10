@@ -107,7 +107,7 @@ constructor(
                             )
                         modes.main == null ->
                             IconMessageModel(
-                                message = context.getString(R.string.caught_up_shade_text),
+                                message = "",
                                 icon = Icon.Resource(R.drawable.ic_trophy, null),
                             )
                         else ->

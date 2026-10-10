@@ -49,7 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="@string/empty_shade_text"
+            android:text=""
             android:textAppearance="@style/TextAppearance.NotificationShadeText" />
     </LinearLayout>
 </com.android.systemui.statusbar.notification.emptyshade.ui.view.EmptyShadeIconView>

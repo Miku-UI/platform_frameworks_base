@@ -43,6 +43,9 @@ class EmptyShadeIconView @JvmOverloads constructor(context: Context, attrs: Attr
 
     private lateinit var textView: TextView
     private lateinit var iconView: ImageView
+    private lateinit var contentView: View
+    private var contentPadH = 0
+    private var contentPadV = 0
 
     private val launchableViewDelegate =
         LaunchableViewDelegate(this) { visibility: Int? -> super.setVisibility(visibility!!) }
@@ -50,8 +53,12 @@ class EmptyShadeIconView @JvmOverloads constructor(context: Context, attrs: Attr
     override fun onFinishInflate() {
         /* Check if */ ShowIconInEmptyShade.isUnexpectedlyInLegacyMode()
         super.onFinishInflate()
+        contentView = findContentView()
+        contentPadH = contentView.paddingStart
+        contentPadV = contentView.paddingTop
         textView = findViewById(R.id.text)
         iconView = findViewById(R.id.icon)
+        applyChrome()
     }
 
     override fun setVisibility(visibility: Int) {
@@ -72,6 +79,7 @@ class EmptyShadeIconView @JvmOverloads constructor(context: Context, attrs: Attr
 
     fun setText(text: String) {
         textView.text = text
+        applyChrome()
     }
 
     fun setIcon(icon: Icon) {
@@ -81,6 +89,19 @@ class EmptyShadeIconView @JvmOverloads constructor(context: Context, attrs: Attr
                 is Icon.Resource -> context.getDrawable(icon.resId)
             }
         iconView.setImageDrawable(drawable)
+        applyChrome()
+    }
+
+    private fun applyChrome() {
+        val show = !textView.text.isNullOrBlank()
+        val vis = if (show) View.VISIBLE else View.GONE
+        textView.visibility = vis
+        iconView.visibility = vis
+        if (show) {
+            contentView.setPaddingRelative(contentPadH, contentPadV, contentPadH, contentPadV)
+        } else {
+            contentView.setPadding(0, 0, 0, 0)
+        }
     }
 
     /** Update view color. */
