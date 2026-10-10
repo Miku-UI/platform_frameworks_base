@@ -14236,6 +14236,14 @@ public final class Settings {
          */
         @Readable
         public static final String STATUS_BAR_SHOW_LYRIC = "status_bar_show_lyric";
+
+        /**
+         * Whether to show media art on lockscreen.
+         * Boolean setting. 0 = off, 1 = on.
+         * @hide
+         */
+        @Readable
+        public static final String LOCKSCREEN_MEDIA_METADATA = "lockscreen_media_metadata";
         
         /**
          * boolean value. toggles swipe up hint in gestural nav mode
