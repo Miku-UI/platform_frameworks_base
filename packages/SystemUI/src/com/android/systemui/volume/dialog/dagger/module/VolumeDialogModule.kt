@@ -24,10 +24,12 @@ import com.android.systemui.volume.dialog.ringer.ui.binder.VolumeDialogRingerVie
 import com.android.systemui.volume.dialog.settings.ui.binder.VolumeDialogSettingsButtonViewBinder
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderComponent
 import com.android.systemui.volume.dialog.sliders.ui.VolumeDialogSlidersViewBinder
+import com.android.systemui.volume.dialog.ui.VolumeDialogKeyMotion
 import com.android.systemui.volume.dialog.ui.binder.ViewBinder
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
+import dagger.multibindings.Multibinds
 
 /** Dagger module for volume dialog code in the volume package */
 @Module(subcomponents = [VolumeDialogSliderComponent::class])
@@ -37,6 +39,8 @@ interface VolumeDialogModule {
     fun bindVolumeDialogRingerFeedbackRepository(
         ringerFeedbackRepository: VolumeDialogRingerFeedbackRepositoryImpl
     ): VolumeDialogRingerFeedbackRepository
+
+    @Multibinds fun volumeDialogKeyMotions(): Set<VolumeDialogKeyMotion>
 
     companion object {
 

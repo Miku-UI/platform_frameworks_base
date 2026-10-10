@@ -32,6 +32,7 @@ import com.android.systemui.util.children
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogScope
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderComponent
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogSlidersViewModel
+import com.android.systemui.volume.dialog.ui.VolumeDialogKeyMotion
 import com.android.systemui.volume.dialog.ui.binder.ViewBinder
 import com.android.systemui.volume.dialog.ui.viewmodel.VolumeDialogViewModel
 import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
@@ -46,7 +47,11 @@ constructor(
     private val viewModel: VolumeDialogSlidersViewModel,
     private val dialogViewModel: VolumeDialogViewModel,
     private val windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
+    private val keyMotions: Set<@JvmSuppressWildcards VolumeDialogKeyMotion>,
 ) : ViewBinder {
+
+    private val sliderTranslations = mutableMapOf<View, VolumeDialogSliderTranslation>()
+    private val keyMotionBoundContainers = mutableSetOf<View>()
 
     override fun CoroutineScope.bind(view: View) {
 
@@ -145,8 +150,18 @@ constructor(
         sliderContainer: View,
         viewsToAnimate: Array<View>,
     ) {
+        val translation =
+            sliderTranslations.getOrPut(sliderContainer) {
+                VolumeDialogSliderTranslation(
+                    views = viewsToAnimate,
+                    isVertical = viewModel.isVolumeDialogVertical,
+                )
+            }
         with(component.sliderViewBinder()) { bind(sliderContainer) }
-        with(component.overscrollViewBinder()) { bind(sliderContainer, viewsToAnimate) }
+        with(component.overscrollViewBinder()) { bind(translation) }
+        if (keyMotionBoundContainers.add(sliderContainer)) {
+            keyMotions.forEach { with(it) { bind(translation) } }
+        }
     }
 }
 

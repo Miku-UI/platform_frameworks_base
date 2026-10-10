@@ -27,5 +27,6 @@ val Kosmos.volumeDialogSlidersViewBinder by
             volumeDialogSlidersViewModel,
             volumeDialogViewModel,
             windowRootViewBlurInteractor,
+            emptySet(),
         )
     }

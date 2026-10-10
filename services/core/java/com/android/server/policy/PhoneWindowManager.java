@@ -4619,9 +4619,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                                 ? KeyGestureEvent.KEY_GESTURE_TYPE_VOLUME_UP
                                 : KeyGestureEvent.KEY_GESTURE_TYPE_VOLUME_MUTE;
                 notifyKeyGestureCompletedOnActionDown(event, gestureType);
+                sendSystemKeyToStatusBarAsync(event);
                 if (down) {
-                    sendSystemKeyToStatusBarAsync(event);
-
                     NotificationManager nm = getNotificationService();
                     if (nm != null && !mHandleVolumeKeysInWM) {
                         nm.silenceNotificationSound();
