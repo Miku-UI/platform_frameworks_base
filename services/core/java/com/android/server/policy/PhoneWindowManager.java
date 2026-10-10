@@ -87,6 +87,7 @@ import static android.view.WindowManager.LayoutParams.TYPE_VOICE_INTERACTION_STA
 import static android.view.WindowManager.LayoutParams.TYPE_WALLPAPER;
 import static android.view.WindowManager.LayoutParams.isSystemAlertWindowType;
 import static android.view.WindowManager.ScreenshotSource.SCREENSHOT_KEY_OTHER;
+import static android.view.WindowManager.TAKE_SCREENSHOT_FULLSCREEN;
 import static android.view.WindowManagerGlobal.ADD_OKAY;
 import static android.view.WindowManagerGlobal.ADD_PERMISSION_DENIED;
 import static android.view.contentprotection.flags.Flags.createAccessibilityOverlayAppOpEnabled;
@@ -237,6 +238,8 @@ import com.android.internal.policy.KeyInterceptionInfo;
 import com.android.internal.policy.PhoneWindow;
 import com.android.internal.statusbar.IStatusBarService;
 import com.android.internal.util.NamedLock;
+import com.android.internal.util.ScreenshotHelper;
+import com.android.internal.util.ScreenshotRequest;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.server.AccessibilityManagerInternal;
 import com.android.server.DockObserverInternal;
@@ -725,6 +728,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_HIDE_BOOT_MESSAGE = 11;
     private static final int MSG_LAUNCH_VOICE_ASSIST_WITH_WAKE_LOCK = 12;
     private static final int MSG_SHOW_PICTURE_IN_PICTURE_MENU = 15;
+    private static final int MSG_SCREENSHOT_CHORD = 16;
     private static final int MSG_BUGREPORT_TV = 18;
     private static final int MSG_DISPATCH_BACK_KEY_TO_AUTOFILL = 20;
     private static final int MSG_SYSTEM_KEY_PRESS = 21;
@@ -735,6 +739,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_SET_DEFERRED_KEY_ACTIONS_EXECUTABLE = 27;
 
     private SwipeToScreenshotListener mSwipeToScreenshot;
+    private ScreenshotHelper mScreenshotHelper;
 
     private class PolicyHandler extends Handler {
 
@@ -786,6 +791,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     break;
                 case MSG_SHOW_PICTURE_IN_PICTURE_MENU:
                     showPictureInPictureMenuInternal();
+                    break;
+                case MSG_SCREENSHOT_CHORD:
+                    handleScreenShot(msg.arg1, msg.arg2);
                     break;
                 case MSG_BUGREPORT_TV:
                     requestBugreportForTv();
@@ -2349,6 +2357,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
 
         mHandler = new PolicyHandler(injector.getLooper());
+        mScreenshotHelper = new ScreenshotHelper(mContext);
         mSwipeToScreenshot = new SwipeToScreenshotListener(mContext, new SwipeToScreenshotListener.Callbacks() {
             @Override
             public void onSwipeThreeFinger() {
@@ -2528,13 +2537,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private void interceptScreenshotChord(int source, long pressDelay) {
-        // KeyGestureController.MSG_SCREENSHOT_SHORTCUT = 5
-        mHandler.removeMessages(5);
-        // arg2 is unused, but necessary to insure we call the correct method signature
-        // since the screenshot source is read from message.arg1
-        // KeyGestureController.MSG_SCREENSHOT_SHORTCUT = 5
-        mHandler.sendMessageDelayed(mHandler.obtainMessage(5, source, 0),
+        mHandler.removeMessages(MSG_SCREENSHOT_CHORD);
+        mHandler.sendMessageDelayed(
+                mHandler.obtainMessage(MSG_SCREENSHOT_CHORD, source, DEFAULT_DISPLAY),
                 pressDelay);
+    }
+
+    private void handleScreenShot(int source, int displayId) {
+        ScreenshotRequest request =
+                new ScreenshotRequest.Builder(TAKE_SCREENSHOT_FULLSCREEN, source)
+                        .setDisplayId(displayId)
+                        .build();
+        mScreenshotHelper.takeScreenshot(request, mHandler, null /* completionConsumer */);
     }
 
     /**

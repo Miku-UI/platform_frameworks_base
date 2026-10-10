@@ -9724,6 +9724,9 @@ public class ActivityManagerService extends IActivityManager.Stub
                 Settings.Global.getInt(resolver, ALWAYS_FINISH_ACTIVITIES, 0) != 0;
         mHiddenApiBlacklist.registerObserver();
         mPlatformCompat.registerContentObserver();
+        if (mSwipeToScreenshotObserver != null) {
+            mSwipeToScreenshotObserver.registerObserver();
+        }
 
         mAppProfiler.retrieveSettings();
 
