@@ -197,6 +197,8 @@ private:
     bool android(const Display& display);
     status_t initDisplaysAndSurfaces();
     bool movie();
+    bool movieMba();
+    void detectNpotTextures();
     void drawText(const char* str, const Font& font, bool bold,
                   int* x, int* y, const Display& display);
     void drawClock(const Font& font, const int xPos, const int yPos, const Display& display);
@@ -248,6 +250,7 @@ private:
     bool        mShuttingDown;
     bool        mDynamicColorsApplied = false;
     bool        mDecodeOpaqueImageTo565 = false;
+    bool        mMbaFile = false;
     String8     mZipFileName;
     SortedVector<String8> mLoadedFiles;
     sp<TimeCheckThread> mTimeCheckThread = nullptr;

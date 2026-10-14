@@ -19,6 +19,7 @@
 #define LOG_TAG "BootAnimation"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
+#include <cstring>
 #include <filesystem>
 #include <vector>
 
@@ -37,8 +38,11 @@
 
 #include <cutils/properties.h>
 
+#include <android/bitmap.h>
 #include <android/imagedecoder.h>
 #include <androidfw/AssetManager.h>
+#include <androidfw/ZipFileRO.h>
+#include <utils/FileMap.h>
 #include <binder/IPCThreadState.h>
 #include <utils/Errors.h>
 #include <utils/Log.h>
@@ -73,11 +77,17 @@ namespace android {
 using ui::DisplayMode;
 
 static const char OEM_BOOTANIMATION_FILE[] = "/oem/media/bootanimation.zip";
+static const char OEM_BOOTANIMATION_MBA_FILE[] = "/oem/media/bootanimation.mba";
 static const char PRODUCT_BOOTANIMATION_DIR[] = "/product/media/";
 static const char PRODUCT_BOOTANIMATION_DARK_FILE[] = "bootanimation-dark.zip";
 static const char PRODUCT_BOOTANIMATION_FILE[] = "bootanimation.zip";
+static const char PRODUCT_BOOTANIMATION_DARK_MBA_FILE[] = "bootanimation-dark.mba";
+static const char PRODUCT_BOOTANIMATION_MBA_FILE[] = "bootanimation.mba";
 static const char SYSTEM_BOOTANIMATION_FILE[] = "/system/media/bootanimation.zip";
+static const char SYSTEM_BOOTANIMATION_MBA_FILE[] = "/system/media/bootanimation.mba";
 static const char APEX_BOOTANIMATION_FILE[] = "/apex/com.android.bootanimation/etc/bootanimation.zip";
+static const char APEX_BOOTANIMATION_MBA_FILE[] =
+        "/apex/com.android.bootanimation/etc/bootanimation.mba";
 static const char OEM_SHUTDOWNANIMATION_FILE[] = "/oem/media/shutdownanimation.zip";
 static const char PRODUCT_SHUTDOWNANIMATION_FILE[] = "/product/media/shutdownanimation.zip";
 static const char SYSTEM_SHUTDOWNANIMATION_FILE[] = "/system/media/shutdownanimation.zip";
@@ -200,7 +210,7 @@ void BootAnimation::binderDied(const wp<IBinder>&) {
 }
 
 static void* decodeImage(const void* encodedData, size_t dataLength, AndroidBitmapInfo* outInfo,
-    bool premultiplyAlpha, bool decodeOpaque565) {
+    bool premultiplyAlpha, bool decodeOpaque565, int targetWidth = 0, int targetHeight = 0) {
     ATRACE_CALL();
     AImageDecoder* decoder = nullptr;
     AImageDecoder_createFromBuffer(encodedData, dataLength, &decoder);
@@ -217,12 +227,19 @@ static void* decodeImage(const void* encodedData, size_t dataLength, AndroidBitm
         AImageDecoder_setAndroidBitmapFormat(decoder, ANDROID_BITMAP_FORMAT_RGB_565);
         outInfo->format = ANDROID_BITMAP_FORMAT_RGB_565;
     }
-    outInfo->stride = AImageDecoder_getMinimumStride(decoder);
-    outInfo->flags = 0;
-
+    // setTargetSize is incompatible with unpremultiplied output.
+    if (targetWidth > 0 && targetHeight > 0) {
+        if (AImageDecoder_setTargetSize(decoder, targetWidth, targetHeight) ==
+                ANDROID_IMAGE_DECODER_SUCCESS) {
+            outInfo->width = targetWidth;
+            outInfo->height = targetHeight;
+        }
+    }
     if (!premultiplyAlpha) {
         AImageDecoder_setUnpremultipliedRequired(decoder, true);
     }
+    outInfo->stride = AImageDecoder_getMinimumStride(decoder);
+    outInfo->flags = 0;
 
     const size_t size = outInfo->stride * outInfo->height;
     void* pixels = malloc(size);
@@ -638,15 +655,32 @@ void BootAnimation::resizeSurface(int newWidth, int newHeight, Display& display)
     display.eglSurface = eglSurface;
 }
 
+static bool hasMbaManifest(const char* path) {
+    ZipFileRO* zip = ZipFileRO::open(path);
+    if (zip == nullptr) {
+        return false;
+    }
+    ZipEntryRO entry = zip->findEntryByName("mba.txt");
+    const bool found = entry != nullptr;
+    if (entry) {
+        zip->releaseEntry(entry);
+    }
+    delete zip;
+    return found;
+}
+
 bool BootAnimation::preloadAnimation() {
     ATRACE_CALL();
     findBootAnimationFile();
-    if (!mZipFileName.empty()) {
-        mAnimation = loadAnimation(mZipFileName);
-        return (mAnimation != nullptr);
+    if (mZipFileName.empty()) {
+        return false;
     }
-
-    return false;
+    if (hasMbaManifest(mZipFileName.c_str())) {
+        mMbaFile = true;
+        return true;
+    }
+    mAnimation = loadAnimation(mZipFileName);
+    return (mAnimation != nullptr);
 }
 
 bool BootAnimation::findBootAnimationFileInternal(const std::vector<std::string> &files) {
@@ -666,13 +700,25 @@ void BootAnimation::findBootAnimationFile() {
     const bool playDarkAnim =
             android::base::GetIntProperty("ro.boot.theme", 0) == 1 ||
             android::base::GetIntProperty("persist.sys.theme", 0) == 2;
-    const std::string productBootanimationFile = PRODUCT_BOOTANIMATION_DIR +
-        android::base::GetProperty("ro.product.bootanim.file", playDarkAnim ?
-        PRODUCT_BOOTANIMATION_DARK_FILE : PRODUCT_BOOTANIMATION_FILE);
-    static const std::vector<std::string> bootFiles = {
-        APEX_BOOTANIMATION_FILE, productBootanimationFile,
-        OEM_BOOTANIMATION_FILE, SYSTEM_BOOTANIMATION_FILE
+    const std::string productOverride =
+            android::base::GetProperty("ro.product.bootanim.file", "");
+    std::vector<std::string> bootFiles = {
+        APEX_BOOTANIMATION_MBA_FILE,
+        APEX_BOOTANIMATION_FILE,
     };
+    if (!productOverride.empty()) {
+        bootFiles.push_back(PRODUCT_BOOTANIMATION_DIR + productOverride);
+    } else {
+        bootFiles.push_back(std::string(PRODUCT_BOOTANIMATION_DIR) +
+                (playDarkAnim ? PRODUCT_BOOTANIMATION_DARK_MBA_FILE
+                              : PRODUCT_BOOTANIMATION_MBA_FILE));
+        bootFiles.push_back(std::string(PRODUCT_BOOTANIMATION_DIR) +
+                (playDarkAnim ? PRODUCT_BOOTANIMATION_DARK_FILE : PRODUCT_BOOTANIMATION_FILE));
+    }
+    bootFiles.push_back(OEM_BOOTANIMATION_MBA_FILE);
+    bootFiles.push_back(OEM_BOOTANIMATION_FILE);
+    bootFiles.push_back(SYSTEM_BOOTANIMATION_MBA_FILE);
+    bootFiles.push_back(SYSTEM_BOOTANIMATION_FILE);
     static const std::vector<std::string> shutdownFiles = {
         PRODUCT_SHUTDOWNANIMATION_FILE, OEM_SHUTDOWNANIMATION_FILE, SYSTEM_SHUTDOWNANIMATION_FILE, ""
     };
@@ -769,6 +815,8 @@ bool BootAnimation::threadLoop() {
     if (mZipFileName.empty()) {
         ALOGD("No animation file");
         result = android(mDisplays.front());
+    } else if (mMbaFile) {
+        result = movieMba();
     } else {
         result = movie();
     }
@@ -1324,6 +1372,22 @@ bool BootAnimation::preloadZip(Animation& animation) {
     return true;
 }
 
+void BootAnimation::detectNpotTextures() {
+    ATRACE_CALL();
+    mUseNpotTextures = false;
+    String8 gl_extensions;
+    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    if (!exts) {
+        glGetError();
+    } else {
+        gl_extensions = exts;
+        if ((gl_extensions.find("GL_ARB_texture_non_power_of_two") != -1) ||
+            (gl_extensions.find("GL_OES_texture_npot") != -1)) {
+            mUseNpotTextures = true;
+        }
+    }
+}
+
 bool BootAnimation::movie() {
     ATRACE_CALL();
     if (mAnimation == nullptr) {
@@ -1355,19 +1419,7 @@ bool BootAnimation::movie() {
         mClockEnabled = false;
     }
 
-    // Check if npot textures are supported
-    mUseNpotTextures = false;
-    String8 gl_extensions;
-    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-    if (!exts) {
-        glGetError();
-    } else {
-        gl_extensions = exts;
-        if ((gl_extensions.find("GL_ARB_texture_non_power_of_two") != -1) ||
-            (gl_extensions.find("GL_OES_texture_npot") != -1)) {
-            mUseNpotTextures = true;
-        }
-    }
+    detectNpotTextures();
 
     mDecodeOpaqueImageTo565 = android::base::GetBoolProperty(DECODE_RGB565_PROP_NAME, false);
 
@@ -1415,6 +1467,590 @@ bool BootAnimation::movie() {
     releaseAnimation(mAnimation);
     mAnimation = nullptr;
 
+    return false;
+}
+
+namespace {
+
+struct MbaTex {
+    GLint w = 0;
+    GLint h = 0;
+    GLuint name = 0;
+    float uScale = 1.f;
+    float vScale = 1.f;
+};
+
+struct MbaScene {
+    int version = 1;
+    int width = 1080;
+    int height = 1920;
+    int fps = 30;
+    float bg[3] = {0.f, 0.f, 0.f};
+    bool darkMode = false;
+    bool nativeMode = false;
+    int rows = 7;
+    int gapX = 64;
+    int gapY = 20;
+    float speed = 140.f;
+    bool fgOn = false;
+    float fgX = 0.f;
+    float fgY = 0.f;
+    float fgScale = 1.f;
+    int fgOrigW = 0;
+    int fgOrigH = 0;
+    float outroDuration = 3.2f;
+    float outroX = 0.f;
+    float outroY = 0.f;
+    float outroColor[3] = {1.f, 1.f, 1.f};
+    float marqueeFade0 = 0.f;
+    float marqueeFade1 = 1.5f;
+    float logoFade0 = 0.5f;
+    float logoFade1 = 1.8f;
+    MbaTex tile;
+    MbaTex tileInk;
+    MbaTex wordmark;
+    MbaTex wordmarkInk;
+    MbaTex foreground;
+};
+
+struct MbaCover {
+    float scale;
+    float animX;
+    float animY;
+};
+
+static float mbaClampf(float n, float a, float b) {
+    return fmaxf(a, fminf(b, n));
+}
+
+static float mbaEase(float t) {
+    t = mbaClampf(t, 0.f, 1.f);
+    return t * t * (3.f - 2.f * t);
+}
+
+static float mbaFadeOut(float u, float start, float end) {
+    if (end <= start) {
+        return u >= start ? 0.f : 1.f;
+    }
+    return 1.f - mbaEase((u - start) / (end - start));
+}
+
+static float mbaFadeIn(float u, float start, float end) {
+    if (end <= start) {
+        return u >= start ? 1.f : 0.f;
+    }
+    return mbaEase((u - start) / (end - start));
+}
+
+static bool mbaNear(float a, float b) {
+    return fabsf(a - b) < (1.5f / 255.f);
+}
+
+static void mbaDeleteTex(MbaTex* tex) {
+    if (tex->name != 0) {
+        glDeleteTextures(1, &tex->name);
+        tex->name = 0;
+    }
+}
+
+static void mbaReleaseScene(MbaScene* scene) {
+    mbaDeleteTex(&scene->tile);
+    mbaDeleteTex(&scene->tileInk);
+    mbaDeleteTex(&scene->wordmark);
+    mbaDeleteTex(&scene->wordmarkInk);
+    mbaDeleteTex(&scene->foreground);
+}
+
+static FileMap* mbaMapStored(ZipFileRO* zip, const char* name) {
+    ZipEntryRO entry = zip->findEntryByName(name);
+    if (!entry) {
+        return nullptr;
+    }
+    uint16_t method = 0;
+    if (!zip->getEntryInfo(entry, &method, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) ||
+            method != ZipFileRO::kCompressStored) {
+        SLOGE("mba: %s must be stored", name);
+        zip->releaseEntry(entry);
+        return nullptr;
+    }
+    FileMap* map = zip->createEntryFileMap(entry);
+    zip->releaseEntry(entry);
+    return map;
+}
+
+static void mbaTintRgbKeepAlpha(uint8_t* pixels, int w, int h, int stride,
+                                uint8_t r, uint8_t g, uint8_t b) {
+    for (int y = 0; y < h; ++y) {
+        uint8_t* row = pixels + y * stride;
+        for (int x = 0; x < w; ++x) {
+            uint8_t* p = row + x * 4;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
+        }
+    }
+}
+
+static void mbaUnpremultiply(uint8_t* pixels, int w, int h, int stride) {
+    for (int y = 0; y < h; ++y) {
+        uint8_t* row = pixels + y * stride;
+        for (int x = 0; x < w; ++x) {
+            uint8_t* p = row + x * 4;
+            const int a = p[3];
+            if (a == 0 || a == 255) {
+                continue;
+            }
+            p[0] = static_cast<uint8_t>((p[0] * 255 + a / 2) / a);
+            p[1] = static_cast<uint8_t>((p[1] * 255 + a / 2) / a);
+            p[2] = static_cast<uint8_t>((p[2] * 255 + a / 2) / a);
+        }
+    }
+}
+
+static status_t mbaUpload(MbaTex* texture, bool useNpot, const AndroidBitmapInfo& info,
+                          const void* pixels) {
+    const int w = info.width;
+    const int h = info.height;
+    int tw = 1 << (31 - __builtin_clz(w > 0 ? w : 1));
+    int th = 1 << (31 - __builtin_clz(h > 0 ? h : 1));
+    if (tw < w) tw <<= 1;
+    if (th < h) th <<= 1;
+
+    int bpp = 0;
+    if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
+        bpp = 4;
+    } else if (info.format == ANDROID_BITMAP_FORMAT_RGB_565) {
+        bpp = 2;
+    }
+    std::vector<uint8_t> packed;
+    const void* data = pixels;
+    if (bpp > 0 && info.stride != w * bpp) {
+        packed.resize(static_cast<size_t>(w * bpp * h));
+        const uint8_t* src = static_cast<const uint8_t*>(pixels);
+        uint8_t* dst = packed.data();
+        const int row = w * bpp;
+        for (int y = 0; y < h; ++y) {
+            memcpy(dst + y * row, src + y * info.stride, row);
+        }
+        data = dst;
+    }
+
+    glGenTextures(1, &texture->name);
+    glBindTexture(GL_TEXTURE_2D, texture->name);
+
+    switch (info.format) {
+        case ANDROID_BITMAP_FORMAT_RGBA_8888:
+            if (!useNpot && (tw != w || th != h)) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA,
+                        GL_UNSIGNED_BYTE, nullptr);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA,
+                        GL_UNSIGNED_BYTE, data);
+                texture->uScale = static_cast<float>(w) / static_cast<float>(tw);
+                texture->vScale = static_cast<float>(h) / static_cast<float>(th);
+            } else {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA,
+                        GL_UNSIGNED_BYTE, data);
+            }
+            break;
+        case ANDROID_BITMAP_FORMAT_RGB_565:
+            if (!useNpot && (tw != w || th != h)) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tw, th, 0, GL_RGB,
+                        GL_UNSIGNED_SHORT_5_6_5, nullptr);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGB,
+                        GL_UNSIGNED_SHORT_5_6_5, data);
+                texture->uScale = static_cast<float>(w) / static_cast<float>(tw);
+                texture->vScale = static_cast<float>(h) / static_cast<float>(th);
+            } else {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB,
+                        GL_UNSIGNED_SHORT_5_6_5, data);
+            }
+            break;
+        default:
+            SLOGE("mba: unsupported bitmap format %d", info.format);
+            glDeleteTextures(1, &texture->name);
+            texture->name = 0;
+            return BAD_VALUE;
+    }
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    texture->w = w;
+    texture->h = h;
+    if (glGetError() != GL_NO_ERROR) {
+        SLOGE("mba: glTexImage failed for %dx%d", w, h);
+        mbaDeleteTex(texture);
+        return UNKNOWN_ERROR;
+    }
+    return NO_ERROR;
+}
+
+static bool mbaLoadPng(ZipFileRO* zip, const char* name, bool useNpot, MbaTex* tex, MbaTex* ink,
+                       int maxEdge, bool premultiplyThenUnpremultiply, int* origW, int* origH) {
+    FileMap* map = mbaMapStored(zip, name);
+    if (!map) {
+        SLOGE("mba: missing %s", name);
+        return false;
+    }
+
+    int headerW = 0;
+    int headerH = 0;
+    AImageDecoder* headerDec = nullptr;
+    AImageDecoder_createFromBuffer(map->getDataPtr(), map->getDataLength(), &headerDec);
+    if (headerDec) {
+        const AImageDecoderHeaderInfo* info = AImageDecoder_getHeaderInfo(headerDec);
+        headerW = AImageDecoderHeaderInfo_getWidth(info);
+        headerH = AImageDecoderHeaderInfo_getHeight(info);
+        AImageDecoder_delete(headerDec);
+    }
+    if (origW) *origW = headerW;
+    if (origH) *origH = headerH;
+
+    int targetW = 0;
+    int targetH = 0;
+    if (maxEdge > 0 && headerW > 0 && headerH > 0) {
+        const int longEdge = headerW > headerH ? headerW : headerH;
+        if (longEdge > maxEdge) {
+            const float s = static_cast<float>(maxEdge) / static_cast<float>(longEdge);
+            targetW = static_cast<int>(headerW * s + 0.5f);
+            targetH = static_cast<int>(headerH * s + 0.5f);
+            if (targetW < 1) targetW = 1;
+            if (targetH < 1) targetH = 1;
+        }
+    }
+
+    AndroidBitmapInfo info;
+    // Scaled decode cannot request unpremultiplied output; undo premultiply on CPU.
+    void* pixels = decodeImage(map->getDataPtr(), map->getDataLength(), &info,
+            premultiplyThenUnpremultiply, false /* rgb565 */, targetW, targetH);
+    delete map;
+    if (!pixels) {
+        SLOGE("mba: failed to decode %s", name);
+        return false;
+    }
+    if (targetW > 0 && info.width > maxEdge) {
+        SLOGE("mba: %s too large to upload (%dx%d)", name, info.width, info.height);
+        free(pixels);
+        return false;
+    }
+    if (origW && *origW <= 0) *origW = info.width;
+    if (origH && *origH <= 0) *origH = info.height;
+    if (premultiplyThenUnpremultiply && info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
+        mbaUnpremultiply(static_cast<uint8_t*>(pixels), info.width, info.height, info.stride);
+    }
+    if (mbaUpload(tex, useNpot, info, pixels) != NO_ERROR) {
+        free(pixels);
+        return false;
+    }
+    if (ink && info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
+        mbaTintRgbKeepAlpha(static_cast<uint8_t*>(pixels), info.width, info.height, info.stride,
+                            0, 0, 0);
+        if (mbaUpload(ink, useNpot, info, pixels) != NO_ERROR) {
+            free(pixels);
+            return false;
+        }
+    }
+    free(pixels);
+    return true;
+}
+
+static bool mbaParse(const char* text, MbaScene* scene) {
+    const char* s = text;
+    for (;;) {
+        const char* endl = strstr(s, "\n");
+        const char* lineEnd = endl ? endl : s + strlen(s);
+        if (lineEnd == s && !endl) {
+            break;
+        }
+        while (lineEnd > s && (lineEnd[-1] == '\r' || lineEnd[-1] == ' ')) {
+            --lineEnd;
+        }
+        String8 line(s, lineEnd - s);
+        const char* l = line.c_str();
+        if (endl) {
+            s = endl + 1;
+        } else {
+            s = lineEnd;
+        }
+        if (l[0] == '\0' || l[0] == '#') {
+            if (!endl) break;
+            continue;
+        }
+        char tag[16] = {};
+        if (sscanf(l, "%15s", tag) != 1) {
+            if (!endl) break;
+            continue;
+        }
+        if (!strcmp(tag, "mba")) {
+            sscanf(l, "mba %d", &scene->version);
+        } else if (!strcmp(tag, "size")) {
+            sscanf(l, "size %d %d %d", &scene->width, &scene->height, &scene->fps);
+        } else if (!strcmp(tag, "bg")) {
+            char hex[8] = {};
+            sscanf(l, "bg %7s", hex);
+            const char* p = hex[0] == '#' ? hex + 1 : hex;
+            char rgb[7] = "000000";
+            if (strlen(p) >= 6) {
+                memcpy(rgb, p, 6);
+            }
+            parseColor(rgb, scene->bg);
+        } else if (!strcmp(tag, "flags")) {
+            int dark = 0;
+            int native = 0;
+            sscanf(l, "flags %d %d", &dark, &native);
+            scene->darkMode = dark == 1;
+            scene->nativeMode = native == 1;
+        } else if (!strcmp(tag, "loop")) {
+            sscanf(l, "loop %d %d %d %f",
+                    &scene->rows, &scene->gapX, &scene->gapY, &scene->speed);
+        } else if (!strcmp(tag, "fg")) {
+            int on = 0;
+            if (sscanf(l, "fg %d %f %f %f", &on, &scene->fgX, &scene->fgY, &scene->fgScale) >= 1) {
+                scene->fgOn = on == 1;
+            }
+        } else if (!strcmp(tag, "outro")) {
+            char hex[8] = {};
+            sscanf(l, "outro %f %f %f %7s %f %f %f %f",
+                    &scene->outroDuration, &scene->outroX, &scene->outroY, hex,
+                    &scene->marqueeFade0, &scene->marqueeFade1,
+                    &scene->logoFade0, &scene->logoFade1);
+            const char* p = hex[0] == '#' ? hex + 1 : hex;
+            char rgb[7] = "000000";
+            if (strlen(p) >= 6) {
+                memcpy(rgb, p, 6);
+            }
+            parseColor(rgb, scene->outroColor);
+        }
+        if (!endl) {
+            break;
+        }
+    }
+    if (scene->fps <= 0) scene->fps = 30;
+    if (scene->rows < 1) scene->rows = 1;
+    if (scene->rows > 24) scene->rows = 24;
+    if (scene->gapX < 0) scene->gapX = 0;
+    if (scene->gapY < 0) scene->gapY = 0;
+    scene->speed = mbaClampf(scene->speed, 10.f, 600.f);
+    scene->width = static_cast<int>(mbaClampf(scene->width, 160, 3840));
+    scene->height = static_cast<int>(mbaClampf(scene->height, 160, 3840));
+    if (scene->outroDuration <= 0.f) scene->outroDuration = 3.2f;
+    if (scene->fgScale <= 0.f) scene->fgScale = 1.f;
+    return scene->width > 0 && scene->height > 0;
+}
+
+}  // namespace
+
+bool BootAnimation::movieMba() {
+    ATRACE_CALL();
+    ZipFileRO* zip = ZipFileRO::open(mZipFileName.c_str());
+    if (zip == nullptr) {
+        SLOGE("Failed to open mba \"%s\": %s", mZipFileName.c_str(), strerror(errno));
+        return false;
+    }
+
+    String8 manifest;
+    if (!readFile(zip, "mba.txt", manifest)) {
+        delete zip;
+        return false;
+    }
+
+    MbaScene scene;
+    if (!mbaParse(manifest.c_str(), &scene)) {
+        SLOGE("mba: invalid mba.txt");
+        delete zip;
+        return false;
+    }
+
+    detectNpotTextures();
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DITHER);
+    glDisable(GL_SCISSOR_TEST);
+    glEnable(GL_BLEND);
+    glUseProgram(mImageShader);
+    glUniform1i(mImageTextureLocation, 0);
+
+    GLint maxTex = 2048;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTex);
+    if (maxTex < 64) {
+        maxTex = 2048;
+    }
+    // Keep the decoded foreground under a fixed edge so 5k art fits GLES2.
+    const int fgEdge = maxTex < 2048 ? maxTex : 2048;
+
+    if (!mbaLoadPng(zip, "tile.png", mUseNpotTextures, &scene.tile, &scene.tileInk,
+                    0, false, nullptr, nullptr) ||
+            !mbaLoadPng(zip, "wordmark.png", mUseNpotTextures, &scene.wordmark, &scene.wordmarkInk,
+                    0, false, nullptr, nullptr)) {
+        mbaReleaseScene(&scene);
+        delete zip;
+        return false;
+    }
+    if (scene.fgOn) {
+        if (!mbaLoadPng(zip, "foreground.png", mUseNpotTextures, &scene.foreground, nullptr,
+                        fgEdge, true, &scene.fgOrigW, &scene.fgOrigH)) {
+            SLOGW("mba: foreground.png skipped");
+            scene.fgOn = false;
+        }
+    }
+    delete zip;
+
+    mCallbacks->init({});
+
+    const MbaTex& marquee = scene.darkMode && scene.tileInk.name ? scene.tileInk : scene.tile;
+    const MbaTex* logo = &scene.wordmark;
+    if (mbaNear(scene.outroColor[0], 0.f) && mbaNear(scene.outroColor[1], 0.f) &&
+            mbaNear(scene.outroColor[2], 0.f) && scene.wordmarkInk.name) {
+        logo = &scene.wordmarkInk;
+    }
+
+    const float period = fmaxf(1.f, static_cast<float>(marquee.w + scene.gapX));
+    int loopFrames = static_cast<int>(lroundf(
+            (period / fmaxf(1.f, scene.speed)) * static_cast<float>(scene.fps)));
+    if (loopFrames < 2) loopFrames = 2;
+    const float loopT = static_cast<float>(loopFrames) / static_cast<float>(scene.fps);
+    const nsecs_t frameDuration = s2ns(1) / scene.fps;
+
+    SLOGD("%sAnimationShownTiming start time: %" PRId64 "ms (mba v%d %dx%d %dfps)",
+            mShuttingDown ? "Shutdown" : "Boot", elapsedRealtime(),
+            scene.version, scene.width, scene.height, scene.fps);
+
+    auto drawSprite = [&](const MbaTex& tex, float x, float y, float w, float h, float opacity,
+                          const Display& display, const MbaCover& cover) {
+        if (tex.name == 0 || opacity <= 0.001f || w <= 0.f || h <= 0.f) {
+            return;
+        }
+        const float dw = w * cover.scale;
+        const float dh = h * cover.scale;
+        const float dx = cover.animX + x * cover.scale;
+        const float dyTop = cover.animY + y * cover.scale;
+        const float dy = display.height - (dyTop + dh);
+        GLfloat saved[12];
+        memcpy(saved, quadUVs, sizeof(quadUVs));
+        const float us = tex.uScale;
+        const float vs = tex.vScale;
+        quadUVs[0] = 0.f;  quadUVs[1] = vs;
+        quadUVs[2] = us;   quadUVs[3] = vs;
+        quadUVs[4] = us;   quadUVs[5] = 0.f;
+        quadUVs[6] = us;   quadUVs[7] = 0.f;
+        quadUVs[8] = 0.f;  quadUVs[9] = 0.f;
+        quadUVs[10] = 0.f; quadUVs[11] = vs;
+        glBindTexture(GL_TEXTURE_2D, tex.name);
+        glUniform1f(mImageFadeLocation, 1.f - opacity);
+        drawTexturedQuad(dx, dy, dw, dh, display);
+        memcpy(quadUVs, saved, sizeof(quadUVs));
+    };
+
+    auto drawScene = [&](float offset, float marqueeA, float logoA) {
+        const float pitch = static_cast<float>(marquee.h + scene.gapY);
+        const float blockH = scene.rows * marquee.h +
+                fmaxf(0.f, static_cast<float>(scene.rows - 1)) * scene.gapY;
+        const float startY = roundf((scene.height - blockH) / 2.f);
+        for (const auto& display : mDisplays) {
+            eglMakeCurrent(mEgl, display.eglSurface, display.eglSurface, mEglContext);
+            MbaCover cover;
+            cover.scale = fmaxf(static_cast<float>(display.width) / scene.width,
+                                static_cast<float>(display.height) / scene.height);
+            cover.animX = (display.width - scene.width * cover.scale) / 2.f;
+            cover.animY = (display.height - scene.height * cover.scale) / 2.f;
+            projectSceneToWindow(display);
+            handleViewport(frameDuration, display);
+            glClearColor(scene.bg[0], scene.bg[1], scene.bg[2], 1.f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            if (marqueeA > 0.001f) {
+                float s = fmodf(offset, period);
+                if (s < 0.f) s += period;
+                for (int i = 0; i < scene.rows; ++i) {
+                    const float y = startY + i * pitch;
+                    if (y + marquee.h < 0.f || y > scene.height) {
+                        continue;
+                    }
+                    const bool goingLeft = (i % 2) == 0;
+                    const float start = goingLeft ? -s : s - period;
+                    for (float x = start; x < scene.width; x += period) {
+                        drawSprite(marquee, x, y, marquee.w, marquee.h, marqueeA, display, cover);
+                    }
+                }
+                if (scene.fgOn && scene.foreground.name) {
+                    const float dw = scene.fgOrigW * scene.fgScale;
+                    const float dh = scene.fgOrigH * scene.fgScale;
+                    drawSprite(scene.foreground, scene.fgX - dw / 2.f, scene.fgY - dh / 2.f,
+                               dw, dh, marqueeA, display, cover);
+                }
+            }
+            if (logoA > 0.001f && logo->name) {
+                const float maxW = scene.width * 0.82f;
+                const float ls = fminf(1.f, maxW / fmaxf(1.f, static_cast<float>(logo->w)));
+                const float dw = logo->w * ls;
+                const float dh = logo->h * ls;
+                drawSprite(*logo, scene.outroX - dw / 2.f, scene.outroY - dh / 2.f,
+                           dw, dh, logoA, display, cover);
+            }
+            eglSwapBuffers(mEgl, display.eglSurface);
+        }
+    };
+
+    enum Phase { kLoop, kOutro };
+    Phase phase = kLoop;
+    float outroStartOffset = 0.f;
+    const nsecs_t loopStart = systemTime();
+    nsecs_t outroAnchor = loopStart;
+
+    for (;;) {
+        processDisplayEvents();
+        checkExit();
+        const nsecs_t now = systemTime();
+        float marqueeA = 1.f;
+        float logoA = 0.f;
+        float offset = 0.f;
+
+        if (phase == kLoop) {
+            const float elapsed = static_cast<float>(now - loopStart) / 1e9f;
+            float localT = fmodf(elapsed, loopT);
+            if (localT < 0.f) localT += loopT;
+            offset = (localT / loopT) * period;
+            if (exitPending()) {
+                outroStartOffset = scene.nativeMode ? offset : 0.f;
+                phase = kOutro;
+                outroAnchor = now;
+            }
+        }
+        if (phase == kOutro) {
+            const float u = static_cast<float>(now - outroAnchor) / 1e9f;
+            if (u >= scene.outroDuration) {
+                break;
+            }
+            marqueeA = mbaFadeOut(u, scene.marqueeFade0, scene.marqueeFade1);
+            logoA = mbaFadeIn(u, scene.logoFade0, scene.logoFade1);
+            if (scene.nativeMode) {
+                float o = fmodf(outroStartOffset + (u / loopT) * period, period);
+                if (o < 0.f) o += period;
+                offset = o;
+            } else {
+                offset = fmodf((u / loopT) * period, period);
+                if (offset < 0.f) offset += period;
+            }
+        }
+
+        drawScene(offset, marqueeA, logoA);
+
+        const nsecs_t after = systemTime();
+        const nsecs_t delay = frameDuration - (after - now);
+        if (delay > 0) {
+            struct timespec spec;
+            spec.tv_sec = (after + delay) / 1000000000;
+            spec.tv_nsec = (after + delay) % 1000000000;
+            int err;
+            do {
+                err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, nullptr);
+            } while (err == EINTR);
+        }
+    }
+
+    mbaReleaseScene(&scene);
+    ALOGD("%sAnimationShownTiming End time: %" PRId64 "ms", mShuttingDown ? "Shutdown" : "Boot",
+            elapsedRealtime());
     return false;
 }
 
