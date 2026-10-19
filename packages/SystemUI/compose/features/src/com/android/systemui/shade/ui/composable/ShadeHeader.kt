@@ -144,6 +144,8 @@ object ShadeHeader {
         val PrivacyChip = ElementKey("PrivacyChip", contentPicker = LowestZIndexContentPicker)
         val Clock = ElementKey("ShadeHeaderClock", contentPicker = LowestZIndexContentPicker)
         val ShadeCarrierGroup = ElementKey("ShadeCarrierGroup")
+        val MikuQsHeaderArt =
+            ElementKey("MikuQsHeaderArt", contentPicker = LowestZIndexContentPicker)
     }
 
     enum class LayoutId {
@@ -990,8 +992,14 @@ private fun shouldUseExpandedFormat(state: SceneTransitionLayoutState): Boolean 
 
 /** Decorative Miku art behind QQS/QS, ported from the old QuickStatusBarHeader ImageView. */
 @Composable
-fun MikuQsHeaderArt(viewModel: ShadeHeaderViewModel, modifier: Modifier = Modifier) {
-    MikuQsHeaderArt(viewModel.qsHeaderArt, modifier)
+fun ContentScope.MikuQsHeaderArt(
+    viewModel: ShadeHeaderViewModel,
+    modifier: Modifier = Modifier,
+) {
+    MikuQsHeaderArt(
+        viewModel.qsHeaderArt,
+        modifier.element(ShadeHeader.Elements.MikuQsHeaderArt),
+    )
 }
 
 @Composable
